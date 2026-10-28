@@ -183,7 +183,7 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
   })
 
   describe('Invariantes de BD y restricciones (DB-04, MOD-09, RLS)', () => {
-    test('Semilla al habilitar módulo: sp_toggle_tenant_modulo denegado para admin desde 00117', async () => {
+    test('Semilla al habilitar módulo: sp_toggle_tenant_modulo denegado para admin desde 00117 y trigger siembra regla local 0%', async () => {
       // Intentar llamar sp_toggle_tenant_modulo como admin falla por revoke (00117)
       const { data: m } = await serviceRole
         .from('modulo')
@@ -198,12 +198,63 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
       expect(errToggle).not.toBeNull()
       expect(errToggle?.message).toMatch(/permission denied/i)
 
-      // Operador habilita módulo revendedoras para tenant B
+      // Operador habilita módulo revendedoras para tenant B vía upsert service-role
       await serviceRole.from('tenant_modulo').upsert({
         id_tenant: tenantB,
         id_modulo: m!.id_modulo,
         habilitado: true,
       })
+
+      // Verificar que el trigger sembró la regla local activa con escala 0%
+      const { data: reglaLocal, error: reglaErr } = await serviceRole
+        .from('regla_comision')
+        .select('*, escala_comision(*)')
+        .eq('id_tenant', tenantB)
+        .eq('ambito', 'local')
+        .is('id_revendedora', null)
+        .single()
+
+      expect(reglaErr).toBeNull()
+      expect(reglaLocal).toBeDefined()
+      expect(reglaLocal.activo).toBe(true)
+      expect(reglaLocal.escala_comision).toHaveLength(1)
+      expect(Number(reglaLocal.escala_comision[0].porcentaje)).toBe(0)
+
+      // Verificar que sp_toggle_tenant_modulo_admin también siembra la regla en nuevo tenant
+      const tC = await createTenantWithUser('ComisTenantC')
+      const emailSA = `sa_comis_${Date.now()}@utopia.test`
+      const { data: saUser } = await serviceRole.auth.admin.createUser({
+        email: emailSA,
+        password: 'Password123!',
+        email_confirm: true,
+      })
+      await serviceRole.from('superadmin').insert({ id_auth_user: saUser!.user!.id })
+
+      const { error: errToggleAdmin } = await serviceRole.rpc('sp_toggle_tenant_modulo_admin', {
+        p_id_tenant: tC.tenantId,
+        p_paquete: 'revendedoras',
+        p_habilitado: true,
+        p_actor: saUser!.user!.id,
+      })
+      expect(errToggleAdmin).toBeNull()
+
+      const { data: reglaLocalAdmin, error: reglaAdminErr } = await serviceRole
+        .from('regla_comision')
+        .select('*, escala_comision(*)')
+        .eq('id_tenant', tC.tenantId)
+        .eq('ambito', 'local')
+        .is('id_revendedora', null)
+        .single()
+
+      expect(reglaAdminErr).toBeNull()
+      expect(reglaLocalAdmin).toBeDefined()
+      expect(reglaLocalAdmin.activo).toBe(true)
+      expect(reglaLocalAdmin.escala_comision).toHaveLength(1)
+      expect(Number(reglaLocalAdmin.escala_comision[0].porcentaje)).toBe(0)
+
+      // Cleanup
+      await serviceRole.rpc('sp_borrar_tenant', { p_id: tC.tenantId })
+      await serviceRole.auth.admin.deleteUser(saUser!.user!.id)
     })
 
     test('Exclusión de vigencias solapadas (EXCLUDE): no permite solapar vigencias activas para el mismo ámbito y revendedora', async () => {

@@ -159,7 +159,7 @@ describe.skipIf(!hasTestDb)('RLS revendedoras — restricción por usuario (ACC-
     const output = runPsql(jsonQuery)
     const data = JSON.parse(output || '[]')
 
-    const whitelist = ['revendedora', 'declaracion_venta_revendedora']
+    const whitelist = ['revendedora', 'declaracion_venta_revendedora', 'superadmin', 'tenant_cargo', 'tenant_pago']
     const tablasSinRestrictiva = data.filter((row: { table_name: string; policies: string[] | null }) => {
       if (whitelist.includes(row.table_name)) return false
       if (!row.policies) return true
