@@ -9,8 +9,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/Toast'
 import {
   ESTADO_CONSIGNACION_LABEL,
+  ESTADO_CONSIGNACION_VARIANT,
   type ConsignacionConResumen,
-  type EstadoConsignacion,
 } from '@/lib/types/consignaciones'
 import {
   cerrarConsignacionAction,
@@ -19,11 +19,6 @@ import {
 } from './actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
-
-const VARIANT: Record<EstadoConsignacion, 'success' | 'neutral'> = {
-  activa: 'success',
-  cerrada: 'neutral',
-}
 
 /**
  * Tabla del listado de devoluciones con las acciones del lote en la fila.
@@ -124,7 +119,7 @@ export function ConsignacionesTableClient({
                     )}
                   </Td>
                   <Td>
-                    <Badge variant={VARIANT[r.estado]}>{ESTADO_CONSIGNACION_LABEL[r.estado]}</Badge>
+                    <Badge variant={ESTADO_CONSIGNACION_VARIANT[r.estado]}>{ESTADO_CONSIGNACION_LABEL[r.estado]}</Badge>
                   </Td>
                   <Td>
                     <div className="flex flex-wrap items-center justify-end gap-1">

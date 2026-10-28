@@ -6,28 +6,8 @@ import { verifySession } from '@/lib/dal/session'
 import { resolverCodigo } from '@/lib/dal/inventario/codigo'
 import { listItemsByProducto } from '@/lib/dal/inventario/item'
 import { parsearSku } from '@/lib/inventario/codigo'
-import type { EstadoItem } from '@/lib/types/inventario'
+import { ESTADO_ITEM_LABEL, ESTADO_ITEM_VARIANT } from '@/lib/types/inventario'
 import { Card } from '@/components/ui/Card'
-
-const ESTADO_LABEL: Record<EstadoItem, string> = {
-  disponible: 'Disponible',
-  reservado: 'Reservado',
-  vendido: 'Vendido',
-  devuelto: 'Devuelto',
-  devuelto_cliente: 'Devuelto por cliente',
-  baja: 'Dado de baja',
-  en_revendedora: 'En revendedora',
-}
-
-const ESTADO_VARIANT: Record<EstadoItem, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
-  disponible: 'success',
-  reservado: 'info',
-  vendido: 'info',
-  devuelto: 'neutral',
-  devuelto_cliente: 'warning',
-  baja: 'danger',
-  en_revendedora: 'warning',
-}
 
 /**
  * Resolver de búsqueda manual (fallback sin escáner). Estrategia:
@@ -130,8 +110,8 @@ export default async function BuscarCodigoPage(props: {
                     className="flex items-center justify-between border-b border-border-2 pb-2 last:border-0"
                   >
                     <div className="flex items-center gap-3">
-                      <Badge variant={ESTADO_VARIANT[it.estado_item]}>
-                        {ESTADO_LABEL[it.estado_item]}
+                      <Badge variant={ESTADO_ITEM_VARIANT[it.estado_item]}>
+                        {ESTADO_ITEM_LABEL[it.estado_item]}
                       </Badge>
                       {it.talle && (
                         <span className="font-mono text-xs text-muted">Talle {it.talle}</span>

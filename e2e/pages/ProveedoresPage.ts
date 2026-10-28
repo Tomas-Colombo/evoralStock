@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { alerta, AppShell, contenido } from './AppShell'
+import { alerta, AppShell } from './AppShell'
 
-/** `/proveedores` list + `/proveedores/nuevo` form. */
+/** `/proveedores` list + its "Nuevo proveedor" modal. */
 export class ProveedoresPage {
   readonly shell: AppShell
 
@@ -14,25 +14,31 @@ export class ProveedoresPage {
     await expect(this.shell.titulo).toHaveText('Proveedores')
   }
 
+  /** The form lives in a modal over the list, not on its own route. */
   async abrirNuevo(): Promise<void> {
-    await this.page.getByRole('link', { name: 'Nuevo proveedor' }).first().click()
-    await expect(this.shell.titulo).toHaveText('Nuevo proveedor')
+    await this.page.getByRole('button', { name: 'Nuevo proveedor' }).first().click()
+    await expect(this.modalNuevo).toBeVisible()
+  }
+
+  /** `Modal` portals to `document.body`, so fields are scoped here, not to `main`. */
+  get modalNuevo(): Locator {
+    return this.page.getByRole('dialog')
   }
 
   get nombre(): Locator {
-    return contenido(this.page).getByLabel(/^Nombre/)
+    return this.modalNuevo.getByLabel(/^Nombre/)
   }
 
   get tipo(): Locator {
-    return contenido(this.page).getByLabel(/^Tipo/)
+    return this.modalNuevo.getByLabel(/^Tipo/)
   }
 
   get diasRotacion(): Locator {
-    return contenido(this.page).getByLabel(/^Días de rotación/)
+    return this.modalNuevo.getByLabel(/^Días de rotación/)
   }
 
   get telefono(): Locator {
-    return contenido(this.page).getByLabel(/^Teléfono/)
+    return this.modalNuevo.getByLabel(/^Teléfono/)
   }
 
   get guardar(): Locator {

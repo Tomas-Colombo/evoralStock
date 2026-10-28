@@ -5,32 +5,12 @@ import { AjusteInventarioAction } from '@/components/inventario/AjusteInventario
 import { QrDisplay } from '@/components/inventario/QrDisplay'
 import { verifySession } from '@/lib/dal/session'
 import { findItemByQr, getItemConDetalle } from '@/lib/dal/inventario/item'
-import type { EstadoItem } from '@/lib/types/inventario'
+import { ESTADO_ITEM_LABEL, ESTADO_ITEM_VARIANT } from '@/lib/types/inventario'
 import { EscanearOtro } from './EscanearOtro'
 import { FichaActions } from './FichaActions'
 import { hasModuleAccess } from '@/lib/dal/guard'
 import { quienTieneItem } from '@/lib/dal/revendedoras'
 import { Card } from '@/components/ui/Card'
-
-const ESTADO_LABEL: Record<EstadoItem, string> = {
-  disponible: 'Disponible',
-  reservado: 'Reservado',
-  vendido: 'Vendido',
-  devuelto: 'Devuelto',
-  devuelto_cliente: 'Devuelto por cliente',
-  baja: 'Dado de baja',
-  en_revendedora: 'En revendedora',
-}
-
-const ESTADO_VARIANT: Record<EstadoItem, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
-  disponible: 'success',
-  reservado: 'info',
-  vendido: 'info',
-  devuelto: 'neutral',
-  devuelto_cliente: 'warning',
-  baja: 'danger',
-  en_revendedora: 'warning',
-}
 
 export default async function FichaItemPage(props: {
   params: Promise<{ qr: string }>
@@ -82,8 +62,8 @@ export default async function FichaItemPage(props: {
           <aside className="rounded-lg border border-border bg-card p-4">
             <QrDisplay value={detalle.qr_code} size={220} />
             <div className="mt-4 flex flex-col items-center gap-3">
-              <Badge variant={ESTADO_VARIANT[detalle.estado_item]}>
-                {ESTADO_LABEL[detalle.estado_item]}
+              <Badge variant={ESTADO_ITEM_VARIANT[detalle.estado_item]}>
+                {ESTADO_ITEM_LABEL[detalle.estado_item]}
               </Badge>
               {puedeImprimirEtiqueta && (
                 <Link

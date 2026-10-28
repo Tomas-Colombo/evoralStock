@@ -9,8 +9,8 @@ import { ReservaMark } from '@/components/ui/StatusMark'
 import { useToast } from '@/components/ui/Toast'
 import {
   ESTADO_RESERVA_LABEL,
+  ESTADO_RESERVA_VARIANT,
   nombreCliente,
-  type EstadoReserva,
   type ReservaRow,
 } from '@/lib/types/ventas'
 import { vencerReservasAction } from '../actions'
@@ -21,13 +21,6 @@ import { Card } from '@/components/ui/Card'
 type Row = ReservaRow & {
   cliente: { id_cliente: string; nombre: string } | null
   items_count: number
-}
-
-const VARIANT: Record<EstadoReserva, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
-  activa: 'success',
-  cancelada: 'neutral',
-  vencida: 'warning',
-  convertida_venta: 'info',
 }
 
 export function ReservasClient({ rows }: { rows: Row[] }) {
@@ -96,7 +89,7 @@ export function ReservasClient({ rows }: { rows: Row[] }) {
                         vence={new Date(r.fecha_vencimiento).toLocaleDateString('es-AR')}
                       />
                     ) : (
-                      <Badge variant={VARIANT[r.estado_reserva]}>
+                      <Badge variant={ESTADO_RESERVA_VARIANT[r.estado_reserva]}>
                         {ESTADO_RESERVA_LABEL[r.estado_reserva]}
                       </Badge>
                     )}

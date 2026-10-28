@@ -9,17 +9,35 @@ import { NumberInput } from '@/components/ui/NumberInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
 import type { CategoriaRow, ProductoRow } from '@/lib/types/inventario'
-import { updateProductoAction } from '../../actions'
+import { updateProductoAction } from '@/app/(app)/inventario/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Select } from '@/components/ui/Select'
 
+/** Campos mínimos que la UI toca para editar un producto. Toma `ProductoRow`
+ *  o cualquier subtipo (p. ej. `ProductoConDetalle` de la tabla). */
+export type ProductoEditable = Pick<
+  ProductoRow,
+  'id_producto' | 'nombre' | 'id_categoria' | 'stock_minimo' | 'descripcion' | 'activo'
+>
+
+/**
+ * Edición de producto. Un solo formulario para la ruta `/inventario/productos/[id]`
+ * (enlaces directos desde el buscador) y el modal del listado y de la ficha:
+ * antes eran dos copias casi idénticas. Sin `onSuccess` vuelve al inventario.
+ * Siembra el estado al montar, así que quien lo reutiliza con otro producto
+ * tiene que remontarlo (`key`).
+ */
 export function EditarProductoForm({
   producto,
   categorias,
+  onSuccess,
+  onCancel,
 }: {
-  producto: ProductoRow
+  producto: ProductoEditable
   categorias: CategoriaRow[]
+  onSuccess?: () => void
+  onCancel?: () => void
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -51,7 +69,8 @@ export function EditarProductoForm({
       })
       if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
       toast.success('Producto actualizado')
-      router.push('/inventario')
+      if (onSuccess) onSuccess()
+      else router.push('/inventario')
       router.refresh()
     })
   }
@@ -110,7 +129,11 @@ export function EditarProductoForm({
       </label>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} disabled={pending}>
+        <Button
+          variant="secondary"
+          onClick={() => (onCancel ? onCancel() : router.back())}
+          disabled={pending}
+        >
           Cancelar
         </Button>
         <Button type="submit" disabled={pending}>

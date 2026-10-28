@@ -43,7 +43,7 @@ const SLUGS_DE_LA_APP = [
   'item-no-puede-darse-de-baja', 'precio-no-resoluble',
   'excede-disponibles', 'falta-categoria', 'falta-producto',
   'financiacion-cuotas-invalidas', 'financiacion-sin-saldo',
-  'financiacion-sin-vencimiento', 'gasto-inexistente', 'ingreso-con-items-movidos',
+  'financiacion-sin-vencimiento', 'gasto-inexistente', 'ingreso-con-items-movidos', 'ingreso-confirmado',
   'ingreso-not-found', 'ingreso-ya-cancelado', 'item-en-otra-reserva',
   'item-en-reserva', 'item-no-esta-vendido', 'item-not-found', 'item-otro-proveedor',
   'item-ya-en-consignacion-pendiente', 'item-ya-reservado', 'linea-sin-id-item',
@@ -61,7 +61,7 @@ const SLUGS_DE_LA_APP = [
   'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora',
   // Rutas de API
   'elegir-talle', 'item-no-disponible', 'item-no-es-consignacion', 'proveedor-vacio',
-  'qr-vacio', 'sin-precio-lista', 'sku-sin-stock', 'sku-sin-stock-libre',
+  'qr-vacio', 'item-ya-marcado', 'sin-precio-lista', 'sku-sin-stock', 'sku-sin-stock-libre',
   'stock-parcial-disponible', 'stock-sin-talle',
 ] as const
 

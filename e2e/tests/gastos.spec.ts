@@ -28,7 +28,7 @@ test.describe('Gastos', () => {
     await gastos.guardar.click()
 
     await expect(gastos.error).toHaveText('Monto inválido')
-    await expect(page).toHaveURL(/\/gastos\/nuevo$/)
+    await expect(gastos.modalNuevo).toBeVisible()
   })
 
   test('rechaza un monto vacío', async ({ gastos, seed }) => {

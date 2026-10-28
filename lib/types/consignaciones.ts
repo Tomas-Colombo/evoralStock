@@ -10,6 +10,12 @@ export const ESTADO_CONSIGNACION_LABEL: Record<EstadoConsignacion, string> = {
   activa: 'Activa',
   cerrada: 'Cerrada',
 }
+// Color del Badge por estado. Vive junto a la etiqueta porque el listado y
+// el detalle tenían cada uno su copia y podían divergir.
+export const ESTADO_CONSIGNACION_VARIANT: Record<EstadoConsignacion, 'success' | 'neutral'> = {
+  activa: 'success',
+  cerrada: 'neutral',
+}
 export const ESTADO_DETALLE_LABEL: Record<EstadoConsignacionDetalle, string> = {
   pendiente: 'Pendiente',
   devuelto: 'Devuelto',

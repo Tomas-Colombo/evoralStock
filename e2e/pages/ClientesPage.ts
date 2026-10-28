@@ -56,12 +56,12 @@ export class ClientesPage {
   /**
    * Inline validation message for the NAME field, rendered by `<Field error>`.
    *
-   * Anchored to `#cn-error` on purpose: since 00058 the form also validates
+   * Anchored to `#nc-nombre-error` on purpose: since 00058 the form also validates
    * `apellido`, so a modal-wide `[role="alert"]` query matches two elements and
    * Playwright rejects it under strict mode.
    */
   get errorNombre(): Locator {
-    return this.modalNuevo.locator('#cn-error')
+    return this.modalNuevo.locator('#nc-nombre-error')
   }
 
   get buscador(): Locator {

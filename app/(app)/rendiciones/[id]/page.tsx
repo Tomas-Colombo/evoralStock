@@ -5,23 +5,12 @@ import { verifySession } from '@/lib/dal/session'
 import { getRendicionConDetalle } from '@/lib/dal/rendiciones/rendicion'
 import {
   ESTADO_RENDICION_LABEL,
-  type EstadoRendicion,
+  ESTADO_RENDICION_VARIANT,
 } from '@/lib/types/rendiciones'
 import { RendicionActions } from './RendicionActions'
 import { TableFrame, DataTable, THead, TBody, TFoot, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
-
-const VARIANT: Record<EstadoRendicion, 'success' | 'warning'> = {
-  pendiente: 'warning',
-  pagada: 'success',
-}
-
-/** Whitelist para el ?from — evita open-redirect: solo rutas internas del app. */
-function safeBackHref(from: string | undefined, fallback: string): string {
-  if (!from) return fallback
-  if (!from.startsWith('/') || from.startsWith('//')) return fallback
-  return from
-}
+import { safeBackHref } from '@/lib/utils/safeBackHref'
 
 export default async function RendicionDetallePage(props: {
   params: Promise<{ id: string }>
@@ -42,7 +31,7 @@ export default async function RendicionDetallePage(props: {
         session={session}
         backHref={safeBackHref(from, '/rendiciones')}
         actions={
-          <Badge variant={VARIANT[rendicion.estado]}>
+          <Badge variant={ESTADO_RENDICION_VARIANT[rendicion.estado]}>
             {ESTADO_RENDICION_LABEL[rendicion.estado]}
           </Badge>
         }

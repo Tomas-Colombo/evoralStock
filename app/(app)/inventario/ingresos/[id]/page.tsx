@@ -10,13 +10,7 @@ import { listQrsByIngreso } from '@/lib/dal/inventario/item'
 import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
 import { buildEtiquetasIngresoHref } from '@/lib/inventario/etiquetas'
 import { IngresoDetalleView } from './IngresoDetalleView'
-
-/** Whitelist para el ?from — evita open-redirect: solo rutas internas del app. */
-function safeBackHref(from: string | undefined, fallback: string): string {
-  if (!from) return fallback
-  if (!from.startsWith('/') || from.startsWith('//')) return fallback
-  return from
-}
+import { safeBackHref } from '@/lib/utils/safeBackHref'
 
 export default async function IngresoDetallePage(props: {
   params: Promise<{ id: string }>

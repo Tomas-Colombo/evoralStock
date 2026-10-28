@@ -1,19 +1,16 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
 import { listRoles } from '@/lib/dal/administracion/administracion'
-import { listarRevendedoras } from '@/lib/dal/revendedoras'
-import type { RevendedoraRow } from '@/lib/types/revendedoras'
+import { getRevendedorasLibres } from '../revendedorasLibres'
 import { InvitarUsuarioForm } from './InvitarUsuarioForm'
 import { Card } from '@/components/ui/Card'
 
 export default async function NuevoUsuarioPage() {
   const session = await verifySession()
-  const roles = await listRoles()
-  let revs: RevendedoraRow[] = []
-  if (session.modulosHabilitados.includes('revendedoras')) {
-    const allRevs = await listarRevendedoras(session)
-    revs = allRevs.filter(r => r.activo && !r.id_usuario)
-  }
+  const [roles, revs] = await Promise.all([
+    listRoles(),
+    getRevendedorasLibres(session),
+  ])
 
   return (
     <>

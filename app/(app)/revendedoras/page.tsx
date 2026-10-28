@@ -5,6 +5,8 @@ import { hasPermission } from '@/lib/dal/guard'
 import { obtenerPanelRevendedoras } from '@/lib/dal/revendedoras'
 import { panelRevendedorasQuerySchema } from '@/lib/validation/revendedoras'
 import { RevendedorasPanelView } from './RevendedorasPanelView'
+import { NuevaRevendedoraModalButton } from './NuevaRevendedoraModalButton'
+import { getPermisosNuevaRevendedora } from './permisos'
 
 export const metadata = {
   title: 'Revendedoras | Utopía',
@@ -52,6 +54,8 @@ export default async function RevendedorasPage(props: PageProps) {
       }
 
   const canCreate = hasPermission(session, 'revendedoras', 'crear')
+  const canEdit = hasPermission(session, 'revendedoras', 'editar')
+  const { canGrantAccess, canEditComision } = getPermisosNuevaRevendedora(session)
 
   return (
     <>
@@ -79,11 +83,9 @@ export default async function RevendedorasPage(props: PageProps) {
         actions={
           <>
             {canCreate && (
-              <BandAction
-                href="/revendedoras/nuevo"
-                tone="primary"
-                title="Nueva revendedora"
-                description="Dar de alta y asignar mercadería."
+              <NuevaRevendedoraModalButton
+                canGrantAccess={canGrantAccess}
+                canEditComision={canEditComision}
               />
             )}
             <BandAction href="/revendedoras/declaraciones" title="Declaraciones" description="Ventas declaradas por revisar" />
@@ -95,6 +97,8 @@ export default async function RevendedorasPage(props: PageProps) {
         <RevendedorasPanelView
           data={panelData.revendedoras}
           total={panelData.total}
+          canAsignar={canCreate}
+          canDevolver={canEdit}
           filtros={{
             desde: query.desde,
             hasta: query.hasta,

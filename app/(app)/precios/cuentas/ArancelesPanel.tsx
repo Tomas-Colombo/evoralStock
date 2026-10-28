@@ -16,13 +16,11 @@ import {
   type CuentaDestinoRow,
   type MedioPago,
 } from '@/lib/types/ventas'
-import type {
-  MedioPagoRecargo,
-  PlanCuotasRow,
-  RecargoCuotasRow,
-} from '@/lib/types/precios'
+import type { PlanCuotasRow, RecargoCuotasRow } from '@/lib/types/precios'
 import { resolverArancel } from '@/lib/cobros/calcular-costo'
 import { hoyISO } from '@/lib/utils/hoy'
+import { parsearDecimal } from '@/lib/utils/numero'
+import { MEDIOS_CON_COSTO } from '@/lib/cobros/medios'
 import {
   actualizarArancelCobroAction,
   actualizarCuentaDestinoAction,
@@ -30,13 +28,15 @@ import {
   cerrarVigenciaArancelAction,
   cerrarVigenciaRecargoAction,
   crearArancelCobroAction,
-  crearRecargoCuotasAction,
 } from '../actions'
+import { RecargoForm } from './RecargoForm'
+import {
+  RetencionesFields,
+  retencionesANumeros,
+  type RetencionesBorrador,
+} from './RetencionesFields'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
-
-/** Los medios que pueden tener costo. El efectivo no paga arancel. */
-const MEDIOS_CON_COSTO: MedioPago[] = ['transferencia', 'tarjeta_debito', 'tarjeta_credito']
 
 /**
  * Configuración del costo de cobro de UNA cuenta (00057): el tarifario del
@@ -82,22 +82,13 @@ export function ArancelesPanel({
 
   // ─── Recargos de ESTA cuenta ───
   const [creandoRec, setCreandoRec] = useState(false)
-  const [recCuotas, setRecCuotas] = useState<number>(planesCuotas[0]?.cuotas ?? 3)
-  const [recMedio, setRecMedio] = useState<MedioPagoRecargo>('tarjeta_credito')
-  const [recValor, setRecValor] = useState('')
-  const [errorRec, setErrorRec] = useState<string | null>(null)
   const [editandoRec, setEditandoRec] = useState<string | null>(null)
   const [recBorrador, setRecBorrador] = useState('')
 
   // Retenciones: se editan juntas y se guardan de una, porque cambiarlas de a
   // una deja la cuenta en un estado fiscal que no existe.
   const [editandoRet, setEditandoRet] = useState(false)
-  const [ret, setRet] = useState({
-    ret_iva_pct: String(cuenta.ret_iva_pct),
-    ret_ganancias_pct: String(cuenta.ret_ganancias_pct),
-    ret_iibb_pct: String(cuenta.ret_iibb_pct),
-    imp_deb_cred_pct: String(cuenta.imp_deb_cred_pct),
-  })
+  const [ret, setRet] = useState<RetencionesBorrador>(() => retencionesDe(cuenta))
 
   const propios = useMemo(
     () => aranceles.filter((a) => a.id_cuenta_destino === cuenta.id_cuenta_destino),
@@ -139,7 +130,7 @@ export function ArancelesPanel({
     cuenta.ret_iva_pct + cuenta.ret_ganancias_pct + cuenta.ret_iibb_pct + cuenta.imp_deb_cred_pct
 
   function crear() {
-    const pct = num(arancelPct)
+    const pct = parsearDecimal(arancelPct)
     if (pct === null) return setError('Cargá el arancel.')
     const n = cuotas ? Number(cuotas) : null
     setError(null)
@@ -149,8 +140,8 @@ export function ArancelesPanel({
         medio,
         cuotas: medio === 'tarjeta_credito' ? n : null,
         arancelPct: pct,
-        ivaArancelPct: num(ivaPct) ?? 21,
-        diasAcreditacion: num(dias) ?? 0,
+        ivaArancelPct: parsearDecimal(ivaPct) ?? 21,
+        diasAcreditacion: parsearDecimal(dias) ?? 0,
         notas: notas.trim() || null,
       })
       if (!res.ok) return setError(mensajeDeError(res.reason))
@@ -164,12 +155,7 @@ export function ArancelesPanel({
   }
 
   function guardarRetenciones() {
-    const patch = {
-      ret_iva_pct: num(ret.ret_iva_pct) ?? 0,
-      ret_ganancias_pct: num(ret.ret_ganancias_pct) ?? 0,
-      ret_iibb_pct: num(ret.ret_iibb_pct) ?? 0,
-      imp_deb_cred_pct: num(ret.imp_deb_cred_pct) ?? 0,
-    }
+    const patch = retencionesANumeros(ret)
     start(async () => {
       const res = await actualizarCuentaDestinoAction({ id: cuenta.id_cuenta_destino, patch })
       if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
@@ -193,9 +179,9 @@ export function ArancelesPanel({
       const res = await actualizarArancelCobroAction({
         id,
         patch: {
-          arancel_pct: num(borrador.arancelPct) ?? 0,
-          iva_arancel_pct: num(borrador.ivaPct) ?? 0,
-          dias_acreditacion: num(borrador.dias) ?? 0,
+          arancel_pct: parsearDecimal(borrador.arancelPct) ?? 0,
+          iva_arancel_pct: parsearDecimal(borrador.ivaPct) ?? 0,
+          dias_acreditacion: parsearDecimal(borrador.dias) ?? 0,
         },
       })
       if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
@@ -205,29 +191,9 @@ export function ArancelesPanel({
     })
   }
 
-  function crearRecargo() {
-    const v = num(recValor)
-    if (v === null) return setErrorRec('Cargá el recargo.')
-    setErrorRec(null)
-    start(async () => {
-      const res = await crearRecargoCuotasAction({
-        cuotas: recCuotas,
-        idCuentaDestino: cuenta.id_cuenta_destino,
-        medio: recMedio,
-        tipoValor: 'porcentaje',
-        valor: v,
-      })
-      if (!res.ok) return setErrorRec(mensajeDeError(res.reason))
-      setCreandoRec(false)
-      setRecValor('')
-      toast.success('Recargo cargado')
-      router.refresh()
-    })
-  }
-
   function guardarRecargo(id: string) {
     start(async () => {
-      const res = await actualizarRecargoCuotasAction({ id, valor: num(recBorrador) ?? 0 })
+      const res = await actualizarRecargoCuotasAction({ id, valor: parsearDecimal(recBorrador) ?? 0 })
       if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
       setEditandoRec(null)
       toast.success('Recargo actualizado')
@@ -318,7 +284,10 @@ export function ArancelesPanel({
                 >
                   <option value="">Todos los planes</option>
                   <option value="1">1 pago</option>
-                  {planesCuotas.map((p) => (
+                  {planesCuotas
+                    .filter((p) => p.activo)
+                    .sort((a, b) => a.cuotas - b.cuotas)
+                    .map((p) => (
                     <option key={p.cuotas} value={p.cuotas}>
                       {p.cuotas} cuotas
                     </option>
@@ -553,10 +522,7 @@ export function ArancelesPanel({
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => {
-              setCreandoRec((v) => !v)
-              setErrorRec(null)
-            }}
+            onClick={() => setCreandoRec((v) => !v)}
             aria-expanded={creandoRec}
             disabled={pending}
           >
@@ -565,57 +531,12 @@ export function ArancelesPanel({
         </div>
 
         {creandoRec && (
-          <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-3 md:grid-cols-3">
-            <Field htmlFor={`rc-cuotas-${cuenta.id_cuenta_destino}`} label="Plan" required>
-              <Select
-                id={`rc-cuotas-${cuenta.id_cuenta_destino}`}
-                value={recCuotas}
-                onChange={(e) => setRecCuotas(Number(e.target.value))}
-                disabled={pending}
-              >
-                {planesCuotas.map((p) => (
-                  <option key={p.cuotas} value={p.cuotas}>
-                    {p.cuotas} cuotas
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field htmlFor={`rc-medio-${cuenta.id_cuenta_destino}`} label="Medio" required>
-              <Select
-                id={`rc-medio-${cuenta.id_cuenta_destino}`}
-                value={recMedio}
-                onChange={(e) => setRecMedio(e.target.value as MedioPagoRecargo)}
-                disabled={pending}
-              >
-                <option value="tarjeta_credito">Tarjeta de crédito</option>
-                <option value="transferencia">Transferencia</option>
-              </Select>
-            </Field>
-            <Field
-              htmlFor={`rc-valor-${cuenta.id_cuenta_destino}`}
-              label="Recargo %"
-              required
-              error={errorRec ?? undefined}
-              hint="Sobre el precio ya descontado."
-            >
-              <NumberInput
-                id={`rc-valor-${cuenta.id_cuenta_destino}`}
-                value={recValor}
-                onChange={(e) => setRecValor(e.target.value)}
-                min={0}
-                max={100}
-                placeholder="12"
-                invalid={!!errorRec}
-                disabled={pending}
-                className="text-right"
-              />
-            </Field>
-            <div className="md:col-span-3">
-              <Button type="button" size="sm" onClick={crearRecargo} disabled={pending}>
-                {pending ? 'Guardando…' : 'Cargar recargo'}
-              </Button>
-            </div>
-          </div>
+          <RecargoForm
+            cuenta={cuenta}
+            planesCuotas={planesCuotas}
+            onCreated={() => setCreandoRec(false)}
+            className="border-border bg-card"
+          />
         )}
 
         {recargosPropios.length === 0 ? (
@@ -774,48 +695,19 @@ export function ArancelesPanel({
 
         {editandoRet ? (
           <div className="space-y-3 rounded-md border border-border bg-card p-3">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {(
-                [
-                  ['ret_iva_pct', 'IVA %'],
-                  ['ret_ganancias_pct', 'Ganancias %'],
-                  ['ret_iibb_pct', 'IIBB %'],
-                  ['imp_deb_cred_pct', 'Imp. déb./créd. %'],
-                ] as const
-              ).map(([campo, label]) => (
-                <Field
-                  key={campo}
-                  htmlFor={`${campo}-${cuenta.id_cuenta_destino}`}
-                  label={label}
-                >
-                  <NumberInput
-                    id={`${campo}-${cuenta.id_cuenta_destino}`}
-                    value={ret[campo]}
-                    onChange={(e) => setRet((r) => ({ ...r, [campo]: e.target.value }))}
-                    min={0}
-                    max={100}
-                    disabled={pending}
-                    className="text-right"
-                  />
-                </Field>
-              ))}
-            </div>
-            <p className="text-xs text-muted">
-              Las retenciones sólo se aplican a los medios que tengan arancel
-              cargado. Un cobro en efectivo nunca retiene.
-            </p>
+            <RetencionesFields
+              idPrefix={`ret-${cuenta.id_cuenta_destino}`}
+              values={ret}
+              onChange={(campo, valor) => setRet((r) => ({ ...r, [campo]: valor }))}
+              disabled={pending}
+            />
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  setRet({
-                    ret_iva_pct: String(cuenta.ret_iva_pct),
-                    ret_ganancias_pct: String(cuenta.ret_ganancias_pct),
-                    ret_iibb_pct: String(cuenta.ret_iibb_pct),
-                    imp_deb_cred_pct: String(cuenta.imp_deb_cred_pct),
-                  })
+                  setRet(retencionesDe(cuenta))
                   setEditandoRet(false)
                 }}
                 disabled={pending}
@@ -854,10 +746,13 @@ export function ArancelesPanel({
   )
 }
 
-/** "6,29" o "6.29" → 6.29. Vacío o no numérico → null. */
-function num(raw: string): number | null {
-  const n = Number(raw.replace(',', '.'))
-  return raw.trim() !== '' && Number.isFinite(n) ? n : null
+function retencionesDe(c: CuentaDestinoRow): RetencionesBorrador {
+  return {
+    ret_iva_pct: String(c.ret_iva_pct),
+    ret_ganancias_pct: String(c.ret_ganancias_pct),
+    ret_iibb_pct: String(c.ret_iibb_pct),
+    imp_deb_cred_pct: String(c.imp_deb_cred_pct),
+  }
 }
 
 function redondear(n: number): number {

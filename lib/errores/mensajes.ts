@@ -70,8 +70,10 @@ const MENSAJES: Record<string, string> = {
   'no-tenant': 'Tu sesión no está asociada a ningún negocio. Volvé a iniciar sesión.',
   'zona-horaria-invalida': 'La zona horaria elegida no es válida.',
   'qr-lado-mm-invalido': 'El tamaño del QR debe estar entre 15 y 100 mm.',
-  'logo-invalido': 'El logo debe ser una imagen válida o URL.',
-  'logo-muy-grande': 'La imagen del logo es demasiado grande (máximo 2 MB).',
+  'logo-invalido': 'Elegí una imagen para el logo.',
+  'logo-muy-grande': 'La imagen del logo es demasiado pesada. Probá con una más simple o de menor resolución.',
+  'logo-formato-invalido': 'El logo tiene que ser una imagen PNG, JPG, WebP o SVG.',
+  'logo-no-subido': 'No pudimos subir el logo. Probá de nuevo en unos minutos.',
 
   // ─── Datos mal formados ────────────────────────────────────────────
   // Nunca deberían verse: la UI arma estos pedidos. Si aparecen, la página
@@ -162,6 +164,7 @@ const MENSAJES: Record<string, string> = {
   'linea-sin-id-item': 'Una de las líneas quedó sin ítem. Recargá la página y probá de nuevo.',
   'linea-sin-nombre': 'Una de las líneas quedó sin nombre de producto.',
   'qr-vacio': 'Escaneá o escribí un código.',
+  'item-ya-marcado': 'Esa pieza ya está marcada.',
 
   // ─── Inventario: productos, categorías, talles ─────────────────────
   'producto-not-found': 'Ese producto ya no existe. Recargá la página.',
@@ -204,7 +207,7 @@ const MENSAJES: Record<string, string> = {
   'detalle-ya-cambiado': 'Esa línea de la venta ya fue cambiada por otro producto.',
   'linea-ya-cambiada': 'Esta prenda ya fue cambiada en otra operación y no puede devolverse.',
   'cambio-venta-con-cuotas-abiertas': 'No se puede cambiar el producto porque la venta tiene cuotas sin pagar.',
-  'item-no-en-poder-revendedora': 'El producto entregado no está en poder de esa revendedora.',
+  'item-no-en-poder-revendedora': 'Ese producto no está en poder de esa revendedora.',
   'diferencia-negativa-no-permitida': 'El nuevo producto no puede tener un precio menor al original.',
   'diferencia-requiere-medio-y-cuenta': 'Para cobrar la diferencia tenés que elegir una cuenta y un medio de pago.',
   'devolucion-venta-con-cuotas-abiertas': 'No se puede devolver el ítem porque la venta tiene cuotas sin pagar.',
@@ -362,6 +365,12 @@ const PREFIJOS: ReadonlyArray<{
     },
   },
   {
+    // El trigger de 00051 lo levanta con el detalle pegado
+    // (`ingreso-confirmado: el detalle ... es inmutable`).
+    slug: 'ingreso-confirmado',
+    mensaje: () => 'El ingreso ya fue confirmado y no se puede modificar. Recargá la página.',
+  },
+  {
     slug: 'ingreso-con-items-movidos',
     mensaje: (reason) => {
       const n = reason.match(/(\d+)/)?.[1]
@@ -410,6 +419,7 @@ const CONSTRAINTS: Record<string, string> = {
   recargo_cuotas_pct_razonable: 'Un recargo en porcentaje no puede pasar de 100.',
   recargo_cuotas_propia_sin_procesador:
     'El crédito del local no pasa por ninguna cuenta: dejá la cuenta y el medio vacíos.',
+  ingreso_detalle_costo_no_nan: 'Hay un costo unitario inválido en el remito.',
   costo_producto_vigente_uk:
     'Ya hay un costo vigente para ese producto. Cerrá el anterior primero.',
   comprobante_numero_uk: 'Ya existe un comprobante con ese número.',

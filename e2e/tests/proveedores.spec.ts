@@ -24,14 +24,14 @@ test.describe('Proveedores', () => {
     await expect(fila.getByText('Activo')).toBeVisible()
   })
 
-  test('rechaza un nombre de un solo carácter', async ({ page, proveedores }) => {
+  test('rechaza un nombre de un solo carácter', async ({ proveedores }) => {
     await proveedores.abrir()
     await proveedores.abrirNuevo()
     await proveedores.nombre.fill('X')
     await proveedores.guardar.click()
 
     await expect(proveedores.errorNombre).toHaveText('Mínimo 2 caracteres')
-    await expect(page).toHaveURL(/\/proveedores\/nuevo$/)
+    await expect(proveedores.modalNuevo).toBeVisible()
   })
 
   test('el detalle del proveedor se abre desde el listado', async ({

@@ -8,6 +8,12 @@ export const ESTADO_RENDICION_LABEL: Record<EstadoRendicion, string> = {
   pendiente: 'Pendiente de pago',
   pagada: 'Pagada',
 }
+// Color del Badge por estado. Vive junto a la etiqueta porque el listado y
+// el detalle tenían cada uno su copia y podían divergir.
+export const ESTADO_RENDICION_VARIANT: Record<EstadoRendicion, 'success' | 'warning'> = {
+  pendiente: 'warning',
+  pagada: 'success',
+}
 
 export interface RendicionProveedorRow {
   id_rendicion: string

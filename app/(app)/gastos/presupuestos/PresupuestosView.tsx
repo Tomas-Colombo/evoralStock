@@ -10,7 +10,6 @@ import { Pagination } from '@/components/ui/Pagination'
 import { useToast } from '@/components/ui/Toast'
 import {
   bajaCategoriaGastoAction,
-  createCategoriaGastoAction,
   reactivarCategoriaGastoAction,
   renameCategoriaGastoAction,
   setPresupuestoAction,
@@ -18,6 +17,7 @@ import {
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { NuevaCategoriaGastoInline } from '@/components/gastos/NuevaCategoriaGastoInline'
 
 interface Cat {
   id: string
@@ -50,9 +50,6 @@ export function PresupuestosView({ initial }: { initial: Cat[] }) {
     for (const c of initial) map[c.id] = c.nombre
     return map
   })
-
-  const [nuevoNombre, setNuevoNombre] = useState('')
-  const [errNuevo, setErrNuevo] = useState<string | null>(null)
   const [showInactivas, setShowInactivas] = useState(false)
   const [page, setPage] = useState(1)
 
@@ -65,22 +62,6 @@ export function PresupuestosView({ initial }: { initial: Cat[] }) {
   const desde = (pagina - 1) * PAGE_SIZE
   const rows = visibles.slice(desde, desde + PAGE_SIZE)
 
-  function crear(e: React.FormEvent) {
-    e.preventDefault()
-    const nombre = nuevoNombre.trim()
-    if (nombre.length < 2) {
-      setErrNuevo('Mínimo 2 caracteres')
-      return
-    }
-    setErrNuevo(null)
-    start(async () => {
-      const res = await createCategoriaGastoAction({ nombre })
-      if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
-      toast.success('Categoría creada')
-      setNuevoNombre('')
-      router.refresh()
-    })
-  }
 
   function guardarPresupuesto(id: string) {
     const raw = values[id]?.trim() ?? ''
@@ -134,26 +115,15 @@ export function PresupuestosView({ initial }: { initial: Cat[] }) {
         compara contra la suma de gastos del mes calendario en curso.
       </div>
 
-      <form
-        onSubmit={crear}
-        className="rounded-lg border border-border bg-card p-4 flex flex-wrap items-end gap-3"
-      >
-        <div className="flex-1 min-w-[200px]">
-          <Field htmlFor="cat-nueva" label="Nueva categoría" error={errNuevo ?? undefined}>
-            <Input
-              id="cat-nueva"
-              value={nuevoNombre}
-              onChange={(e) => setNuevoNombre(e.target.value)}
-              placeholder="Ej: Alquiler, Impuestos, Servicios"
-              invalid={!!errNuevo}
-              disabled={pending}
-            />
-          </Field>
-        </div>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Guardando…' : 'Agregar categoría'}
-        </Button>
-      </form>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <NuevaCategoriaGastoInline
+          defaultExpanded
+          label="Nueva categoría"
+          placeholder="Ej: Alquiler, Impuestos, Servicios"
+          submitLabel="Agregar categoría"
+          onCreated={() => router.refresh()}
+        />
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="inline-flex items-center gap-2 text-sm text-muted">

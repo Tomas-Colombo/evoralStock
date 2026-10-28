@@ -4,9 +4,6 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Field } from '@/components/ui/Field'
-import { NumberInput } from '@/components/ui/NumberInput'
-import { Select } from '@/components/ui/Select'
 import { useToast } from '@/components/ui/Toast'
 import { resolverArancel } from '@/lib/cobros/calcular-costo'
 import {
@@ -15,21 +12,13 @@ import {
   type CuentaDestinoRow,
   type MedioPago,
 } from '@/lib/types/ventas'
-import type {
-  MedioPagoRecargo,
-  PlanCuotasRow,
-  RecargoCuotasRow,
-} from '@/lib/types/precios'
-import {
-  cerrarVigenciaRecargoAction,
-  crearRecargoCuotasAction,
-} from '../actions'
+import type { PlanCuotasRow, RecargoCuotasRow } from '@/lib/types/precios'
+import { hoyISO } from '@/lib/utils/hoy'
+import { cerrarVigenciaRecargoAction } from '../actions'
+import { RecargoForm } from './RecargoForm'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
-
-/** Los medios que pueden financiar. El débito no tiene planes de cuotas. */
-const MEDIOS_FINANCIABLES: MedioPagoRecargo[] = ['tarjeta_credito', 'transferencia']
 
 /**
  * Recargo por cuotas, enfrentado al arancel que pretende cubrir.
@@ -59,18 +48,7 @@ export function RecargosPanel({
   const [pending, start] = useTransition()
 
   const [creando, setCreando] = useState(false)
-  const [cuotas, setCuotas] = useState<number>(planesCuotas[0]?.cuotas ?? 3)
-  // El financiador se elige con un solo `select`: las tres formas
-  // (comodín / medio / cuenta / propia) son excluyentes, y ofrecerlas como
-  // campos separados dejaba armar combinaciones que la tabla rechaza.
-  const [financiador, setFinanciador] = useState('*')
-  const [valor, setValor] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-
-  const planes = useMemo(
-    () => planesCuotas.filter((p) => p.activo).sort((a, b) => a.cuotas - b.cuotas),
-    [planesCuotas],
-  )
+  const hayPlanes = planesCuotas.some((p) => p.activo)
 
   /**
    * Una fila por recargo vigente, con el arancel que le corresponde al lado.
@@ -109,24 +87,13 @@ export function RecargosPanel({
     [recargos, aranceles, cuentas],
   )
 
-  function crear() {
-    setError(null)
-    const destino = parseFinanciador(financiador)
-    start(async () => {
-      const res = await crearRecargoCuotasAction({ cuotas, valor, ...destino })
-      if (!res.ok) return setError(mensajeDeError(res.reason))
-      toast.success('Recargo creado')
-      setCreando(false)
-      setValor(0)
-      router.refresh()
-    })
-  }
-
   function cerrar(id: string) {
     start(async () => {
       const res = await cerrarVigenciaRecargoAction({
         id,
-        hasta: new Date().toISOString().slice(0, 10),
+        // Fecha del negocio, no UTC: desde las 21 h de Argentina
+        // `toISOString()` ya da mañana y la baja quedaba fechada un día tarde.
+        hasta: hoyISO(),
       })
       if (!res.ok) return toast.error(mensajeDeError(res.reason))
       toast.success('Recargo dado de baja')
@@ -134,7 +101,7 @@ export function RecargosPanel({
     })
   }
 
-  if (planes.length === 0) {
+  if (!hayPlanes) {
     return (
       <Card as="section">
         <h2 className="font-display text-lg text-text">Recargo por cuotas</h2>
@@ -169,93 +136,11 @@ export function RecargosPanel({
       </div>
 
       {creando && (
-        <div className="space-y-3 rounded-md border border-line-2 bg-card-2 p-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field htmlFor="rc-cuotas" label="Plan" required>
-              <Select
-                id="rc-cuotas"
-                value={cuotas}
-                onChange={(e) => setCuotas(Number(e.target.value))}
-                disabled={pending}
-              >
-                {planes.map((p) => (
-                  <option key={p.cuotas} value={p.cuotas}>
-                    {p.cuotas} cuotas
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field
-              htmlFor="rc-fin"
-              label="Quién financia"
-              required
-              hint="Lo más específico gana: una cuenta le gana a un medio, y un medio al comodín."
-            >
-              <Select
-                id="rc-fin"
-                value={financiador}
-                onChange={(e) => setFinanciador(e.target.value)}
-                disabled={pending}
-              >
-                <option value="*">Cualquier destino (comodín)</option>
-                <option value="propia">Crédito del local</option>
-                {MEDIOS_FINANCIABLES.map((m) => (
-                  <option key={`m:${m}`} value={`m:${m}`}>
-                    Cualquier {MEDIO_PAGO_LABEL[m as MedioPago].toLowerCase()}
-                  </option>
-                ))}
-                {cuentas
-                  .filter((c) => c.activo && c.tipo !== 'efectivo')
-                  .map((c) =>
-                    MEDIOS_FINANCIABLES.map((m) => (
-                      <option
-                        key={`c:${c.id_cuenta_destino}:${m}`}
-                        value={`c:${c.id_cuenta_destino}:${m}`}
-                      >
-                        {c.nombre} · {MEDIO_PAGO_LABEL[m as MedioPago].toLowerCase()}
-                      </option>
-                    )),
-                  )}
-              </Select>
-            </Field>
-
-            <Field
-              htmlFor="rc-valor"
-              label="Recargo %"
-              required
-              hint="Sobre el precio ya descontado."
-            >
-              <NumberInput
-                id="rc-valor"
-                min={0}
-                max={100}
-                value={valor}
-                onChange={(e) => setValor(Number(e.target.value || 0))}
-                disabled={pending}
-                className="text-right"
-              />
-            </Field>
-          </div>
-
-          {financiador === 'propia' && (
-            <p className="rounded-md border border-border bg-card px-3 py-2 text-xs text-muted">
-              El crédito del local no hereda el recargo de las tarjetas. Si no
-              cargás esta fila, financiar vos sale sin recargo — que es lo
-              prudente, pero probablemente no lo que querés.
-            </p>
-          )}
-
-          {error && (
-            <p className="rounded-md border border-alerta-ink bg-alerta-bg px-3 py-2 text-xs text-alerta-ink">
-              {error}
-            </p>
-          )}
-
-          <Button type="button" size="sm" onClick={crear} disabled={pending}>
-            {pending ? 'Creando…' : 'Crear recargo'}
-          </Button>
-        </div>
+        <RecargoForm
+          cuentas={cuentas}
+          planesCuotas={planesCuotas}
+          onCreated={() => setCreando(false)}
+        />
       )}
 
       {filas.length === 0 ? (
@@ -348,21 +233,6 @@ function etiqueta(r: RecargoCuotasRow, cuentas: CuentaDestinoRow[]): string {
   }
   if (medio) return `Cualquier ${medio}`
   return 'Cualquier destino'
-}
-
-/** `'c:<uuid>:<medio>'` / `'m:<medio>'` / `'propia'` / `'*'` → input de la action. */
-function parseFinanciador(v: string): {
-  idCuentaDestino?: string | null
-  medio?: MedioPagoRecargo | null
-  propia?: boolean
-} {
-  if (v === 'propia') return { propia: true }
-  if (v.startsWith('m:')) return { medio: v.slice(2) as MedioPagoRecargo }
-  if (v.startsWith('c:')) {
-    const [, id, medio] = v.split(':')
-    return { idCuentaDestino: id, medio: medio as MedioPagoRecargo }
-  }
-  return {}
 }
 
 function pct(n: number): string {

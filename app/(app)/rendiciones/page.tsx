@@ -6,15 +6,10 @@ import { verifySession } from '@/lib/dal/session'
 import { listRendiciones } from '@/lib/dal/rendiciones/rendicion'
 import {
   ESTADO_RENDICION_LABEL,
-  type EstadoRendicion,
+  ESTADO_RENDICION_VARIANT,
 } from '@/lib/types/rendiciones'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
-
-const VARIANT: Record<EstadoRendicion, 'success' | 'warning'> = {
-  pendiente: 'warning',
-  pagada: 'success',
-}
 
 export default async function RendicionesPage() {
   const session = await verifySession()
@@ -90,7 +85,7 @@ export default async function RendicionesPage() {
                       $ {Number(r.monto_total).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                     </Td>
                     <Td>
-                      <Badge variant={VARIANT[r.estado]}>{ESTADO_RENDICION_LABEL[r.estado]}</Badge>
+                      <Badge variant={ESTADO_RENDICION_VARIANT[r.estado]}>{ESTADO_RENDICION_LABEL[r.estado]}</Badge>
                       {r.fecha_pago && (
                         <div className="text-xs text-muted mt-1">
                           {new Date(r.fecha_pago).toLocaleDateString('es-AR')}

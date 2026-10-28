@@ -27,15 +27,19 @@ import {
 import { Modal } from '@/components/ui/Modal'
 import { ArancelesPanel } from './ArancelesPanel'
 import { RecargosPanel } from './RecargosPanel'
+import {
+  RetencionesFields,
+  retencionesANumeros,
+  type RetencionesBorrador,
+} from './RetencionesFields'
+import { MEDIOS_CON_COSTO } from '@/lib/cobros/medios'
+import { parsearDecimal } from '@/lib/utils/numero'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Card } from '@/components/ui/Card'
 import { TableFrame } from '@/components/ui/TableParts'
 
 const TIPOS: TipoCuentaDestino[] = ['efectivo', 'banco', 'billetera_virtual']
-
-/** Los medios que pueden tener costo. El efectivo nunca paga arancel. */
-const MEDIOS_CON_COSTO: MedioPago[] = ['transferencia', 'tarjeta_debito', 'tarjeta_credito']
 
 /** Una fila del arancel rápido del alta. Texto, porque puede quedar vacía. */
 interface ArancelBorrador {
@@ -50,7 +54,7 @@ const ARANCEL_VACIO: ArancelBorrador = {
   diasAcreditacion: '0',
 }
 
-const RETENCIONES_VACIAS = {
+const RETENCIONES_VACIAS: RetencionesBorrador = {
   ret_iva_pct: '0',
   ret_ganancias_pct: '0',
   ret_iibb_pct: '0',
@@ -144,14 +148,14 @@ export function CuentasView({
     const filas = cobraArancel && costoAbierto
       ? mediosActivos.flatMap((m) => {
           const b = arancelesNuevos[m]
-          const pct = num(b.arancelPct)
+          const pct = parsearDecimal(b.arancelPct)
           if (pct === null) return []
           return [
             {
               medio: m,
               arancelPct: pct,
-              ivaArancelPct: num(b.ivaArancelPct) ?? 21,
-              diasAcreditacion: num(b.diasAcreditacion) ?? 0,
+              ivaArancelPct: parsearDecimal(b.ivaArancelPct) ?? 21,
+              diasAcreditacion: parsearDecimal(b.diasAcreditacion) ?? 0,
             },
           ]
         })
@@ -164,12 +168,7 @@ export function CuentasView({
         titular: titular || null,
         identificador: identificador || null,
         retenciones: cobraArancel && costoAbierto
-          ? {
-              ret_iva_pct: num(retenciones.ret_iva_pct) ?? 0,
-              ret_ganancias_pct: num(retenciones.ret_ganancias_pct) ?? 0,
-              ret_iibb_pct: num(retenciones.ret_iibb_pct) ?? 0,
-              imp_deb_cred_pct: num(retenciones.imp_deb_cred_pct) ?? 0,
-            }
+          ? retencionesANumeros(retenciones)
           : undefined,
         aranceles: filas,
       })
@@ -461,33 +460,11 @@ export function CuentasView({
 
               <div className="space-y-2 border-t border-border pt-3">
                 <span className="text-xs uppercase font-mono text-muted">Retenciones</span>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  {(
-                    [
-                      ['ret_iva_pct', 'IVA %'],
-                      ['ret_ganancias_pct', 'Ganancias %'],
-                      ['ret_iibb_pct', 'IIBB %'],
-                      ['imp_deb_cred_pct', 'Imp. déb./créd. %'],
-                    ] as const
-                  ).map(([campo, label]) => (
-                    <Field key={campo} htmlFor={`nr-${campo}`} label={label}>
-                      <NumberInput
-                        id={`nr-${campo}`}
-                        min={0}
-                        max={100}
-                        value={retenciones[campo]}
-                        onChange={(e) =>
-                          setRetenciones((r) => ({ ...r, [campo]: e.target.value }))
-                        }
-                        className="text-right"
-                      />
-                    </Field>
-                  ))}
-                </div>
-                <p className="text-xs text-muted">
-                  Sólo se aplican a los medios que tengan arancel cargado. Un
-                  cobro en efectivo nunca retiene.
-                </p>
+                <RetencionesFields
+                  idPrefix="nr"
+                  values={retenciones}
+                  onChange={(campo, valor) => setRetenciones((r) => ({ ...r, [campo]: valor }))}
+                />
               </div>
             </div>
           )}
@@ -543,10 +520,4 @@ export function CuentasView({
       </Modal>
     </div>
   )
-}
-
-/** "6,29" o "6.29" → 6.29. Vacío o no numérico → null. */
-function num(raw: string): number | null {
-  const n = Number(raw.replace(',', '.'))
-  return raw.trim() !== '' && Number.isFinite(n) ? n : null
 }

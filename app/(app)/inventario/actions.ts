@@ -54,26 +54,6 @@ import type { EstadoItem, TipoIngreso, TipoProveedor } from '@/lib/types/inventa
 
 type ActionResult<T = unknown> = { ok: true; data?: T } | { ok: false; reason: string }
 
-/**
- * Traduce violaciones de índices únicos a un mensaje de negocio. El índice es
- * la garantía real contra duplicados (el chequeo del formulario es sólo UX y
- * pierde ante un doble click o dos pestañas), pero el error crudo de Postgres
- * no se le muestra a nadie.
- */
-function mensajeDeError(e: unknown): string {
-  const msg = (e as Error).message
-  if (/producto_tenant_nombre_uk/i.test(msg)) {
-    return 'Ya existe un producto con ese nombre.'
-  }
-  if (/ingreso-confirmado/i.test(msg)) {
-    return 'El ingreso ya fue confirmado y no se puede modificar. Recargá la página.'
-  }
-  if (/ingreso_detalle_costo_no_nan/i.test(msg)) {
-    return 'Hay un costo unitario inválido en el remito.'
-  }
-  return msg
-}
-
 async function guarded(accion: string): Promise<{ tenantId: string; userId: string } | { error: string }> {
   try {
     const session = await verifySession()
@@ -306,7 +286,7 @@ export async function createProductoAction(input: {
     revalidatePath('/inventario')
     return { ok: true, data: { id, itemsCreados } }
   } catch (e) {
-    return { ok: false, reason: mensajeDeError(e) }
+    return { ok: false, reason: (e as Error).message }
   }
 }
 
@@ -433,7 +413,7 @@ export async function removeIngresoDetalleAction(input: {
     revalidatePath(`/inventario/ingresos/${input.idIngreso}`)
     return { ok: true }
   } catch (e) {
-    return { ok: false, reason: mensajeDeError(e) }
+    return { ok: false, reason: (e as Error).message }
   }
 }
 
@@ -637,7 +617,7 @@ export async function importarRemitoAction(input: {
       data: { creados: res.creados, vinculados: res.vinculados, detalles: res.detalles },
     }
   } catch (e) {
-    return { ok: false, reason: mensajeDeError(e) }
+    return { ok: false, reason: (e as Error).message }
   }
 }
 
@@ -718,6 +698,6 @@ export async function crearIngresoCompletoAction(input: {
     } catch {
       // Si la limpieza falla, priorizamos reportar el error original.
     }
-    return { ok: false, reason: mensajeDeError(e) }
+    return { ok: false, reason: (e as Error).message }
   }
 }

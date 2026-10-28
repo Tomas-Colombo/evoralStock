@@ -10,21 +10,40 @@ import { Textarea } from '@/components/ui/Textarea'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { crearRevendedoraUnificadaAction } from '../actions'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { ClaveTemporalField } from '@/components/acceso/ClaveTemporalField'
+import { CompartirAccesoModal } from '@/components/acceso/CompartirAccesoModal'
+
+export interface DatosAccesoRevendedora {
+  nombre: string
+  email: string
+  password: string
+  telefono: string | null
+}
 
 interface NuevaRevendedoraFormProps {
   canGrantAccess?: boolean
   canEditComision?: boolean
+  onSuccess?: (compartir: DatosAccesoRevendedora | null) => void
+  onCancel?: () => void
 }
 
 export function NuevaRevendedoraForm({
   canGrantAccess = false,
   canEditComision = false,
+  onSuccess,
+  onCancel,
 }: NuevaRevendedoraFormProps) {
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(false)
 
   const [crearAcceso, setCrearAcceso] = useState(false)
+  const [password, setPassword] = useState('')
+  const [compartir, setCompartir] = useState<{
+    nombre: string
+    email: string
+    telefono: string | null
+  } | null>(null)
   const [comisionPropiaCheck, setComisionPropiaCheck] = useState(false)
 
   async function action(formData: FormData) {
@@ -40,10 +59,7 @@ export function NuevaRevendedoraForm({
     }
 
     if (crearAcceso) {
-      const password = (formData.get('password_acceso') as string)?.trim()
-      if (password) {
-        payload.password_acceso = password
-      }
+      payload.password_acceso = password.trim()
     }
 
     if (comisionPropiaCheck) {
@@ -61,6 +77,32 @@ export function NuevaRevendedoraForm({
     }
 
     toast.success('Revendedora creada')
+    if (crearAcceso) {
+      // Reseteamos loading en cualquier camino de salida para evitar botones colgados en modo modal
+      setLoading(false)
+      if (onSuccess) {
+        onSuccess({
+          nombre: payload.nombre as string,
+          email: payload.email as string,
+          password: password.trim(),
+          telefono: (payload.telefono as string | null) ?? null,
+        })
+        return
+      }
+
+      setCompartir({
+        nombre: payload.nombre as string,
+        email: payload.email as string,
+        telefono: payload.telefono as string | null,
+      })
+      return
+    }
+
+    setLoading(false)
+    if (onSuccess) {
+      onSuccess(null)
+      return
+    }
     router.push('/revendedoras')
   }
 
@@ -112,19 +154,7 @@ export function NuevaRevendedoraForm({
 
           {crearAcceso && (
             <div className="pt-2">
-              <Field
-                htmlFor="nr_password"
-                label="Contraseña inicial"
-                hint="Mínimo 8 caracteres. Si no se especifica, se envía invitación."
-              >
-                <Input
-                  id="nr_password"
-                  name="password_acceso"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Opcional"
-                />
-              </Field>
+              <ClaveTemporalField id="nr_password" value={password} onChange={setPassword} />
             </div>
           )}
         </div>
@@ -164,7 +194,7 @@ export function NuevaRevendedoraForm({
         <Button
           type="button"
           variant="neutral"
-          onClick={() => router.push('/revendedoras')}
+          onClick={onCancel ?? (() => router.push('/revendedoras'))}
           disabled={loading}
         >
           Cancelar
@@ -173,6 +203,19 @@ export function NuevaRevendedoraForm({
           {loading ? 'Guardando...' : 'Guardar'}
         </Button>
       </div>
+
+      {/* En modo modal (onSuccess provisto) CompartirAccesoModal se renderiza afuera
+          como hermano del modal para no anidar diálogos ni perder el estado al desmontar. */}
+      {!onSuccess && compartir && (
+        <CompartirAccesoModal
+          open
+          onClose={() => router.push('/revendedoras')}
+          nombre={compartir.nombre}
+          email={compartir.email}
+          password={password.trim()}
+          telefonoInicial={compartir.telefono}
+        />
+      )}
     </form>
   )
 }

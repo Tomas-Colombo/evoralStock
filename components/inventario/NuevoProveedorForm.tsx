@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { NumberInput } from '@/components/ui/NumberInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
-import type { TipoProveedor } from '@/lib/types/inventario'
+import type { ProveedorRow, TipoProveedor } from '@/lib/types/inventario'
 import { createProveedorAction } from '@/app/(app)/inventario/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Select } from '@/components/ui/Select'
@@ -19,7 +19,20 @@ const TIPOS: { value: TipoProveedor; label: string }[] = [
   { value: 'consignatario', label: 'Consignatario' },
 ]
 
-export function NuevoProveedorForm() {
+/**
+ * Alta de proveedor. Un solo formulario para la ruta `/proveedores/nuevo`
+ * (enlaces directos), el modal del listado y el alta rápida desde el ingreso:
+ * antes había dos copias y cualquier campo nuevo había que agregarlo dos veces.
+ * Sin `onSuccess` vuelve al listado; con `onSuccess` devuelve la fila (parcial)
+ * para que el llamador decida, p. ej. preseleccionarla en el select del ingreso.
+ */
+export function NuevoProveedorForm({
+  onSuccess,
+  onCancel,
+}: {
+  onSuccess?: (proveedor: ProveedorRow) => void
+  onCancel?: () => void
+}) {
   const router = useRouter()
   const toast = useToast()
   const [pending, start] = useTransition()
@@ -51,9 +64,27 @@ export function NuevoProveedorForm() {
         notas: notas || null,
       })
       if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
+      if (!res.data) return toast.error('No se pudo crear')
       toast.success('Proveedor creado')
-      router.push('/proveedores')
-      router.refresh()
+      if (!onSuccess) {
+        router.push('/proveedores')
+        router.refresh()
+        return
+      }
+      onSuccess({
+        id_proveedor: res.data.id,
+        id_tenant: '',
+        nombre: nombre.trim(),
+        tipo,
+        telefono: telefono || null,
+        email: email || null,
+        cuit: cuit || null,
+        dias_rotacion: dias ? Number(dias) : null,
+        notas: notas || null,
+        activo: true,
+        created_at: '',
+        updated_at: '',
+      })
     })
   }
 
@@ -130,7 +161,11 @@ export function NuevoProveedorForm() {
       </Field>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} disabled={pending}>
+        <Button
+          variant="secondary"
+          onClick={() => (onCancel ? onCancel() : router.back())}
+          disabled={pending}
+        >
           Cancelar
         </Button>
         <Button type="submit" disabled={pending}>

@@ -9,7 +9,8 @@ import {
   listProductosParaBuscador,
   PRODUCTOS_PAGE_SIZE,
 } from '@/lib/dal/inventario/producto'
-import { countProveedoresActivos } from '@/lib/dal/inventario/proveedor'
+import { countProveedoresActivos, listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
+import { NuevoProductoModalButton } from './NuevoProductoModalButton'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import {
   listAlertaReposicion,
@@ -43,6 +44,7 @@ export default async function InventarioHome(props: {
     alertasRepo,
     alertasRot,
     tenenciaList,
+    proveedores,
   ] = await Promise.all([
     listProductosConDetallePaginado({
       search: searchParams.q,
@@ -57,6 +59,7 @@ export default async function InventarioHome(props: {
     listAlertaReposicion(),
     listAlertaRotacionVencida(),
     tieneModuloRevendedoras ? obtenerStockPorTenencia() : Promise.resolve([] as StockPorTenenciaRow[]),
+    listProveedoresActivos(),
   ])
 
   let tenenciaStockMap: Record<string, StockPorTenenciaRow> | null = null
@@ -84,9 +87,11 @@ export default async function InventarioHome(props: {
             <Link href="/inventario/categorias">
               <Button size="sm" variant="secondary">Categorías</Button>
             </Link>
-            <Link href="/inventario/productos/nuevo">
-              <Button size="sm" variant="secondary">Nuevo producto</Button>
-            </Link>
+            <NuevoProductoModalButton
+              categorias={categorias}
+              productos={catalogoBuscador}
+              proveedores={proveedores}
+            />
           </div>
         }
         actions={

@@ -5,15 +5,9 @@ import { Button } from '@/components/ui/Button'
 import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { getProducto } from '@/lib/dal/inventario/producto'
-import { EditarProductoForm } from './EditarProductoForm'
+import { EditarProductoForm } from '@/components/inventario/EditarProductoForm'
 import { Card } from '@/components/ui/Card'
-
-/** Whitelist para el ?from — evita open-redirect: solo rutas internas del app. */
-function safeBackHref(from: string | undefined, fallback: string): string {
-  if (!from) return fallback
-  if (!from.startsWith('/') || from.startsWith('//')) return fallback
-  return from
-}
+import { safeBackHref } from '@/lib/utils/safeBackHref'
 
 export default async function EditarProductoPage(props: {
   params: Promise<{ id: string }>

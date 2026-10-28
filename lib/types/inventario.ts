@@ -20,6 +20,28 @@ export type EstadoItem =
   | 'baja'
   | 'en_revendedora'
 
+// Etiqueta y color del Badge por estado del ítem físico. Antes el buscador y
+// la ficha tenían cada uno su copia.
+export const ESTADO_ITEM_LABEL: Record<EstadoItem, string> = {
+  disponible: 'Disponible',
+  reservado: 'Reservado',
+  vendido: 'Vendido',
+  devuelto: 'Devuelto',
+  devuelto_cliente: 'Devuelto por cliente',
+  baja: 'Dado de baja',
+  en_revendedora: 'En revendedora',
+}
+
+export const ESTADO_ITEM_VARIANT: Record<EstadoItem, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
+  disponible: 'success',
+  reservado: 'info',
+  vendido: 'info',
+  devuelto: 'neutral',
+  devuelto_cliente: 'warning',
+  baja: 'danger',
+  en_revendedora: 'warning',
+}
+
 export type TipoIngreso = 'compra' | 'consignacion'
 
 export type TipoProveedor = 'mayorista' | 'particular' | 'consignatario'

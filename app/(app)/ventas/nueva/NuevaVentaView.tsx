@@ -48,7 +48,8 @@ import {
   type PagoBorrador,
 } from './CobranzaPanel'
 import { generarPlanCuotas } from '@/lib/cuotas/generar-plan'
-import { registrarVentaAction, crearClienteAction } from '../actions'
+import { registrarVentaAction } from '../actions'
+import { ClienteQuickCreate, type ClienteCreado } from '@/components/ventas/ClienteQuickCreate'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import type { ReglaComisionConEscalas } from '@/lib/types/comisiones'
 import { estimarComision, resolverComision } from '@/lib/comisiones/resolver-comision'
@@ -209,11 +210,6 @@ export function NuevaVentaView({
 
   // Alta rápida de cliente en línea
   const [creandoCliente, setCreandoCliente] = useState(false)
-  const [guardandoCliente, startCliente] = useTransition()
-  const [nuevoNombre, setNuevoNombre] = useState('')
-  const [nuevoApellido, setNuevoApellido] = useState('')
-  const [nuevoTelefono, setNuevoTelefono] = useState('')
-  const [errorCliente, setErrorCliente] = useState<string | null>(null)
   // La venta se ata a UNA reserva. Vacío = venta suelta, y en ese caso el
   // campo ni se muestra: aparece recién cuando se carga un ítem reservado.
   const [idReserva, setIdReserva] = useState<string>(precargaReserva?.idReserva ?? '')
@@ -1068,39 +1064,11 @@ export function NuevaVentaView({
     })
   }
 
-  function crearCliente() {
-    const nombre = nuevoNombre.trim()
-    const apellido = nuevoApellido.trim()
-    if (nombre.length < 2) return setErrorCliente('Nombre muy corto')
-    // Obligatorio igual que en el alta completa: la cartera se ordena y se
-    // busca por apellido, y con cuotas financiadas es como se rastrea la deuda.
-    if (apellido.length < 2) return setErrorCliente('Falta el apellido')
-    setErrorCliente(null)
-    startCliente(async () => {
-      const res = await crearClienteAction({
-        apellido,
-        nombre,
-        telefono: nuevoTelefono.trim() || null,
-      })
-      if (!res.ok) return setErrorCliente(mensajeDeError(res.reason))
-      // Mismo armado que la columna generada `nombre_completo` (00058):
-      // nombre y después apellido. Si divergen, el cliente recién creado se
-      // vería distinto que al recargar la página.
-      const completo = `${nombre} ${apellido}`
-      const nuevo: ClienteOption = {
-        id: res.data!.id,
-        nombre: completo,
-        telefono: nuevoTelefono.trim() || null,
-      }
-      setClientes((xs) => [...xs, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)))
-      setIdCliente(nuevo.id)
-      setCliInput(nuevo.nombre)
-      setNuevoNombre('')
-      setNuevoApellido('')
-      setNuevoTelefono('')
-      setCreandoCliente(false)
-      toast.success('Cliente creado', completo)
-    })
+  function clienteCreado(nuevo: ClienteCreado) {
+    setClientes((xs) => [...xs, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+    setIdCliente(nuevo.id)
+    setCliInput(nuevo.nombre)
+    setCreandoCliente(false)
   }
 
   /**
@@ -1883,10 +1851,7 @@ export function NuevaVentaView({
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => {
-                      setCreandoCliente((v) => !v)
-                      setErrorCliente(null)
-                    }}
+                    onClick={() => setCreandoCliente((v) => !v)}
                     aria-expanded={creandoCliente}
                     disabled={pending}
                   >
@@ -1896,69 +1861,7 @@ export function NuevaVentaView({
               </Field>
 
               {creandoCliente && (
-                <div className="mt-3 space-y-3 rounded-md border border-border bg-card-2 p-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field
-                      htmlFor="v-nc-nombre"
-                      label="Nombre"
-                      required
-                      error={errorCliente ?? undefined}
-                    >
-                      <Input
-                        id="v-nc-nombre"
-                        autoFocus
-                        value={nuevoNombre}
-                        onChange={(e) => setNuevoNombre(e.target.value)}
-                        invalid={!!errorCliente}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            crearCliente()
-                          }
-                        }}
-                      />
-                    </Field>
-                    <Field htmlFor="v-nc-apellido" label="Apellido" required>
-                      <Input
-                        id="v-nc-apellido"
-                        value={nuevoApellido}
-                        onChange={(e) => setNuevoApellido(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            crearCliente()
-                          }
-                        }}
-                      />
-                    </Field>
-                  </div>
-                  <Field htmlFor="v-nc-tel" label="Teléfono" hint="Se usa para link WhatsApp">
-                    <Input
-                      id="v-nc-tel"
-                      value={nuevoTelefono}
-                      onChange={(e) => setNuevoTelefono(e.target.value)}
-                      placeholder="+54 9 11 ..."
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          crearCliente()
-                        }
-                      }}
-                    />
-                  </Field>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={crearCliente}
-                    disabled={
-                      guardandoCliente ||
-                      nuevoNombre.trim().length < 2 ||
-                      nuevoApellido.trim().length < 2
-                    }
-                  >
-                    {guardandoCliente ? 'Creando…' : 'Crear y seleccionar'}
-                  </Button>
-                </div>
+                <ClienteQuickCreate className="mt-3" onCreated={clienteCreado} />
               )}
               </div>
             </div>

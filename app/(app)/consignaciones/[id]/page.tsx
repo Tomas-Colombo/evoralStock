@@ -9,21 +9,10 @@ import {
 } from '@/lib/dal/consignaciones/consignacion'
 import {
   ESTADO_CONSIGNACION_LABEL,
-  type EstadoConsignacion,
+  ESTADO_CONSIGNACION_VARIANT,
 } from '@/lib/types/consignaciones'
 import { ConsignacionDetalleView } from './ConsignacionDetalleView'
-
-const VARIANT: Record<EstadoConsignacion, 'success' | 'neutral'> = {
-  activa: 'success',
-  cerrada: 'neutral',
-}
-
-/** Whitelist para el ?from — evita open-redirect: solo rutas internas del app. */
-function safeBackHref(from: string | undefined, fallback: string): string {
-  if (!from) return fallback
-  if (!from.startsWith('/') || from.startsWith('//')) return fallback
-  return from
-}
+import { safeBackHref } from '@/lib/utils/safeBackHref'
 
 export default async function ConsignacionDetallePage(props: {
   params: Promise<{ id: string }>
@@ -49,7 +38,7 @@ export default async function ConsignacionDetallePage(props: {
         session={session}
         backHref={safeBackHref(from, '/consignaciones')}
         actions={
-          <Badge variant={VARIANT[cons.estado]}>{ESTADO_CONSIGNACION_LABEL[cons.estado]}</Badge>
+          <Badge variant={ESTADO_CONSIGNACION_VARIANT[cons.estado]}>{ESTADO_CONSIGNACION_LABEL[cons.estado]}</Badge>
         }
       />
       <main className="flex-1 p-4 sm:p-6">

@@ -6,13 +6,7 @@ import { getProducto, listProductosConDetalle } from '@/lib/dal/inventario/produ
 import { getUltimoContextoIngresoProducto } from '@/lib/dal/inventario/item'
 import type { TipoIngreso } from '@/lib/types/inventario'
 import { NuevoIngresoView } from './NuevoIngresoView'
-
-/** Whitelist para el ?from — evita open-redirect: solo rutas internas del app. */
-function safeBackHref(from: string | undefined, fallback: string): string {
-  if (!from) return fallback
-  if (!from.startsWith('/') || from.startsWith('//')) return fallback
-  return from
-}
+import { safeBackHref } from '@/lib/utils/safeBackHref'
 
 export default async function NuevoIngresoPage(props: {
   searchParams: Promise<{ producto?: string; from?: string }>

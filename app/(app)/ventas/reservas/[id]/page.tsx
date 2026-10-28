@@ -7,19 +7,12 @@ import { verifySession } from '@/lib/dal/session'
 import { getReservaConDetalle } from '@/lib/dal/reservas/reserva'
 import {
   ESTADO_RESERVA_LABEL,
+  ESTADO_RESERVA_VARIANT,
   nombreCliente,
-  type EstadoReserva,
 } from '@/lib/types/ventas'
 import { ReservaDetalleActions } from './ReservaDetalleActions'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
-
-const VARIANT: Record<EstadoReserva, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
-  activa: 'success',
-  cancelada: 'neutral',
-  vencida: 'warning',
-  convertida_venta: 'info',
-}
 
 export default async function ReservaDetallePage(props: {
   params: Promise<{ id: string }>
@@ -36,7 +29,7 @@ export default async function ReservaDetallePage(props: {
         session={session}
         backHref="/ventas/reservas"
         actions={
-          <Badge variant={VARIANT[reserva.estado_reserva]}>
+          <Badge variant={ESTADO_RESERVA_VARIANT[reserva.estado_reserva]}>
             {ESTADO_RESERVA_LABEL[reserva.estado_reserva]}
           </Badge>
         }
@@ -91,7 +84,7 @@ export default async function ReservaDetallePage(props: {
                   </Td>
                   <Td className="capitalize text-xs">{l.item?.estado_item ?? '—'}</Td>
                   <Td>
-                    <Badge variant={VARIANT[l.estado]}>{ESTADO_RESERVA_LABEL[l.estado]}</Badge>
+                    <Badge variant={ESTADO_RESERVA_VARIANT[l.estado]}>{ESTADO_RESERVA_LABEL[l.estado]}</Badge>
                   </Td>
                 </Tr>
               ))}

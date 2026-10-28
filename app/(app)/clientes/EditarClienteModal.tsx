@@ -3,14 +3,17 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
 import type { ClienteRow } from '@/lib/types/ventas'
 import { updateClienteAction } from '../ventas/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
+import {
+  ClienteFields,
+  validarCliente,
+  type ClienteErrores,
+  type ClienteValores,
+} from '@/components/clientes/ClienteFields'
 
 /**
  * Edición de cliente en modal. Se usa desde el listado y desde la ficha: es
@@ -54,22 +57,22 @@ function FormularioEditar({
   const toast = useToast()
   const [pending, start] = useTransition()
 
-  const [nombre, setNombre] = useState(cliente.nombre)
-  const [apellido, setApellido] = useState(cliente.apellido ?? '')
-  const [telefono, setTelefono] = useState(cliente.telefono ?? '')
-  const [email, setEmail] = useState(cliente.email ?? '')
-  const [notas, setNotas] = useState(cliente.notas ?? '')
-  const [errNombre, setErrNombre] = useState<string | null>(null)
-  const [errApellido, setErrApellido] = useState<string | null>(null)
+  const [valores, setValores] = useState<ClienteValores>({
+    apellido: cliente.apellido ?? '',
+    nombre: cliente.nombre,
+    telefono: cliente.telefono ?? '',
+    email: cliente.email ?? '',
+    notas: cliente.notas ?? '',
+  })
+  const [errores, setErrores] = useState<ClienteErrores>({ apellido: null, nombre: null })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const n = nombre.trim().length >= 2 ? null : 'Nombre muy corto'
-    const a = apellido.trim().length >= 2 ? null : 'Apellido muy corto'
-    setErrNombre(n)
-    setErrApellido(a)
-    if (n || a) return
+    const errs = validarCliente(valores)
+    setErrores(errs)
+    if (errs.nombre || errs.apellido) return
 
+    const { nombre, apellido, telefono, email, notas } = valores
     start(async () => {
       const res = await updateClienteAction({
         id: cliente.id_cliente,
@@ -102,53 +105,12 @@ function FormularioEditar({
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field htmlFor="ec-apellido" label="Apellido" required error={errApellido ?? undefined}>
-          <Input
-            id="ec-apellido"
-            value={apellido}
-            onChange={(e) => setApellido(e.target.value)}
-            autoFocus
-            invalid={!!errApellido}
-          />
-        </Field>
-        <Field htmlFor="ec-nombre" label="Nombre" required error={errNombre ?? undefined}>
-          <Input
-            id="ec-nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            invalid={!!errNombre}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field htmlFor="ec-tel" label="Teléfono" hint="Se usa para link WhatsApp">
-          <Input
-            id="ec-tel"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="+54 9 11 ..."
-          />
-        </Field>
-        <Field htmlFor="ec-email" label="Email">
-          <Input
-            id="ec-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-      </div>
-
-      <Field htmlFor="ec-notas" label="Notas">
-        <Textarea
-          id="ec-notas"
-          rows={3}
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-        />
-      </Field>
+      <ClienteFields
+        idPrefix="ec"
+        values={valores}
+        errors={errores}
+        onChange={(patch) => setValores((v) => ({ ...v, ...patch }))}
+      />
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>

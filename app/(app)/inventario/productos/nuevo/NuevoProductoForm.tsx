@@ -14,7 +14,7 @@ import {
   StockTalleLoader,
   type LineaTalle,
 } from '@/components/inventario/StockTalleLoader'
-import type { CategoriaRow, ProductoConDetalle, ProveedorRow } from '@/lib/types/inventario'
+import type { CategoriaRow, ProveedorRow } from '@/lib/types/inventario'
 import { buscarMatchNombre, indexarPorNombre } from '@/lib/inventario/producto-match'
 import { createProductoAction } from '../../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
@@ -24,10 +24,14 @@ export function NuevoProductoForm({
   categorias,
   productos,
   proveedores,
+  onSuccess,
+  onCancel,
 }: {
   categorias: CategoriaRow[]
-  productos: ProductoConDetalle[]
+  productos: Array<{ nombre: string }>
   proveedores: ProveedorRow[]
+  onSuccess?: () => void
+  onCancel?: () => void
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -94,7 +98,11 @@ export function NuevoProductoForm({
       if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
       const items = res.data?.itemsCreados ?? 0
       toast.success('Producto creado', items > 0 ? `${items} ítem(s) de stock generados` : undefined)
-      router.push('/inventario')
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/inventario')
+      }
       router.refresh()
     })
   }
@@ -241,7 +249,7 @@ export function NuevoProductoForm({
       </Field>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} disabled={pending}>
+        <Button variant="secondary" onClick={onCancel ?? (() => router.back())} disabled={pending}>
           Cancelar
         </Button>
         <Button type="submit" disabled={pending || !!nombreDuplicado || excesoStock}>

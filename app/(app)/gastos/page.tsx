@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { BandAction } from '@/components/shell/BandAction'
+import { NuevoGastoModalButton } from './NuevoGastoModalButton'
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
 import {
@@ -62,7 +63,9 @@ export default async function GastosPage({
         ]}
         actions={
           <>
-            <BandAction href="/gastos/nuevo" tone="primary" title="Nuevo gasto" description="Registrar un gasto del local." />
+            <NuevoGastoModalButton
+              categorias={categorias.map((c) => ({ id: c.id_categoria_gasto, nombre: c.nombre }))}
+            />
             <BandAction href="/gastos/presupuestos" title="Presupuestos" description="Límites por categoría" />
           </>
         }

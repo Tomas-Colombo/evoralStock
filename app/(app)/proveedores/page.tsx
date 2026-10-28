@@ -1,11 +1,10 @@
-import Link from 'next/link'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { verifySession } from '@/lib/dal/session'
 import { listProveedores } from '@/lib/dal/inventario/proveedor'
 import { waMeLink } from '@/lib/utils/waMeLink'
 import { ProveedoresTableClient } from './ProveedoresTableClient'
+import { NuevoProveedorModalButton } from './NuevoProveedorModalButton'
 import { Card } from '@/components/ui/Card'
 
 export default async function ProveedoresPage() {
@@ -18,11 +17,7 @@ export default async function ProveedoresPage() {
       <Topbar
         title="Proveedores"
         session={session}
-        actions={
-          <Link href="/proveedores/nuevo">
-            <Button size="sm">Nuevo proveedor</Button>
-          </Link>
-        }
+        actions={<NuevoProveedorModalButton />}
       />
       <main className="flex-1 p-4 sm:p-6">
         {rows.length === 0 ? (
@@ -44,12 +39,7 @@ function EmptyStateWrapper() {
       <p className="text-sm text-muted mb-4">
         Agregá el primer proveedor para poder registrar ingresos.
       </p>
-      <Link
-        href="/proveedores/nuevo"
-        className="inline-flex items-center rounded-md bg-block px-4 py-2 text-sm font-semibold text-block-ink"
-      >
-        Nuevo proveedor
-      </Link>
+      <NuevoProveedorModalButton />
     </Card>
   )
 }

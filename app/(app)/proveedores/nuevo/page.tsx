@@ -1,6 +1,6 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
-import { NuevoProveedorForm } from './NuevoProveedorForm'
+import { NuevoProveedorForm } from '@/components/inventario/NuevoProveedorForm'
 import { Card } from '@/components/ui/Card'
 
 export default async function NuevoProveedorPage() {

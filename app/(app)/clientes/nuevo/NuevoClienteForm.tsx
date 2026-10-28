@@ -3,12 +3,16 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
 import { crearClienteAction } from '../../ventas/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
+import {
+  CLIENTE_VACIO,
+  ClienteFields,
+  validarCliente,
+  type ClienteErrores,
+  type ClienteValores,
+} from '@/components/clientes/ClienteFields'
 
 /**
  * Alta de cliente. Se usa desde el modal del listado y desde la ruta
@@ -20,22 +24,16 @@ export function NuevoClienteForm({ onSuccess }: { onSuccess?: () => void }) {
   const toast = useToast()
   const [pending, start] = useTransition()
 
-  const [nombre, setNombre] = useState('')
-  const [apellido, setApellido] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [email, setEmail] = useState('')
-  const [notas, setNotas] = useState('')
-  const [errNombre, setErrNombre] = useState<string | null>(null)
-  const [errApellido, setErrApellido] = useState<string | null>(null)
+  const [valores, setValores] = useState<ClienteValores>(CLIENTE_VACIO)
+  const [errores, setErrores] = useState<ClienteErrores>({ apellido: null, nombre: null })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const n = nombre.trim().length >= 2 ? null : 'Nombre muy corto'
-    const a = apellido.trim().length >= 2 ? null : 'Apellido muy corto'
-    setErrNombre(n)
-    setErrApellido(a)
-    if (n || a) return
+    const errs = validarCliente(valores)
+    setErrores(errs)
+    if (errs.nombre || errs.apellido) return
 
+    const { nombre, apellido, telefono, email, notas } = valores
     start(async () => {
       const res = await crearClienteAction({
         nombre,
@@ -54,43 +52,12 @@ export function NuevoClienteForm({ onSuccess }: { onSuccess?: () => void }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* Apellido primero: es por donde se busca y por donde se ordena la
-          cartera. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field htmlFor="ca" label="Apellido" required error={errApellido ?? undefined}>
-          <Input
-            id="ca"
-            value={apellido}
-            onChange={(e) => setApellido(e.target.value)}
-            autoFocus
-            invalid={!!errApellido}
-          />
-        </Field>
-        <Field htmlFor="cn" label="Nombre" required error={errNombre ?? undefined}>
-          <Input
-            id="cn"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            invalid={!!errNombre}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field htmlFor="ct" label="Teléfono" hint="Se usa para link WhatsApp">
-          <Input
-            id="ct"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="+54 9 11 ..."
-          />
-        </Field>
-        <Field htmlFor="ce" label="Email">
-          <Input id="ce" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-      </div>
-      <Field htmlFor="cno" label="Notas">
-        <Textarea id="cno" rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} />
-      </Field>
+      <ClienteFields
+        idPrefix="nc"
+        values={valores}
+        errors={errores}
+        onChange={(patch) => setValores((v) => ({ ...v, ...patch }))}
+      />
       <div className="flex justify-end gap-2 pt-2">
         <Button
           type="button"

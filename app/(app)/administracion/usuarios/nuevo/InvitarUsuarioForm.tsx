@@ -9,21 +9,31 @@ import { useToast } from '@/components/ui/Toast'
 import { invitarUsuarioAction } from '../../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Select } from '@/components/ui/Select'
+import { ClaveTemporalField } from '@/components/acceso/ClaveTemporalField'
+import { CompartirAccesoModal } from '@/components/acceso/CompartirAccesoModal'
 
-/** Crypto-random temp password, avoiding ambiguous chars (0/O, 1/l/I). */
-function generarPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-  const arr = new Uint32Array(14)
-  crypto.getRandomValues(arr)
-  return Array.from(arr, (n) => chars[n % chars.length]).join('')
+export interface DatosAccesoCreado {
+  nombre: string
+  email: string
+  password: string
+  telefono: string | null
 }
 
 export function InvitarUsuarioForm({
   roles,
   revendedorasLibres,
+  onSuccess,
+  onCancel,
 }: {
   roles: Array<{ id: string; nombre: string }>
-  revendedorasLibres?: Array<{ id_revendedora: string; nombre: string; apellido: string }>
+  revendedorasLibres?: Array<{
+    id_revendedora: string
+    nombre: string
+    apellido: string
+    telefono: string | null
+  }>
+  onSuccess?: (datos: DatosAccesoCreado) => void
+  onCancel?: () => void
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -35,8 +45,10 @@ export function InvitarUsuarioForm({
   const [idRevendedora, setIdRevendedora] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState<string | null>(null)
+  const [creado, setCreado] = useState(false)
 
   const isRevendedoraRole = roles.find((r) => r.id === idRol)?.nombre === 'Revendedora'
+  const revendedoraElegida = revendedorasLibres?.find((r) => r.id_revendedora === idRevendedora)
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -67,25 +79,29 @@ export function InvitarUsuarioForm({
         setErr(finalMsg)
         return toast.error('No se pudo invitar', finalMsg)
       }
-      // Sticky toast (duration 0) so the admin can copy the temp password
-      // before it disappears. The ToastProvider lives above the shell, so it
-      // survives the navigation below.
-      toast.show({
-        variant: 'success',
-        title: 'Usuario invitado',
-        description: `Contraseña temporal: ${password}`,
-        duration: 0,
-      })
-      router.push('/administracion/usuarios')
-      router.refresh()
+      if (onSuccess) {
+        onSuccess({
+          nombre,
+          email,
+          password,
+          telefono: (isRevendedoraRole ? revendedoraElegida?.telefono : null) ?? null,
+        })
+      } else {
+        setCreado(true)
+      }
     })
+  }
+
+  function cerrarCompartir() {
+    router.push('/administracion/usuarios')
+    router.refresh()
   }
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="rounded-md border border-border bg-card-2 p-3 text-xs text-muted">
         Se crea la cuenta con una contraseña temporal. Compartila con la
-        persona; puede cambiarla luego desde su configuración.
+        persona: al ingresar por primera vez se le pide cambiarla.
       </div>
 
       <Field htmlFor="ue" label="Email" required error={err ?? undefined}>
@@ -140,31 +156,32 @@ export function InvitarUsuarioForm({
         </Field>
       )}
 
-      <Field htmlFor="up" label="Contraseña temporal" required hint="Mínimo 8 caracteres">
-        <div className="flex gap-2">
-          <Input
-            id="up"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Escribila o generala"
-          />
-          <Button
-            variant="secondary"
-            onClick={() => setPassword(generarPassword())}
-          >
-            Generar
-          </Button>
-        </div>
-      </Field>
+      <ClaveTemporalField id="up" value={password} onChange={setPassword} />
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} disabled={pending}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => (onCancel ? onCancel() : router.back())}
+          disabled={pending}
+        >
           Cancelar
         </Button>
         <Button type="submit" disabled={pending}>
           {pending ? 'Invitando…' : 'Invitar usuario'}
         </Button>
       </div>
+
+      {creado && !onSuccess && (
+        <CompartirAccesoModal
+          open
+          onClose={cerrarCompartir}
+          nombre={nombre}
+          email={email}
+          password={password}
+          telefonoInicial={isRevendedoraRole ? revendedoraElegida?.telefono : null}
+        />
+      )}
     </form>
   )
 }

@@ -25,7 +25,7 @@ import { buscarMatchNombre, indexarPorNombre } from '@/lib/inventario/producto-m
 import { sugerirCategoria } from '@/lib/inventario/categoria-match'
 import { MAX_PDF_BYTES } from '@/lib/inventario/limites'
 import { crearIngresoCompletoAction, parseRemitoPdfAction } from '../../actions'
-import { NuevoProveedorModal } from './NuevoProveedorModal'
+import { NuevoProveedorModal } from '@/components/inventario/NuevoProveedorModal'
 import { NuevaCategoriaModal } from './NuevaCategoriaModal'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { IconButton } from '@/components/ui/IconButton'

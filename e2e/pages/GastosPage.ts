@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { alerta, AppShell, contenido } from './AppShell'
+import { alerta, AppShell } from './AppShell'
 
-/** `/gastos` list + `/gastos/nuevo` form. */
+/** `/gastos` list + `NuevoGastoModal` popup. */
 export class GastosPage {
   readonly shell: AppShell
 
@@ -14,25 +14,32 @@ export class GastosPage {
     await expect(this.shell.titulo).toHaveText('Gastos')
   }
 
+  /** The form lives in a modal over the list, opened from the band action button. */
   async abrirNuevo(): Promise<void> {
-    await this.page.goto('/gastos/nuevo')
-    await expect(this.shell.titulo).toHaveText('Nuevo gasto')
+    await this.abrir()
+    await this.page.getByRole('button', { name: 'Nuevo gasto' }).first().click()
+    await expect(this.modalNuevo).toBeVisible()
+  }
+
+  /** `Modal` portals to `document.body`, so fields are scoped here, not to `main`. */
+  get modalNuevo(): Locator {
+    return this.page.getByRole('dialog')
   }
 
   get categoria(): Locator {
-    return contenido(this.page).getByLabel(/^Categoría/)
+    return this.modalNuevo.getByLabel(/^Categoría/)
   }
 
   get monto(): Locator {
-    return contenido(this.page).getByLabel(/^Monto/)
+    return this.modalNuevo.getByLabel(/^Monto/)
   }
 
   get fecha(): Locator {
-    return contenido(this.page).getByLabel(/^Fecha/)
+    return this.modalNuevo.getByLabel(/^Fecha/)
   }
 
   get descripcion(): Locator {
-    return contenido(this.page).getByLabel(/^Descripción/)
+    return this.modalNuevo.getByLabel(/^Descripción/)
   }
 
   get guardar(): Locator {

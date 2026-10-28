@@ -1,8 +1,9 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
-import { hasPermission, requireModuleRole } from '@/lib/dal/guard'
+import { requireModuleRole } from '@/lib/dal/guard'
 import { NuevaRevendedoraForm } from './NuevaRevendedoraForm'
 import { Card } from '@/components/ui/Card'
+import { getPermisosNuevaRevendedora } from '../permisos'
 
 export const metadata = {
   title: 'Nueva revendedora | Utopía',
@@ -12,10 +13,7 @@ export default async function NuevaRevendedoraPage() {
   const session = await verifySession()
   await requireModuleRole(session, 'revendedoras', 'crear')
 
-  const canGrantAccess =
-    hasPermission(session, 'administracion', 'crear') &&
-    hasPermission(session, 'revendedoras', 'editar')
-  const canEditComision = hasPermission(session, 'revendedoras', 'editar')
+  const { canGrantAccess, canEditComision } = getPermisosNuevaRevendedora(session)
 
   return (
     <>

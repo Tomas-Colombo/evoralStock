@@ -29,6 +29,7 @@ import {
   updateArancelCobro,
 } from '@/lib/dal/ventas/arancel'
 import type { MedioPago, TipoCuentaDestino } from '@/lib/types/ventas'
+import { hoyISO } from '@/lib/utils/hoy'
 import {
   cerrarVigenciaRecargo,
   createRecargoCuotas,
@@ -409,7 +410,9 @@ export async function cerrarVigenciaArancelAction(input: {
   const g = await guarded('editar')
   if (!g.ok) return { ok: false, reason: g.error }
   try {
-    await cerrarVigenciaArancel(input.id, input.hasta ?? new Date().toISOString().slice(0, 10))
+    // `toISOString()` daba la fecha UTC: de noche en Argentina cerraba la
+    // vigencia con el día siguiente.
+    await cerrarVigenciaArancel(input.id, input.hasta ?? hoyISO())
     revalidatePath('/precios/cuentas')
     revalidatePath('/ventas/nueva')
     return { ok: true }

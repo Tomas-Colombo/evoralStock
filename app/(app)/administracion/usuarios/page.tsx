@@ -1,13 +1,19 @@
-import Link from 'next/link'
 import { Topbar } from '@/components/shell/Topbar'
-import { Button } from '@/components/ui/Button'
 import { verifySession } from '@/lib/dal/session'
 import { listRoles, listUsuarios } from '@/lib/dal/administracion/administracion'
+import { getRevendedorasLibres } from './revendedorasLibres'
+import { InvitarUsuarioModalButton } from './InvitarUsuarioModalButton'
 import { UsuariosView } from './UsuariosView'
 
 export default async function UsuariosAdminPage() {
   const session = await verifySession()
-  const [usuarios, roles] = await Promise.all([listUsuarios(), listRoles()])
+  const [usuarios, roles, revendedorasLibres] = await Promise.all([
+    listUsuarios(),
+    listRoles(),
+    getRevendedorasLibres(session),
+  ])
+  const rolesParaForm = roles.map((r) => ({ id: r.id_rol, nombre: r.nombre }))
+
   return (
     <>
       <Topbar
@@ -15,15 +21,16 @@ export default async function UsuariosAdminPage() {
         session={session}
         backHref="/administracion"
         actions={
-          <Link href="/administracion/usuarios/nuevo">
-            <Button size="sm">Invitar usuario</Button>
-          </Link>
+          <InvitarUsuarioModalButton
+            roles={rolesParaForm}
+            revendedorasLibres={revendedorasLibres}
+          />
         }
       />
       <main className="flex-1 p-4 sm:p-6">
         <UsuariosView
           initial={usuarios}
-          roles={roles.map((r) => ({ id: r.id_rol, nombre: r.nombre }))}
+          roles={rolesParaForm}
         />
       </main>
     </>

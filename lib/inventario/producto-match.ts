@@ -1,5 +1,3 @@
-import type { ProductoConDetalle } from '@/lib/types/inventario'
-
 /**
  * Normaliza nombres para el match: minúsculas, sin acentos, espacios
  * colapsados. Se usa para decidir si un nombre escrito a mano (o leído de un
@@ -18,10 +16,10 @@ export function normalizar(s: string): string {
  * Índice nombre-normalizado → producto existente. Ante nombres duplicados se
  * queda con el primero (el listado ya viene ordenado por el server).
  */
-export function indexarPorNombre(
-  productos: ProductoConDetalle[],
-): Map<string, ProductoConDetalle> {
-  const m = new Map<string, ProductoConDetalle>()
+export function indexarPorNombre<T extends { nombre: string }>(
+  productos: T[],
+): Map<string, T> {
+  const m = new Map<string, T>()
   for (const p of productos) {
     const k = normalizar(p.nombre)
     if (!m.has(k)) m.set(k, p)
@@ -34,10 +32,10 @@ export function indexarPorNombre(
  * dado. Devuelve `null` si el nombre está vacío o no matchea nada: en ese caso
  * el nombre es único y el producto se trata como nuevo.
  */
-export function buscarMatchNombre(
-  index: Map<string, ProductoConDetalle>,
+export function buscarMatchNombre<T>(
+  index: Map<string, T>,
   nombre: string,
-): ProductoConDetalle | null {
+): T | null {
   const k = normalizar(nombre)
   if (!k) return null
   return index.get(k) ?? null

@@ -31,6 +31,14 @@ export const ESTADO_RESERVA_LABEL: Record<EstadoReserva, string> = {
   vencida: 'Vencida',
   convertida_venta: 'Convertida en venta',
 }
+// Color del Badge por estado. Vive junto a la etiqueta porque el listado y
+// el detalle tenían cada uno su copia y podían divergir.
+export const ESTADO_RESERVA_VARIANT: Record<EstadoReserva, 'success' | 'info' | 'warning' | 'neutral'> = {
+  activa: 'success',
+  cancelada: 'neutral',
+  vencida: 'warning',
+  convertida_venta: 'info',
+}
 export const MEDIO_PAGO_LABEL: Record<MedioPago, string> = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
