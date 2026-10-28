@@ -4,60 +4,70 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
 
 ## Gate humano
 
-- [ ] Spec aprobada (`proposal.md` + `specs/REQ-SA.md` + Decisiones DR-SA-01 y DR-SA-02 con OK humano)
+- [ ] Spec aprobada (`proposal.md` + `specs/REQ-SA.md`)
+- [ ] Slice 1 requiere modulos-opcionales PR 1 mergeado
 
 ## Slice 1 — DB: Migración, tablas, vista, SPs y aislamiento
 
 - [ ] Migración `supabase/migrations/00118_super_admin_plataforma.sql` (o siguiente número libre)
 - [ ] Tabla `superadmin` con clave foránea a `auth.users(id)`
-- [ ] Tabla `tenant_cargo` con constraints (`monto > 0`, checks de anulación coherente) y FKs
-- [ ] Tabla `tenant_pago` con constraints (`monto > 0`, checks de anulación coherente) y FKs
-- [ ] Vista `tenant_saldo` (Σ cargos vigentes − Σ pagos vigentes por tenant)
-- [ ] Procedimiento `sp_registrar_cargo_tenant` (REQ-SA-04)
-- [ ] Procedimiento `sp_registrar_pago_tenant` (REQ-SA-05)
-- [ ] Procedimiento `sp_anular_movimiento_tenant` (REQ-SA-06)
-- [ ] Procedimiento `sp_toggle_tenant_modulo_admin` (REQ-SA-03)
+- [ ] Tabla `tenant_cargo` con constraints (`monto > 0`, `check (periodo = date_trunc('month', periodo)::date)`, `created_by not null`, checks de anulación coherente) y FKs
+- [ ] Tabla `tenant_pago` con constraints (`monto > 0`, `check (fecha <= current_date)`, `check (medio in ('transferencia', 'efectivo', 'mercadopago', 'otro'))`, `created_by not null`, checks de anulación coherente) y FKs
+- [ ] Vista `tenant_saldo` declarada `with (security_invoker = on)` (REQ-SA-04, REQ-SA-07)
+- [ ] Procedimiento `sp_registrar_cargo_tenant(p_id_tenant, p_periodo, p_monto, p_concepto, p_created_by)` con validación de superadmin (REQ-SA-04)
+- [ ] Procedimiento `sp_registrar_pago_tenant(p_id_tenant, p_fecha, p_monto, p_medio, p_nota, p_created_by)` con validación de superadmin (REQ-SA-05)
+- [ ] Procedimiento `sp_anular_movimiento_tenant(p_tipo, p_id_movimiento, p_anulado_por)` con validación de superadmin (REQ-SA-06)
+- [ ] Procedimiento `sp_toggle_tenant_modulo_admin(p_id_tenant, p_paquete, p_habilitado, p_ip, p_actor)` para habilitación por paquete (REQ-SA-03)
 - [ ] `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en las 3 tablas sin policies
 - [ ] `REVOKE ALL ON ... FROM authenticated, anon, public` sobre tablas, vista y SPs (REQ-SA-08)
-- [ ] Bloque `-- DOWN:` ejecutable completo
-- [ ] Suite `tests/db/plataforma.test.ts` cubriendo casos felices, cálculo de saldo (REQ-SA-07), aislamiento estricto (REQ-SA-08 N1..N4) y casos negativos de mutación (N1..N4 de REQ-SA-04, REQ-SA-05 y REQ-SA-06)
+- [ ] Bloque `-- DOWN:` ejecutable completo y reversible
+- [ ] Suite `tests/db/plataforma.test.ts`:
+  - Casos felices de cargos, pagos, saldo y anulación
+  - Validación de paridad entre la constante TS de medios de pago y el CHECK de SQL
+  - Casos negativos numerados de REQ-SA-03 (N1..N3), REQ-SA-04 (N1..N5), REQ-SA-05 (N1..N5) y REQ-SA-06 (N1..N4)
+  - Aislamiento estricto REQ-SA-08 (N1..N4)
+  - Chequeo de regresión manual de seguridad (docs/protocolo-agentes.md): quitar temporalmente revoke y RLS para confirmar que el test falla antes de fijar la guarda definitiva
 
 ## Slice 2 — Auth & Guard: `requireSuperAdmin()` y flujo de login
 
-- [ ] Guarda `requireSuperAdmin()` en `lib/dal/plataforma/guard.ts` (valida JWT activo y pertenencia a tabla `superadmin` vía service-role)
-- [ ] Flujo de login en `app/(auth)/login/actions.ts`: redirección a `/plataforma` si el usuario carece de `tenant_id` pero es superadmin (DR-SA-02, REQ-SA-01)
+- [ ] Helper `esSuperAdmin(idUsuario: string)` en `lib/dal/plataforma/guard.ts` (consulta con service-role a `superadmin`)
+- [ ] Guarda `requireSuperAdmin()` en `lib/dal/plataforma/guard.ts` (valida sesión y pertenencia a `superadmin`)
+- [ ] Flujo de login en `app/(auth)/login/actions.ts`: desvío a `/plataforma` si el usuario no tiene `tenant_id` pero `esSuperAdmin` es true (DR-SA-02, REQ-SA-01)
+- [ ] Manejo en `app/(app)/layout.tsx`: desvío de superadmin a `/plataforma` evitando rebote/bucle en `/login` (REQ-SA-01 N5)
 - [ ] Pruebas unitarias colocadas en `lib/dal/plataforma/guard.test.ts`
 - [ ] Pruebas unitarias de login en `app/(auth)/login/actions.test.ts`
 
 ## Slice 3 — DAL, validación y Server Actions
 
-- [ ] Schemas Zod en `lib/validation/plataforma.ts` con `strictObject` (cargos, pagos, anulación, toggle de módulo) y test colocado `plataforma.test.ts`
-- [ ] Nuevos slugs de error en catálogo `lib/errores/mensajes.ts` y sincronización con `lib/errores/mensajes.test.ts`:
-  - `monto-invalido`
+- [ ] Constante `MEDIOS_PAGO_TENANT` en `lib/types/plataforma.ts` (`'transferencia'`, `'efectivo'`, `'mercadopago'`, `'otro'`)
+- [ ] Schemas Zod en `lib/validation/plataforma.ts` con `strictObject` (cargos, pagos, anulación, toggle de paquete) y test colocado `plataforma.test.ts`
+- [ ] Reuso de slugs existentes: `monto-invalido` y `fecha-invalida`
+- [ ] Nuevos slugs de error en catálogo `lib/errores/mensajes.ts` y en `lib/errores/mensajes.test.ts`:
   - `concepto-invalido`
+  - `periodo-invalido`
   - `medio-pago-invalido`
   - `movimiento-inexistente`
   - `movimiento-ya-anulado`
   - `tipo-movimiento-invalido`
   - `tenant-inexistente`
-  - `modulo-invalido`
+  - `paquete-invalido`
 - [ ] Funciones DAL en `lib/dal/plataforma/index.ts`:
   - `listarTenants()` (consulta consolidada de tenants, módulos y saldo en 1 query — Design for N, REQ-SA-02)
   - `obtenerTenantDetalle(idTenant)` (información, módulos y cuenta corriente, REQ-SA-07)
-  - `registrarCargoTenantAction()` / DAL
-  - `registrarPagoTenantAction()` / DAL
-  - `anularMovimientoTenantAction()` / DAL
-  - `toggleModuloTenantAction()` / DAL
+  - `registrarCargoTenantAction()` / DAL (REQ-SA-04)
+  - `registrarPagoTenantAction()` / DAL (REQ-SA-05)
+  - `anularMovimientoTenantAction()` / DAL (REQ-SA-06)
+  - `togglePaqueteTenantAction()` / DAL (REQ-SA-03)
 - [ ] Server Actions en `app/(plataforma)/plataforma/actions.ts` implementando las 3 compuertas (Authorize -> Validate -> DAL)
 - [ ] Pruebas unitarias colocadas para las Server Actions
 
 ## Slice 4 — UI: Panel de plataforma
 
 - [ ] Shell de plataforma y layout en `app/(plataforma)/layout.tsx` (con `requireSuperAdmin()`)
-- [ ] Vista de listado general `app/(plataforma)/plataforma/page.tsx` (tabla de tenants, búsqueda, módulos habilitados, estado y saldo deudor)
+- [ ] Vista de listado general `app/(plataforma)/plataforma/page.tsx` (tabla de tenants, búsqueda, paquetes de módulos activos, estado y saldo deudor)
 - [ ] Vista de detalle por tenant `app/(plataforma)/plataforma/[id]/page.tsx`:
   - Ficha resumen de tenant
-  - Panel de switches para toggle de módulos opcionales
-  - Historial unificado de cargos y pagos con indicador de anulación
+  - Panel de switches exclusivo para paquetes opcionales (`revendedoras`, `consignacionProveedor`); los módulos del núcleo no aparecen como toggle
+  - Historial unificado de cargos y pagos con indicador de vigencia/anulación
   - Modales / formularios para: Nuevo cargo, Nuevo pago y Confirmación de anulación
 - [ ] Pruebas de componentes o e2e de la navegación de plataforma
