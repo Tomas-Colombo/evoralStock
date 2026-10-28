@@ -44,13 +44,14 @@ El análisis del flujo actual reveló que un usuario en `auth.users` sin fila en
 **Estado**: aprobada por la persona el 2026-10-28.
 
 - **Decisión**: Los módulos se habilitan o deshabilitan por **paquete completo** mediante el procedimiento:
-  `sp_toggle_tenant_modulo_admin(p_id_tenant, p_paquete, p_habilitado, p_ip, p_actor)`
+  `sp_toggle_tenant_modulo_admin(p_id_tenant, p_paquete, p_habilitado, p_actor, p_ip)`
 - **Paquetes admitidos**: Los definidos en `REQ-MODOP`:
   - `'revendedoras'`: código `'revendedoras'`.
   - `'consignacionProveedor'`: códigos `'consignaciones'` y `'rendiciones'` en conjunto.
 - **Comportamiento**:
-  - Habilita o deshabilita todos los códigos del paquete en una única transacción atómica.
-  - La siembra de la regla local de comisión (0%) al activar revendedoras y el registro de auditoría se copian de `supabase/migrations/00086_comisiones.sql:241-267`.
+  - Habilita o deshabilita todos los códigos del paquete en una única transacción atómica a partir de `fn_codigos_paquete(p_paquete text)`.
+  - La siembra de la regla local de comisión (0%) al activar revendedoras vive en un trigger `AFTER INSERT OR UPDATE` sobre `tenant_modulo` (copiando la lógica de `00086_comisiones.sql:241-260`), asegurando que cualquier vía de activación (provision-tenant, sp_toggle_tenant_modulo_admin o upsert directo) cree la regla si no existe.
+  - El registro de auditoría lo realiza el procedimiento con `id_tenant` destino e `id_usuario = p_actor`.
   - Delega en los triggers de `modulos-opcionales` (PR 1) las restricciones de integridad (núcleo inmutable, consistencia de a par y bloqueo por estado vivo). La UI del super admin no expone los módulos del núcleo como toggles.
 
 ---
@@ -180,7 +181,7 @@ Al declarar explícitamente `with (security_invoker = on)` (como se implementó 
 
 ## 5. Migraciones
 
-- Número: siguiente libre al momento de aplicar (`supabase/migrations/00118_super_admin_plataforma.sql`).
+- Número: siguiente libre al momento de aplicar (`supabase/migrations/00119_super_admin_plataforma.sql`).
 - Contenido:
   1. Tabla `superadmin` (`id_auth_user uuid primary key references auth.users(id) on delete cascade`, `created_at timestamptz not null default now()`).
   2. Tabla `tenant_cargo`:
@@ -197,7 +198,7 @@ Al declarar explícitamente `with (security_invoker = on)` (como se implementó 
   3. Tabla `tenant_pago`:
      - `id uuid primary key default gen_random_uuid()`
      - `id_tenant uuid not null references tenant(id_tenant) on delete cascade`
-     - `fecha date not null check (fecha <= current_date)`
+     - `fecha date not null`
      - `monto numeric(12,2) not null check (monto > 0)`
      - `medio text not null check (medio in ('transferencia', 'efectivo', 'mercadopago', 'otro'))`
      - `nota text`
@@ -233,7 +234,10 @@ Al declarar explícitamente `with (security_invoker = on)` (como se implementó 
      - `sp_registrar_cargo_tenant(p_id_tenant uuid, p_periodo date, p_monto numeric, p_concepto text, p_created_by uuid)`
      - `sp_registrar_pago_tenant(p_id_tenant uuid, p_fecha date, p_monto numeric, p_medio text, p_nota text, p_created_by uuid)`
      - `sp_anular_movimiento_tenant(p_tipo text, p_id_movimiento uuid, p_anulado_por uuid)`
-     - `sp_toggle_tenant_modulo_admin(p_id_tenant uuid, p_paquete text, p_habilitado boolean, p_ip inet default null, p_actor uuid default null)`
+     - `fn_codigos_paquete(p_paquete text) returns text[]`
+     - `sp_toggle_tenant_modulo_admin(p_id_tenant uuid, p_paquete text, p_habilitado boolean, p_actor uuid, p_ip inet default null)`
+     - Trigger `tr_semilla_comision_revendedoras` en `tenant_modulo`
+     - Cada SP valida primero todas las reglas de negocio y lanza el slug correspondiente (`monto-invalido`, `fecha-invalida`, `periodo-invalido`, `concepto-invalido`, `medio-pago-invalido`, `tenant-inexistente`, `no-permission`, etc.). Los CHECK de tabla quedan como respaldo para que un 23514 nunca llegue a la app
   6. RLS habilitado en `superadmin`, `tenant_cargo`, `tenant_pago`.
   7. `REVOKE ALL` de tablas, vista y funciones para `authenticated, anon, public`.
 - Bloque `-- DOWN:` ejecutable completo con `drop function`, `drop view` y `drop table` en orden inverso de dependencias.

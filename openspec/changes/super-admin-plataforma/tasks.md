@@ -9,19 +9,20 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
 
 ## Slice 1 — DB: Migración, tablas, vista, SPs y aislamiento
 
-- [ ] Migración `supabase/migrations/00118_super_admin_plataforma.sql` (o siguiente número libre)
-- [ ] Tabla `superadmin` con clave foránea a `auth.users(id)`
-- [ ] Tabla `tenant_cargo` con constraints (`monto > 0`, `check (periodo = date_trunc('month', periodo)::date)`, `created_by not null`, checks de anulación coherente) y FKs
-- [ ] Tabla `tenant_pago` con constraints (`monto > 0`, `check (fecha <= current_date)`, `check (medio in ('transferencia', 'efectivo', 'mercadopago', 'otro'))`, `created_by not null`, checks de anulación coherente) y FKs
-- [ ] Vista `tenant_saldo` declarada `with (security_invoker = on)` (REQ-SA-04, REQ-SA-07)
-- [ ] Procedimiento `sp_registrar_cargo_tenant(p_id_tenant, p_periodo, p_monto, p_concepto, p_created_by)` con validación de superadmin (REQ-SA-04)
-- [ ] Procedimiento `sp_registrar_pago_tenant(p_id_tenant, p_fecha, p_monto, p_medio, p_nota, p_created_by)` con validación de superadmin (REQ-SA-05)
-- [ ] Procedimiento `sp_anular_movimiento_tenant(p_tipo, p_id_movimiento, p_anulado_por)` con validación de superadmin (REQ-SA-06)
-- [ ] Procedimiento `sp_toggle_tenant_modulo_admin(p_id_tenant, p_paquete, p_habilitado, p_ip, p_actor)` para habilitación por paquete (REQ-SA-03)
-- [ ] `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en las 3 tablas sin policies
-- [ ] `REVOKE ALL ON ... FROM authenticated, anon, public` sobre tablas, vista y SPs (REQ-SA-08)
-- [ ] Bloque `-- DOWN:` ejecutable completo y reversible
-- [ ] Suite `tests/db/plataforma.test.ts`:
+- [x] Migración `supabase/migrations/00119_super_admin_plataforma.sql` (o siguiente número libre)
+- [x] Tabla `superadmin` con clave foránea a `auth.users(id)`
+- [x] Tabla `tenant_cargo` con constraints (`monto > 0`, `check (periodo = date_trunc('month', periodo)::date)`, `created_by not null`, checks de anulación coherente) y FKs
+- [x] Tabla `tenant_pago` con constraints (`monto > 0`, `check (medio in ('transferencia', 'efectivo', 'mercadopago', 'otro'))`, `created_by not null`, checks de anulación coherente) y FKs
+- [x] Vista `tenant_saldo` declarada `with (security_invoker = on)` (REQ-SA-04, REQ-SA-07)
+- [x] Procedimiento `sp_registrar_cargo_tenant(p_id_tenant, p_periodo, p_monto, p_concepto, p_created_by)` con validación de superadmin (REQ-SA-04)
+- [x] Procedimiento `sp_registrar_pago_tenant(p_id_tenant, p_fecha, p_monto, p_medio, p_nota, p_created_by)` con validación de superadmin (REQ-SA-05)
+- [x] Procedimiento `sp_anular_movimiento_tenant(p_tipo, p_id_movimiento, p_anulado_por)` con validación de superadmin (REQ-SA-06)
+- [x] Procedimiento `sp_toggle_tenant_modulo_admin(p_id_tenant, p_paquete, p_habilitado, p_actor, p_ip)` para habilitación por paquete (REQ-SA-03)
+- [x] `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en las 3 tablas sin policies
+- [x] `REVOKE ALL ON ... FROM authenticated, anon, public` sobre tablas, vista y SPs (REQ-SA-08)
+- [x] Trigger `tr_semilla_comision_revendedoras` en `tenant_modulo` (semilla local 0% al activar revendedoras) y reposición en comisiones.test.ts
+- [x] Bloque `-- DOWN:` ejecutable completo y reversible
+- [x] Suite `tests/db/plataforma.test.ts`:
   - Casos felices de cargos, pagos, saldo y anulación
   - Validación de paridad entre la constante TS de medios de pago y el CHECK de SQL
   - Casos negativos numerados de REQ-SA-03 (N1..N3), REQ-SA-04 (N1..N5), REQ-SA-05 (N1..N5) y REQ-SA-06 (N1..N4)
