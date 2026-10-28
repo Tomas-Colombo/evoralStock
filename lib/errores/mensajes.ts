@@ -336,6 +336,15 @@ const MENSAJES: Record<string, string> = {
   // ─── Finanzas ──────────────────────────────────────────────────────
   'periodo-invalido': 'El período pedido no es válido.',
   'orden-invalido': 'El criterio de orden no es válido.',
+
+  // ─── Plataforma (Super Admin) ──────────────────────────────────────
+  'concepto-invalido': 'Escribí un concepto para el movimiento.',
+  'medio-pago-invalido': 'Elegí un medio de pago válido.',
+  'movimiento-inexistente': 'El movimiento no existe o ya no está disponible.',
+  'movimiento-ya-anulado': 'Este movimiento ya se encuentra anulado.',
+  'tipo-movimiento-invalido': 'El tipo de movimiento no es válido.',
+  'tenant-inexistente': 'El comercio no existe o no fue encontrado.',
+  'paquete-invalido': 'El paquete de módulos no es válido.',
 }
 
 /**
