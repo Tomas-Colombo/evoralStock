@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { alerta, AppShell, contenido } from './AppShell'
 
-/** `/administracion` home, users, roles modal, modules and audit trail. */
+/** `/administracion` home, users, roles modal and audit trail. */
 export class AdministracionPage {
   readonly shell: AppShell
 
@@ -22,11 +22,6 @@ export class AdministracionPage {
   async abrirInvitar(): Promise<void> {
     await this.page.goto('/administracion/usuarios/nuevo')
     await expect(this.shell.titulo).toHaveText('Invitar usuario')
-  }
-
-  async abrirModulos(): Promise<void> {
-    await this.page.goto('/administracion/modulos')
-    await expect(this.shell.titulo).toHaveText('Módulos del tenant')
   }
 
   async abrirAuditoria(): Promise<void> {
@@ -66,11 +61,5 @@ export class AdministracionPage {
 
   fila(texto: string): Locator {
     return this.page.getByRole('row').filter({ hasText: texto })
-  }
-
-  // ─── Módulos ────────────────────────────────────────────────────────
-
-  filaModulo(nombre: string): Locator {
-    return this.page.getByRole('row').filter({ hasText: nombre })
   }
 }

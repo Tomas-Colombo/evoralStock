@@ -35,16 +35,6 @@ export interface UsuarioConRol extends UsuarioRow {
   rol: { id_rol: string; nombre: string } | null
 }
 
-export interface ModuloRow {
-  id_modulo: string
-  codigo: string
-  nombre: string
-}
-
-export interface TenantModuloView extends ModuloRow {
-  habilitado: boolean
-}
-
 export interface AuditoriaRow {
   id_auditoria: string
   id_tenant: string

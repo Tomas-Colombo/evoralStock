@@ -1,7 +1,8 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { AuthorizationError } from '@/lib/dal/errors'
-import { verifySession } from '@/lib/dal/session'
+import { debeCambiarClave, marcarClaveCambiada, verifySession } from '@/lib/dal/session'
 import { createServerClient } from '@/lib/dal/supabase'
 
 const MIN_PASSWORD_LENGTH = 8
@@ -78,6 +79,16 @@ export async function changePasswordAction(
     // Best-effort audit trail (this slice's explicit instructions) — the
     // password change already succeeded above and must not be reported as
     // a failure just because the audit RPC round-trip errored.
+  }
+
+  // Primer ingreso con contraseña temporal: se quita la marca, se refresca el
+  // JWT para que proxy.ts deje pasar y se entra a la app como tras el login.
+  if (await debeCambiarClave()) {
+    if (!(await marcarClaveCambiada(session.user.id))) {
+      return { ok: false, error: 'Failed to update password' }
+    }
+    await supabase.auth.refreshSession()
+    redirect('/ventas')
   }
 
   return { ok: true }

@@ -92,13 +92,12 @@ export async function bajaRevendedora(id: string) {
 }
 
 import { createServiceClient } from '../supabase'
-import * as crypto from 'crypto'
 
 export async function inviteRevendedora(session: Session, input: {
   idRevendedora: string
   email: string
   nombreCompleto: string
-  password?: string
+  password: string
 }) {
   const admin = createServiceClient()
 
@@ -130,18 +129,16 @@ export async function inviteRevendedora(session: Session, input: {
     return { ok: false as const, reason: 'acceso-duplicado' }
   }
 
-  const generatedPassword = input.password || (crypto.randomBytes(16).toString('hex') + 'A1!')
-
   const { data: created, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
-    password: generatedPassword,
+    password: input.password,
     email_confirm: true,
     user_metadata: { nombre_completo: input.nombreCompleto },
-    app_metadata: { tenant_id: session.tenantId },
+    app_metadata: { tenant_id: session.tenantId, debe_cambiar_clave: true },
   })
 
   if (authError) {
-    if (authError.status === 422) return reactivarAccesoRevendedora(admin, session, input, rolData.id_rol, generatedPassword)
+    if (authError.status === 422) return reactivarAccesoRevendedora(admin, session, input, rolData.id_rol, input.password)
     return { ok: false as const, reason: 'error-invitacion' }
   }
   
@@ -194,6 +191,7 @@ async function reactivarAccesoRevendedora(
   const { error: authError } = await admin.auth.admin.updateUserById(previo.id_usuario, {
     password,
     user_metadata: { nombre_completo: input.nombreCompleto },
+    app_metadata: { debe_cambiar_clave: true },
   })
   if (authError) return { ok: false as const, reason: 'error-invitacion' }
 

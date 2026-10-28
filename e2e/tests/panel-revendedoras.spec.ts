@@ -1,3 +1,4 @@
+import { setModuloHabilitado } from '../support/tenant'
 import { expect, test, unique } from '../fixtures/test'
 
 test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
@@ -89,14 +90,14 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
     await page.getByLabel(/Escanear o ingresar código/i).fill(nombreProd)
     await page.getByRole('button', { name: 'Agregar ítem' }).click()
     await expect(page.getByText(nombreProd)).toBeVisible()
-    await page.getByRole('button', { name: 'Guardar borrador' }).click()
-
-    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
-    await page.getByRole('button', { name: /Confirmar entrega/i }).click()
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     const dialogConfirmar = page.getByRole('dialog')
     await expect(dialogConfirmar).toBeVisible()
-    await dialogConfirmar.getByRole('button', { name: 'Confirmar entrega' }).click()
-    await shell.expectSuccessToast('Entrega confirmada')
+    await dialogConfirmar.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await shell.expectSuccessToast('Consignación guardada')
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
+    await page.getByRole('link', { name: 'Ver detalle' }).first().click()
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
 
     // Obtener el código de barras (QR) del ítem entregado desde la fila de la tabla
     const filaItemConsig = page.getByRole('row', { name: new RegExp(nombreProd) })
@@ -120,14 +121,10 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
 
   test('con el módulo revendedoras apagado, /revendedoras responde module-disabled', async ({
     page,
-    administracion,
-    shell,
+    seed,
   }) => {
-    // 1. Deshabilitar el módulo Revendedoras desde Administración
-    await administracion.abrirModulos()
-    const fila = administracion.filaModulo('Revendedoras')
-    await fila.getByRole('button', { name: 'Deshabilitar', exact: true }).click()
-    await shell.expectSuccessToast('Módulo deshabilitado')
+    // 1. Deshabilitar el módulo Revendedoras como lo haría el operador
+    await setModuloHabilitado(seed.tenantId, 'revendedoras', false)
 
     try {
       // 2. Comprobar que una petición directa responde redirección con module-disabled
@@ -140,13 +137,7 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
       await expect(page).toHaveURL(/\/ventas$/)
     } finally {
       // 4. Restaurar el módulo para no afectar otros tests
-      await administracion.abrirModulos()
-      const filaRestaurar = administracion.filaModulo('Revendedoras')
-      const habilitar = filaRestaurar.getByRole('button', { name: 'Habilitar', exact: true })
-      if (await habilitar.isVisible()) {
-        await habilitar.click()
-        await shell.expectSuccessToast('Módulo habilitado')
-      }
+      await setModuloHabilitado(seed.tenantId, 'revendedoras', true)
     }
   })
 })

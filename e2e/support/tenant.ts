@@ -60,6 +60,29 @@ export function readSeed(): SeedData {
   return JSON.parse(fs.readFileSync(SEED_FILE, 'utf8')) as SeedData
 }
 
+/**
+ * Turns a module on or off for the e2e tenant. Which modules a customer has is
+ * the operator's call (service-role), not something the tenant admin can do
+ * from the app, so specs flip it here the same way.
+ */
+export async function setModuloHabilitado(
+  tenantId: string,
+  codigo: string,
+  habilitado: boolean,
+): Promise<void> {
+  const db = serviceRoleClient()
+  const { id_modulo } = unwrap(
+    await db.from('modulo').select('id_modulo').eq('codigo', codigo).single<{ id_modulo: string }>(),
+    `modulo ${codigo}`,
+  )
+  const { error } = await db
+    .from('tenant_modulo')
+    .update({ habilitado })
+    .eq('id_tenant', tenantId)
+    .eq('id_modulo', id_modulo)
+  if (error) throw new Error(`tenant_modulo ${codigo}: ${error.message}`)
+}
+
 function writeSeed(seed: SeedData): void {
   fs.mkdirSync(path.dirname(SEED_FILE), { recursive: true })
   fs.writeFileSync(SEED_FILE, JSON.stringify(seed, null, 2))

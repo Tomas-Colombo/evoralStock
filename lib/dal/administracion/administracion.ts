@@ -1,11 +1,11 @@
 import 'server-only'
+import { randomUUID } from 'node:crypto'
 import { createServerClient, createServiceClient } from '@/lib/dal/supabase'
+import { detectarFormatoImagen, EXTENSION_LOGO, LOGO_BUCKET } from '@/lib/tenant/logo'
 import { QR_LADO_MM_DEFAULT, QR_LADO_MM_MAX, QR_LADO_MM_MIN } from '@/lib/inventario/limites'
 import type {
   AuditoriaConActor,
-  ModuloRow,
   RolRow,
-  TenantModuloView,
   UsuarioConRol,
   UsuarioEstado,
 } from '@/lib/types/administracion'
@@ -79,7 +79,8 @@ export async function inviteUsuario(input: {
     password: input.password,
     email_confirm: true,
     user_metadata: { nombre_completo: input.nombreCompleto },
-    app_metadata: { tenant_id: input.tenantId },
+    // proxy.ts manda a /cambiar-clave hasta que la persona elija la suya.
+    app_metadata: { tenant_id: input.tenantId, debe_cambiar_clave: true },
   })
   if (authError || !created.user) {
     throw new Error(`inviteUsuario auth: ${authError?.message ?? 'no user returned'}`)
@@ -155,42 +156,6 @@ export async function spDeleteRol(idRol: string): Promise<void> {
   if (error) throw new Error(`sp_delete_rol: ${error.message}`)
 }
 
-// ─── Módulos del tenant ──────────────────────────────────────────────
-
-export async function listModulosTenant(): Promise<TenantModuloView[]> {
-  const supabase = await createServerClient()
-  // Catálogo de módulos + join con tenant_modulo para saber si está habilitado.
-  const { data: catalog, error: e1 } = await supabase
-    .from('modulo').select('id_modulo, codigo, nombre').order('nombre')
-  if (e1) throw new Error(`listModulos catalog: ${e1.message}`)
-
-  const { data: tm, error: e2 } = await supabase
-    .from('tenant_modulo').select('id_modulo, habilitado')
-  if (e2) throw new Error(`listModulos tm: ${e2.message}`)
-
-  const habMap = new Map<string, boolean>()
-  for (const row of tm ?? []) {
-    habMap.set(row.id_modulo as string, row.habilitado as boolean)
-  }
-
-  return ((catalog ?? []) as ModuloRow[]).map((m) => ({
-    ...m,
-    habilitado: habMap.get(m.id_modulo) ?? false,
-  }))
-}
-
-export async function spToggleTenantModulo(input: {
-  idModulo: string
-  habilitado: boolean
-}): Promise<void> {
-  const supabase = await createServerClient()
-  const { error } = await supabase.rpc('sp_toggle_tenant_modulo', {
-    p_id_modulo: input.idModulo,
-    p_habilitado: input.habilitado,
-  })
-  if (error) throw new Error(`sp_toggle_tenant_modulo: ${error.message}`)
-}
-
 // ─── Configuración de etiquetas QR ───────────────────────────────────
 
 /**
@@ -238,6 +203,76 @@ export async function spSetTenantLogo(
   })
   if (error) throw new Error(`sp_set_tenant_logo: ${error.message}`)
   return (data as string | null) ?? null
+}
+
+/**
+ * Sube el logo a `tenant-logos/<tenant>/` y lo deja como logo del tenant.
+ *
+ * Va con el cliente del usuario, no con service role: las policies de
+ * `storage.objects` (00116) atan la carpeta al claim `tenant_id`, así que un
+ * `tenantId` equivocado falla en Storage en vez de escribir en otro tenant.
+ * El nombre es único por subida para que la URL se pueda cachear para siempre
+ * y el navegador nunca muestre el logo viejo.
+ */
+export async function subirLogoTenant(tenantId: string, file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const formato = detectarFormatoImagen(bytes)
+  if (!formato) throw new Error('logo-formato-invalido')
+
+  const supabase = await createServerClient()
+  const bucket = supabase.storage.from(LOGO_BUCKET)
+  const ruta = `${tenantId}/logo-${randomUUID()}.${EXTENSION_LOGO[formato]}`
+
+  const { error: errSubida } = await bucket.upload(ruta, bytes, {
+    contentType: formato,
+    cacheControl: '31536000',
+    upsert: false,
+  })
+  if (errSubida) {
+    console.error('subirLogoTenant: upload', errSubida.message)
+    throw new Error('logo-no-subido')
+  }
+
+  const { publicUrl } = bucket.getPublicUrl(ruta).data
+  try {
+    await spSetTenantLogo(publicUrl)
+  } catch (e) {
+    // Sin esto el objeto queda huérfano en el bucket: nadie lo referencia.
+    await bucket.remove([ruta])
+    throw e
+  }
+
+  await borrarLogosViejos(bucket, tenantId, ruta)
+  return publicUrl
+}
+
+/** Deja el tenant sin logo (el shell vuelve al nombre) y vacía su carpeta. */
+export async function quitarLogoTenant(tenantId: string): Promise<void> {
+  await spSetTenantLogo(null)
+  const supabase = await createServerClient()
+  await borrarLogosViejos(supabase.storage.from(LOGO_BUCKET), tenantId, null)
+}
+
+/**
+ * Best-effort: el logo nuevo ya quedó guardado, así que un fallo acá solo deja
+ * archivos de más en el bucket. No vale romper la operación del operador por eso.
+ */
+async function borrarLogosViejos(
+  bucket: ReturnType<Awaited<ReturnType<typeof createServerClient>>['storage']['from']>,
+  tenantId: string,
+  conservar: string | null,
+): Promise<void> {
+  const { data, error } = await bucket.list(tenantId, { limit: 100 })
+  if (error) {
+    console.error('borrarLogosViejos: list', error.message)
+    return
+  }
+  const viejos = (data ?? [])
+    .map((o) => `${tenantId}/${o.name}`)
+    .filter((ruta) => ruta !== conservar)
+  if (viejos.length === 0) return
+  const { error: errBorrado } = await bucket.remove(viejos)
+  if (errBorrado) console.error('borrarLogosViejos: remove', errBorrado.message)
 }
 
 // ─── Auditoría ───────────────────────────────────────────────────────

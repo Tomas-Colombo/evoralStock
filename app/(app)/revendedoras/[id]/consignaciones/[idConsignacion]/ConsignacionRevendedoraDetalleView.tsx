@@ -115,7 +115,7 @@ export function ConsignacionRevendedoraDetalleView({
         return
       }
 
-      toast.success('Borrador eliminado correctamente.')
+      toast.success('Consignación eliminada.')
       setEliminarOpen(false)
       router.push(`/revendedoras/${cons.id_revendedora}/consignaciones`)
     })
@@ -254,7 +254,7 @@ export function ConsignacionRevendedoraDetalleView({
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h2 className="font-display text-xl">Lote de consignación</h2>
-            {!cons.confirmada && <Badge variant="warning">Borrador</Badge>}
+            {!cons.confirmada && <Badge variant="warning">Sin confirmar</Badge>}
             {cons.confirmada && cons.estado === 'abierta' && <Badge variant="success">Abierta</Badge>}
             {cons.estado === 'cerrada' && <Badge variant="neutral">Cerrada</Badge>}
           </div>
@@ -280,7 +280,7 @@ export function ConsignacionRevendedoraDetalleView({
               onClick={() => setEliminarOpen(true)}
               disabled={pending}
             >
-              Eliminar borrador
+              Eliminar
             </Button>
           )}
 
@@ -377,8 +377,8 @@ export function ConsignacionRevendedoraDetalleView({
       <ConfirmDialog
         open={eliminarOpen}
         onCancel={() => setEliminarOpen(false)}
-        title="Eliminar borrador de consignación"
-        description="¿Estás seguro de que querés eliminar este borrador? Los ítems seguirán disponibles en el inventario central."
+        title="Eliminar consignación"
+        description="¿Querés eliminar esta consignación sin confirmar? Los ítems siguen disponibles en el local."
         confirmLabel="Eliminar"
         variant="danger"
         onConfirm={handleEliminarBorrador}

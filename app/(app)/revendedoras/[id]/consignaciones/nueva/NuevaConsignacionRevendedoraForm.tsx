@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { CameraIcon } from '@/components/ui/CameraIcon'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
 import { Table, type Column } from '@/components/ui/Table'
@@ -63,6 +64,10 @@ export function NuevaConsignacionRevendedoraForm({
   const [items, setItems] = useState<ItemSeleccionado[]>([])
   const [camaraOpen, setCamaraOpen] = useState(false)
   const [selectorTalle, setSelectorTalle] = useState<SelectorTalle | null>(null)
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
+
+  const volver = `/revendedoras/${idRevendedora}/consignaciones`
+  const totalEstimado = items.reduce((acc, curr) => acc + curr.precio_actual, 0)
 
   // Mismo ranking que el carrito de venta. El stock mostrado descuenta las
   // unidades que ya están en este lote.
@@ -227,7 +232,10 @@ export function NuevaConsignacionRevendedoraForm({
       toast.error('Agregá al menos un ítem al lote de consignación.')
       return
     }
+    setConfirmarOpen(true)
+  }
 
+  function handleConfirmar() {
     startTransition(async () => {
       const res = await crearConsignacionRevendedoraAction({
         id_revendedora: idRevendedora,
@@ -239,12 +247,13 @@ export function NuevaConsignacionRevendedoraForm({
       })
 
       if (!res.ok) {
+        setConfirmarOpen(false)
         toast.error(mensajeDeError(res.reason))
         return
       }
 
-      toast.success('Borrador de consignación creado exitosamente.')
-      router.push(`/revendedoras/${idRevendedora}/consignaciones/${res.id_consignacion_revendedora}`)
+      toast.success('Consignación guardada.')
+      router.push(volver)
     })
   }
 
@@ -400,9 +409,7 @@ export function NuevaConsignacionRevendedoraForm({
             {items.length > 0 && (
               <span className="text-xs text-muted">
                 Total estimado: ${' '}
-                {items
-                  .reduce((acc, curr) => acc + curr.precio_actual, 0)
-                  .toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                {totalEstimado.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
               </span>
             )}
           </div>
@@ -423,15 +430,44 @@ export function NuevaConsignacionRevendedoraForm({
         <Button
           type="button"
           variant="secondary"
-          onClick={() => router.push(`/revendedoras/${idRevendedora}/consignaciones`)}
+          onClick={() => router.push(volver)}
           disabled={pending}
         >
           Cancelar
         </Button>
         <Button type="submit" form="nueva-consignacion" disabled={pending || items.length === 0}>
-          {pending ? 'Guardando...' : 'Guardar borrador'}
+          Guardar
         </Button>
       </div>
+
+      {/* Esc, clic afuera y la × no cierran mientras se guarda: cerrar a mitad
+          del envío escondería si la entrega quedó registrada. */}
+      <Modal
+        open={confirmarOpen}
+        onClose={() => {
+          if (!pending) setConfirmarOpen(false)
+        }}
+        title="Confirmar consignación"
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => router.push(volver)} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleConfirmar} disabled={pending}>
+              {pending ? 'Guardando...' : 'Confirmar'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm">
+          Se entregan <strong>{items.length}</strong> ítem{items.length === 1 ? '' : 's'} a{' '}
+          {nombreRevendedora} por ${' '}
+          {totalEstimado.toLocaleString('es-AR', { maximumFractionDigits: 0 })}.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          Dejan de estar disponibles en el local y pasan a estar en poder de la revendedora.
+        </p>
+      </Modal>
     </div>
   )
 }

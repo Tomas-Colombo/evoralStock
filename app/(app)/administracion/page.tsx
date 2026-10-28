@@ -5,7 +5,6 @@ import { verifySession } from '@/lib/dal/session'
 import {
   getConfiguracionQrLadoMm,
   listAuditoria,
-  listModulosTenant,
   listRoles,
   listUsuarios,
 } from '@/lib/dal/administracion/administracion'
@@ -30,20 +29,19 @@ function cardLink(c: { href: string; label: string; value: string }) {
 
 export default async function AdministracionHome() {
   const session = await verifySession()
-  const [usuarios, roles, modulos, ultimasAcciones, ladoMm] = await Promise.all([
+  const [usuarios, roles, ultimasAcciones, ladoMm] = await Promise.all([
     listUsuarios(),
     listRoles(),
-    listModulosTenant(),
     listAuditoria({ limit: 15 }),
     getConfiguracionQrLadoMm(),
   ])
-  const modulosHab = modulos.filter((m) => m.habilitado).length
   const canEdit = hasModuleAccess(session, 'administracion', 'editar')
 
-  // Roles no está acá: es un pop-up (`RolesModal`), no una ruta.
+  // Roles no está acá: es un pop-up (`RolesModal`), no una ruta. Módulos
+  // tampoco: lo que el cliente contrató lo decide el operador, no el admin
+  // del tenant (antes podía habilitarse un módulo que no pagó).
   const cards = [
     { href: '/administracion/usuarios', label: 'Usuarios', value: usuarios.length.toString() },
-    { href: '/administracion/modulos', label: 'Módulos habilitados', value: `${modulosHab}/${modulos.length}` },
     { href: '/administracion/auditoria', label: 'Auditoría', value: 'Ver' },
   ]
 

@@ -16,7 +16,7 @@ interface RevendedoraTabsProps {
 
 export function RevendedoraTabs({ idRevendedora, activeTab }: RevendedoraTabsProps) {
   const tabs = [
-    { key: 'resumen', label: 'Resumen', href: `/revendedoras/${idRevendedora}` },
+    { key: 'resumen', label: 'Perfil Revendedora', href: `/revendedoras/${idRevendedora}` },
     { key: 'en_poder', label: 'En su poder', href: `/revendedoras/${idRevendedora}/en-poder` },
     { key: 'ventas', label: 'Ventas', href: `/revendedoras/${idRevendedora}/ventas` },
     { key: 'consignaciones', label: 'Consignaciones', href: `/revendedoras/${idRevendedora}/consignaciones` },

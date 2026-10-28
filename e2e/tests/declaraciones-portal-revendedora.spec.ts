@@ -68,14 +68,12 @@ test.describe('Portal de revendedora y declaraciones (Slice 9d)', () => {
     await page.getByRole('button', { name: 'Agregar ítem' }).click()
     await expect(page.getByText(nombreProd2)).toBeVisible()
 
-    await page.getByRole('button', { name: 'Guardar borrador' }).click()
-    await page.waitForURL(new RegExp(`/revendedoras/${idRevendedora1}/consignaciones/`))
-
-    await page.getByRole('button', { name: /Confirmar entrega/i }).click()
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     const dialogConfirmar = page.getByRole('dialog')
     await expect(dialogConfirmar).toBeVisible()
-    await dialogConfirmar.getByRole('button', { name: 'Confirmar entrega' }).click()
-    await shell.expectSuccessToast('Entrega confirmada')
+    await dialogConfirmar.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await shell.expectSuccessToast('Consignación guardada')
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
 
     // -------------------------------------------------------------
     // ALTA: Revendedora 2 con acceso al sistema (para aislamiento)

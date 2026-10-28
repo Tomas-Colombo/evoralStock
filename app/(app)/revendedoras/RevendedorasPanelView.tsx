@@ -18,6 +18,8 @@ import { TableFrame } from '@/components/ui/TableParts'
 interface RevendedorasPanelViewProps {
   data: PanelRevendedoraRow[]
   total: number
+  canAsignar: boolean
+  canDevolver: boolean
   filtros: {
     desde?: string
     hasta?: string
@@ -32,6 +34,8 @@ interface RevendedorasPanelViewProps {
 export function RevendedorasPanelView({
   data,
   total,
+  canAsignar,
+  canDevolver,
   filtros,
 }: RevendedorasPanelViewProps) {
   const router = useRouter()
@@ -246,6 +250,43 @@ export function RevendedorasPanelView({
       ),
     },
   ]
+
+  // Asignar y recibir mercadería son lo que más se hace en el módulo: van en
+  // la fila para no pasar por el perfil y la pestaña de consignaciones. Cada
+  // una en su columna: cuando una fila no tiene Devolución, Asignación no se
+  // corre al borde.
+  if (canAsignar) {
+    columns.push({
+      key: 'asignacion',
+      label: '',
+      align: 'right',
+      render: (r) =>
+        r.activo ? (
+          <Link
+            href={`/revendedoras/${r.id_revendedora}/consignaciones/nueva`}
+            className="whitespace-nowrap rounded-md bg-block px-3 py-1.5 text-xs font-semibold text-block-ink"
+          >
+            Asignación
+          </Link>
+        ) : null,
+    })
+  }
+  if (canDevolver) {
+    columns.push({
+      key: 'devolucion',
+      label: '',
+      align: 'right',
+      render: (r) =>
+        r.items_en_poder > 0 ? (
+          <Link
+            href={`/revendedoras/${r.id_revendedora}/devolucion`}
+            className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-ink hover:bg-card-2"
+          >
+            Devolución
+          </Link>
+        ) : null,
+    })
+  }
 
   return (
     <div className="flex flex-col gap-6">

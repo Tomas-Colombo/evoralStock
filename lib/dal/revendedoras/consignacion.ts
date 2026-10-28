@@ -8,6 +8,7 @@ import type {
   CrearConsignacionRevendedoraPayload,
   EditarConsignacionRevendedoraPayload,
   RegistrarDevolucionRevendedoraPayload,
+  DevolverItemsRevendedoraPayload,
 } from '../../validation/revendedoras'
 import { calcularSnapshotPrecio } from '../precios/resolucion'
 import { resolverCodigo } from '../inventario/codigo'
@@ -696,7 +697,8 @@ export async function crearConsignacionRevendedora(
   payload: CrearConsignacionRevendedoraPayload
 ): Promise<{ ok: true; id_consignacion_revendedora: string } | { ok: false; reason: string }> {
   const supabase = await createServerClient()
-  const { data, error } = await supabase.rpc('sp_crear_consignacion_revendedora_con_items', {
+  // Crea y confirma en una transacción: ya no existe el borrador intermedio.
+  const { data, error } = await supabase.rpc('sp_entregar_consignacion_revendedora', {
     p_id_revendedora: payload.id_revendedora,
     p_items: payload.items,
     p_periodo_desde: payload.periodo_desde || null,
@@ -751,6 +753,24 @@ export async function registrarDevolucionRevendedora(
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_registrar_devolucion_revendedora', {
     p_id_consignacion_revendedora: payload.id_consignacion_revendedora,
+    p_items: payload.items,
+    p_estado_destino: payload.estado_destino,
+    p_motivo: payload.motivo || null,
+  })
+
+  if (error) {
+    return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
+  }
+
+  return { ok: true, itemsDevueltos: Number(data) }
+}
+
+export async function devolverItemsRevendedora(
+  payload: DevolverItemsRevendedoraPayload
+): Promise<{ ok: true; itemsDevueltos: number } | { ok: false; reason: string }> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('sp_devolver_items_revendedora', {
+    p_id_revendedora: payload.id_revendedora,
     p_items: payload.items,
     p_estado_destino: payload.estado_destino,
     p_motivo: payload.motivo || null,

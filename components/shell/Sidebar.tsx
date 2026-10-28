@@ -1,5 +1,5 @@
 import type { Session } from '@/lib/dal/session'
-import { hasPermission } from '@/lib/dal/guard'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { SidebarClient, type SidebarNavItem } from './SidebarClient'
 
 /**
@@ -21,7 +21,7 @@ interface NavItem extends SidebarNavItem {
 
 type NavGroup = 'OPERACIONES' | 'FINANZAS' | 'SISTEMA'
 
-// Heading order in the rail. Groups whose items are all permission-filtered
+// Heading order in the rail. Groups whose items are all access-filtered
 // away are dropped entirely — a lone heading with nothing under it is noise.
 const GROUP_ORDER: readonly NavGroup[] = ['OPERACIONES', 'FINANZAS', 'SISTEMA'] as const
 
@@ -54,8 +54,11 @@ const NAV_ITEMS: readonly NavItem[] = [
 ] as const
 
 export function Sidebar({ session }: { session: Session }) {
+  // `hasModuleAccess`, not `hasPermission`: checking only the role let a
+  // module disabled in `tenant_modulo` stay in the rail, and its layout then
+  // bounced the user with `module-disabled`.
   const visible = NAV_ITEMS.filter((item) =>
-    hasPermission(session, item.moduloCodigo, 'ver'),
+    hasModuleAccess(session, item.moduloCodigo, 'ver'),
   )
 
   const groups = GROUP_ORDER.map((label) => ({

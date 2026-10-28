@@ -88,7 +88,24 @@ export async function proxy(request: NextRequest) {
   // cached JWKS instead of a round-trip to the Auth API on EVERY request
   // (~260ms measured here). Same guarantee — full signature verification —
   // and it is what the Supabase Next.js proxy example uses.
-  await supabase.auth.getClaims()
+  const { data: claimsData } = await supabase.auth.getClaims()
+
+  // Cuenta creada con contraseña temporal: hasta que la persona elija la
+  // suya, todo la devuelve a /cambiar-clave (el flag lo pone el alta de
+  // usuarios y de revendedoras; lo quita changePasswordAction).
+  const claims = claimsData?.claims as { app_metadata?: { debe_cambiar_clave?: boolean } } | undefined
+  const appMetadata = claims?.app_metadata
+  const path = request.nextUrl.pathname
+  if (
+    appMetadata?.debe_cambiar_clave === true &&
+    path !== '/cambiar-clave' &&
+    path !== '/login' &&
+    !path.startsWith('/api/')
+  ) {
+    const redirect = NextResponse.redirect(new URL('/cambiar-clave', request.url))
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
+  }
 
   return response
 }

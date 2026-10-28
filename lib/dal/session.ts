@@ -47,7 +47,32 @@ interface VerifiedClaims {
   /** Puesto por el Auth Hook (`00008_auth_hook_tenant_id.sql`) como claim top-level. */
   tenant_id?: string
   id_revendedora?: string
-  app_metadata?: { tenant_id?: string }
+  app_metadata?: { tenant_id?: string; debe_cambiar_clave?: boolean }
+}
+
+/**
+ * La cuenta se creó con una contraseña temporal que escribió un
+ * administrador y la persona todavía no eligió la suya. `proxy.ts` lee el
+ * mismo claim para no dejarla salir de /cambiar-clave.
+ */
+export const debeCambiarClave = cache(async (): Promise<boolean> => {
+  const supabase = await createServerClient()
+  const { data } = await supabase.auth.getClaims()
+  const claims = (data?.claims ?? null) as VerifiedClaims | null
+  return claims?.app_metadata?.debe_cambiar_clave === true
+})
+
+/**
+ * Quita la marca de contraseña temporal. `app_metadata` solo lo escribe el
+ * service role; después hay que refrescar la sesión para que el JWT nuevo
+ * llegue sin la marca.
+ */
+export async function marcarClaveCambiada(idUsuario: string): Promise<boolean> {
+  const admin = createServiceClient()
+  const { error } = await admin.auth.admin.updateUserById(idUsuario, {
+    app_metadata: { debe_cambiar_clave: null },
+  })
+  return !error
 }
 
 /**

@@ -124,8 +124,9 @@ port = 54324
 # sender_name = "Admin"
 
 [storage]
-# Unused: no bucket is created or read anywhere in the app.
-enabled = false
+# Holds the tenant logos: bucket `tenant-logos`, created and limited by
+# migrations 00109 and 00116 (they skip it when storage is off).
+enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 

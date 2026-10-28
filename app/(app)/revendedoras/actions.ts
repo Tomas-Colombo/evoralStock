@@ -37,6 +37,10 @@ export async function crearRevendedoraUnificadaAction(input: unknown) {
       if (!email) {
         return { ok: false as const, reason: 'email-invalido' }
       }
+      // La contraseña la escribe el administrador, igual que en Usuarios.
+      if (!password_acceso) {
+        return { ok: false as const, reason: 'password-corto' }
+      }
     }
 
     if (comision_propia !== undefined) {
@@ -57,7 +61,7 @@ export async function crearRevendedoraUnificadaAction(input: unknown) {
 
     const idRevendedora = res.data
 
-    if (crear_acceso && email) {
+    if (crear_acceso && email && password_acceso) {
       const inviteRes = await dal.inviteRevendedora(session, {
         idRevendedora,
         email,
@@ -175,7 +179,7 @@ export async function darAccesoRevendedoraAction(input: unknown) {
       idRevendedora: z.string().uuid(),
       email: z.string().email().max(255),
       nombreCompleto: z.string().max(200),
-      password: z.string().optional()
+      password: z.string().min(8)
     }).strict()
 
     const parsed = schema.safeParse(input)

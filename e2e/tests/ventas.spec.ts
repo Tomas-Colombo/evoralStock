@@ -181,15 +181,13 @@ test.describe('Ventas · canal revendedora', () => {
     await page.goto(`/revendedoras/${idRevendedora}/consignaciones/nueva`)
     await page.getByLabel(/Escanear o ingresar código/i).fill(nombreProd)
     await page.getByRole('button', { name: 'Agregar ítem' }).click()
-    await page.getByRole('button', { name: 'Guardar borrador' }).click()
-    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
-
-    // Confirmar entrega para que pase a en_poder
-    await page.getByRole('button', { name: /Confirmar entrega/i }).click()
+    // Guardar y confirmar: pasa directo a en_poder
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     const dialogConfirmar = page.getByRole('dialog')
     await expect(dialogConfirmar).toBeVisible()
-    await dialogConfirmar.getByRole('button', { name: 'Confirmar entrega' }).click()
-    await shell.expectSuccessToast('Entrega confirmada')
+    await dialogConfirmar.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await shell.expectSuccessToast('Consignación guardada')
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
 
     // 3. Venta por canal revendedora
     await nuevaVenta.abrir()

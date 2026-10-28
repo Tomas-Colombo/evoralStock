@@ -11,10 +11,10 @@ import {
   spCreateRol,
   spDeleteRol,
   spSetConfiguracionQrLadoMm,
-  spSetTenantLogo,
-  spToggleTenantModulo,
+  quitarLogoTenant,
   spToggleUsuarioActivo,
   spUpdateRol,
+  subirLogoTenant,
 } from '@/lib/dal/administracion/administracion'
 import {
   compactarPermisos,
@@ -167,22 +167,6 @@ export async function deleteRolAction(input: { idRol: string }): Promise<ActionR
   }
 }
 
-export async function toggleTenantModuloAction(input: {
-  idModulo: string
-  habilitado: boolean
-}): Promise<ActionResult> {
-  const g = await guarded('editar')
-  if (!g.ok) return { ok: false, reason: g.error }
-  try {
-    await spToggleTenantModulo(input)
-    revalidatePath('/administracion/modulos')
-    revalidatePath('/')
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, reason: (e as Error).message }
-  }
-}
-
 export async function updateConfiguracionQrAction(
   raw: unknown,
 ): Promise<ActionResult<{ ladoMm: number }>> {
@@ -204,17 +188,33 @@ export async function updateConfiguracionQrAction(
 
 export async function updateTenantLogoAction(
   raw: unknown,
-): Promise<ActionResult<{ logoUrl: string | null }>> {
+): Promise<ActionResult<{ logoUrl: string }>> {
   const g = await guarded('editar')
   if (!g.ok) return { ok: false, reason: g.error }
 
-  const parsed = updateTenantLogoSchema.safeParse(raw)
+  // El tipo dice FormData, pero el POST lo arma cualquiera: si no lo es, el
+  // schema recibe `undefined` y responde `logo-invalido`.
+  const logo = raw instanceof FormData ? raw.get('logo') : undefined
+  const parsed = updateTenantLogoSchema.safeParse({ logo })
   if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
 
   try {
-    const logoUrl = await spSetTenantLogo(parsed.data.logoUrl)
+    const logoUrl = await subirLogoTenant(g.tenantId, parsed.data.logo)
     revalidatePath('/', 'layout')
     return { ok: true, data: { logoUrl } }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function quitarTenantLogoAction(): Promise<ActionResult> {
+  const g = await guarded('editar')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  try {
+    await quitarLogoTenant(g.tenantId)
+    revalidatePath('/', 'layout')
+    return { ok: true }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }

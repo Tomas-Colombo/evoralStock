@@ -295,4 +295,83 @@ describe.skipIf(!hasTestDb)('Consignación de salida a revendedora — Slice 3 (
       })
     expect(errCrossDetalleItem).not.toBeNull()
   })
+
+  test('entrega en un paso y devolución por revendedora a través de varias consignaciones', async () => {
+    const f = await ventaFixture('ConsigEntrega', 4, { tipoIngreso: 'compra' })
+    await habilitarModuloRevendedoras(f.tenantId)
+
+    const { data: idRev } = await f.authenticated.rpc('sp_crear_revendedora', {
+      p_nombre: 'Ana',
+      p_apellido: 'Paz',
+    })
+    const { data: idOtra } = await f.authenticated.rpc('sp_crear_revendedora', {
+      p_nombre: 'Otra',
+      p_apellido: 'Rev',
+    })
+
+    // Sin borrador: la entrega deja la consignación confirmada y los ítems en poder.
+    const { data: idC1, error: errC1 } = await f.authenticated.rpc(
+      'sp_entregar_consignacion_revendedora',
+      { p_id_revendedora: idRev, p_items: [f.items[0], f.items[1]] },
+    )
+    expect(errC1).toBeNull()
+    const { data: idC2, error: errC2 } = await f.authenticated.rpc(
+      'sp_entregar_consignacion_revendedora',
+      { p_id_revendedora: idRev, p_items: [f.items[2]] },
+    )
+    expect(errC2).toBeNull()
+    const { error: errOtra } = await f.authenticated.rpc('sp_entregar_consignacion_revendedora', {
+      p_id_revendedora: idOtra,
+      p_items: [f.items[3]],
+    })
+    expect(errOtra).toBeNull()
+
+    const { data: cabeceras } = await f.serviceRole
+      .from('consignacion_revendedora')
+      .select('id_consignacion_revendedora, confirmada')
+      .in('id_consignacion_revendedora', [idC1, idC2])
+    expect(cabeceras?.every((c) => c.confirmada)).toBe(true)
+
+    // Un rechazo no deja cabecera huérfana: el ítem ya está en poder.
+    const { error: errRepetido } = await f.authenticated.rpc('sp_entregar_consignacion_revendedora', {
+      p_id_revendedora: idRev,
+      p_items: [f.items[0]],
+    })
+    expect(errRepetido?.message).toMatch(/item-no-entregable/)
+    const { count: totalConsig } = await f.serviceRole
+      .from('consignacion_revendedora')
+      .select('id_consignacion_revendedora', { count: 'exact', head: true })
+      .eq('id_revendedora', idRev)
+    expect(totalConsig).toBe(2)
+
+    // Un ítem de otra revendedora rechaza toda la devolución.
+    const { error: errAjeno } = await f.authenticated.rpc('sp_devolver_items_revendedora', {
+      p_id_revendedora: idRev,
+      p_items: [f.items[0], f.items[3]],
+    })
+    expect(errAjeno?.message).toMatch(/item-no-en-poder-revendedora/)
+    const { data: item0Intacto } = await f.serviceRole
+      .from('item_producto')
+      .select('estado_item')
+      .eq('id_item', f.items[0])
+      .single()
+    expect(item0Intacto?.estado_item).toBe('en_revendedora')
+
+    // Ítems de dos consignaciones distintas vuelven en una sola devolución.
+    const { data: devueltos, error: errDev } = await f.authenticated.rpc(
+      'sp_devolver_items_revendedora',
+      { p_id_revendedora: idRev, p_items: [f.items[0], f.items[2]], p_motivo: 'Fin de temporada' },
+    )
+    expect(errDev).toBeNull()
+    expect(devueltos).toBe(2)
+
+    const { data: estados } = await f.serviceRole
+      .from('item_producto')
+      .select('id_item, estado_item')
+      .in('id_item', [f.items[0], f.items[1], f.items[2]])
+    const porId = new Map(estados?.map((i) => [i.id_item, i.estado_item]))
+    expect(porId.get(f.items[0])).toBe('disponible')
+    expect(porId.get(f.items[1])).toBe('en_revendedora')
+    expect(porId.get(f.items[2])).toBe('disponible')
+  })
 })

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { QR_LADO_MM_MAX, QR_LADO_MM_MIN } from '@/lib/inventario/limites'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
+import { LOGO_MAX_BYTES, LOGO_MIME } from '@/lib/tenant/logo'
 
 /**
  * Validación de runtime para los payloads de roles. Los Server Actions son un
@@ -91,12 +92,20 @@ export const updateConfiguracionQrSchema = z.strictObject(
   payloadParams,
 )
 
+/**
+ * El logo llega como archivo en `FormData`, no como data URL: el base64 de
+ * una imagen de 2 MB superaba el límite de 1 MB de Server Actions. El navegador
+ * ya lo achica (ConfiguracionLogoCard); esto es el tope real, porque el archivo
+ * lo arma quien hace el POST. El `type` también se puede falsear: el DAL
+ * vuelve a mirar los magic bytes antes de subirlo.
+ */
 export const updateTenantLogoSchema = z.strictObject(
   {
-    logoUrl: z
-      .string('logo-invalido')
-      .max(2_500_000, 'logo-muy-grande')
-      .nullable(),
+    logo: z
+      .file('logo-invalido')
+      .min(1, 'logo-invalido')
+      .max(LOGO_MAX_BYTES, 'logo-muy-grande')
+      .mime([...LOGO_MIME], 'logo-formato-invalido'),
   },
   payloadParams,
 )

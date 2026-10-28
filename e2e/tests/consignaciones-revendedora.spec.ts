@@ -43,26 +43,28 @@ test.describe('Consignaciones a revendedora', () => {
     const revendedoraUrl = page.url()
     const idRevendedora = revendedoraUrl.split('/revendedoras/')[1]?.split('?')[0]?.split('/')[0]
 
-    // 3. Crear borrador de consignación
-    await page.goto(`/revendedoras/${idRevendedora}/consignaciones/nueva`)
+    // 3. Asignar desde la fila del panel, sin pasar por el perfil
+    await page.goto('/revendedoras')
+    await page
+      .getByRole('row', { name: new RegExp(`${nombreRev} ${apellidoRev}`) })
+      .getByRole('link', { name: 'Asignación' })
+      .click()
+    await page.waitForURL(`**/revendedoras/${idRevendedora}/consignaciones/nueva`)
     await page.getByLabel(/Escanear o ingresar código/i).fill(nombreProducto)
     await page.getByRole('button', { name: 'Agregar ítem' }).click()
 
     // El ítem aparece en la tabla
     await expect(page.getByText(nombreProducto)).toBeVisible()
-    await page.getByRole('button', { name: 'Guardar borrador' }).click()
 
-    // Redirige al detalle
-    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
-    await expect(page.locator('span[data-variant]').filter({ hasText: 'Borrador' })).toBeVisible()
-    await expect(page.getByText('Pendiente de entrega')).toBeVisible()
-
-    // 4. Confirmar entrega
-    await page.getByRole('button', { name: /Confirmar entrega/i }).click()
+    // 4. Guardar pide confirmación y, al confirmar, entrega sin borrador intermedio
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     const dialogConfirmar = page.getByRole('dialog')
     await expect(dialogConfirmar).toBeVisible()
-    await dialogConfirmar.getByRole('button', { name: 'Confirmar entrega' }).click()
-    await shell.expectSuccessToast('Entrega confirmada')
+    await dialogConfirmar.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await shell.expectSuccessToast('Consignación guardada')
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
+    await page.getByRole('link', { name: 'Ver detalle' }).first().click()
+    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
     await expect(page.locator('span[data-variant]').filter({ hasText: 'Abierta' })).toBeVisible()
     await expect(page.locator('span[data-variant]').filter({ hasText: 'En poder' })).toBeVisible()
 
@@ -75,22 +77,23 @@ test.describe('Consignaciones a revendedora', () => {
     await expect(filaPostEntrega.getByText('Central: 0')).toBeVisible()
     await expect(filaPostEntrega.getByText('En rev.: 1')).toBeVisible()
 
-    // 6. Devolver el ítem al local en estado disponible (sano)
-    await page.goto(page.url().includes('consignaciones') ? page.url() : `/revendedoras/${idRevendedora}/consignaciones`)
-    await page.getByRole('link', { name: 'Ver detalle' }).first().click()
-    await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones\/[0-9a-f-]+/)
-
-    // Seleccionar el ítem para devolver
-    const checkboxItem = page.getByRole('checkbox', { name: new RegExp(`Seleccionar ítem`, 'i') })
-    await checkboxItem.check()
-    await page.getByRole('button', { name: /Registrar devolución/i }).click()
-
-    // Modal de devolución
-    const modalDevolucion = page.getByRole('heading', { name: 'Registrar devolución de ítems' }).locator('..')
-    await expect(modalDevolucion).toBeVisible()
-    await page.getByRole('button', { name: 'Confirmar devolución' }).click()
-    await shell.expectSuccessToast('Devolución de 1 ítem registrada correctamente')
-    await expect(page.locator('span[data-variant]').filter({ hasText: 'Devuelto' })).toBeVisible()
+    // 6. Devolver desde la fila del panel: escanear lo que vuelve y confirmar
+    await page.goto('/revendedoras')
+    await page
+      .getByRole('row', { name: new RegExp(`${nombreRev} ${apellidoRev}`) })
+      .getByRole('link', { name: 'Devolución' })
+      .click()
+    await page.waitForURL(`**/revendedoras/${idRevendedora}/devolucion`)
+    await page.getByLabel(/Escanear lo que vuelve/i).fill(nombreProducto)
+    await page.getByRole('button', { name: 'Marcar', exact: true }).click()
+    await expect(page.getByRole('checkbox', { name: `Marcar ${nombreProducto}` })).toBeChecked()
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    const dialogDevolucion = page.getByRole('dialog')
+    await expect(dialogDevolucion).toBeVisible()
+    await dialogDevolucion.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await shell.expectSuccessToast('1 pieza de vuelta en el local')
+    await page.waitForURL(`**/revendedoras/${idRevendedora}/en-poder`)
+    await expect(page.getByText('Sin prendas en su poder')).toBeVisible()
 
     // 7. Verificar que el ítem vuelve a disponibilidad central
     await page.goto('/inventario')

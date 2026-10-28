@@ -10,6 +10,7 @@ import {
   updateTenantLogoSchema,
   cambiarPasswordSchema,
 } from './administracion'
+import { LOGO_MAX_BYTES } from '@/lib/tenant/logo'
 
 const UUID = '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
 
@@ -143,18 +144,35 @@ describe('updateConfiguracionQrSchema', () => {
 })
 
 describe('updateTenantLogoSchema', () => {
-  it('acepta null o un string de logo', () => {
-    expect(updateTenantLogoSchema.safeParse({ logoUrl: null }).success).toBe(true)
-    expect(updateTenantLogoSchema.safeParse({ logoUrl: 'data:image/png;base64,abc' }).success).toBe(true)
-    expect(updateTenantLogoSchema.safeParse({ logoUrl: 'https://example.com/logo.png' }).success).toBe(true)
+  const archivo = (bytes: number, type: string) => new File([new Uint8Array(bytes)], 'logo', { type })
+  const reason = (input: unknown) => {
+    const r = updateTenantLogoSchema.safeParse(input)
+    return r.success ? null : primerReason(r.error)
+  }
+
+  it('acepta un PNG, JPEG o WebP dentro del tope', () => {
+    expect(reason({ logo: archivo(1000, 'image/png') })).toBeNull()
+    expect(reason({ logo: archivo(1000, 'image/jpeg') })).toBeNull()
+    expect(reason({ logo: archivo(LOGO_MAX_BYTES, 'image/webp') })).toBeNull()
   })
 
-  it('rechaza tipos no string o campos desconocidos', () => {
-    const r1 = updateTenantLogoSchema.safeParse({ logoUrl: 123 })
-    expect(r1.success).toBe(false)
-    const r2 = updateTenantLogoSchema.safeParse({ logoUrl: null, extra: true })
-    expect(r2.success).toBe(false)
-    if (!r2.success) expect(primerReason(r2.error)).toBe('campo-desconocido')
+  it('rechaza un archivo por encima del tope', () => {
+    expect(reason({ logo: archivo(LOGO_MAX_BYTES + 1, 'image/webp') })).toBe('logo-muy-grande (logo)')
+  })
+
+  it('rechaza SVG y tipos que no son imagen', () => {
+    expect(reason({ logo: archivo(100, 'image/svg+xml') })).toBe('logo-formato-invalido (logo)')
+    expect(reason({ logo: archivo(100, 'text/html') })).toBe('logo-formato-invalido (logo)')
+  })
+
+  it('rechaza un archivo vacío, un string (data URL) o null', () => {
+    expect(reason({ logo: archivo(0, 'image/png') })).toBe('logo-invalido (logo)')
+    expect(reason({ logo: 'data:image/png;base64,abc' })).toBe('logo-invalido (logo)')
+    expect(reason({ logo: null })).toBe('logo-invalido (logo)')
+  })
+
+  it('rechaza campos desconocidos', () => {
+    expect(reason({ logo: archivo(100, 'image/png'), extra: true })).toBe('campo-desconocido')
   })
 })
 

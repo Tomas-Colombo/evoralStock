@@ -103,6 +103,9 @@ export interface ItemEnPoderRevendedoraRow {
   id_producto: string
   nombre_producto: string
   sku: string
+  /** QR de la unidad: la devolución lo usa para reconocer el escaneo. */
+  qr_code: string | null
+  talle: string | null
   precio_venta: number
   fecha_entrega: string
 }
@@ -123,6 +126,10 @@ export async function listarItemsEnPoderRevendedora(
         nombre,
         sku,
         precio_venta
+      ),
+      item_producto (
+        qr_code,
+        talle
       ),
       consignacion_revendedora!inner (
         id_revendedora,
@@ -145,6 +152,7 @@ export async function listarItemsEnPoderRevendedora(
     fecha_entrega: string | null
     created_at: string
     producto: { nombre: string; sku: string; precio_venta: number } | null
+    item_producto: { qr_code: string | null; talle: string | null } | null
   }
 
   const rawList = (data as unknown as DetalleRaw[]) ?? []
@@ -153,6 +161,8 @@ export async function listarItemsEnPoderRevendedora(
     id_producto: d.id_producto,
     nombre_producto: d.producto?.nombre ?? 'Producto',
     sku: d.producto?.sku ?? '',
+    qr_code: d.item_producto?.qr_code ?? null,
+    talle: d.item_producto?.talle ?? null,
     precio_venta: Number(d.producto?.precio_venta ?? 0),
     fecha_entrega: d.fecha_entrega ?? d.created_at,
   }))

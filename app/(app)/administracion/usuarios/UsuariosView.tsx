@@ -14,6 +14,10 @@ import { asignarRolAction, toggleUsuarioEstadoAction } from '../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Select } from '@/components/ui/Select'
+import { Modal } from '@/components/ui/Modal'
+import { ClaveTemporalField } from '@/components/acceso/ClaveTemporalField'
+import { CompartirAccesoModal } from '@/components/acceso/CompartirAccesoModal'
+import { restablecerClaveAction } from './actions'
 
 const ESTADO_VARIANT: Record<UsuarioEstado, 'success' | 'neutral' | 'warning'> = {
   activo: 'success',
@@ -42,6 +46,25 @@ export function UsuariosView({
   const toast = useToast()
   const [pending, start] = useTransition()
   const [rows, setRows] = useState(initial)
+  const [restablecer, setRestablecer] = useState<UsuarioConRol | null>(null)
+  const [password, setPassword] = useState('')
+  const [compartir, setCompartir] = useState<{ nombre: string; email: string } | null>(null)
+
+  function abrirRestablecer(u: UsuarioConRol) {
+    setPassword('')
+    setRestablecer(u)
+  }
+
+  function confirmarRestablecer() {
+    if (!restablecer) return
+    const u = restablecer
+    start(async () => {
+      const res = await restablecerClaveAction({ idUsuario: u.id_usuario, password })
+      if (!res.ok) return toast.error('No se pudo restablecer', mensajeDeError(res.reason))
+      setRestablecer(null)
+      setCompartir({ nombre: res.data.nombre || res.data.email, email: res.data.email })
+    })
+  }
 
   function cambiarEstado(u: UsuarioConRol, next: UsuarioEstado) {
     start(async () => {
@@ -97,11 +120,12 @@ export function UsuariosView({
             <Th>Rol</Th>
             <Th>Estado</Th>
             <Th></Th>
+            <Th></Th>
           </THead>
           <TBody>
             {rows.length === 0 ? (
               <Tr>
-                <Td align="center" colSpan={4} className="px-4 py-6 text-muted">
+                <Td align="center" colSpan={5} className="px-4 py-6 text-muted">
                   Sin usuarios en este tenant.
                 </Td>
               </Tr>
@@ -133,7 +157,14 @@ export function UsuariosView({
                       {USUARIO_ESTADO_LABEL[u.estado_usuario]}
                     </Badge>
                   </Td>
-                  <Td align="right">
+                  {/* Una acción por celda: así cada botón queda en su columna
+                      aunque "Activar" y "Desactivar" no midan lo mismo. */}
+                  <Td align="right" className="w-px whitespace-nowrap">
+                    <Button size="sm" variant="ghost" onClick={() => abrirRestablecer(u)} disabled={pending}>
+                      Restablecer clave
+                    </Button>
+                  </Td>
+                  <Td align="right" className="w-px whitespace-nowrap">
                     {u.estado_usuario === 'activo' ? (
                       <Button size="sm" variant="ghost" onClick={() => cambiarEstado(u, 'inactivo')} disabled={pending}>
                         Desactivar
@@ -150,6 +181,42 @@ export function UsuariosView({
           </TBody>
         </DataTable>
       </TableFrame>
+
+      <Modal
+        open={restablecer !== null}
+        onClose={() => {
+          if (!pending) setRestablecer(null)
+        }}
+        title="Restablecer clave"
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setRestablecer(null)} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={confirmarRestablecer} disabled={pending || password.trim().length < 8}>
+              {pending ? 'Restableciendo...' : 'Restablecer'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            {restablecer?.nombre_completo || restablecer?.email} va a entrar con esta contraseña
+            temporal y la va a tener que cambiar apenas ingrese. La anterior deja de funcionar.
+          </p>
+          <ClaveTemporalField id="rc_password" value={password} onChange={setPassword} />
+        </div>
+      </Modal>
+
+      {compartir && (
+        <CompartirAccesoModal
+          open
+          onClose={() => setCompartir(null)}
+          nombre={compartir.nombre}
+          email={compartir.email}
+          password={password}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { ADMIN } from '../config/env'
-import { badge } from '../pages/AppShell'
+import { setModuloHabilitado } from '../support/tenant'
 import { expect, test, unique, uniqueEmail } from '../fixtures/test'
 
 test.describe('Administración · usuarios', () => {
@@ -71,47 +71,34 @@ test.describe('Administración · módulos', () => {
    * tests once left the tenant with Reportes disabled and cascaded into
    * unrelated failures.
    */
-  test.afterEach(async ({ administracion }) => {
-    await administracion.abrirModulos()
-    const fila = administracion.filaModulo('Reportes')
-    // `exact` is load-bearing: accessible-name matching is substring-based, so
-    // a plain "Habilitar" also matches the "Deshabilitar" button and the
-    // teardown would switch the module OFF instead of on.
-    const habilitar = fila.getByRole('button', { name: 'Habilitar', exact: true })
-    if (await habilitar.isVisible()) {
-      await habilitar.click()
-      await expect(habilitar).toHaveCount(0)
-    }
-    await expect(badge(fila)).toHaveText(/Habilitado$/)
+  test.afterEach(async ({ seed }) => {
+    await setModuloHabilitado(seed.tenantId, 'reportes', true)
   })
 
   test('deshabilitar un módulo corta el acceso y volver a habilitarlo lo restituye', async ({
     page,
-    administracion,
+    seed,
     shell,
   }) => {
-    await administracion.abrirModulos()
-    const fila = administracion.filaModulo('Reportes')
+    await setModuloHabilitado(seed.tenantId, 'reportes', false)
 
-    await fila.getByRole('button', { name: 'Deshabilitar', exact: true }).click()
-    await shell.expectSuccessToast('Módulo deshabilitado')
-    await expect(badge(fila)).toHaveText(/Deshabilitado$/)
-
-    // The module guard is the gate, not the rail: the link stays in the
-    // sidebar (it is filtered by ROLE permissions) but the route bounces.
+    // The route bounces, and the rail no longer offers a link that would.
     await page.goto('/reportes')
     await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page.locator('a[href="/reportes"]')).toHaveCount(0)
 
-    await administracion.abrirModulos()
-    await administracion
-      .filaModulo('Reportes')
-      .getByRole('button', { name: 'Habilitar', exact: true })
-      .click()
-    await shell.expectSuccessToast('Módulo habilitado')
-    await expect(badge(administracion.filaModulo('Reportes'))).toHaveText(/Habilitado$/)
+    await setModuloHabilitado(seed.tenantId, 'reportes', true)
 
     await page.goto('/reportes')
     await expect(shell.titulo).toHaveText('Reportes')
+  })
+
+  test('la administración del tenant no ofrece habilitar módulos', async ({
+    page,
+    administracion,
+  }) => {
+    await administracion.abrir()
+    await expect(page.locator('a[href="/administracion/modulos"]')).toHaveCount(0)
   })
 })
 

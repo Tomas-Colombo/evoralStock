@@ -1,14 +1,16 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
-import { updateTenantLogoAction } from './actions'
+import { LOGO_MAX_BYTES } from '@/lib/tenant/logo'
+import { quitarTenantLogoAction, updateTenantLogoAction } from './actions'
+import { achicarLogo } from './achicarLogo'
 
-const MAX_FILE_BYTES = 2 * 1024 * 1024 // 2 MB
+const EXTENSION: Record<string, string> = { 'image/webp': 'webp', 'image/png': 'png' }
 
 export function ConfiguracionLogoCard({
   logoActual,
@@ -21,42 +23,65 @@ export function ConfiguracionLogoCard({
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pending, start] = useTransition()
-  const [preview, setPreview] = useState<string | null>(logoActual)
-  const [cambiado, setCambiado] = useState(false)
+  const [procesando, setProcesando] = useState(false)
+  // Logo ya achicado, listo para mandar. null = no hay cambios sin guardar.
+  const [archivo, setArchivo] = useState<Blob | null>(null)
+  const [previewLocal, setPreviewLocal] = useState<string | null>(null)
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // Cada object URL retiene el blob en memoria hasta que se revoca.
+  useEffect(() => {
+    return () => {
+      if (previewLocal) URL.revokeObjectURL(previewLocal)
+    }
+  }, [previewLocal])
+
+  const preview = previewLocal ?? logoActual
+  const ocupado = pending || procesando
+
+  function descartarCambio() {
+    setArchivo(null)
+    setPreviewLocal(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Archivo no válido', 'Elegí una imagen (PNG, JPG, WebP o SVG).')
+      toast.error('Archivo no válido', mensajeDeError('logo-formato-invalido'))
       return
     }
 
-    if (file.size > MAX_FILE_BYTES) {
-      toast.error('Imagen demasiado pesada', mensajeDeError('logo-muy-grande'))
-      return
+    setProcesando(true)
+    try {
+      const achicado = await achicarLogo(file)
+      if (achicado.size > LOGO_MAX_BYTES) {
+        toast.error('Imagen demasiado pesada', mensajeDeError('logo-muy-grande'))
+        return
+      }
+      setArchivo(achicado)
+      setPreviewLocal(URL.createObjectURL(achicado))
+    } catch (err) {
+      toast.error('No se pudo leer la imagen', mensajeDeError((err as Error).message))
+    } finally {
+      setProcesando(false)
     }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setPreview(result)
-      setCambiado(result !== logoActual)
-    }
-    reader.readAsDataURL(file)
   }
 
   function handleGuardar() {
-    if (!canEdit || !cambiado) return
+    if (!canEdit || !archivo) return
+
+    const formData = new FormData()
+    formData.append('logo', archivo, `logo.${EXTENSION[archivo.type] ?? 'png'}`)
 
     start(async () => {
-      const res = await updateTenantLogoAction({ logoUrl: preview })
+      const res = await updateTenantLogoAction(formData)
       if (!res.ok) {
         return toast.error('No se pudo guardar el logo', mensajeDeError(res.reason))
       }
-      toast.success('Logo actualizado', 'El nuevo logo se aplicó a la barra superior.')
-      setCambiado(false)
+      toast.success('Logo actualizado', 'El nuevo logo se aplicó a la barra lateral.')
+      descartarCambio()
       router.refresh()
     })
   }
@@ -65,14 +90,12 @@ export function ConfiguracionLogoCard({
     if (!canEdit) return
 
     start(async () => {
-      const res = await updateTenantLogoAction({ logoUrl: null })
+      const res = await quitarTenantLogoAction()
       if (!res.ok) {
         return toast.error('No se pudo quitar el logo', mensajeDeError(res.reason))
       }
       toast.success('Logo eliminado', 'Ahora se muestra el nombre comercial del negocio.')
-      setPreview(null)
-      setCambiado(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      descartarCambio()
       router.refresh()
     })
   }
@@ -84,7 +107,8 @@ export function ConfiguracionLogoCard({
           <h3 className="font-display text-lg">Logo del negocio</h3>
           <p className="mt-0.5 text-sm text-muted">
             Este logo se muestra en la parte superior de la barra de navegación lateral.
-            Recomendamos una imagen con fondo transparente (PNG, SVG o WebP) de hasta 2 MB.
+            Recomendamos una imagen con fondo transparente (PNG, SVG o WebP). La ajustamos
+            al tamaño de la barra automáticamente.
           </p>
         </div>
       </div>
@@ -114,25 +138,25 @@ export function ConfiguracionLogoCard({
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
               className="hidden"
               onChange={handleFileChange}
-              disabled={pending}
+              disabled={ocupado}
             />
 
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              disabled={pending}
+              disabled={ocupado}
               onClick={() => fileInputRef.current?.click()}
             >
-              {preview ? 'Cambiar imagen' : 'Seleccionar imagen'}
+              {procesando ? 'Procesando…' : preview ? 'Cambiar imagen' : 'Seleccionar imagen'}
             </Button>
 
-            {cambiado && (
+            {archivo && (
               <Button
                 type="button"
                 variant="primary"
                 size="sm"
-                disabled={pending}
+                disabled={ocupado}
                 onClick={handleGuardar}
               >
                 {pending ? 'Guardando…' : 'Guardar logo'}
@@ -144,7 +168,7 @@ export function ConfiguracionLogoCard({
                 type="button"
                 variant="danger"
                 size="sm"
-                disabled={pending}
+                disabled={ocupado}
                 onClick={handleQuitar}
               >
                 Quitar logo

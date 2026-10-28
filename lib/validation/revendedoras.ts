@@ -88,6 +88,25 @@ export const registrarDevolucionRevendedoraSchema = z.strictObject({
 
 export type RegistrarDevolucionRevendedoraPayload = z.infer<typeof registrarDevolucionRevendedoraSchema>
 
+export const devolverItemsRevendedoraSchema = z.strictObject({
+  id_revendedora: z.string().uuid('id-revendedora-invalido'),
+  items: z
+    .array(z.string().uuid('id-item-invalido'))
+    .min(1, 'items-vacios')
+    .max(200, 'demasiados-items')
+    .transform((items) => Array.from(new Set(items))),
+  estado_destino: z.enum(['disponible', 'devuelto', 'baja']),
+  motivo: z
+    .string()
+    .trim()
+    .max(500, 'motivo-largo')
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val : null)),
+})
+
+export type DevolverItemsRevendedoraPayload = z.infer<typeof devolverItemsRevendedoraSchema>
+
 export const cerrarConsignacionRevendedoraSchema = z.strictObject({
   id_consignacion_revendedora: z.string().uuid('id-consignacion-invalido'),
 })

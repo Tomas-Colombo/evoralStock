@@ -134,18 +134,25 @@ export function ClientesTable({
       ),
     },
     {
-      key: 'acciones',
+      // Una acción por columna: "Activar" y "Desactivar" no miden lo mismo y
+      // en una celda compartida corrían el botón Editar de fila en fila.
+      key: 'editar',
       label: '',
       align: 'right',
       render: (c) => (
-        <div className="flex justify-end whitespace-nowrap">
-          <Button size="sm" variant="ghost" onClick={() => setEditando(c)} disabled={pending}>
-            Editar
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => toggle(c)} disabled={pending}>
-            {c.activo ? 'Desactivar' : 'Activar'}
-          </Button>
-        </div>
+        <Button size="sm" variant="ghost" onClick={() => setEditando(c)} disabled={pending}>
+          Editar
+        </Button>
+      ),
+    },
+    {
+      key: 'activo-toggle',
+      label: '',
+      align: 'right',
+      render: (c) => (
+        <Button size="sm" variant="ghost" onClick={() => toggle(c)} disabled={pending}>
+          {c.activo ? 'Desactivar' : 'Activar'}
+        </Button>
       ),
     },
   ]

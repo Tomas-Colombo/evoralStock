@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { Modal } from '@/components/ui/Modal'
+import { ClaveTemporalField } from '@/components/acceso/ClaveTemporalField'
+import { CompartirAccesoModal } from '@/components/acceso/CompartirAccesoModal'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import type { RevendedoraRow } from '@/lib/types/revendedoras'
 import { editarRevendedoraAction } from '../actions'
@@ -15,6 +18,31 @@ export function EditarRevendedoraForm({ revendedora }: { revendedora: Revendedor
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(false)
+  const [accesoOpen, setAccesoOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [compartirOpen, setCompartirOpen] = useState(false)
+
+  const nombreCompleto = `${revendedora.nombre} ${revendedora.apellido}`.trim()
+
+  async function darAcceso() {
+    if (!revendedora.email) return
+    setLoading(true)
+    const { darAccesoRevendedoraAction } = await import('../actions')
+    const res = await darAccesoRevendedoraAction({
+      idRevendedora: revendedora.id_revendedora,
+      email: revendedora.email,
+      nombreCompleto,
+      password,
+    })
+    setLoading(false)
+    if (!res.ok) {
+      const rawR = (res as { reason?: unknown }).reason
+      const msg = typeof rawR === 'string' ? rawR : ((rawR as { reason?: string })?.reason || 'error-desconocido')
+      return toast.error('No se pudo dar acceso', mensajeDeError(msg))
+    }
+    setAccesoOpen(false)
+    setCompartirOpen(true)
+  }
 
   async function action(formData: FormData) {
     setLoading(true)
@@ -68,33 +96,10 @@ export function EditarRevendedoraForm({ revendedora }: { revendedora: Revendedor
               type="button"
               variant="secondary"
               disabled={loading}
-              onClick={async () => {
+              onClick={() => {
                 if (!revendedora.email) return toast.error('La revendedora debe tener un email para darle acceso')
-                setLoading(true)
-                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-                const arr = new Uint32Array(14)
-                crypto.getRandomValues(arr)
-                const password = Array.from(arr, (n) => chars[n % chars.length]).join('')
-                
-                const { darAccesoRevendedoraAction } = await import('../actions')
-                const res = await darAccesoRevendedoraAction({
-                  idRevendedora: revendedora.id_revendedora,
-                  email: revendedora.email,
-                  nombreCompleto: `${revendedora.nombre} ${revendedora.apellido}`.trim(),
-                  password
-                })
-                setLoading(false)
-                if (!res.ok) {
-                  const rawR = (res as { reason?: unknown }).reason
-                  const msg = typeof rawR === 'string' ? rawR : ((rawR as { reason?: string })?.reason || 'error-desconocido')
-                  return toast.error('No se pudo dar acceso', mensajeDeError(msg))
-                }
-                toast.show({
-                  variant: 'success',
-                  title: 'Acceso habilitado',
-                  description: `Contraseña temporal: ${password}`,
-                  duration: 0,
-                })
+                setPassword('')
+                setAccesoOpen(true)
               }}
             >
               Dar acceso
@@ -131,6 +136,45 @@ export function EditarRevendedoraForm({ revendedora }: { revendedora: Revendedor
           </Button>
         </div>
       </div>
+
+      <Modal
+        open={accesoOpen}
+        onClose={() => {
+          if (!loading) setAccesoOpen(false)
+        }}
+        title="Dar acceso"
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setAccesoOpen(false)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={darAcceso} disabled={loading || password.trim().length < 8}>
+              {loading ? 'Dando acceso...' : 'Dar acceso'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            {nombreCompleto} va a ingresar con {revendedora.email}.
+          </p>
+          <ClaveTemporalField id="er_password" value={password} onChange={setPassword} />
+        </div>
+      </Modal>
+
+      {compartirOpen && revendedora.email && (
+        <CompartirAccesoModal
+          open
+          onClose={() => {
+            setCompartirOpen(false)
+            router.refresh()
+          }}
+          nombre={revendedora.nombre}
+          email={revendedora.email}
+          password={password}
+          telefonoInicial={revendedora.telefono}
+        />
+      )}
     </form>
   )
 }

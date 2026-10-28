@@ -18,7 +18,7 @@ export function ConsignacionesRevendedoraTable({
       label: 'Estado',
       render: (r) => {
         if (!r.confirmada) {
-          return <Badge variant="warning">Borrador</Badge>
+          return <Badge variant="warning">Sin confirmar</Badge>
         }
         if (r.estado === 'abierta') {
           return <Badge variant="success">Abierta</Badge>
