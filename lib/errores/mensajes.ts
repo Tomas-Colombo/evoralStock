@@ -65,6 +65,11 @@ const MENSAJES: Record<string, string> = {
   // `accion` los vuelve específicos; sin ella quedan en genérico.
   'no-permission': 'Tu rol no te permite hacer esto.',
   'module-disabled': 'Este módulo no está habilitado para tu negocio.',
+  'modulo-nucleo': 'Este módulo es parte del núcleo del sistema y no se puede deshabilitar.',
+  'modulo-paquete-incompleto':
+    'Consignaciones y Rendiciones funcionan en conjunto y deben habilitarse o deshabilitarse al mismo tiempo.',
+  'modulo-con-estado-vivo':
+    'No podés deshabilitar este módulo porque tiene operaciones o mercadería pendientes. Cerrá o liquidá los registros activos antes de continuar.',
   'tenant-mismatch': 'Esos datos pertenecen a otro negocio.',
   'no-session': 'Se cerró tu sesión. Volvé a iniciar sesión.',
   'no-tenant': 'Tu sesión no está asociada a ningún negocio. Volvé a iniciar sesión.',

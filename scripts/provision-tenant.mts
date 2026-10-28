@@ -117,14 +117,25 @@ function parseOpciones(): Opciones {
   }
 }
 
+const MODULOS_NUCLEO = [
+  'administracion',
+  'inventario',
+  'ventas',
+  'precios',
+  'gastos',
+  'reportes',
+] as const
+
+const MODULOS_OPCIONALES = ['revendedoras', 'consignaciones', 'rendiciones'] as const
+
 /**
- * Resolves which modules the new tenant gets. `null` means "everything in
- * the catalog" — the tenant admin can switch them off from Administración →
- * Módulos, so being generous here is reversible in-app, while missing a
- * module the customer paid for is a support ticket.
+ * Resolves which modules the new tenant gets. The core modules are ALWAYS
+ * included. `--modulos` accepts only optional modules (`revendedoras`,
+ * `consignaciones`, `rendiciones`) and enforces that the consignment pair
+ * (`consignaciones` + `rendiciones`) is configured together.
  *
- * An explicit `--modulos` list with an unknown code is a typo, not a
- * request: fail rather than silently provision fewer modules than intended.
+ * If `codigos` is `null` (not specified), all modules in the catalog are
+ * provisioned.
  */
 async function resolverModulos(
   db: SupabaseClient,
@@ -140,14 +151,34 @@ async function resolverModulos(
   if (!codigos) return catalogo
 
   const porCodigo = new Map(catalogo.map((m) => [m.codigo, m]))
-  const desconocidos = codigos.filter((c) => !porCodigo.has(c))
-  if (desconocidos.length > 0) {
+
+  const enNucleo = codigos.filter((c) => (MODULOS_NUCLEO as readonly string[]).includes(c))
+  if (enNucleo.length > 0) {
     throw new Error(
-      `Módulos inexistentes: ${desconocidos.join(', ')}. ` +
-        `Disponibles: ${catalogo.map((m) => m.codigo).join(', ')}`,
+      `Los módulos del núcleo se incluyen siempre y no deben pasarse en --modulos: ${enNucleo.join(', ')}`,
     )
   }
-  return codigos.map((c) => porCodigo.get(c)!)
+
+  const desconocidos = codigos.filter(
+    (c) => !(MODULOS_OPCIONALES as readonly string[]).includes(c),
+  )
+  if (desconocidos.length > 0) {
+    throw new Error(
+      `Módulos inexistentes u obligatorios: ${desconocidos.join(', ')}. ` +
+        `Opcionales disponibles: ${MODULOS_OPCIONALES.join(', ')}`,
+    )
+  }
+
+  const tieneCons = codigos.includes('consignaciones')
+  const tieneRend = codigos.includes('rendiciones')
+  if (tieneCons !== tieneRend) {
+    throw new Error(
+      'El paquete de consignación exige habilitar tanto "consignaciones" como "rendiciones".',
+    )
+  }
+
+  const codigosFinales = Array.from(new Set([...MODULOS_NUCLEO, ...codigos]))
+  return codigosFinales.map((c) => porCodigo.get(c)!)
 }
 
 async function provision(opts: Opciones): Promise<void> {

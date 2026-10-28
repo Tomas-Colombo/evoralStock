@@ -26,6 +26,7 @@ un código del núcleo.
 - **N1**: service-role `update tenant_modulo set habilitado = false` sobre `ventas` → `modulo-nucleo`.
 - **N2**: service-role `delete` de la fila de `inventario` → `modulo-nucleo`.
 - **N3**: `pnpm provision-tenant --modulos revendedoras` (sin núcleo) → el núcleo se agrega igual; el script no lo deja afuera.
+- **N4**: tenant sin fila del núcleo → la migración la crea habilitada.
 
 ### REQ-MODOP-02 — el paquete de consignación va de a par
 
@@ -43,9 +44,11 @@ estado del opcional sin cerrar.
 
 - **Feliz**: tenant sin stock de terceros ni rendiciones pendientes → apaga `consignacionProveedor`.
 - **N1**: ítems de ingresos `consignacion` todavía en el local (disponibles o reservados) → `modulo-con-estado-vivo`.
-- **N2**: devolución a proveedor abierta → `modulo-con-estado-vivo`.
+- **N2**: devolución a proveedor abierta (`consignacion.estado = 'activa'`) → `modulo-con-estado-vivo`.
 - **N3**: ventas de ítems en consignación sin rendir, o rendición generada sin pagar → `modulo-con-estado-vivo`.
-- **N4** (revendedoras): ítems `en_revendedora`, consignación a revendedora abierta, liquidación o declaración pendiente → `modulo-con-estado-vivo`.
+- **N3.a**: venta excluida de la rendición (`excluida_rendicion = true`) → NO bloquea.
+- **N3.b**: venta devuelta (`devolucion_venta` existe) → NO bloquea.
+- **N4** (revendedoras): ítems `en_revendedora`, consignación a revendedora abierta (`consignacion_revendedora.estado = 'abierta'`), liquidación pendiente (`liquidacion_revendedora.estado = 'pendiente'`) o declaración pendiente (`declaracion_venta_revendedora.estado = 'pendiente'`) → `modulo-con-estado-vivo`.
 
 ### REQ-MODOP-04 — capacidades, una sola fuente
 
