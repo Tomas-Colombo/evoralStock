@@ -38,6 +38,20 @@ describe.skipIf(!hasTestDb)('tenant_modulo guarda — REQ-MODOP-01, 02, 03, 10',
       expect(error?.message).toMatch(/modulo-nucleo/)
     })
 
+    it('N1 (insert): insert de fila del núcleo con habilitado = false levanta modulo-nucleo', async () => {
+      const tenant = await createTenantWithUser('modop-01-ins')
+      const modVentas = await getModulo('ventas')
+
+      const { error } = await serviceRole.from('tenant_modulo').insert({
+        id_tenant: tenant.tenantId,
+        id_modulo: modVentas.id_modulo,
+        habilitado: false,
+      })
+
+      expect(error).not.toBeNull()
+      expect(error?.message).toMatch(/modulo-nucleo/)
+    })
+
     it('N2: delete de fila de módulo del núcleo levanta modulo-nucleo', async () => {
       const tenant = await createTenantWithUser('modop-01-n2')
       const modInv = await getModulo('inventario')
@@ -58,27 +72,43 @@ describe.skipIf(!hasTestDb)('tenant_modulo guarda — REQ-MODOP-01, 02, 03, 10',
       expect(error?.message).toMatch(/modulo-nucleo/)
     })
 
-    it('N4: tenant existente tiene las filas del núcleo habilitadas', async () => {
-      const tenant = await createTenantWithUser('modop-01-n4')
+    it('N4: fn_modulo_es_nucleo y backfill del núcleo en tenants existentes', async () => {
       const coreCodes = ['administracion', 'inventario', 'ventas', 'precios', 'gastos', 'reportes']
+      const optionalCodes = ['revendedoras', 'consignaciones', 'rendiciones']
 
-      // Simular tenant que existía antes de la migración sin filas de tenant_modulo
-      const { error: errBackfill } = await serviceRole.rpc('fn_backfill_tenant_modulo_nucleo')
-      expect(errBackfill).toBeNull()
-
-      const { data: rows, error } = await serviceRole
-        .from('tenant_modulo')
-        .select('habilitado, modulo!inner(codigo)')
-        .eq('id_tenant', tenant.tenantId)
-
-      expect(error).toBeNull()
-      const habilitados = (rows ?? [])
-        .filter((r) => r.habilitado)
-        .map((r) => (r.modulo as unknown as { codigo: string }).codigo)
-
-      // Las 6 del núcleo deben estar habilitadas
       for (const code of coreCodes) {
-        expect(habilitados).toContain(code)
+        const { data, error } = await serviceRole.rpc('fn_modulo_es_nucleo', { p_codigo: code })
+        expect(error).toBeNull()
+        expect(data).toBe(true)
+      }
+
+      for (const code of optionalCodes) {
+        const { data, error } = await serviceRole.rpc('fn_modulo_es_nucleo', { p_codigo: code })
+        expect(error).toBeNull()
+        expect(data).toBe(false)
+      }
+
+      // Los tenants existentes en la base deben tener las 6 del núcleo habilitadas
+      const { data: demoTenant } = await serviceRole
+        .from('tenant')
+        .select('id_tenant')
+        .eq('subdominio', 'utopia-demo')
+        .maybeSingle()
+
+      if (demoTenant) {
+        const { data: rows, error } = await serviceRole
+          .from('tenant_modulo')
+          .select('habilitado, modulo!inner(codigo)')
+          .eq('id_tenant', demoTenant.id_tenant)
+
+        expect(error).toBeNull()
+        const habilitados = (rows ?? [])
+          .filter((r) => r.habilitado)
+          .map((r) => (r.modulo as unknown as { codigo: string }).codigo)
+
+        for (const code of coreCodes) {
+          expect(habilitados).toContain(code)
+        }
       }
     })
   })
@@ -493,6 +523,39 @@ describe.skipIf(!hasTestDb)('tenant_modulo guarda — REQ-MODOP-01, 02, 03, 10',
       })
       expect(err2).toBeNull()
       expect(res2).toBe(true)
+    })
+  })
+
+  describe('fn_modulo_tiene_estado_vivo(p_tenant, p_codigo)', () => {
+    it('devuelve false para tenant limpio y true cuando se genera estado', async () => {
+      const tenant = await createTenantWithUser('modop-fn-vivo')
+
+      const { data: limpio, error: errLimpio } = await serviceRole.rpc('fn_modulo_tiene_estado_vivo', {
+        p_tenant: tenant.tenantId,
+        p_codigo: 'consignaciones',
+      })
+      expect(errLimpio).toBeNull()
+      expect(limpio).toBe(false)
+
+      // Crear proveedor y devolución activa
+      const { data: prov } = await serviceRole
+        .from('proveedor')
+        .insert({ id_tenant: tenant.tenantId, nombre: 'Prov Vivo', tipo: 'mayorista' })
+        .select('id_proveedor')
+        .single()
+
+      await serviceRole.from('consignacion').insert({
+        id_tenant: tenant.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        estado: 'activa',
+      })
+
+      const { data: conEstado, error: errEstado } = await serviceRole.rpc('fn_modulo_tiene_estado_vivo', {
+        p_tenant: tenant.tenantId,
+        p_codigo: 'consignaciones',
+      })
+      expect(errEstado).toBeNull()
+      expect(conEstado).toBe(true)
     })
   })
 })

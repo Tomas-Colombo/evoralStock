@@ -16,6 +16,8 @@ const {
 
 vi.mock('@/lib/dal/session', () => ({
   verifySession: verifySessionMock,
+  debeCambiarClave: vi.fn().mockResolvedValue(false),
+  marcarClaveCambiada: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/dal/supabase', () => ({

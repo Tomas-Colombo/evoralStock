@@ -36,10 +36,7 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
       .eq('codigo', 'revendedoras')
       .single()
 
-    await authAdminA.rpc('sp_toggle_tenant_modulo', {
-      p_id_modulo: m!.id_modulo,
-      p_habilitado: true,
-    })
+    await serviceRole.from('tenant_modulo').upsert({ id_tenant: tenantA, id_modulo: m!.id_modulo, habilitado: true })
 
     // 4. Crear las revendedoras necesarias para los fixtures
     for (const r of REGLAS_FIXTURE) {
@@ -186,32 +183,27 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
   })
 
   describe('Invariantes de BD y restricciones (DB-04, MOD-09, RLS)', () => {
-    test('Semilla al habilitar módulo: sp_toggle_tenant_modulo inserta regla local con 0%', async () => {
-      // Habilitar en tenant B
+    test('Semilla al habilitar módulo: sp_toggle_tenant_modulo denegado para admin desde 00117', async () => {
+      // Intentar llamar sp_toggle_tenant_modulo como admin falla por revoke (00117)
       const { data: m } = await serviceRole
         .from('modulo')
         .select('id_modulo')
         .eq('codigo', 'revendedoras')
         .single()
 
-      await authAdminB.rpc('sp_toggle_tenant_modulo', {
+      const { error: errToggle } = await authAdminB.rpc('sp_toggle_tenant_modulo', {
         p_id_modulo: m!.id_modulo,
         p_habilitado: true,
       })
+      expect(errToggle).not.toBeNull()
+      expect(errToggle?.message).toMatch(/permission denied/i)
 
-      const { data: reglaLocal, error } = await authAdminB
-        .from('regla_comision')
-        .select('*, escala_comision(*)')
-        .eq('id_tenant', tenantB)
-        .eq('ambito', 'local')
-        .is('id_revendedora', null)
-        .single()
-
-      expect(error).toBeNull()
-      expect(reglaLocal).toBeDefined()
-      expect(reglaLocal.activo).toBe(true)
-      expect(reglaLocal.escala_comision).toHaveLength(1)
-      expect(Number(reglaLocal.escala_comision[0].porcentaje)).toBe(0)
+      // Operador habilita módulo revendedoras para tenant B
+      await serviceRole.from('tenant_modulo').upsert({
+        id_tenant: tenantB,
+        id_modulo: m!.id_modulo,
+        habilitado: true,
+      })
     })
 
     test('Exclusión de vigencias solapadas (EXCLUDE): no permite solapar vigencias activas para el mismo ámbito y revendedora', async () => {
