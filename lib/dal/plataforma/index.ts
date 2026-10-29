@@ -62,6 +62,9 @@ export function extraerSlugError(error: unknown): string {
     'email-en-uso',
     'subdominio-invalido',
     'estado-invalido',
+    'usuario-invalido',
+    'nombre-invalido',
+    'permisos-no-objeto',
     'modulo-nucleo',
     'modulo-con-estado-vivo',
     'modulo-desconocido',
@@ -418,15 +421,9 @@ export async function altaTenant(
 
   if (authError || !created?.user) {
     const msg = authError?.message?.toLowerCase() ?? ''
-    const status = (authError as { status?: number })?.status
     const code = (authError as { code?: string })?.code
 
-    if (
-      status === 422 ||
-      msg.includes('already') ||
-      msg.includes('exists') ||
-      code === 'email_exists'
-    ) {
+    if (code === 'email_exists' || msg.includes('already registered')) {
       return { ok: false, reason: 'email-en-uso' }
     }
     return { ok: false, reason: extraerSlugError(authError) }
@@ -444,6 +441,7 @@ export async function altaTenant(
     p_subdominio: input.subdominio,
     p_paquetes: input.paquetes,
     p_id_auth_user: authUserId,
+    p_email: created.user.email ?? input.emailAdmin,
     p_nombre_admin: input.nombreAdmin,
     p_permisos: permisosAdmin,
     p_actor: actor.id,
@@ -451,7 +449,10 @@ export async function altaTenant(
 
   if (rpcError) {
     // Paso c: Compensación - borrar el usuario de Auth creado en el paso a
-    await supabase.auth.admin.deleteUser(authUserId).catch(() => {})
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
+    if (deleteError) {
+      console.error('altaTenant: auth user huérfano', authUserId)
+    }
     return { ok: false, reason: extraerSlugError(rpcError) }
   }
 

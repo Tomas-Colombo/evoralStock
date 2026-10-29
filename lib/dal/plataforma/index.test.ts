@@ -461,28 +461,61 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
     })
 
     describe('altaTenant() - Provisión y compensación (REQ-SA-09 / DR-SA-06)', () => {
-      it('createUser con email existente -> devuelve email-en-uso sin invocar rpc ni deleteUser', async () => {
-        mockCreateUser.mockResolvedValue({
-          data: null,
-          error: { message: 'A user with this email address has already been registered', status: 422 },
-        })
+      it('createUser con code email_exists o mensaje already registered -> devuelve email-en-uso', async () => {
         const { altaTenant } = await import('./index')
-        const res = await altaTenant({
+
+        // 1. Por code === 'email_exists'
+        mockCreateUser.mockResolvedValueOnce({
+          data: null,
+          error: { code: 'email_exists', message: 'User already exists' },
+        })
+        const res1 = await altaTenant({
           nombre: 'Comercio Test',
           subdominio: 'comercio-test',
           emailAdmin: 'duplicado@test.com',
           nombreAdmin: 'Admin Test',
           paquetes: [],
         })
+        expect(res1).toEqual({ ok: false, reason: 'email-en-uso' })
 
-        expect(res).toEqual({ ok: false, reason: 'email-en-uso' })
+        // 2. Por fallback mensaje 'already registered'
+        mockCreateUser.mockResolvedValueOnce({
+          data: null,
+          error: { message: 'A user with this email has already registered' },
+        })
+        const res2 = await altaTenant({
+          nombre: 'Comercio Test',
+          subdominio: 'comercio-test',
+          emailAdmin: 'duplicado@test.com',
+          nombreAdmin: 'Admin Test',
+          paquetes: [],
+        })
+        expect(res2).toEqual({ ok: false, reason: 'email-en-uso' })
+
+        // 3. Error 422 genérico sin code ni already registered -> no devuelve email-en-uso
+        mockCreateUser.mockResolvedValueOnce({
+          data: null,
+          error: { status: 422, message: 'some other 422 error' },
+        })
+        const res3 = await altaTenant({
+          nombre: 'Comercio Test',
+          subdominio: 'comercio-test',
+          emailAdmin: 'duplicado@test.com',
+          nombreAdmin: 'Admin Test',
+          paquetes: [],
+        })
+        expect(res3.ok).toBe(false)
+        if (!res3.ok) {
+          expect(res3.reason).not.toBe('email-en-uso')
+        }
+
         expect(mockRpc).not.toHaveBeenCalled()
         expect(mockDeleteUser).not.toHaveBeenCalled()
       })
 
       it('compensación del DAL: sp_alta_tenant rpc falla -> deleteUser llamado y devuelve el slug', async () => {
         mockCreateUser.mockResolvedValue({
-          data: { user: { id: 'created-auth-user-id' } },
+          data: { user: { id: 'created-auth-user-id', email: 'nuevo@test.com' } },
           error: null,
         })
         mockDeleteUser.mockResolvedValue({ data: null, error: null })
@@ -504,11 +537,43 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
         expect(mockDeleteUser).toHaveBeenCalledWith('created-auth-user-id')
       })
 
-      it('caso feliz: crea usuario, invoca sp_alta_tenant con actor y devuelve idTenant y passwordTemporal', async () => {
+      it('compensación con fallo en deleteUser: registra console.error sin email ni clave', async () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         mockCreateUser.mockResolvedValue({
-          data: { user: { id: 'auth-user-999' } },
+          data: { user: { id: 'orphan-auth-user-id', email: 'sensible@test.com' } },
           error: null,
         })
+        mockDeleteUser.mockResolvedValue({ data: null, error: { message: 'Network error deleting user' } })
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: 'subdominio-en-uso' },
+        })
+
+        const { altaTenant } = await import('./index')
+        const res = await altaTenant({
+          nombre: 'Comercio Test',
+          subdominio: 'comercio-test',
+          emailAdmin: 'sensible@test.com',
+          nombreAdmin: 'Admin Test',
+          paquetes: [],
+        })
+
+        expect(res).toEqual({ ok: false, reason: 'subdominio-en-uso' })
+        expect(consoleErrorSpy).toHaveBeenCalledWith('altaTenant: auth user huérfano', 'orphan-auth-user-id')
+        // Verificar que no se imprimió el email ni clave en los logs
+        for (const call of consoleErrorSpy.mock.calls) {
+          const joined = call.join(' ')
+          expect(joined).not.toContain('sensible@test.com')
+        }
+        consoleErrorSpy.mockRestore()
+      })
+
+      it('caso feliz: crea usuario, invoca sp_alta_tenant con actor y devuelve idTenant y passwordTemporal', async () => {
+        mockCreateUser.mockResolvedValue({
+          data: { user: { id: 'auth-user-999', email: 'exito@boutique.com' } },
+          error: null,
+        })
+        mockDeleteUser.mockResolvedValue({ data: null, error: null })
         mockRpc.mockResolvedValue({
           data: 'new-tenant-uuid-123',
           error: null,
@@ -531,6 +596,7 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
             p_subdominio: 'boutique-exito',
             p_paquetes: ['revendedoras'],
             p_id_auth_user: 'auth-user-999',
+            p_email: 'exito@boutique.com',
             p_nombre_admin: 'Ana Éxito',
             p_actor: SUPER_ADMIN.id,
           }),
@@ -572,6 +638,16 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
           estado: 'suspendido',
         })
         expect(res).toEqual({ ok: false, reason: 'tenant-inexistente' })
+      })
+    })
+
+    describe('extraerSlugError()', () => {
+      it('reconoce usuario-invalido, nombre-invalido y permisos-no-objeto', async () => {
+        const { extraerSlugError } = await import('./index')
+
+        expect(extraerSlugError({ message: 'sp_alta_tenant: usuario-invalido' })).toBe('usuario-invalido')
+        expect(extraerSlugError({ message: 'sp_alta_tenant: nombre-invalido' })).toBe('nombre-invalido')
+        expect(extraerSlugError({ message: 'sp_alta_tenant: permisos-no-objeto' })).toBe('permisos-no-objeto')
       })
     })
   })

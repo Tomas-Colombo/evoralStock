@@ -402,27 +402,29 @@ describe('altaTenantSchema', () => {
     }
   })
 
-  it('rechaza nombre comercial o nombre admin vacíos', () => {
-    const res1 = altaTenantSchema.safeParse({
-      nombre: '   ',
-      subdominio: 'boutique-test',
-      emailAdmin: 'admin@test.com',
-      nombreAdmin: 'Admin',
-    })
-    expect(res1.success).toBe(false)
-    if (!res1.success) {
-      expect(extraerReasonZod(res1.error)).toBe('nombre-invalido')
-    }
+  it('rechaza nombre comercial o nombre admin de menos de 2 caracteres', () => {
+    for (const val of ['', '   ', 'a', ' x ']) {
+      const res1 = altaTenantSchema.safeParse({
+        nombre: val,
+        subdominio: 'boutique-test',
+        emailAdmin: 'admin@test.com',
+        nombreAdmin: 'Admin',
+      })
+      expect(res1.success).toBe(false)
+      if (!res1.success) {
+        expect(extraerReasonZod(res1.error)).toBe('nombre-invalido')
+      }
 
-    const res2 = altaTenantSchema.safeParse({
-      nombre: 'Boutique',
-      subdominio: 'boutique-test',
-      emailAdmin: 'admin@test.com',
-      nombreAdmin: '   ',
-    })
-    expect(res2.success).toBe(false)
-    if (!res2.success) {
-      expect(extraerReasonZod(res2.error)).toBe('nombre-invalido')
+      const res2 = altaTenantSchema.safeParse({
+        nombre: 'Boutique',
+        subdominio: 'boutique-test',
+        emailAdmin: 'admin@test.com',
+        nombreAdmin: val,
+      })
+      expect(res2.success).toBe(false)
+      if (!res2.success) {
+        expect(extraerReasonZod(res2.error)).toBe('nombre-invalido')
+      }
     }
   })
 

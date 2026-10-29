@@ -134,8 +134,8 @@ export const altaTenantSchema = z.strictObject(
   {
     nombre: z
       .string('nombre-invalido')
-      .transform((s) => s.trim())
-      .refine((s) => s.length > 0, 'nombre-invalido'),
+      .trim()
+      .min(2, 'nombre-invalido'),
     subdominio: z
       .string('subdominio-invalido')
       .refine((s) => validarSubdominio(s).ok, 'subdominio-invalido'),
@@ -146,8 +146,8 @@ export const altaTenantSchema = z.strictObject(
       .email('email-invalido'),
     nombreAdmin: z
       .string('nombre-invalido')
-      .transform((s) => s.trim())
-      .refine((s) => s.length > 0, 'nombre-invalido'),
+      .trim()
+      .min(2, 'nombre-invalido'),
     paquetes: z
       .array(z.enum(CLAVES_PAQUETES_OPCIONALES, 'paquete-invalido'))
       .default([]),
