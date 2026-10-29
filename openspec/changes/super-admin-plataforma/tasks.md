@@ -31,12 +31,12 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
 
 ## Slice 2 — Auth & Guard: `requireSuperAdmin()` y flujo de login
 
-- [ ] Helper `esSuperAdmin(idUsuario: string)` en `lib/dal/plataforma/guard.ts` (consulta con service-role a `superadmin`)
-- [ ] Guarda `requireSuperAdmin()` en `lib/dal/plataforma/guard.ts` (valida sesión y pertenencia a `superadmin`)
-- [ ] Flujo de login en `app/(auth)/login/actions.ts`: desvío a `/plataforma` si el usuario no tiene `tenant_id` pero `esSuperAdmin` es true (DR-SA-02, REQ-SA-01)
-- [ ] Manejo en `app/(app)/layout.tsx`: desvío de superadmin a `/plataforma` evitando rebote/bucle en `/login` (REQ-SA-01 N5)
-- [ ] Pruebas unitarias colocadas en `lib/dal/plataforma/guard.test.ts`
-- [ ] Pruebas unitarias de login en `app/(auth)/login/actions.test.ts`
+- [x] Helper `esSuperAdmin(idUsuario: string)` en `lib/dal/plataforma/guard.ts` (consulta con service-role a `superadmin`)
+- [x] Guarda `requireSuperAdmin()` en `lib/dal/plataforma/guard.ts` (valida sesión y pertenencia a `superadmin`)
+- [x] Flujo de login en `app/(auth)/login/actions.ts`: desvío a `/plataforma` si el usuario no tiene `tenant_id` pero `esSuperAdmin` es true (DR-SA-02, REQ-SA-01)
+- [x] Manejo en `app/(app)/layout.tsx`: desvío de superadmin a `/plataforma` evitando rebote/bucle en `/login` (REQ-SA-01 N5)
+- [x] Pruebas unitarias colocadas en `lib/dal/plataforma/guard.test.ts`
+- [x] Pruebas unitarias de login en `app/(auth)/login/actions.test.ts`
 
 ## Slice 3 — DAL, validación y Server Actions
 
