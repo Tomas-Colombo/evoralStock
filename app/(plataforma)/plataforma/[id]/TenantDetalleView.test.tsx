@@ -15,12 +15,14 @@ const mockTogglePaquete = vi.fn()
 const mockRegistrarCargo = vi.fn()
 const mockRegistrarPago = vi.fn()
 const mockAnularMovimiento = vi.fn()
+const mockCambiarEstadoTenant = vi.fn()
 
 vi.mock('@/app/(plataforma)/plataforma/actions', () => ({
   togglePaqueteTenantAction: (...args: unknown[]) => mockTogglePaquete(...args),
   registrarCargoTenantAction: (...args: unknown[]) => mockRegistrarCargo(...args),
   registrarPagoTenantAction: (...args: unknown[]) => mockRegistrarPago(...args),
   anularMovimientoTenantAction: (...args: unknown[]) => mockAnularMovimiento(...args),
+  cambiarEstadoTenantAction: (...args: unknown[]) => mockCambiarEstadoTenant(...args),
 }))
 
 const MOCK_DETALLE: TenantPlataformaDetalle = {
@@ -92,6 +94,7 @@ describe('TenantDetalleView', () => {
     mockRegistrarCargo.mockResolvedValue({ ok: true, data: { id: 'new-id' } })
     mockRegistrarPago.mockResolvedValue({ ok: true, data: { id: 'new-id' } })
     mockAnularMovimiento.mockResolvedValue({ ok: true })
+    mockCambiarEstadoTenant.mockResolvedValue({ ok: true })
   })
 
   it('renderiza la cabecera, KPIs y estado de cuenta corriente', () => {
@@ -100,6 +103,7 @@ describe('TenantDetalleView', () => {
     expect(screen.getByText('Tienda Alpha')).toBeInTheDocument()
     expect(screen.getByText('alpha')).toBeInTheDocument()
     expect(screen.getByText('Activo')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Suspender comercio' })).toBeInTheDocument()
 
     // KPIs
     expect(screen.getByText('Saldo de cuenta corriente')).toBeInTheDocument()
@@ -155,6 +159,9 @@ describe('TenantDetalleView', () => {
       paquete: 'revendedoras',
       habilitado: false,
     })
+    await waitFor(() => {
+      expect(mockRefresh).toHaveBeenCalled()
+    })
   })
 
   it('muestra mensajeDeError en toast si togglePaquete falla (ej. modulo-con-estado-vivo)', async () => {
@@ -193,7 +200,7 @@ describe('TenantDetalleView', () => {
     await user.type(inputMonto, '12500')
     await user.type(inputConcepto, 'Abono Plan Anual')
 
-    // Enviar formulario (dentro del modal hay un botón Registrar cargo)
+    // Enviar formulario
     const btnSubmit = screen.getAllByRole('button', { name: 'Registrar cargo' })[0]
     await user.click(btnSubmit)
 
@@ -274,6 +281,56 @@ describe('TenantDetalleView', () => {
       expect(mockAnularMovimiento).toHaveBeenCalledWith({
         tipo: 'cargo',
         idMovimiento: 'c1111111-1111-4111-8111-111111111111',
+      })
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+  })
+
+  it('suspender comercio pide confirmación y ejecuta cambiarEstadoTenantAction con estado suspendido', async () => {
+    const user = userEvent.setup()
+    renderView()
+
+    const btnSuspender = screen.getByRole('button', { name: 'Suspender comercio' })
+    await user.click(btnSuspender)
+
+    expect(screen.getByText('¿Suspender Tienda Alpha?')).toBeInTheDocument()
+
+    const btnConfirmar = screen.getAllByRole('button', { name: 'Suspender comercio' })[1]
+    await user.click(btnConfirmar)
+
+    await waitFor(() => {
+      expect(mockCambiarEstadoTenant).toHaveBeenCalledWith({
+        idTenant: MOCK_DETALLE.tenant.idTenant,
+        estado: 'suspendido',
+      })
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+  })
+
+  it('reactivar comercio muestra botón Reactivar, pide confirmación y ejecuta acción con activo', async () => {
+    const user = userEvent.setup()
+    const detalleSuspendido: TenantPlataformaDetalle = {
+      ...MOCK_DETALLE,
+      tenant: {
+        ...MOCK_DETALLE.tenant,
+        estadoTenant: 'suspendido',
+      },
+    }
+    renderView(detalleSuspendido)
+
+    expect(screen.getByText('Suspendido')).toBeInTheDocument()
+    const btnReactivar = screen.getByRole('button', { name: 'Reactivar comercio' })
+    await user.click(btnReactivar)
+
+    expect(screen.getByText('¿Reactivar Tienda Alpha?')).toBeInTheDocument()
+
+    const btnConfirmar = screen.getAllByRole('button', { name: 'Reactivar comercio' })[1]
+    await user.click(btnConfirmar)
+
+    await waitFor(() => {
+      expect(mockCambiarEstadoTenant).toHaveBeenCalledWith({
+        idTenant: MOCK_DETALLE.tenant.idTenant,
+        estado: 'activo',
       })
       expect(mockRefresh).toHaveBeenCalled()
     })

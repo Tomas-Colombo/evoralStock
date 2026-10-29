@@ -4,11 +4,13 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Kpi } from '@/components/ui/Kpi'
 import { useToast } from '@/components/ui/Toast'
 import {
   anularMovimientoTenantAction,
+  cambiarEstadoTenantAction,
   registrarCargoTenantAction,
   registrarPagoTenantAction,
   togglePaqueteTenantAction,
@@ -42,6 +44,7 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
   // Diálogos de confirmación
   const [paqueteADesactivar, setPaqueteADesactivar] = useState<PaqueteOpcional | null>(null)
   const [movimientoAAnular, setMovimientoAAnular] = useState<MovimientoCuentaCorriente | null>(null)
+  const [modalSuspenderReactivarOpen, setModalSuspenderReactivarOpen] = useState(false)
 
   function ejecutarTogglePaquete(paquete: PaqueteOpcional, habilitado: boolean) {
     startTransition(async () => {
@@ -147,6 +150,28 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
     })
   }
 
+  function ejecutarCambioEstado() {
+    const nuevoEstado = detalle.tenant.estadoTenant === 'activo' ? 'suspendido' : 'activo'
+    startTransition(async () => {
+      const res = await cambiarEstadoTenantAction({
+        idTenant: detalle.tenant.idTenant,
+        estado: nuevoEstado,
+      })
+      if (res.ok) {
+        toast.success(
+          nuevoEstado === 'suspendido'
+            ? 'Comercio suspendido.'
+            : 'Comercio reactivado.',
+        )
+        setModalSuspenderReactivarOpen(false)
+        router.refresh()
+      } else {
+        toast.error(mensajeDeError(res.reason))
+        setModalSuspenderReactivarOpen(false)
+      }
+    })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Cabecera / Ficha */}
@@ -164,12 +189,33 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
             <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
               {detalle.tenant.nombreComercial}
             </h1>
-            <Badge variant={detalle.tenant.estadoTenant === 'activo' ? 'success' : 'neutral'}>
-              {detalle.tenant.estadoTenant === 'activo' ? 'Activo' : detalle.tenant.estadoTenant}
+            <Badge variant={detalle.tenant.estadoTenant === 'activo' ? 'success' : 'danger'}>
+              {detalle.tenant.estadoTenant === 'activo' ? 'Activo' : 'Suspendido'}
             </Badge>
           </div>
-          <div className="font-mono text-xs text-muted">
-            Subdominio: <span className="text-ink">{detalle.tenant.subdominio}</span>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="font-mono text-xs text-muted">
+              Subdominio: <span className="text-ink">{detalle.tenant.subdominio}</span>
+            </div>
+            {detalle.tenant.estadoTenant === 'activo' ? (
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={isPending}
+                onClick={() => setModalSuspenderReactivarOpen(true)}
+              >
+                Suspender comercio
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isPending}
+                onClick={() => setModalSuspenderReactivarOpen(true)}
+              >
+                Reactivar comercio
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -270,6 +316,30 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
         variant="danger"
         onConfirm={ejecutarAnulacion}
         onCancel={() => setMovimientoAAnular(null)}
+      />
+
+      {/* ConfirmDialog Suspender/Reactivar Tenant */}
+      <ConfirmDialog
+        open={modalSuspenderReactivarOpen}
+        title={
+          detalle.tenant.estadoTenant === 'activo'
+            ? `¿Suspender ${detalle.tenant.nombreComercial}?`
+            : `¿Reactivar ${detalle.tenant.nombreComercial}?`
+        }
+        description={
+          detalle.tenant.estadoTenant === 'activo'
+            ? 'Al suspender este comercio, los usuarios no podrán ingresar al sistema ni operar hasta que sea reactivado. Las sesiones activas caducarán en su próximo intento de autenticación.'
+            : 'El comercio volverá a estar activo y sus usuarios podrán iniciar sesión y operar normalmente.'
+        }
+        confirmLabel={
+          detalle.tenant.estadoTenant === 'activo'
+            ? 'Suspender comercio'
+            : 'Reactivar comercio'
+        }
+        cancelLabel="Cancelar"
+        variant={detalle.tenant.estadoTenant === 'activo' ? 'danger' : 'default'}
+        onConfirm={ejecutarCambioEstado}
+        onCancel={() => setModalSuspenderReactivarOpen(false)}
       />
     </div>
   )

@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -16,6 +18,7 @@ import {
 } from '@/components/ui/TableParts'
 import type { TenantPlataformaResumen } from '@/lib/types/plataforma'
 import { formatearMoneda } from '@/lib/utils/moneda'
+import { NuevoTenantModal } from './NuevoTenantModal'
 
 const PAQUETES_LABELS: Record<string, string> = {
   revendedoras: 'Revendedoras',
@@ -27,7 +30,9 @@ interface TenantsViewProps {
 }
 
 export function TenantsView({ tenants }: TenantsViewProps) {
+  const router = useRouter()
   const [busqueda, setBusqueda] = useState('')
+  const [modalNuevoOpen, setModalNuevoOpen] = useState(false)
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
@@ -46,9 +51,14 @@ export function TenantsView({ tenants }: TenantsViewProps) {
           title="Sin comercios todavía"
           description="No hay comercios registrados en la plataforma."
           cta={{
-            label: 'Recargar',
-            onClick: () => window.location.reload(),
+            label: 'Nuevo tenant',
+            onClick: () => setModalNuevoOpen(true),
           }}
+        />
+        <NuevoTenantModal
+          open={modalNuevoOpen}
+          onClose={() => setModalNuevoOpen(false)}
+          onSuccess={() => router.refresh()}
         />
       </div>
     )
@@ -65,6 +75,13 @@ export function TenantsView({ tenants }: TenantsViewProps) {
             Listado general de tenants, módulos habilitados y estado de cuenta corriente.
           </p>
         </div>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setModalNuevoOpen(true)}
+        >
+          Nuevo tenant
+        </Button>
       </div>
 
       <div className="w-full max-w-md">
@@ -111,8 +128,8 @@ export function TenantsView({ tenants }: TenantsViewProps) {
                     </span>
                   </Td>
                   <Td>
-                    <Badge variant={t.estadoTenant === 'activo' ? 'success' : 'neutral'}>
-                      {t.estadoTenant === 'activo' ? 'Activo' : t.estadoTenant}
+                    <Badge variant={t.estadoTenant === 'activo' ? 'success' : 'danger'}>
+                      {t.estadoTenant === 'activo' ? 'Activo' : 'Suspendido'}
                     </Badge>
                   </Td>
                   <Td>
@@ -155,6 +172,12 @@ export function TenantsView({ tenants }: TenantsViewProps) {
           </TBody>
         </DataTable>
       </TableFrame>
+
+      <NuevoTenantModal
+        open={modalNuevoOpen}
+        onClose={() => setModalNuevoOpen(false)}
+        onSuccess={() => router.refresh()}
+      />
     </div>
   )
 }

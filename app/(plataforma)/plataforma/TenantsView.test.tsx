@@ -1,8 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TenantsView } from './TenantsView'
+import { ToastProvider } from '@/components/ui/Toast'
 import type { TenantPlataformaResumen } from '@/lib/types/plataforma'
+
+const mockRefresh = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: mockRefresh }),
+}))
 
 const MOCK_TENANTS: TenantPlataformaResumen[] = [
   {
@@ -40,9 +46,21 @@ const MOCK_TENANTS: TenantPlataformaResumen[] = [
   },
 ]
 
+function renderView(tenants: TenantPlataformaResumen[]) {
+  return render(
+    <ToastProvider>
+      <TenantsView tenants={tenants} />
+    </ToastProvider>,
+  )
+}
+
 describe('TenantsView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('renderiza el estado vacío cuando no hay comercios registrados', () => {
-    render(<TenantsView tenants={[]} />)
+    renderView([])
 
     expect(screen.getByText('Sin comercios todavía')).toBeInTheDocument()
     expect(
@@ -50,8 +68,8 @@ describe('TenantsView', () => {
     ).toBeInTheDocument()
   })
 
-  it('renderiza la lista de comercios con estados de saldo (deuda, al día, a favor)', () => {
-    render(<TenantsView tenants={MOCK_TENANTS} />)
+  it('renderiza la lista de comercios con estados de saldo (deuda, al día, a favor) y badges de estado', () => {
+    renderView(MOCK_TENANTS)
 
     // Nombres y subdominios
     expect(screen.getByText('Tienda Alpha')).toBeInTheDocument()
@@ -60,6 +78,11 @@ describe('TenantsView', () => {
     expect(screen.getByText('beta')).toBeInTheDocument()
     expect(screen.getByText('Modas Gamma')).toBeInTheDocument()
     expect(screen.getByText('gamma')).toBeInTheDocument()
+
+    // Badges de estado (activo y suspendido)
+    const badgesActivo = screen.getAllByText('Activo')
+    expect(badgesActivo.length).toBe(2)
+    expect(screen.getByText('Suspendido')).toBeInTheDocument()
 
     // Paquetes
     expect(screen.getByText('Revendedoras')).toBeInTheDocument()
@@ -75,9 +98,20 @@ describe('TenantsView', () => {
     expect(screen.getByText(/a favor/)).toBeInTheDocument()
   })
 
+  it('permite abrir el modal de Nuevo tenant desde el botón superior', async () => {
+    const user = userEvent.setup()
+    renderView(MOCK_TENANTS)
+
+    const btnNuevo = screen.getByRole('button', { name: 'Nuevo tenant' })
+    expect(btnNuevo).toBeInTheDocument()
+
+    await user.click(btnNuevo)
+    expect(screen.getByText('Crear tenant')).toBeInTheDocument()
+  })
+
   it('filtra por nombre comercial y por subdominio desde el FilterBar', async () => {
     const user = userEvent.setup()
-    render(<TenantsView tenants={MOCK_TENANTS} />)
+    renderView(MOCK_TENANTS)
 
     const inputBusqueda = screen.getByPlaceholderText('Buscar por nombre o subdominio')
     expect(inputBusqueda).toBeInTheDocument()
