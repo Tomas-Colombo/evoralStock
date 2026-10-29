@@ -96,7 +96,7 @@ export interface TenantPlataformaDetalle {
   totalCargos: number
   totalPagos: number
   historial: MovimientoCuentaCorriente[]
-  totalHistorial: number
-  hpage: number
-  hpageSize: number
+  totalHistorial?: number
+  hpage?: number
+  hpageSize?: number
 }

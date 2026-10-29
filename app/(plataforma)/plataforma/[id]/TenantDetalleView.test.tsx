@@ -42,6 +42,9 @@ const MOCK_DETALLE: TenantPlataformaDetalle = {
   saldo: 15000,
   totalCargos: 40000,
   totalPagos: 25000,
+  totalHistorial: 3,
+  hpage: 1,
+  hpageSize: 25,
   historial: [
     {
       id: 'c1111111-1111-4111-8111-111111111111',

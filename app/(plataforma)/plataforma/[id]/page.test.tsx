@@ -78,6 +78,9 @@ describe('TenantDetallePage (Server Component)', () => {
       totalCargos: 0,
       totalPagos: 0,
       historial: [],
+      totalHistorial: 0,
+      hpage: 1,
+      hpageSize: 25,
     }
     vi.mocked(obtenerTenantDetalle).mockResolvedValueOnce(mockDetalle)
 
