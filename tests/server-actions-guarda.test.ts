@@ -32,7 +32,7 @@ const SIN_GUARDA: Record<string, string> = {
 }
 
 /** Imports de `lib/dal` que se pueden llamar antes de autorizar. */
-const DAL_PREVIO_A_AUTORIZAR = new Set(['lib/dal/session', 'lib/dal/guard', 'lib/dal/errors'])
+const DAL_PREVIO_A_AUTORIZAR = new Set(['lib/dal/session', 'lib/dal/guard', 'lib/dal/errors', 'lib/dal/plataforma/guard'])
 
 function archivos(dir: string): string[] {
   return readdirSync(join(RAIZ, dir), { withFileTypes: true }).flatMap((e) => {
@@ -96,7 +96,7 @@ function problemas(action: Action, importsDal: Map<string, string>, guardas: Set
   const visitar = (n: ts.Node) => {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) {
       const nombre = n.expression.text
-      if ((nombre === 'requireModuleRole' || guardas.has(nombre)) && autoriza < 0) autoriza = n.getStart()
+      if ((nombre === 'requireModuleRole' || nombre === 'requireSuperAdmin' || guardas.has(nombre)) && autoriza < 0) autoriza = n.getStart()
       if (nombre === 'classifyAuthError' || guardas.has(nombre)) capturaAuth = true
       const modulo = importsDal.get(nombre)
       if (modulo && !DAL_PREVIO_A_AUTORIZAR.has(modulo) && primerDal < 0) {

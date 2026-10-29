@@ -40,10 +40,10 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
 
 ## Slice 3 — DAL, validación y Server Actions
 
-- [ ] Constante `MEDIOS_PAGO_TENANT` en `lib/types/plataforma.ts` (`'transferencia'`, `'efectivo'`, `'mercadopago'`, `'otro'`)
-- [ ] Schemas Zod en `lib/validation/plataforma.ts` con `strictObject` (cargos, pagos, anulación, toggle de paquete) y test colocado `plataforma.test.ts`
-- [ ] Reuso de slugs existentes: `monto-invalido` y `fecha-invalida`
-- [ ] Nuevos slugs de error en catálogo `lib/errores/mensajes.ts` y en `lib/errores/mensajes.test.ts`:
+- [x] Constante `MEDIOS_PAGO_TENANT` en `lib/types/plataforma.ts` (`'transferencia'`, `'efectivo'`, `'mercadopago'`, `'otro'`) (hecho en Slice 1)
+- [x] Schemas Zod en `lib/validation/plataforma.ts` con `strictObject` (cargos, pagos, anulación, toggle de paquete) y test colocado `plataforma.test.ts`
+- [x] Reuso de slugs existentes: `monto-invalido` y `fecha-invalida`
+- [x] Nuevos slugs de error en catálogo `lib/errores/mensajes.ts` y en `lib/errores/mensajes.test.ts` (hecho en Slice 1):
   - `concepto-invalido`
   - `periodo-invalido`
   - `medio-pago-invalido`
@@ -52,15 +52,15 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
   - `tipo-movimiento-invalido`
   - `tenant-inexistente`
   - `paquete-invalido`
-- [ ] Funciones DAL en `lib/dal/plataforma/index.ts`:
+- [x] Funciones DAL en `lib/dal/plataforma/index.ts`:
   - `listarTenants()` (consulta consolidada de tenants, módulos y saldo en 1 query — Design for N, REQ-SA-02)
   - `obtenerTenantDetalle(idTenant)` (información, módulos y cuenta corriente, REQ-SA-07)
   - `registrarCargoTenantAction()` / DAL (REQ-SA-04)
   - `registrarPagoTenantAction()` / DAL (REQ-SA-05)
   - `anularMovimientoTenantAction()` / DAL (REQ-SA-06)
   - `togglePaqueteTenantAction()` / DAL (REQ-SA-03)
-- [ ] Server Actions en `app/(plataforma)/plataforma/actions.ts` implementando las 3 compuertas (Authorize -> Validate -> DAL)
-- [ ] Pruebas unitarias colocadas para las Server Actions
+- [x] Server Actions en `app/(plataforma)/plataforma/actions.ts` implementando las 3 compuertas (Authorize -> Validate -> DAL)
+- [x] Pruebas unitarias colocadas para las Server Actions
 
 ## Slice 4 — UI: Panel de plataforma
 

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { createAnonTestClient, createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, hasTestDb, signInAs, runPsql } from './_helpers'
-import { MEDIOS_PAGO_TENANT } from '@/lib/types/plataforma'
+import { MEDIOS_PAGO_TENANT, PAQUETES_OPCIONALES } from '@/lib/types/plataforma'
 
 describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-01..05)', () => {
   const serviceRole = createServiceRoleTestClient()
@@ -134,6 +134,23 @@ describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-0
       for (const medio of MEDIOS_PAGO_TENANT) {
         expect(constraintDef).toContain(`'${medio}'`)
       }
+    })
+  })
+
+  // ─── CHECK PAQUETES OPCIONALES ──────────────────────────────────────
+  describe('Catálogo de paquetes opcionales', () => {
+    test('Paridad entre PAQUETES_OPCIONALES en TS y fn_codigos_paquete en Postgres', () => {
+      for (const [paquete, codigosEsperados] of Object.entries(PAQUETES_OPCIONALES)) {
+        const sqlRes = runPsql(`select fn_codigos_paquete('${paquete}')`)
+        expect(sqlRes).toBeDefined()
+        for (const codigo of codigosEsperados) {
+          expect(sqlRes).toContain(codigo)
+        }
+      }
+
+      // Paquete inválido no debe devolver códigos
+      const invalidoRes = runPsql("select fn_codigos_paquete('inexistente')")
+      expect(invalidoRes).toBe('')
     })
   })
 
