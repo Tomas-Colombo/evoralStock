@@ -97,72 +97,179 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
     })
   })
 
-  describe('listarTenants() - Design for N (máximo 2 queries)', () => {
-    it('resuelve 1 o 200 tenants con la misma cantidad fija de queries (máximo 2) y ordenados por nombre_comercial', async () => {
+  describe('listarTenantsPaginado() - Design for N (máximo 2 queries, range y count)', () => {
+    it('calcula el range correcto por página y tamaño', async () => {
+      let rangeArgs: [number, number] | null = null
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'tenant_listado') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockImplementation((from: number, to: number) => {
+                  rangeArgs = [from, to]
+                  return Promise.resolve({ data: [], count: 0, error: null })
+                }),
+              }),
+            }),
+          }
+        }
+        throw new Error(`Unexpected table ${table}`)
+      })
+
+      const { listarTenantsPaginado } = await import('./index')
+
+      // Página 1, 25 items -> 0..24
+      await listarTenantsPaginado({ page: 1, pageSize: 25 })
+      expect(rangeArgs).toEqual([0, 24])
+
+      // Página 2, 25 items -> 25..49
+      await listarTenantsPaginado({ page: 2, pageSize: 25 })
+      expect(rangeArgs).toEqual([25, 49])
+
+      // Página 3, 10 items -> 20..29
+      await listarTenantsPaginado({ page: 3, pageSize: 10 })
+      expect(rangeArgs).toEqual([20, 29])
+    })
+
+    it('devuelve total desde count: exact y mapea filas con módulos en máximo 2 queries', async () => {
       let queryCount = 0
 
-      // Simulamos 200 tenants
-      const mockTenantsData = Array.from({ length: 200 }, (_, i) => ({
-        id_tenant: `tenant-${i}`,
-        nombre_comercial: `Tenant ${i}`,
-        subdominio: `tenant${i}`,
-        estado_tenant: 'activo',
-        created_at: '2026-01-01T00:00:00Z',
-        tenant_modulo: [
-          {
-            habilitado: true,
-            modulo: { codigo: 'revendedoras' },
-          },
-          {
-            habilitado: false,
-            modulo: { codigo: 'consignaciones' },
-          },
-          {
-            habilitado: true,
-            modulo: { codigo: 'rendiciones' },
-          },
-        ],
-      }))
+      const mockRows = [
+        {
+          id_tenant: 't-1',
+          nombre_comercial: 'Tenant 1',
+          subdominio: 'tenant1',
+          estado_tenant: 'activo',
+          created_at: '2026-01-01T00:00:00Z',
+          saldo: 1500,
+          total_cargos: 2000,
+          total_pagos: 500,
+        },
+      ]
 
-      const mockSaldosData = Array.from({ length: 200 }, (_, i) => ({
-        id_tenant: `tenant-${i}`,
-        saldo: i * 100,
-        total_cargos: i * 200,
-        total_pagos: i * 100,
-      }))
+      const mockModulos = [
+        {
+          id_tenant: 't-1',
+          habilitado: true,
+          modulo: { codigo: 'revendedoras' },
+        },
+      ]
 
       mockFrom.mockImplementation((table: string) => {
         queryCount++
-        if (table === 'tenant') {
+        if (table === 'tenant_listado') {
           return {
             select: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockTenantsData,
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({
+                  data: mockRows,
+                  count: 42,
+                  error: null,
+                }),
+              }),
+            }),
+          }
+        }
+        if (table === 'tenant_modulo') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: mockModulos,
                 error: null,
               }),
             }),
           }
         }
-        if (table === 'tenant_saldo') {
+        throw new Error(`Unexpected table ${table}`)
+      })
+
+      const { listarTenantsPaginado } = await import('./index')
+      const res = await listarTenantsPaginado({ page: 1, pageSize: 25 })
+
+      expect(queryCount).toBe(2)
+      expect(res.total).toBe(42)
+      expect(res.rows).toHaveLength(1)
+      expect(res.rows[0].idTenant).toBe('t-1')
+      expect(res.rows[0].saldo).toBe(1500)
+      expect(res.rows[0].paquetesHabilitados).toContain('revendedoras')
+    })
+
+    it('aplica filtros de estado, deuda, búsqueda escapada y ordenamiento', async () => {
+      const eqMock = vi.fn()
+      const gtMock = vi.fn()
+      const lteMock = vi.fn()
+      const orMock = vi.fn()
+      const orderMock = vi.fn()
+
+      const queryBuilder: Record<string, any> = {
+        select: vi.fn().mockReturnThis(),
+        eq: eqMock.mockReturnThis(),
+        gt: gtMock.mockReturnThis(),
+        lte: lteMock.mockReturnThis(),
+        or: orMock.mockReturnThis(),
+        order: orderMock.mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], count: 0, error: null }),
+      }
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'tenant_listado') return queryBuilder
+        throw new Error(`Unexpected table ${table}`)
+      })
+
+      const { listarTenantsPaginado } = await import('./index')
+
+      // Filtro activo + con-deuda + q con caracteres especiales a escapar + saldo_desc
+      await listarTenantsPaginado({
+        page: 1,
+        estado: 'activo',
+        deuda: 'con-deuda',
+        q: '100%_algodón',
+        orden: 'saldo_desc',
+      })
+
+      expect(eqMock).toHaveBeenCalledWith('estado_tenant', 'activo')
+      expect(gtMock).toHaveBeenCalledWith('saldo', 0)
+      expect(orMock).toHaveBeenCalledWith('nombre_comercial.ilike.%100\\%\\_algodón%,subdominio.ilike.%100\\%\\_algodón%')
+      expect(orderMock).toHaveBeenCalledWith('saldo', { ascending: false })
+
+      // Filtro suspendido + al-dia + alta_desc
+      vi.clearAllMocks()
+      await listarTenantsPaginado({
+        page: 1,
+        estado: 'suspendido',
+        deuda: 'al-dia',
+        orden: 'alta_desc',
+      })
+
+      expect(eqMock).toHaveBeenCalledWith('estado_tenant', 'suspendido')
+      expect(lteMock).toHaveBeenCalledWith('saldo', 0)
+      expect(orderMock).toHaveBeenCalledWith('created_at', { ascending: false })
+    })
+
+    it('ejecuta 1 sola query si la página no tiene tenants (evita query vacía a tenant_modulo)', async () => {
+      let queryCount = 0
+
+      mockFrom.mockImplementation((table: string) => {
+        queryCount++
+        if (table === 'tenant_listado') {
           return {
-            select: vi.fn().mockResolvedValue({
-              data: mockSaldosData,
-              error: null,
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({ data: [], count: 0, error: null }),
+              }),
             }),
           }
         }
-        throw new Error(`Unexpected table: ${table}`)
+        throw new Error(`Unexpected table ${table}`)
       })
 
-      const { listarTenants } = await import('./index')
-      const tenants = await listarTenants()
+      const { listarTenantsPaginado } = await import('./index')
+      const res = await listarTenantsPaginado({ page: 1 })
 
-      expect(queryCount).toBeLessThanOrEqual(2)
-      expect(tenants).toHaveLength(200)
-      expect(tenants[0].paquetesHabilitados).toContain('revendedoras')
-      // consignacionProveedor exige consignaciones Y rendiciones activas
-      expect(tenants[0].paquetesHabilitados).not.toContain('consignacionProveedor')
-      expect(tenants[5].saldo).toBe(500)
+      expect(queryCount).toBe(1)
+      expect(res.rows).toEqual([])
+      expect(res.total).toBe(0)
     })
   })
 
@@ -190,7 +297,11 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              order: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  range: vi.fn().mockResolvedValue({ data: [], count: 0, error: null }),
+                }),
+              }),
             }),
           }),
         }
@@ -278,20 +389,43 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
             }),
           }
         }
-        if (table === 'tenant_cargo') {
+        if (table === 'tenant_movimiento') {
+          const mockMovs = [
+            {
+              id: 'cargo-1',
+              id_tenant: TENANT_ID_1,
+              tipo: 'cargo',
+              fecha: '2026-11-01',
+              monto: 20000,
+              concepto: 'Abono Noviembre',
+              medio: null,
+              nota: null,
+              created_at: '2026-10-25T10:00:00Z',
+              anulado_at: null,
+              anulado_por: null,
+            },
+            {
+              id: 'pago-1',
+              id_tenant: TENANT_ID_1,
+              tipo: 'pago',
+              fecha: '2026-10-28',
+              monto: 15000,
+              concepto: null,
+              medio: 'transferencia',
+              nota: 'Comprobante 123',
+              created_at: '2026-10-28T14:00:00Z',
+              anulado_at: null,
+              anulado_por: null,
+            },
+          ]
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: mockCargos, error: null }),
-              }),
-            }),
-          }
-        }
-        if (table === 'tenant_pago') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: mockPagos, error: null }),
+                order: vi.fn().mockReturnValue({
+                  order: vi.fn().mockReturnValue({
+                    range: vi.fn().mockResolvedValue({ data: mockMovs, count: 2, error: null }),
+                  }),
+                }),
               }),
             }),
           }
@@ -319,6 +453,9 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
       expect(detalle.historial[1].id).toBe('pago-1')
       expect(detalle.historial[1].tipo).toBe('pago')
       expect(detalle.historial[1].fechaImputacion).toBe('2026-10-28')
+      expect(detalle.totalHistorial).toBe(2)
+      expect(detalle.hpage).toBe(1)
+      expect(detalle.hpageSize).toBe(25)
     })
   })
 

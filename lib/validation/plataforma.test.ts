@@ -6,6 +6,8 @@ import {
   togglePaqueteSchema,
   altaTenantSchema,
   cambiarEstadoTenantSchema,
+  filtrosTenantsSchema,
+  parseFiltrosTenants,
   extraerReasonZod,
 } from './plataforma'
 
@@ -504,5 +506,76 @@ describe('cambiarEstadoTenantSchema', () => {
     if (!res.success) {
       expect(extraerReasonZod(res.error)).toBe('campo-desconocido')
     }
+  })
+})
+
+describe('parseFiltrosTenants / filtrosTenantsSchema (REQ-SA-11 / D2, D3)', () => {
+  it('caso feliz: parsea filtros válidos', () => {
+    const res = parseFiltrosTenants({
+      q: 'Utopía Tienda',
+      estado: 'activo',
+      deuda: 'con-deuda',
+      orden: 'saldo_desc',
+      page: '2',
+    })
+
+    expect(res).toEqual({
+      q: 'Utopía Tienda',
+      estado: 'activo',
+      deuda: 'con-deuda',
+      orden: 'saldo_desc',
+      page: 2,
+    })
+  })
+
+  it('valores fuera de catálogo caen a defaults', () => {
+    const res = parseFiltrosTenants({
+      estado: 'archivado',
+      deuda: 'moroso',
+      orden: 'por_facturacion',
+    })
+
+    expect(res.estado).toBe('todos')
+    expect(res.deuda).toBe('todos')
+    expect(res.orden).toBe('nombre_asc')
+  })
+
+  it('q: recorta espacios y aplica tope de 100 caracteres', () => {
+    const textoLargo = 'a'.repeat(120)
+    const res = parseFiltrosTenants({
+      q: `   ${textoLargo}   `,
+    })
+
+    expect(res.q).toHaveLength(100)
+    expect(res.q).toBe('a'.repeat(100))
+  })
+
+  it('q: rechaza comas y paréntesis cayendo al default vacío (evita inyección PostgREST)', () => {
+    const resComa = parseFiltrosTenants({ q: 'tienda, maliciosa' })
+    expect(resComa.q).toBe('')
+
+    const resParentesisApertura = parseFiltrosTenants({ q: 'tienda (nueva' })
+    expect(resParentesisApertura.q).toBe('')
+
+    const resParentesisCierre = parseFiltrosTenants({ q: 'tienda)' })
+    expect(resParentesisCierre.q).toBe('')
+  })
+
+  it('page: números menores a 1, negativos, cero o no numéricos caen a 1', () => {
+    expect(parseFiltrosTenants({ page: '0' }).page).toBe(1)
+    expect(parseFiltrosTenants({ page: '-5' }).page).toBe(1)
+    expect(parseFiltrosTenants({ page: 'abc' }).page).toBe(1)
+    expect(parseFiltrosTenants({ page: '' }).page).toBe(1)
+  })
+
+  it('parámetros indefinidos o vacíos retornan defaults completos', () => {
+    const res = parseFiltrosTenants({})
+    expect(res).toEqual({
+      q: '',
+      estado: 'todos',
+      deuda: 'todos',
+      orden: 'nombre_asc',
+      page: 1,
+    })
   })
 })

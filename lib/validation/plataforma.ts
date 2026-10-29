@@ -3,6 +3,12 @@ import {
   MEDIOS_PAGO_TENANT,
   CLAVES_PAQUETES_OPCIONALES,
   TIPOS_MOVIMIENTO_TENANT,
+  ESTADOS_TENANT_FILTRO,
+  DEUDA_TENANT_FILTRO,
+  ORDEN_TENANT_FILTRO,
+  type EstadoTenantFiltro,
+  type DeudaTenantFiltro,
+  type OrdenTenantFiltro,
 } from '@/lib/types/plataforma'
 import { validarSubdominio } from '@/lib/tenant/subdominio'
 
@@ -177,4 +183,35 @@ export function extraerReasonZod(error: z.ZodError): string {
   const issue = error.issues[0]
   if (!issue) return 'payload-invalido'
   return issue.message || 'payload-invalido'
+}
+
+
+/**
+ * Schema para parseo y saneamiento de queryParams en el listado /plataforma (REQ-SA-11 / D2, D3).
+ */
+export const filtrosTenantsSchema = z.object({
+  q: z
+    .string()
+    .optional()
+    .transform((val) => (val ? val.trim().slice(0, 100) : ''))
+    .refine((val) => !/[,()]/.test(val))
+    .catch(''),
+  estado: z.enum(ESTADOS_TENANT_FILTRO).catch('todos'),
+  deuda: z.enum(DEUDA_TENANT_FILTRO).catch('todos'),
+  orden: z.enum(ORDEN_TENANT_FILTRO).catch('nombre_asc'),
+  page: z.coerce.number().int().min(1).catch(1),
+})
+
+export type FiltrosTenantsParsed = z.infer<typeof filtrosTenantsSchema>
+
+export const hpageSchema = z.coerce.number().int().min(1).catch(1)
+
+export function parseFiltrosTenants(params?: {
+  q?: string
+  estado?: string
+  deuda?: string
+  orden?: string
+  page?: string
+}): FiltrosTenantsParsed {
+  return filtrosTenantsSchema.parse(params ?? {})
 }

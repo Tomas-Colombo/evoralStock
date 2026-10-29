@@ -4,12 +4,16 @@ import { createServiceClient } from '@/lib/dal/supabase'
 import { requireSuperAdmin } from '@/lib/dal/plataforma/guard'
 import { generarPassword } from '@/lib/tenant/password'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
+import { escaparPatronLike } from '@/lib/inventario/codigo'
 import {
   PAQUETES_OPCIONALES,
+  PAGE_SIZE_PLATAFORMA,
   type PaqueteOpcional,
   type TenantPlataformaResumen,
   type TenantPlataformaDetalle,
   type MovimientoCuentaCorriente,
+  type TipoMovimientoTenant,
+  type ListarTenantsPaginadoOptions,
 } from '@/lib/types/plataforma'
 import type {
   RegistrarCargoInput,
@@ -108,64 +112,93 @@ function calcularPaquetesHabilitados(
 }
 
 /**
- * REQ-SA-02: Listado consolidado de tenants.
- * "Design for N": resuelve tenants, módulos y saldo en una cantidad fija de queries (máximo 2),
- * sin queries dependientes de N. Ordenados alfabéticamente por nombre_comercial.
+ * REQ-SA-11: Listado paginado y filtrado de tenants en /plataforma.
+ * "Design for N": consulta tenant_listado con .range() y count: 'exact'.
+ * Resuelve módulos en una segunda query (.in('id_tenant', idsDeLaPagina)). Máximo 2 queries por render.
  */
-export async function listarTenants(): Promise<TenantPlataformaResumen[]> {
+export async function listarTenantsPaginado(
+  opts: ListarTenantsPaginadoOptions,
+): Promise<{ rows: TenantPlataformaResumen[]; total: number }> {
   await requireSuperAdmin()
   const supabase = createServiceClient()
 
-  // 1. Obtener todos los tenants y sus módulos relacionados en 1 query
-  const { data: tenantsData, error: errTenants } = await supabase
-    .from('tenant')
+  const pageSize = opts.pageSize ?? PAGE_SIZE_PLATAFORMA
+  const from = (Math.max(1, opts.page) - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
+    .from('tenant_listado')
+    .select('*', { count: 'exact' })
+
+  // Filtro de texto (q) en nombre_comercial y subdominio
+  if (opts.q && opts.q.trim().length > 0) {
+    const escapado = escaparPatronLike(opts.q.trim())
+    query = query.or(`nombre_comercial.ilike.%${escapado}%,subdominio.ilike.%${escapado}%`)
+  }
+
+  // Filtro de estado
+  if (opts.estado === 'activo' || opts.estado === 'suspendido') {
+    query = query.eq('estado_tenant', opts.estado)
+  }
+
+  // Filtro de deuda
+  if (opts.deuda === 'con-deuda') {
+    query = query.gt('saldo', 0)
+  } else if (opts.deuda === 'al-dia') {
+    query = query.lte('saldo', 0)
+  }
+
+  // Ordenamiento
+  if (opts.orden === 'saldo_desc') {
+    query = query.order('saldo', { ascending: false }).order('nombre_comercial', { ascending: true })
+  } else if (opts.orden === 'alta_desc') {
+    query = query.order('created_at', { ascending: false })
+  } else {
+    // default: nombre_asc
+    query = query.order('nombre_comercial', { ascending: true })
+  }
+
+  // Paginación
+  query = query.range(from, to)
+
+  const { data: rowsData, count, error: errTenants } = await query
+  if (errTenants) {
+    throw new Error(`listarTenantsPaginado tenant_listado: ${errTenants.message}`)
+  }
+
+  const total = count ?? 0
+  const rows = rowsData ?? []
+
+  if (rows.length === 0) {
+    return { rows: [], total }
+  }
+
+  // Query 2: Módulos de los tenants de la página visible
+  const ids = rows.map((r) => r.id_tenant)
+  const { data: modulosData, error: errModulos } = await supabase
+    .from('tenant_modulo')
     .select(`
       id_tenant,
-      nombre_comercial,
-      subdominio,
-      estado_tenant,
-      created_at,
-      tenant_modulo (
-        habilitado,
-        modulo (
-          codigo
-        )
+      habilitado,
+      modulo (
+        codigo
       )
     `)
-    .order('nombre_comercial', { ascending: true })
+    .in('id_tenant', ids)
 
-  if (errTenants) {
-    throw new Error(`listarTenants tenant: ${errTenants.message}`)
+  if (errModulos) {
+    throw new Error(`listarTenantsPaginado tenant_modulo: ${errModulos.message}`)
   }
 
-  // 2. Obtener los saldos consolidados de todos los tenants en 1 query
-  const { data: saldosData, error: errSaldos } = await supabase
-    .from('tenant_saldo')
-    .select('id_tenant, saldo, total_cargos, total_pagos')
-
-  if (errSaldos) {
-    throw new Error(`listarTenants saldo: ${errSaldos.message}`)
+  const modulosPorTenant = new Map<string, ModuloRelacion[]>()
+  for (const m of modulosData ?? []) {
+    const lista = modulosPorTenant.get(m.id_tenant) ?? []
+    lista.push(m as unknown as ModuloRelacion)
+    modulosPorTenant.set(m.id_tenant, lista)
   }
 
-  const saldosMap = new Map<string, { saldo: number; totalCargos: number; totalPagos: number }>()
-  for (const row of saldosData ?? []) {
-    saldosMap.set(row.id_tenant, {
-      saldo: Number(row.saldo ?? 0),
-      totalCargos: Number(row.total_cargos ?? 0),
-      totalPagos: Number(row.total_pagos ?? 0),
-    })
-  }
-
-  return (tenantsData ?? []).map((t) => {
-    const { habilitadosList } = calcularPaquetesHabilitados(
-      t.tenant_modulo as unknown as ModuloRelacion[],
-    )
-    const saldoInfo = saldosMap.get(t.id_tenant) ?? {
-      saldo: 0,
-      totalCargos: 0,
-      totalPagos: 0,
-    }
-
+  const resultRows: TenantPlataformaResumen[] = rows.map((t) => {
+    const { habilitadosList } = calcularPaquetesHabilitados(modulosPorTenant.get(t.id_tenant))
     return {
       idTenant: t.id_tenant,
       nombreComercial: t.nombre_comercial,
@@ -173,23 +206,41 @@ export async function listarTenants(): Promise<TenantPlataformaResumen[]> {
       estadoTenant: t.estado_tenant,
       createdAt: t.created_at,
       paquetesHabilitados: habilitadosList,
-      saldo: saldoInfo.saldo,
-      totalCargos: saldoInfo.totalCargos,
-      totalPagos: saldoInfo.totalPagos,
+      saldo: Number(t.saldo ?? 0),
+      totalCargos: Number(t.total_cargos ?? 0),
+      totalPagos: Number(t.total_pagos ?? 0),
     }
   })
+
+  return { rows: resultRows, total }
 }
 
 /**
- * REQ-SA-07: Detalle del tenant, paquetes, saldo e historial de cuenta corriente.
- * Resuelve la ficha y el historial cronológico unificado con queries fijas.
+ * REQ-SA-02: Listado consolidado de tenants (retorna primera página amplia para retrocompatibilidad).
  */
-export async function obtenerTenantDetalle(idTenant: string): Promise<TenantPlataformaDetalle> {
+export async function listarTenants(): Promise<TenantPlataformaResumen[]> {
+  const { rows } = await listarTenantsPaginado({ page: 1, pageSize: 1000 })
+  return rows
+}
+
+/**
+ * REQ-SA-07 / D5: Detalle del tenant, paquetes, saldo e historial de cuenta corriente paginado.
+ * Resuelve la ficha, el saldo y el historial paginado de tenant_movimiento con queries fijas.
+ */
+export async function obtenerTenantDetalle(
+  idTenant: string,
+  opts?: { hpage?: number; hpageSize?: number },
+): Promise<TenantPlataformaDetalle> {
   await requireSuperAdmin()
   const supabase = createServiceClient()
 
+  const hpageSize = opts?.hpageSize ?? PAGE_SIZE_PLATAFORMA
+  const hpage = Math.max(1, opts?.hpage ?? 1)
+  const from = (hpage - 1) * hpageSize
+  const to = from + hpageSize - 1
+
   // Queries fijas en paralelo
-  const [tenantRes, saldoRes, cargosRes, pagosRes] = await Promise.all([
+  const [tenantRes, saldoRes, movsRes] = await Promise.all([
     supabase
       .from('tenant')
       .select(`
@@ -215,15 +266,12 @@ export async function obtenerTenantDetalle(idTenant: string): Promise<TenantPlat
       .eq('id_tenant', idTenant)
       .maybeSingle(),
     supabase
-      .from('tenant_cargo')
-      .select('*')
+      .from('tenant_movimiento')
+      .select('*', { count: 'exact' })
       .eq('id_tenant', idTenant)
-      .order('periodo', { ascending: false }),
-    supabase
-      .from('tenant_pago')
-      .select('*')
-      .eq('id_tenant', idTenant)
-      .order('fecha', { ascending: false }),
+      .order('fecha', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, to),
   ])
 
   if (tenantRes.error) {
@@ -231,6 +279,12 @@ export async function obtenerTenantDetalle(idTenant: string): Promise<TenantPlat
   }
   if (!tenantRes.data) {
     throw new Error('tenant-inexistente')
+  }
+  if (saldoRes.error) {
+    throw new Error(`obtenerTenantDetalle saldo: ${saldoRes.error.message}`)
+  }
+  if (movsRes.error) {
+    throw new Error(`obtenerTenantDetalle movimiento: ${movsRes.error.message}`)
   }
 
   const { paquetesMap } = calcularPaquetesHabilitados(
@@ -241,46 +295,22 @@ export async function obtenerTenantDetalle(idTenant: string): Promise<TenantPlat
   const totalCargos = Number(saldoRes.data?.total_cargos ?? 0)
   const totalPagos = Number(saldoRes.data?.total_pagos ?? 0)
 
-  // Unificar cargos y pagos
-  const historial: MovimientoCuentaCorriente[] = []
-
-  for (const c of cargosRes.data ?? []) {
-    historial.push({
-      id: c.id,
-      tipo: 'cargo',
-      fechaImputacion: c.periodo,
-      monto: Number(c.monto),
-      detalle: c.concepto,
-      concepto: c.concepto,
-      createdAt: c.created_at,
-      anulado: Boolean(c.anulado_at),
-      anuladoAt: c.anulado_at,
-      anuladoPor: c.anulado_por,
-    })
-  }
-
-  for (const p of pagosRes.data ?? []) {
-    historial.push({
-      id: p.id,
-      tipo: 'pago',
-      fechaImputacion: p.fecha,
-      monto: Number(p.monto),
-      detalle: p.nota ? `${p.medio} (${p.nota})` : p.medio,
-      medio: p.medio,
-      nota: p.nota,
-      createdAt: p.created_at,
-      anulado: Boolean(p.anulado_at),
-      anuladoAt: p.anulado_at,
-      anuladoPor: p.anulado_por,
-    })
-  }
-
-  // Ordenar descendentemente por fecha/periodo y desempate por createdAt
-  historial.sort((a, b) => {
-    if (a.fechaImputacion !== b.fechaImputacion) {
-      return b.fechaImputacion.localeCompare(a.fechaImputacion)
+  const historial: MovimientoCuentaCorriente[] = (movsRes.data ?? []).map((m) => {
+    const esCargo = m.tipo === 'cargo'
+    return {
+      id: m.id,
+      tipo: m.tipo as TipoMovimientoTenant,
+      fechaImputacion: m.fecha,
+      monto: Number(m.monto),
+      detalle: esCargo ? m.concepto : (m.nota ? `${m.medio} (${m.nota})` : m.medio),
+      concepto: m.concepto ?? undefined,
+      medio: m.medio ?? undefined,
+      nota: m.nota ?? undefined,
+      createdAt: m.created_at,
+      anulado: Boolean(m.anulado_at),
+      anuladoAt: m.anulado_at,
+      anuladoPor: m.anulado_por,
     }
-    return b.createdAt.localeCompare(a.createdAt)
   })
 
   return {
@@ -298,6 +328,9 @@ export async function obtenerTenantDetalle(idTenant: string): Promise<TenantPlat
     totalCargos,
     totalPagos,
     historial,
+    totalHistorial: movsRes.count ?? 0,
+    hpage,
+    hpageSize,
   }
 }
 
