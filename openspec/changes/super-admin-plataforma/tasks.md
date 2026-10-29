@@ -64,11 +64,11 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
 
 ## Slice 4 — UI: Panel de plataforma
 
-- [ ] Shell de plataforma y layout en `app/(plataforma)/layout.tsx` (con `requireSuperAdmin()`)
-- [ ] Vista de listado general `app/(plataforma)/plataforma/page.tsx` (tabla de tenants, búsqueda, paquetes de módulos activos, estado y saldo deudor)
-- [ ] Vista de detalle por tenant `app/(plataforma)/plataforma/[id]/page.tsx`:
+- [x] Shell de plataforma y layout en `app/(plataforma)/layout.tsx` (con `requireSuperAdmin()`)
+- [x] Vista de listado general `app/(plataforma)/plataforma/page.tsx` (tabla de tenants, búsqueda, paquetes de módulos activos, estado y saldo deudor)
+- [x] Vista de detalle por tenant `app/(plataforma)/plataforma/[id]/page.tsx`:
   - Ficha resumen de tenant
   - Panel de switches exclusivo para paquetes opcionales (`revendedoras`, `consignacionProveedor`); los módulos del núcleo no aparecen como toggle
   - Historial unificado de cargos y pagos con indicador de vigencia/anulación
   - Modales / formularios para: Nuevo cargo, Nuevo pago y Confirmación de anulación
-- [ ] Pruebas de componentes o e2e de la navegación de plataforma
+- [x] Pruebas de componentes o e2e de la navegación de plataforma

@@ -1,0 +1,78 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { notFound } from 'next/navigation'
+import { obtenerTenantDetalle } from '@/lib/dal/plataforma'
+
+vi.mock('next/navigation', () => ({
+  notFound: vi.fn(() => {
+    throw new Error('NOT_FOUND')
+  }),
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
+
+vi.mock('@/lib/dal/plataforma', () => ({
+  obtenerTenantDetalle: vi.fn(),
+}))
+
+vi.mock('./TenantDetalleView', () => ({
+  TenantDetalleView: ({ detalle }: { detalle: { tenant: { nombreComercial: string } } }) => (
+    <div data-testid="tenant-detalle">{detalle.tenant.nombreComercial}</div>
+  ),
+}))
+
+describe('TenantDetallePage (Server Component)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('si el id no es un UUID válido -> llama a notFound()', async () => {
+    const { default: TenantDetallePage } = await import('./page')
+
+    await expect(
+      TenantDetallePage({
+        params: Promise.resolve({ id: 'no-es-un-uuid' }),
+      }),
+    ).rejects.toThrow('NOT_FOUND')
+
+    expect(notFound).toHaveBeenCalled()
+  })
+
+  it('si el tenant no existe en la base de datos -> llama a notFound()', async () => {
+    vi.mocked(obtenerTenantDetalle).mockRejectedValueOnce(new Error('tenant-inexistente'))
+    const { default: TenantDetallePage } = await import('./page')
+
+    await expect(
+      TenantDetallePage({
+        params: Promise.resolve({ id: '11111111-1111-4111-8111-111111111111' }),
+      }),
+    ).rejects.toThrow('NOT_FOUND')
+
+    expect(notFound).toHaveBeenCalled()
+  })
+
+  it('si el tenant existe -> renderiza la vista de detalle con sus datos', async () => {
+    const mockDetalle = {
+      tenant: {
+        idTenant: '11111111-1111-4111-8111-111111111111',
+        nombreComercial: 'Tienda Alpha',
+        subdominio: 'alpha',
+        logoUrl: null,
+        colorPrimario: null,
+        estadoTenant: 'activo',
+        createdAt: '2026-01-01',
+      },
+      paquetes: { revendedoras: true, consignacionProveedor: false },
+      saldo: 0,
+      totalCargos: 0,
+      totalPagos: 0,
+      historial: [],
+    }
+    vi.mocked(obtenerTenantDetalle).mockResolvedValueOnce(mockDetalle)
+
+    const { default: TenantDetallePage } = await import('./page')
+    const element = await TenantDetallePage({
+      params: Promise.resolve({ id: '11111111-1111-4111-8111-111111111111' }),
+    })
+
+    expect(element.props.detalle).toEqual(mockDetalle)
+  })
+})
