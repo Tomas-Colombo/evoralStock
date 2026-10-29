@@ -6,7 +6,6 @@ import {
   togglePaqueteSchema,
   altaTenantSchema,
   cambiarEstadoTenantSchema,
-  filtrosTenantsSchema,
   parseFiltrosTenants,
   extraerReasonZod,
 } from './plataforma'

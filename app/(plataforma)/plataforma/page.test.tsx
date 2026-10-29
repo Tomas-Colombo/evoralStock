@@ -1,12 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { listarTenantsPaginado } from '@/lib/dal/plataforma'
+import type { TenantPlataformaResumen } from '@/lib/types/plataforma'
 
 vi.mock('@/lib/dal/plataforma', () => ({
   listarTenantsPaginado: vi.fn(),
 }))
 
 vi.mock('./TenantsView', () => ({
-  TenantsView: (props: any) => (
+  TenantsView: (props: { tenants?: unknown[]; page?: number; total?: number }) => (
     <div data-testid="tenants-view" data-props={JSON.stringify(props)}>
       Tenants: {props.tenants?.length}
     </div>
@@ -139,7 +140,7 @@ describe('PlataformaPage (Server Component)', () => {
         total: 30,
       })
       .mockResolvedValueOnce({
-        rows: [{ idTenant: 't-30' } as any],
+        rows: [{ idTenant: 't-30' } as unknown as TenantPlataformaResumen],
         total: 30,
       })
 

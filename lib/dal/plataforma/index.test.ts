@@ -202,7 +202,7 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
       const orMock = vi.fn()
       const orderMock = vi.fn()
 
-      const queryBuilder: Record<string, any> = {
+      const queryBuilder: Record<string, unknown> = {
         select: vi.fn().mockReturnThis(),
         eq: eqMock.mockReturnThis(),
         gt: gtMock.mockReturnThis(),
@@ -343,32 +343,7 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
         total_pagos: 15000,
       }
 
-      const mockCargos = [
-        {
-          id: 'cargo-1',
-          id_tenant: TENANT_ID_1,
-          periodo: '2026-11-01',
-          monto: 20000,
-          concepto: 'Abono Noviembre',
-          created_at: '2026-10-25T10:00:00Z',
-          anulado_at: null,
-          anulado_por: null,
-        },
-      ]
 
-      const mockPagos = [
-        {
-          id: 'pago-1',
-          id_tenant: TENANT_ID_1,
-          fecha: '2026-10-28',
-          monto: 15000,
-          medio: 'transferencia',
-          nota: 'Comprobante 123',
-          created_at: '2026-10-28T14:00:00Z',
-          anulado_at: null,
-          anulado_por: null,
-        },
-      ]
 
       mockFrom.mockImplementation((table: string) => {
         if (table === 'tenant') {

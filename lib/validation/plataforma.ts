@@ -6,9 +6,6 @@ import {
   ESTADOS_TENANT_FILTRO,
   DEUDA_TENANT_FILTRO,
   ORDEN_TENANT_FILTRO,
-  type EstadoTenantFiltro,
-  type DeudaTenantFiltro,
-  type OrdenTenantFiltro,
 } from '@/lib/types/plataforma'
 import { validarSubdominio } from '@/lib/tenant/subdominio'
 
