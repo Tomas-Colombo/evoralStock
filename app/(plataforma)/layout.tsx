@@ -6,6 +6,8 @@ import { logoutAction } from '@/app/(app)/actions'
 import { ToastProvider } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Shell layout para el panel de plataforma (superadmin).
  *
