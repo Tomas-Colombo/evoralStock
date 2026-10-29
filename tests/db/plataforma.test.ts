@@ -1064,4 +1064,83 @@ describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-0
     })
   })
 
+  describe('REQ-SA-11 — Vistas de paginación (tenant_listado y tenant_movimiento)', () => {
+    test('tenant_listado devuelve saldo 0 para tenant sin movimientos', async () => {
+      const nombreNuevo = `TenantSinMovs_${Date.now()}`
+      const subNuevo = `subsinmovs${Date.now().toString().slice(-6)}`
+      const { data: nuevoT, error: errT } = await serviceRole
+        .from('tenant')
+        .insert({
+          nombre_comercial: nombreNuevo,
+          subdominio: subNuevo,
+          estado_tenant: 'activo',
+        })
+        .select('id_tenant')
+        .single()
+
+      expect(errT).toBeNull()
+      expect(nuevoT).toBeDefined()
+      tenantsToClean.push(nuevoT!.id_tenant)
+
+      const { data: listado, error: errListado } = await serviceRole
+        .from('tenant_listado')
+        .select('*')
+        .eq('id_tenant', nuevoT!.id_tenant)
+        .single()
+
+      expect(errListado).toBeNull()
+      expect(listado).toBeDefined()
+      expect(Number(listado!.saldo)).toBe(0)
+      expect(Number(listado!.total_cargos)).toBe(0)
+      expect(Number(listado!.total_pagos)).toBe(0)
+      expect(listado!.nombre_comercial).toBe(nombreNuevo)
+      expect(listado!.subdominio).toBe(subNuevo)
+    })
+
+    test('Usuario anónimo no puede leer tenant_listado ni tenant_movimiento -> denegado', async () => {
+      const { data: listadoData, error: listadoErr } = await anonClient.from('tenant_listado').select('*')
+      if (!listadoErr) {
+        expect(listadoData).toHaveLength(0)
+      } else {
+        expect(listadoErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+
+      const { data: movData, error: movErr } = await anonClient.from('tenant_movimiento').select('*')
+      if (!movErr) {
+        expect(movData).toHaveLength(0)
+      } else {
+        expect(movErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+    })
+
+    test('Usuario autenticado no superadmin no puede leer tenant_listado ni tenant_movimiento -> denegado', async () => {
+      const { data: listadoData, error: listadoErr } = await authAdminA.from('tenant_listado').select('*')
+      if (!listadoErr) {
+        expect(listadoData).toHaveLength(0)
+      } else {
+        expect(listadoErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+
+      const { data: movData, error: movErr } = await authAdminA.from('tenant_movimiento').select('*')
+      if (!movErr) {
+        expect(movData).toHaveLength(0)
+      } else {
+        expect(movErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+
+      const { data: revListado, error: revListadoErr } = await authRev.from('tenant_listado').select('*')
+      if (!revListadoErr) {
+        expect(revListado).toHaveLength(0)
+      } else {
+        expect(revListadoErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+
+      const { data: revMov, error: revMovErr } = await authRev.from('tenant_movimiento').select('*')
+      if (!revMovErr) {
+        expect(revMov).toHaveLength(0)
+      } else {
+        expect(revMovErr.message).toMatch(/permission denied|violates row-level security policy/i)
+      }
+    })
+  })
 })
