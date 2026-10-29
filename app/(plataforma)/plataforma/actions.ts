@@ -9,6 +9,8 @@ import {
   registrarPagoSchema,
   anularMovimientoSchema,
   togglePaqueteSchema,
+  altaTenantSchema,
+  cambiarEstadoTenantSchema,
   extraerReasonZod,
 } from '@/lib/validation/plataforma'
 
@@ -143,6 +145,71 @@ export async function togglePaqueteTenantAction(
 
   // La IP del cliente se pasa como null al no haber helper de extracción en las Server Actions
   const res = await dal.togglePaquete(parsed.data, null)
+  if (!res.ok) {
+    return res
+  }
+
+  revalidatePath('/plataforma')
+  revalidatePath(`/plataforma/${parsed.data.idTenant}`)
+  return res
+}
+
+/**
+ * REQ-SA-09: Acción para dar de alta un tenant nuevo.
+ * Compuerta 1: requireSuperAdmin()
+ * Compuerta 2: altaTenantSchema.safeParse(input)
+ * Compuerta 3: dal.altaTenant(parsed.data)
+ */
+export async function altaTenantAction(
+  input: unknown,
+): Promise<ActionResult<{ idTenant: string; passwordTemporal: string }>> {
+  try {
+    await requireSuperAdmin()
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return { ok: false, reason: err.reason }
+    }
+    throw err
+  }
+
+  const parsed = altaTenantSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  const res = await dal.altaTenant(parsed.data)
+  if (!res.ok) {
+    return res
+  }
+
+  revalidatePath('/plataforma')
+  return res
+}
+
+/**
+ * REQ-SA-10: Acción para suspender o reactivar un tenant.
+ * Compuerta 1: requireSuperAdmin()
+ * Compuerta 2: cambiarEstadoTenantSchema.safeParse(input)
+ * Compuerta 3: dal.cambiarEstadoTenant(parsed.data)
+ */
+export async function cambiarEstadoTenantAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    await requireSuperAdmin()
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return { ok: false, reason: err.reason }
+    }
+    throw err
+  }
+
+  const parsed = cambiarEstadoTenantSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  const res = await dal.cambiarEstadoTenant(parsed.data)
   if (!res.ok) {
     return res
   }

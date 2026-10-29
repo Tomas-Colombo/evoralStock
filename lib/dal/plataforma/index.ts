@@ -2,6 +2,8 @@ import 'server-only'
 
 import { createServiceClient } from '@/lib/dal/supabase'
 import { requireSuperAdmin } from '@/lib/dal/plataforma/guard'
+import { generarPassword } from '@/lib/tenant/password'
+import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 import {
   PAQUETES_OPCIONALES,
   type PaqueteOpcional,
@@ -14,6 +16,8 @@ import type {
   RegistrarPagoInput,
   AnularMovimientoInput,
   TogglePaqueteInput,
+  AltaTenantInput,
+  CambiarEstadoTenantInput,
 } from '@/lib/validation/plataforma'
 
 type MutationResult<T = void> =
@@ -54,6 +58,10 @@ export function extraerSlugError(error: unknown): string {
     'movimiento-inexistente',
     'movimiento-ya-anulado',
     'paquete-invalido',
+    'subdominio-en-uso',
+    'email-en-uso',
+    'subdominio-invalido',
+    'estado-invalido',
     'modulo-nucleo',
     'modulo-con-estado-vivo',
     'modulo-desconocido',
@@ -377,6 +385,98 @@ export async function togglePaquete(
     p_habilitado: input.habilitado,
     p_actor: actor.id,
     p_ip: ip ?? null,
+  })
+
+  if (error) {
+    return { ok: false, reason: extraerSlugError(error) }
+  }
+
+  return { ok: true }
+}
+
+/**
+ * REQ-SA-09 / DR-SA-06: Alta de tenant en 2 pasos con compensación.
+ * Paso a: Creación de usuario administrador en Auth con service-role y password temporal.
+ * Paso b: Creación atómica en BD mediante sp_alta_tenant (INVOKER).
+ * Paso c: Compensación (borrado del auth user) si el paso b falla.
+ */
+export async function altaTenant(
+  input: AltaTenantInput,
+): Promise<MutationResult<{ idTenant: string; passwordTemporal: string }>> {
+  const actor = await requireSuperAdmin()
+  const supabase = createServiceClient()
+
+  const passwordTemporal = generarPassword()
+
+  // Paso a: crear usuario en Auth
+  const { data: created, error: authError } = await supabase.auth.admin.createUser({
+    email: input.emailAdmin,
+    password: passwordTemporal,
+    email_confirm: true,
+    user_metadata: { nombre_completo: input.nombreAdmin },
+  })
+
+  if (authError || !created?.user) {
+    const msg = authError?.message?.toLowerCase() ?? ''
+    const status = (authError as { status?: number })?.status
+    const code = (authError as { code?: string })?.code
+
+    if (
+      status === 422 ||
+      msg.includes('already') ||
+      msg.includes('exists') ||
+      code === 'email_exists'
+    ) {
+      return { ok: false, reason: 'email-en-uso' }
+    }
+    return { ok: false, reason: extraerSlugError(authError) }
+  }
+
+  const authUserId = created.user.id
+
+  // Paso b: armar matriz de permisos desde CATALOGO_PERMISOS (todas las acciones)
+  const permisosAdmin: Record<string, string[]> = Object.fromEntries(
+    Object.entries(CATALOGO_PERMISOS).map(([modulo, acciones]) => [modulo, [...acciones]]),
+  )
+
+  const { data: idTenant, error: rpcError } = await supabase.rpc('sp_alta_tenant', {
+    p_nombre: input.nombre,
+    p_subdominio: input.subdominio,
+    p_paquetes: input.paquetes,
+    p_id_auth_user: authUserId,
+    p_nombre_admin: input.nombreAdmin,
+    p_permisos: permisosAdmin,
+    p_actor: actor.id,
+  })
+
+  if (rpcError) {
+    // Paso c: Compensación - borrar el usuario de Auth creado en el paso a
+    await supabase.auth.admin.deleteUser(authUserId).catch(() => {})
+    return { ok: false, reason: extraerSlugError(rpcError) }
+  }
+
+  return {
+    ok: true,
+    data: {
+      idTenant: idTenant as string,
+      passwordTemporal,
+    },
+  }
+}
+
+/**
+ * REQ-SA-10 / D1, D4: Cambiar estado del tenant entre 'activo' y 'suspendido'.
+ */
+export async function cambiarEstadoTenant(
+  input: CambiarEstadoTenantInput,
+): Promise<MutationResult> {
+  const actor = await requireSuperAdmin()
+  const supabase = createServiceClient()
+
+  const { error } = await supabase.rpc('sp_cambiar_estado_tenant', {
+    p_id_tenant: input.idTenant,
+    p_estado: input.estado,
+    p_actor: actor.id,
   })
 
   if (error) {

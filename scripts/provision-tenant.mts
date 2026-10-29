@@ -1,11 +1,9 @@
 /**
  * Tenant provisioning — platform operator tool, run from a trusted machine.
  *
- * This is DELIBERATELY not a page in the app. Provisioning creates tenants
- * and writes with the service role, which bypasses RLS entirely: a web
- * surface for it would be the one door in the system that, if forced,
- * exposes every customer at once. Alta happens a few times a month, by one
- * person, on a laptop — the cost of a UI is not worth that blast radius.
+ * NOTA: Ya existe el alta web desde el panel de plataforma (/plataforma), ver DR-SA-06.
+ * Este script de consola se conserva como herramienta de operador y soporte de infraestructura.
+ * (Deuda técnica: migrar provision-tenant.mts al stored procedure sp_alta_tenant en una fase posterior).
  *
  * Do not confuse this with `inviteUsuario` (lib/dal/administracion). That
  * one adds a TEAMMATE to an existing tenant and is correctly exposed in the
@@ -25,26 +23,16 @@
  */
 
 import { parseArgs } from 'node:util'
-import { randomInt } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
   SUBDOMINIO_REASON_LABEL,
   validarSubdominio,
 } from '../lib/tenant/subdominio.ts'
+import { generarPassword } from '../lib/tenant/password.ts'
 import { CATALOGO_PERMISOS } from '../lib/types/administracion.ts'
 
 /** Every action the permission model recognizes (`rol.permisos`, REQ-AG-02). */
 const ACCIONES = ['ver', 'crear', 'editar', 'eliminar'] as const
-
-/** Temp password charset, minus characters that are ambiguous when read aloud. */
-const PASSWORD_CHARS =
-  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-
-function generarPassword(len = 16): string {
-  let out = ''
-  for (let i = 0; i < len; i++) out += PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)]
-  return out
-}
 
 function requireEnv(name: string): string {
   const value = process.env[name]

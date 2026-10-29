@@ -18,11 +18,15 @@ const mockRegistrarCargo = vi.fn()
 const mockRegistrarPago = vi.fn()
 const mockAnularMovimiento = vi.fn()
 const mockTogglePaquete = vi.fn()
+const mockAltaTenant = vi.fn()
+const mockCambiarEstadoTenant = vi.fn()
 vi.mock('@/lib/dal/plataforma', () => ({
   registrarCargo: (input: unknown) => mockRegistrarCargo(input),
   registrarPago: (input: unknown) => mockRegistrarPago(input),
   anularMovimiento: (input: unknown) => mockAnularMovimiento(input),
   togglePaquete: (input: unknown, ip: unknown) => mockTogglePaquete(input, ip),
+  altaTenant: (input: unknown) => mockAltaTenant(input),
+  cambiarEstadoTenant: (input: unknown) => mockCambiarEstadoTenant(input),
 }))
 
 const SUPER_ADMIN = { id: 'sa-actor-uuid', email: 'admin@utopia.com' }
@@ -65,6 +69,35 @@ describe('Server Actions Plataforma (app/(plataforma)/plataforma/actions)', () =
       expect(res).toEqual({ ok: false, reason: 'no-session' })
       expect(mockRegistrarPago).not.toHaveBeenCalled()
     })
+
+    it('altaTenantAction sin super admin -> rechazo no-permission', async () => {
+      mockRequireSuperAdmin.mockRejectedValue(new AuthorizationError('no-permission'))
+      const { altaTenantAction } = await import('./actions')
+
+      const res = await altaTenantAction({
+        nombre: 'Tienda Test',
+        subdominio: 'testtienda',
+        emailAdmin: 'admin@test.com',
+        nombreAdmin: 'Admin',
+        paquetes: [],
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'no-permission' })
+      expect(mockAltaTenant).not.toHaveBeenCalled()
+    })
+
+    it('cambiarEstadoTenantAction sin super admin -> rechazo no-permission', async () => {
+      mockRequireSuperAdmin.mockRejectedValue(new AuthorizationError('no-permission'))
+      const { cambiarEstadoTenantAction } = await import('./actions')
+
+      const res = await cambiarEstadoTenantAction({
+        idTenant: TENANT_ID,
+        estado: 'suspendido',
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'no-permission' })
+      expect(mockCambiarEstadoTenant).not.toHaveBeenCalled()
+    })
   })
 
   describe('Compuerta 2: Validación Zod (safeParse y strictObject)', () => {
@@ -102,6 +135,49 @@ describe('Server Actions Plataforma (app/(plataforma)/plataforma/actions)', () =
       })
       expect(resAnular).toEqual({ ok: false, reason: 'campo-desconocido' })
       expect(mockAnularMovimiento).not.toHaveBeenCalled()
+    })
+
+    it('altaTenantAction con subdominio inválido -> subdominio-invalido y DAL NO se llama', async () => {
+      const { altaTenantAction } = await import('./actions')
+
+      const res = await altaTenantAction({
+        nombre: 'Tienda Invalida',
+        subdominio: '-invalido-',
+        emailAdmin: 'admin@invalido.com',
+        nombreAdmin: 'Admin',
+        paquetes: [],
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'subdominio-invalido' })
+      expect(mockAltaTenant).not.toHaveBeenCalled()
+    })
+
+    it('altaTenantAction con campos extra -> campo-desconocido y DAL NO se llama', async () => {
+      const { altaTenantAction } = await import('./actions')
+
+      const res = await altaTenantAction({
+        nombre: 'Tienda Extra',
+        subdominio: 'tiendaextra',
+        emailAdmin: 'admin@extra.com',
+        nombreAdmin: 'Admin',
+        paquetes: [],
+        actor: 'injected-actor-id',
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'campo-desconocido' })
+      expect(mockAltaTenant).not.toHaveBeenCalled()
+    })
+
+    it('cambiarEstadoTenantAction con estado no permitido -> estado-invalido y DAL NO se llama', async () => {
+      const { cambiarEstadoTenantAction } = await import('./actions')
+
+      const res = await cambiarEstadoTenantAction({
+        idTenant: TENANT_ID,
+        estado: 'archivado', // No permitido por D1/D4
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'estado-invalido' })
+      expect(mockCambiarEstadoTenant).not.toHaveBeenCalled()
     })
   })
 
@@ -189,6 +265,69 @@ describe('Server Actions Plataforma (app/(plataforma)/plataforma/actions)', () =
         },
         null,
       )
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/plataforma')
+      expect(mockRevalidatePath).toHaveBeenCalledWith(`/plataforma/${TENANT_ID}`)
+    })
+
+    it('altaTenantAction pasa parsed.data, revalida /plataforma y devuelve idTenant + passwordTemporal', async () => {
+      mockAltaTenant.mockResolvedValue({
+        ok: true,
+        data: { idTenant: 'new-tenant-id', passwordTemporal: 'temp-pass-123' },
+      })
+      const { altaTenantAction } = await import('./actions')
+
+      const res = await altaTenantAction({
+        nombre: 'Nueva Tienda',
+        subdominio: 'nuevatienda',
+        emailAdmin: 'admin@nueva.com',
+        nombreAdmin: 'Admin Nueva',
+        paquetes: ['revendedoras'],
+      })
+
+      expect(res).toEqual({
+        ok: true,
+        data: { idTenant: 'new-tenant-id', passwordTemporal: 'temp-pass-123' },
+      })
+      expect(mockAltaTenant).toHaveBeenCalledWith({
+        nombre: 'Nueva Tienda',
+        subdominio: 'nuevatienda',
+        emailAdmin: 'admin@nueva.com',
+        nombreAdmin: 'Admin Nueva',
+        paquetes: ['revendedoras'],
+      })
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/plataforma')
+    })
+
+    it('altaTenantAction en falla del DAL retorna el error y no revalida', async () => {
+      mockAltaTenant.mockResolvedValue({ ok: false, reason: 'subdominio-en-uso' })
+      const { altaTenantAction } = await import('./actions')
+
+      const res = await altaTenantAction({
+        nombre: 'Nueva Tienda',
+        subdominio: 'nuevatienda',
+        emailAdmin: 'admin@nueva.com',
+        nombreAdmin: 'Admin Nueva',
+        paquetes: [],
+      })
+
+      expect(res).toEqual({ ok: false, reason: 'subdominio-en-uso' })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
+    it('cambiarEstadoTenantAction pasa parsed.data y revalida /plataforma y detalle', async () => {
+      mockCambiarEstadoTenant.mockResolvedValue({ ok: true })
+      const { cambiarEstadoTenantAction } = await import('./actions')
+
+      const res = await cambiarEstadoTenantAction({
+        idTenant: TENANT_ID,
+        estado: 'suspendido',
+      })
+
+      expect(res).toEqual({ ok: true })
+      expect(mockCambiarEstadoTenant).toHaveBeenCalledWith({
+        idTenant: TENANT_ID,
+        estado: 'suspendido',
+      })
       expect(mockRevalidatePath).toHaveBeenCalledWith('/plataforma')
       expect(mockRevalidatePath).toHaveBeenCalledWith(`/plataforma/${TENANT_ID}`)
     })

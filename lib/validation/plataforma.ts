@@ -4,6 +4,7 @@ import {
   CLAVES_PAQUETES_OPCIONALES,
   TIPOS_MOVIMIENTO_TENANT,
 } from '@/lib/types/plataforma'
+import { validarSubdominio } from '@/lib/tenant/subdominio'
 
 const payloadParams = {
   error: (issue: z.core.$ZodRawIssue) =>
@@ -119,6 +120,55 @@ export const togglePaqueteSchema = z.strictObject(
 )
 
 export type TogglePaqueteInput = z.infer<typeof togglePaqueteSchema>
+
+/**
+ * Estados a los que un superadmin puede transicionar un tenant.
+ */
+export const ESTADOS_TENANT_MUTABLES = ['activo', 'suspendido'] as const
+export type EstadoTenantMutable = (typeof ESTADOS_TENANT_MUTABLES)[number]
+
+/**
+ * Schema estricto para alta de nuevo tenant (REQ-SA-09 / DR-SA-06).
+ */
+export const altaTenantSchema = z.strictObject(
+  {
+    nombre: z
+      .string('nombre-invalido')
+      .transform((s) => s.trim())
+      .refine((s) => s.length > 0, 'nombre-invalido'),
+    subdominio: z
+      .string('subdominio-invalido')
+      .refine((s) => validarSubdominio(s).ok, 'subdominio-invalido'),
+    emailAdmin: z
+      .string('email-invalido')
+      .trim()
+      .toLowerCase()
+      .email('email-invalido'),
+    nombreAdmin: z
+      .string('nombre-invalido')
+      .transform((s) => s.trim())
+      .refine((s) => s.length > 0, 'nombre-invalido'),
+    paquetes: z
+      .array(z.enum(CLAVES_PAQUETES_OPCIONALES, 'paquete-invalido'))
+      .default([]),
+  },
+  payloadParams,
+)
+
+export type AltaTenantInput = z.infer<typeof altaTenantSchema>
+
+/**
+ * Schema estricto para suspender o reactivar un tenant (REQ-SA-10 / D1, D4).
+ */
+export const cambiarEstadoTenantSchema = z.strictObject(
+  {
+    idTenant: z.uuid('tenant-inexistente'),
+    estado: z.enum(ESTADOS_TENANT_MUTABLES, 'estado-invalido'),
+  },
+  payloadParams,
+)
+
+export type CambiarEstadoTenantInput = z.infer<typeof cambiarEstadoTenantSchema>
 
 /**
  * Extrae el slug de error del primer issue de Zod.

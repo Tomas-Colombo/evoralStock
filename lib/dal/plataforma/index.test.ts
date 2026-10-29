@@ -10,10 +10,18 @@ vi.mock('@/lib/dal/plataforma/guard', () => ({
 // Mock de createServiceClient
 const mockFrom = vi.fn()
 const mockRpc = vi.fn()
+const mockCreateUser = vi.fn()
+const mockDeleteUser = vi.fn()
 vi.mock('@/lib/dal/supabase', () => ({
   createServiceClient: () => ({
     from: mockFrom,
     rpc: mockRpc,
+    auth: {
+      admin: {
+        createUser: mockCreateUser,
+        deleteUser: mockDeleteUser,
+      },
+    },
   }),
 }))
 
@@ -450,6 +458,121 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
         habilitado: false,
       })
       expect(res).toEqual({ ok: false, reason: 'modulo-con-estado-vivo' })
+    })
+
+    describe('altaTenant() - Provisión y compensación (REQ-SA-09 / DR-SA-06)', () => {
+      it('createUser con email existente -> devuelve email-en-uso sin invocar rpc ni deleteUser', async () => {
+        mockCreateUser.mockResolvedValue({
+          data: null,
+          error: { message: 'A user with this email address has already been registered', status: 422 },
+        })
+        const { altaTenant } = await import('./index')
+        const res = await altaTenant({
+          nombre: 'Comercio Test',
+          subdominio: 'comercio-test',
+          emailAdmin: 'duplicado@test.com',
+          nombreAdmin: 'Admin Test',
+          paquetes: [],
+        })
+
+        expect(res).toEqual({ ok: false, reason: 'email-en-uso' })
+        expect(mockRpc).not.toHaveBeenCalled()
+        expect(mockDeleteUser).not.toHaveBeenCalled()
+      })
+
+      it('compensación del DAL: sp_alta_tenant rpc falla -> deleteUser llamado y devuelve el slug', async () => {
+        mockCreateUser.mockResolvedValue({
+          data: { user: { id: 'created-auth-user-id' } },
+          error: null,
+        })
+        mockDeleteUser.mockResolvedValue({ data: null, error: null })
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: 'sp_alta_tenant: subdominio-en-uso' },
+        })
+
+        const { altaTenant } = await import('./index')
+        const res = await altaTenant({
+          nombre: 'Comercio Test',
+          subdominio: 'comercio-test',
+          emailAdmin: 'nuevo@test.com',
+          nombreAdmin: 'Admin Test',
+          paquetes: ['revendedoras'],
+        })
+
+        expect(res).toEqual({ ok: false, reason: 'subdominio-en-uso' })
+        expect(mockDeleteUser).toHaveBeenCalledWith('created-auth-user-id')
+      })
+
+      it('caso feliz: crea usuario, invoca sp_alta_tenant con actor y devuelve idTenant y passwordTemporal', async () => {
+        mockCreateUser.mockResolvedValue({
+          data: { user: { id: 'auth-user-999' } },
+          error: null,
+        })
+        mockRpc.mockResolvedValue({
+          data: 'new-tenant-uuid-123',
+          error: null,
+        })
+
+        const { altaTenant } = await import('./index')
+        const res = await altaTenant({
+          nombre: 'Boutique Éxito',
+          subdominio: 'boutique-exito',
+          emailAdmin: 'exito@boutique.com',
+          nombreAdmin: 'Ana Éxito',
+          paquetes: ['revendedoras'],
+        })
+
+        expect(mockDeleteUser).not.toHaveBeenCalled()
+        expect(mockRpc).toHaveBeenCalledWith(
+          'sp_alta_tenant',
+          expect.objectContaining({
+            p_nombre: 'Boutique Éxito',
+            p_subdominio: 'boutique-exito',
+            p_paquetes: ['revendedoras'],
+            p_id_auth_user: 'auth-user-999',
+            p_nombre_admin: 'Ana Éxito',
+            p_actor: SUPER_ADMIN.id,
+          }),
+        )
+        expect(res.ok).toBe(true)
+        if (res.ok) {
+          expect(res.data.idTenant).toBe('new-tenant-uuid-123')
+          expect(typeof res.data.passwordTemporal).toBe('string')
+          expect(res.data.passwordTemporal.length).toBeGreaterThanOrEqual(16)
+        }
+      })
+    })
+
+    describe('cambiarEstadoTenant() (REQ-SA-10 / D1, D4)', () => {
+      it('invoca sp_cambiar_estado_tenant con actor e idTenant', async () => {
+        mockRpc.mockResolvedValue({ data: null, error: null })
+        const { cambiarEstadoTenant } = await import('./index')
+        const res = await cambiarEstadoTenant({
+          idTenant: TENANT_ID_1,
+          estado: 'suspendido',
+        })
+
+        expect(mockRpc).toHaveBeenCalledWith('sp_cambiar_estado_tenant', {
+          p_id_tenant: TENANT_ID_1,
+          p_estado: 'suspendido',
+          p_actor: SUPER_ADMIN.id,
+        })
+        expect(res).toEqual({ ok: true })
+      })
+
+      it('traduce error de sp_cambiar_estado_tenant', async () => {
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: 'sp_cambiar_estado_tenant: tenant-inexistente' },
+        })
+        const { cambiarEstadoTenant } = await import('./index')
+        const res = await cambiarEstadoTenant({
+          idTenant: TENANT_ID_1,
+          estado: 'suspendido',
+        })
+        expect(res).toEqual({ ok: false, reason: 'tenant-inexistente' })
+      })
     })
   })
 })

@@ -4,6 +4,8 @@ import {
   registrarPagoSchema,
   anularMovimientoSchema,
   togglePaqueteSchema,
+  altaTenantSchema,
+  cambiarEstadoTenantSchema,
   extraerReasonZod,
 } from './plataforma'
 
@@ -330,6 +332,170 @@ describe('togglePaqueteSchema', () => {
       idTenant: UUID_TENANT,
       paquete: 'revendedoras',
       habilitado: true,
+      actor: UUID_TENANT,
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('campo-desconocido')
+    }
+  })
+})
+
+describe('altaTenantSchema', () => {
+  it('caso feliz: acepta input válido, recorta strings y asigna paquetes por defecto vacío', () => {
+    const res = altaTenantSchema.safeParse({
+      nombre: '  Boutique Alfa  ',
+      subdominio: 'boutique-alfa',
+      emailAdmin: '  ADMIN@alfa.COM ',
+      nombreAdmin: '  Ana Álvarez  ',
+    })
+    expect(res.success).toBe(true)
+    if (res.success) {
+      expect(res.data.nombre).toBe('Boutique Alfa')
+      expect(res.data.subdominio).toBe('boutique-alfa')
+      expect(res.data.emailAdmin).toBe('admin@alfa.com')
+      expect(res.data.nombreAdmin).toBe('Ana Álvarez')
+      expect(res.data.paquetes).toEqual([])
+    }
+  })
+
+  it('acepta paquetes opcionales reconocidos', () => {
+    const res = altaTenantSchema.safeParse({
+      nombre: 'Boutique Beta',
+      subdominio: 'boutique-beta',
+      emailAdmin: 'admin@beta.com',
+      nombreAdmin: 'Beta Admin',
+      paquetes: ['revendedoras', 'consignacionProveedor'],
+    })
+    expect(res.success).toBe(true)
+    if (res.success) {
+      expect(res.data.paquetes).toEqual(['revendedoras', 'consignacionProveedor'])
+    }
+  })
+
+  it('rechaza subdominio inválido (muy corto, mayúsculas, caracteres especiales o reservado)', () => {
+    const invalidos = ['ab', 'Boutique', 'sub_dominio', 'admin', 'www', '']
+    for (const subdominio of invalidos) {
+      const res = altaTenantSchema.safeParse({
+        nombre: 'Boutique Test',
+        subdominio,
+        emailAdmin: 'admin@test.com',
+        nombreAdmin: 'Admin Test',
+      })
+      expect(res.success).toBe(false)
+      if (!res.success) {
+        expect(extraerReasonZod(res.error)).toBe('subdominio-invalido')
+      }
+    }
+  })
+
+  it('rechaza email de admin inválido', () => {
+    const res = altaTenantSchema.safeParse({
+      nombre: 'Boutique Test',
+      subdominio: 'boutique-test',
+      emailAdmin: 'no-es-un-email',
+      nombreAdmin: 'Admin Test',
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('email-invalido')
+    }
+  })
+
+  it('rechaza nombre comercial o nombre admin vacíos', () => {
+    const res1 = altaTenantSchema.safeParse({
+      nombre: '   ',
+      subdominio: 'boutique-test',
+      emailAdmin: 'admin@test.com',
+      nombreAdmin: 'Admin',
+    })
+    expect(res1.success).toBe(false)
+    if (!res1.success) {
+      expect(extraerReasonZod(res1.error)).toBe('nombre-invalido')
+    }
+
+    const res2 = altaTenantSchema.safeParse({
+      nombre: 'Boutique',
+      subdominio: 'boutique-test',
+      emailAdmin: 'admin@test.com',
+      nombreAdmin: '   ',
+    })
+    expect(res2.success).toBe(false)
+    if (!res2.success) {
+      expect(extraerReasonZod(res2.error)).toBe('nombre-invalido')
+    }
+  })
+
+  it('rechaza paquete opcional desconocido', () => {
+    const res = altaTenantSchema.safeParse({
+      nombre: 'Boutique Test',
+      subdominio: 'boutique-test',
+      emailAdmin: 'admin@test.com',
+      nombreAdmin: 'Admin',
+      paquetes: ['paquete-fantasma'],
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('paquete-invalido')
+    }
+  })
+
+  it('strictObject: rechaza campos de actor u otros extra', () => {
+    const res = altaTenantSchema.safeParse({
+      nombre: 'Boutique Test',
+      subdominio: 'boutique-test',
+      emailAdmin: 'admin@test.com',
+      nombreAdmin: 'Admin',
+      actor: UUID_TENANT,
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('campo-desconocido')
+    }
+  })
+})
+
+describe('cambiarEstadoTenantSchema', () => {
+  it('caso feliz: acepta estado activo o suspendido con UUID válido', () => {
+    const resActivo = cambiarEstadoTenantSchema.safeParse({
+      idTenant: UUID_TENANT,
+      estado: 'activo',
+    })
+    expect(resActivo.success).toBe(true)
+
+    const resSusp = cambiarEstadoTenantSchema.safeParse({
+      idTenant: UUID_TENANT,
+      estado: 'suspendido',
+    })
+    expect(resSusp.success).toBe(true)
+  })
+
+  it('rechaza idTenant que no sea uuid válido', () => {
+    const res = cambiarEstadoTenantSchema.safeParse({
+      idTenant: 'invalido',
+      estado: 'activo',
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('tenant-inexistente')
+    }
+  })
+
+  it('rechaza estado distinto de activo o suspendido (ej: archivado o desconocido)', () => {
+    const res = cambiarEstadoTenantSchema.safeParse({
+      idTenant: UUID_TENANT,
+      estado: 'archivado',
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('estado-invalido')
+    }
+  })
+
+  it('strictObject: rechaza campos de actor', () => {
+    const res = cambiarEstadoTenantSchema.safeParse({
+      idTenant: UUID_TENANT,
+      estado: 'activo',
       actor: UUID_TENANT,
     })
     expect(res.success).toBe(false)
