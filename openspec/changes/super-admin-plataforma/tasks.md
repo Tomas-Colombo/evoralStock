@@ -72,3 +72,36 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
   - Historial unificado de cargos y pagos con indicador de vigencia/anulación
   - Modales / formularios para: Nuevo cargo, Nuevo pago y Confirmación de anulación
 - [x] Pruebas de componentes o e2e de la navegación de plataforma
+
+## Slice 5 — Alta y baja (suspensión/reactivación) de tenants
+
+- [x] Migración `supabase/migrations/00120_alta_baja_tenant.sql` (con reversión DOWN completa):
+  - Inserción de grants requeridos (`tenant` para `supabase_auth_admin`, `auth.users` para `service_role`)
+  - Actualización de `custom_access_token_hook` para no inyectar claims `tenant_id` ni `id_revendedora` si `estado_tenant` no es `'activo'`
+  - Procedimiento `sp_alta_tenant` INVOKER con validación de superadmin, transacción atómica de tenant, rol Administrador, módulos núcleo + paquetes opcionales y usuario
+  - Procedimiento `sp_cambiar_estado_tenant` INVOKER con validación de superadmin e idempotencia
+  - Revocación de privilegios a `authenticated, anon, public`
+- [x] Suite en `tests/db/plataforma.test.ts`:
+  - Pruebas de `sp_alta_tenant` (caso feliz, permisos sembrados, módulos núcleo + paquetes opcionales, regla comisión, N1 `no-permission`, N2 `subdominio-en-uso`)
+  - Pruebas de `sp_cambiar_estado_tenant` (caso feliz, N1 `no-permission`, N2 `tenant-inexistente`, N3 `estado-invalido`, N4 idempotencia)
+  - Pruebas del hook `custom_access_token_hook`: caída de claims ante tenant suspendido y restauración ante reactivación
+- [x] Extracción de generación de contraseña a `lib/tenant/password.ts` y consumo desde `scripts/provision-tenant.mts`
+- [x] Esquemas de validación Zod en `lib/validation/plataforma.ts`:
+  - `altaTenantSchema` (con `validarSubdominio`, `strictObject`, paquetes validados contra `CLAVES_PAQUETES_OPCIONALES`)
+  - `cambiarEstadoTenantSchema`
+  - Tests unitarios colocados en `lib/validation/plataforma.test.ts`
+- [x] Slugs en catálogo `lib/errores/mensajes.ts` y tests en `mensajes.test.ts` (`subdominio-en-uso`, `email-en-uso`, `subdominio-invalido`, `estado-invalido`, `usuario-invalido`)
+- [x] DAL en `lib/dal/plataforma/index.ts`:
+  - `altaTenant` con creación de usuario en Auth vía service-role y compensación (`deleteUser`) ante fallo del SP
+  - `cambiarEstadoTenant`
+  - Tests unitarios del DAL con mocks colocados en `lib/dal/plataforma/index.test.ts`
+- [x] Server Actions en `app/(plataforma)/plataforma/actions.ts`:
+  - `altaTenantAction` (Compuerta 1: `requireSuperAdmin`, Compuerta 2: `altaTenantSchema`, Compuerta 3: `dal.altaTenant`, `revalidatePath('/plataforma')`)
+  - `cambiarEstadoTenantAction` (Compuerta 1: `requireSuperAdmin`, Compuerta 2: `cambiarEstadoTenantSchema`, Compuerta 3: `dal.cambiarEstadoTenant`, `revalidatePath`)
+  - Tests unitarios de las tres compuertas en `actions.test.ts`
+- [x] UI de plataforma:
+  - `NuevoTenantModal` en `app/(plataforma)/plataforma/NuevoTenantModal.tsx`: campos requeridos, selección de paquetes opcionales, muestra de contraseña temporal una sola vez con botón copiar (D5) y reseteo al cerrar
+  - Botón "Nuevo tenant" y badge de estado (`'activo'` / `'suspendido'`) en `TenantsView`
+  - Botón "Suspender comercio" / "Reactivar comercio" con confirmación (`ConfirmDialog`) en `TenantDetalleView`
+  - Tests unitarios en `NuevoTenantModal.test.tsx`, `TenantsView.test.tsx` y `TenantDetalleView.test.tsx`
+- [ ] Deuda técnica: migrar `scripts/provision-tenant.mts` a `sp_alta_tenant` en una fase posterior (DR-SA-06)

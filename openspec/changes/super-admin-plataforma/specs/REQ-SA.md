@@ -1,6 +1,6 @@
 # Spec — super-admin-plataforma / plataforma
 
-**Change**: `super-admin-plataforma` · **Requisitos**: `REQ-SA-01…08` · **Decisiones**: `DR-SA-01…05`
+**Change**: `super-admin-plataforma` · **Requisitos**: `REQ-SA-01…10` · **Decisiones**: `DR-SA-01…06`
 
 ## Decisiones de diseño
 
@@ -53,6 +53,18 @@ El análisis del flujo actual reveló que un usuario en `auth.users` sin fila en
   - La siembra de la regla local de comisión (0%) al activar revendedoras vive en un trigger `AFTER INSERT OR UPDATE` sobre `tenant_modulo` (copiando la lógica de `00086_comisiones.sql:241-260`), asegurando que cualquier vía de activación (provision-tenant, sp_toggle_tenant_modulo_admin o upsert directo) cree la regla si no existe.
   - El registro de auditoría lo realiza el procedimiento con `id_tenant` destino e `id_usuario = p_actor`.
   - Delega en los triggers de `modulos-opcionales` (PR 1) las restricciones de integridad (núcleo inmutable, consistencia de a par y bloqueo por estado vivo). La UI del super admin no expone los módulos del núcleo como toggles.
+
+### DR-SA-06 — Alta web de tenant en dos pasos con compensación y service-role
+**Estado**: aprobada por la persona el 2026-10-29.
+
+Dado que `auth.admin.createUser` no puede ejecutarse directamente desde el motor PostgreSQL ni desde procedimientos almacenados:
+
+- **Decisión**:
+  1. El alta de tenant se ejecuta en dos pasos orquestados desde el DAL (`altaTenant`):
+     a) Paso 1 (Supabase Auth vía service-role): llamada a `auth.admin.createUser` con email del administrador, contraseña temporal generada en el servidor (usando `generarPassword` de `lib/tenant/password.ts`) y `email_confirm: true`.
+     b) Paso 2 (SQL transaccional): invocación de `sp_alta_tenant(p_nombre, p_subdominio, p_paquetes, p_id_auth_user, p_nombre_admin, p_permisos, p_actor)` como INVOKER. Valida que el actor sea superadmin, inserta el registro en `tenant`, crea el rol 'Administrador' con `p_permisos` generado en el servidor a partir de `CATALOGO_PERMISOS` (todas las acciones), asocia los módulos núcleo (`fn_modulo_es_nucleo`) y los paquetes opcionales indicados (`fn_codigos_paquete`), e inserta la fila del usuario administrador en `usuario`.
+     c) Compensación ante fallos: si el paso 2 falla por cualquier motivo (subdominio en uso, error de base de datos o abort de transacción), el DAL ejecuta una compensación llamando a `auth.admin.deleteUser(user.id)` para no dejar usuarios huérfanos en Supabase Auth, y propaga el slug correspondiente (`subdominio-en-uso`, etc.).
+  2. La contraseña temporal generada se retorna a la Server Action y se presenta al operador por única vez en el modal de éxito con opción de copia al portapapeles. Nunca se persiste en texto plano, ni se envía a logs, toasts o revalidaciones.
 
 ---
 
@@ -138,6 +150,28 @@ Ningún usuario autenticado perteneciente a un tenant (`authenticated`), ni reve
 - **N3**: Usuario anónimo intenta consultar `superadmin` o `tenant_saldo` → denegado.
 - **N4**: Revendedora intenta acceder a cualquier tabla, vista o SP de plataforma → denegado.
 
+### REQ-SA-09 — Alta de tenant desde plataforma
+
+El super admin MUST poder dar de alta un nuevo tenant desde el panel de plataforma indicando nombre comercial, subdominio válido y único, email y nombre del usuario administrador inicial, y la selección de paquetes opcionales. El sistema MUST crear el tenant, el rol Administrador con todos los permisos del catálogo, los módulos núcleo y paquetes opcionales elegidos, y el usuario administrador en Auth y en la tabla `usuario`.
+
+- **Feliz**: Super admin envía datos válidos con subdominio `'primavera'` y paquete opcional `'revendedoras'` → el usuario se crea en Supabase Auth con email confirmado y contraseña temporal aleatoria; `sp_alta_tenant` crea el tenant, rol Administrador, módulos núcleo más revendedoras (con su regla de comisión al 0% sembrada), y la fila en `usuario`. La acción retorna `{ ok: true, data: { idTenant, passwordTemporal } }` y la UI muestra la clave una única vez.
+- **N1**: Actor sin privilegios de super admin invoca el alta → rechazo con slug `no-permission`. El usuario Auth no se crea.
+- **N2**: Subdominio ya utilizado por otro tenant (coincidencia insensible a mayúsculas y espacios) → rechazo con slug `subdominio-en-uso`. Si el usuario Auth fue creado previamente en el paso 1, el DAL ejecuta compensación eliminándolo (`deleteUser`).
+- **N3**: Subdominio inválido (formato incorrecto, reservado o fuera del rango 3..30) → rechazo con slug `subdominio-invalido` en la compuerta de validación Zod.
+- **N4**: Email del administrador ya registrado en Supabase Auth → `auth.admin.createUser` falla y el DAL retorna slug `email-en-uso`. La base de datos no se modifica.
+- **N5**: Intento de inyectar permisos o campos no permitidos en el input → rechazo con slug `campo-desconocido`.
+
+### REQ-SA-10 — Suspensión y reactivación de tenant
+
+El super admin MUST poder cambiar el estado operativo de un tenant entre `'activo'` y `'suspendido'`. La suspensión MUST bloquear inmediatamente el acceso de los usuarios del tenant al sistema sin eliminar información histórica (`tenant.estado_tenant`).
+
+- **Feliz (Suspensión)**: Super admin suspende el Tenant A → `sp_cambiar_estado_tenant` actualiza `tenant.estado_tenant = 'suspendido'`. El Auth Hook `custom_access_token_hook` deja de inyectar los claims `tenant_id` e `id_revendedora` en nuevos tokens y refrescos de sesión. Las sesiones abiertas caducan en el próximo refresh del JWT.
+- **Feliz (Reactivación)**: Super admin reactiva el Tenant A → `sp_cambiar_estado_tenant` actualiza `tenant.estado_tenant = 'activo'`. El Auth Hook vuelve a inyectar normalmente los claims en el JWT.
+- **N1**: Actor sin privilegios de super admin invoca la suspensión o reactivación → rechazo con slug `no-permission`.
+- **N2**: Tenant inexistente → rechazo con slug `tenant-inexistente`.
+- **N3**: Estado solicitado no admitido (cualquier valor distinto de `'activo'` o `'suspendido'`, como `'archivado'`) → rechazo con slug `estado-invalido`.
+- **N4**: Operación idempotente: solicitar suspender un tenant ya suspendido o reactivar uno ya activo no produce error ni altera la consistencia de datos.
+
 ---
 
 ## 2. Matriz de permisos
@@ -152,6 +186,8 @@ Ningún usuario autenticado perteneciente a un tenant (`authenticated`), ni reve
 | `sp_registrar_pago_tenant` | execute | denegado (revoke) | denegado (revoke) | denegado (revoke) |
 | `sp_anular_movimiento_tenant` | execute | denegado (revoke) | denegado (revoke) | denegado (revoke) |
 | `sp_toggle_tenant_modulo_admin` | execute | denegado (revoke) | denegado (revoke) | denegado (revoke) |
+| `sp_alta_tenant` | execute | denegado (revoke) | denegado (revoke) | denegado (revoke) |
+| `sp_cambiar_estado_tenant` | execute | denegado (revoke) | denegado (revoke) | denegado (revoke) |
 
 ---
 
