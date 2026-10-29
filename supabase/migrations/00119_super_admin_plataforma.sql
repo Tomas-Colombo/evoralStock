@@ -324,7 +324,8 @@ begin
   if p_tipo = 'cargo' then
     select anulado_at into v_anulado_at
       from tenant_cargo
-     where id = p_id_movimiento;
+     where id = p_id_movimiento
+       for update;
 
     if not found then
       raise exception 'movimiento-inexistente' using errcode = 'P0001';
@@ -342,7 +343,8 @@ begin
   elsif p_tipo = 'pago' then
     select anulado_at into v_anulado_at
       from tenant_pago
-     where id = p_id_movimiento;
+     where id = p_id_movimiento
+       for update;
 
     if not found then
       raise exception 'movimiento-inexistente' using errcode = 'P0001';

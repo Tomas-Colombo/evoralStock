@@ -661,6 +661,34 @@ describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-0
       expect(errPago?.message).toMatch(/movimiento-inexistente/)
     })
 
+    test('Doble anulación seguida (pago) -> la segunda da movimiento-ya-anulado', async () => {
+      const { data: pagoId } = await serviceRole.rpc('sp_registrar_pago_tenant', {
+        p_id_tenant: tenantA,
+        p_fecha: '2026-10-28',
+        p_monto: 3000,
+        p_medio: 'transferencia',
+        p_nota: 'Pago doble anulación',
+        p_created_by: superAdminUserId,
+      })
+
+      // Primera anulación
+      const { error: err1 } = await serviceRole.rpc('sp_anular_movimiento_tenant', {
+        p_tipo: 'pago',
+        p_id_movimiento: pagoId,
+        p_anulado_por: superAdminUserId,
+      })
+      expect(err1).toBeNull()
+
+      // Segunda anulación seguida
+      const { error: err2 } = await serviceRole.rpc('sp_anular_movimiento_tenant', {
+        p_tipo: 'pago',
+        p_id_movimiento: pagoId,
+        p_anulado_por: superAdminUserId,
+      })
+      expect(err2).not.toBeNull()
+      expect(err2?.message).toMatch(/movimiento-ya-anulado/)
+    })
+
     test('N2: Movimiento ya anulado -> movimiento-ya-anulado', async () => {
       const { data: cargoId } = await serviceRole.rpc('sp_registrar_cargo_tenant', {
         p_id_tenant: tenantA,
