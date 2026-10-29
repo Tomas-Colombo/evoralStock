@@ -1,7 +1,10 @@
 'use client'
 
+import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Pagination } from '@/components/ui/Pagination'
 import { StatusDot } from '@/components/ui/StatusMark'
 import {
   DataTable,
@@ -32,6 +35,10 @@ function formatearFechaImputacion(fecha: string, tipo: 'cargo' | 'pago'): string
 interface HistorialTableProps {
   historial: MovimientoCuentaCorriente[]
   isPending: boolean
+  idTenant?: string
+  totalHistorial?: number
+  hpage?: number
+  hpageSize?: number
   onSolicitarAnular: (movimiento: MovimientoCuentaCorriente) => void
   onAbrirNuevoCargo: () => void
   onAbrirNuevoPago: () => void
@@ -40,10 +47,16 @@ interface HistorialTableProps {
 export function HistorialTable({
   historial,
   isPending,
+  idTenant,
+  totalHistorial,
+  hpage,
+  hpageSize,
   onSolicitarAnular,
   onAbrirNuevoCargo,
   onAbrirNuevoPago,
 }: HistorialTableProps) {
+  const router = useRouter()
+  const [isPendingPage, startTransition] = useTransition()
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -172,6 +185,24 @@ export function HistorialTable({
           </TBody>
         </DataTable>
       </TableFrame>
+
+      {totalHistorial !== undefined && hpage !== undefined && hpageSize !== undefined && idTenant ? (
+        <Pagination
+          page={hpage}
+          pageSize={hpageSize}
+          total={totalHistorial}
+          onPageChange={(nextPage) => {
+            startTransition(() => {
+              const url =
+                nextPage > 1
+                  ? `/plataforma/${idTenant}?hpage=${nextPage}`
+                  : `/plataforma/${idTenant}`
+              router.push(url)
+            })
+          }}
+          disabled={isPending || isPendingPage}
+        />
+      ) : null}
     </div>
   )
 }

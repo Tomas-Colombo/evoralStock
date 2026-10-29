@@ -257,6 +257,10 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
       <HistorialTable
         historial={detalle.historial}
         isPending={isPending}
+        idTenant={detalle.tenant.idTenant}
+        totalHistorial={detalle.totalHistorial}
+        hpage={detalle.hpage}
+        hpageSize={detalle.hpageSize}
         onSolicitarAnular={setMovimientoAAnular}
         onAbrirNuevoCargo={() => setModalCargoOpen(true)}
         onAbrirNuevoPago={() => setModalPagoOpen(true)}
