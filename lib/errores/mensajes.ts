@@ -345,6 +345,11 @@ const MENSAJES: Record<string, string> = {
   'tipo-movimiento-invalido': 'El tipo de movimiento no es válido.',
   'tenant-inexistente': 'El comercio no existe o no fue encontrado.',
   'paquete-invalido': 'El paquete de módulos no es válido.',
+  'subdominio-invalido': 'El subdominio no es válido: usá solo minúsculas, números y guiones.',
+  'subdominio-en-uso': 'Ese subdominio ya está siendo utilizado por otro comercio.',
+  'email-en-uso': 'Ya existe un usuario registrado con ese email.',
+  'usuario-invalido': 'El usuario administrador especificado no es válido.',
+  'estado-invalido': 'El estado indicado no es válido.',
 }
 
 /**

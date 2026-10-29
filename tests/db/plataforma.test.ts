@@ -841,4 +841,224 @@ describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-0
       expect(rpcErr?.message).toMatch(/permission denied/i)
     })
   })
+
+  describe('REQ-SA-09 — Alta de tenant (sp_alta_tenant)', () => {
+    test('N1: Actor no superadmin -> rechazo no-permission', async () => {
+      const emailAdmin = `admin_reject_${Date.now()}_${randomUUID().slice(0, 8)}@utopia.test`
+      const { data: authUser } = await serviceRole.auth.admin.createUser({
+        email: emailAdmin,
+        password: 'Password123!',
+        email_confirm: true,
+      })
+      usersToClean.push(authUser!.user!.id)
+
+      const { error } = await serviceRole.rpc('sp_alta_tenant', {
+        p_nombre: 'Comercio Rechazado',
+        p_subdominio: `sub-${randomUUID().slice(0, 8)}`,
+        p_paquetes: [],
+        p_id_auth_user: authUser!.user!.id,
+        p_nombre_admin: 'Admin Test',
+        p_permisos: {},
+        p_actor: nonAdminUserId,
+      })
+
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('no-permission')
+    })
+
+    test('N2: Subdominio duplicado -> rechazo subdominio-en-uso', async () => {
+      const { data: tenantARow, error: tErr } = await serviceRole.from('tenant').select('subdominio').eq('id_tenant', tenantA).single()
+      expect(tErr).toBeNull()
+      expect(tenantARow).toBeDefined()
+
+      const emailAdmin = `admin_dup_${Date.now()}_${randomUUID().slice(0, 8)}@utopia.test`
+      const { data: authUser } = await serviceRole.auth.admin.createUser({
+        email: emailAdmin,
+        password: 'Password123!',
+        email_confirm: true,
+      })
+      usersToClean.push(authUser!.user!.id)
+
+      const { data: resData, error } = await serviceRole.rpc('sp_alta_tenant', {
+        p_nombre: 'Comercio Duplicado',
+        p_subdominio: tenantARow!.subdominio,
+        p_paquetes: [],
+        p_id_auth_user: authUser!.user!.id,
+        p_nombre_admin: 'Admin Test',
+        p_permisos: {},
+        p_actor: superAdminUserId,
+      })
+      if (resData) tenantsToClean.push(resData as string)
+
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('subdominio-en-uso')
+    })
+
+    test('Feliz: Crea tenant + rol + usuario + módulos núcleo y siembra semilla de comisión al incluir revendedoras', async () => {
+      const emailAdmin = `admin_success_${Date.now()}_${randomUUID().slice(0, 8)}@utopia.test`
+      const { data: authUser } = await serviceRole.auth.admin.createUser({
+        email: emailAdmin,
+        password: 'Password123!',
+        email_confirm: true,
+      })
+      const authId = authUser!.user!.id
+      usersToClean.push(authId)
+
+      const subdominio = `alta-${Date.now().toString(36)}-${randomUUID().slice(0, 4)}`
+      const { data: idTenantCreado, error } = await serviceRole.rpc('sp_alta_tenant', {
+        p_nombre: 'Boutique Alta Test',
+        p_subdominio: subdominio,
+        p_paquetes: ['revendedoras'],
+        p_id_auth_user: authId,
+        p_nombre_admin: 'Administradora Alta',
+        p_permisos: { ventas: ['ver', 'crear'] },
+        p_actor: superAdminUserId,
+      })
+
+      expect(error).toBeNull()
+      expect(idTenantCreado).toBeDefined()
+      tenantsToClean.push(idTenantCreado as string)
+
+      // 1. Verificar tenant creado con estado 'activo'
+      const { data: tRow } = await serviceRole.from('tenant').select('*').eq('id_tenant', idTenantCreado).single()
+      expect(tRow).toBeDefined()
+      expect(tRow.nombre_comercial).toBe('Boutique Alta Test')
+      expect(tRow.subdominio).toBe(subdominio)
+      expect(tRow.estado_tenant).toBe('activo')
+
+      // 2. Verificar rol 'Administrador'
+      const { data: rRow, error: rErr } = await serviceRole
+        .from('rol')
+        .select('*')
+        .eq('id_tenant', idTenantCreado)
+        .eq('nombre', 'Administrador')
+        .single()
+      expect(rErr).toBeNull()
+      expect(rRow).toBeDefined()
+      expect(rRow!.nombre).toBe('Administrador')
+      expect(rRow!.permisos).toEqual({ ventas: ['ver', 'crear'] })
+
+      // 3. Verificar usuario perfil creado con rol 'Administrador' y estado 'invitado'
+      const { data: uRow } = await serviceRole.from('usuario').select('*').eq('id_usuario', authId).single()
+      expect(uRow).toBeDefined()
+      expect(uRow.id_tenant).toBe(idTenantCreado)
+      expect(uRow.id_rol).toBe(rRow.id_rol)
+      expect(uRow.email).toBe(emailAdmin)
+      expect(uRow.nombre_completo).toBe('Administradora Alta')
+      expect(uRow.estado_usuario).toBe('invitado')
+
+      // 4. Verificar módulos núcleo habilitados
+      const { data: modulos } = await serviceRole
+        .from('tenant_modulo')
+        .select('habilitado, modulo(codigo)')
+        .eq('id_tenant', idTenantCreado)
+
+      const codigosHabilitados = modulos?.filter((m) => m.habilitado && m.modulo).map((m) => (m.modulo as unknown as { codigo: string }).codigo) ?? []
+      for (const nucleo of ['administracion', 'inventario', 'ventas', 'precios', 'gastos', 'reportes']) {
+        expect(codigosHabilitados).toContain(nucleo)
+      }
+      expect(codigosHabilitados).toContain('revendedoras')
+
+      // 5. Verificar semilla de comisión 0% disparada por tr_semilla_comision_revendedoras
+      const { data: regla } = await serviceRole
+        .from('regla_comision')
+        .select('*, escala_comision(*)')
+        .eq('id_tenant', idTenantCreado)
+        .eq('ambito', 'local')
+        .single()
+
+      expect(regla).toBeDefined()
+      expect(regla.nombre).toContain('Semilla 0%')
+      expect(regla.escala_comision?.[0]?.porcentaje).toBe(0)
+    })
+  })
+
+  describe('REQ-SA-10 — Suspensión y reactivación de tenant (sp_cambiar_estado_tenant y hook)', () => {
+    test('N1: Actor no superadmin -> rechazo no-permission', async () => {
+      const { error } = await serviceRole.rpc('sp_cambiar_estado_tenant', {
+        p_id_tenant: tenantA,
+        p_estado: 'suspendido',
+        p_actor: nonAdminUserId,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('no-permission')
+    })
+
+    test('N2: Tenant inexistente -> rechazo tenant-inexistente', async () => {
+      const { error } = await serviceRole.rpc('sp_cambiar_estado_tenant', {
+        p_id_tenant: randomUUID(),
+        p_estado: 'suspendido',
+        p_actor: superAdminUserId,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('tenant-inexistente')
+    })
+
+    test('N3: Estado inválido (ej: archivado) -> rechazo estado-invalido', async () => {
+      const { error } = await serviceRole.rpc('sp_cambiar_estado_tenant', {
+        p_id_tenant: tenantA,
+        p_estado: 'archivado',
+        p_actor: superAdminUserId,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('estado-invalido')
+    })
+
+    test('Feliz: sp_cambiar_estado_tenant cambia estado y custom_access_token_hook responde acordemente', async () => {
+      // 1. Obtener usuario de tenant A
+      const { data: usuarioA } = await serviceRole.from('usuario').select('id_usuario').eq('id_tenant', tenantA).limit(1).single()
+      expect(usuarioA).toBeDefined()
+
+      // Verificar que con tenant activo el hook inyecta tenant_id
+      const { data: hookActivo } = await serviceRole.rpc('custom_access_token_hook', {
+        event: { user_id: usuarioA!.id_usuario, claims: { app_metadata: {} } },
+      })
+      expect(hookActivo?.claims?.tenant_id).toBe(tenantA)
+
+      // 2. Suspender tenant A
+      const { error: errSuspender } = await serviceRole.rpc('sp_cambiar_estado_tenant', {
+        p_id_tenant: tenantA,
+        p_estado: 'suspendido',
+        p_actor: superAdminUserId,
+      })
+      expect(errSuspender).toBeNull()
+
+      const { data: tSusp } = await serviceRole.from('tenant').select('estado_tenant').eq('id_tenant', tenantA).single()
+      expect(tSusp).toBeDefined()
+      expect(tSusp!.estado_tenant).toBe('suspendido')
+
+      // 3. Probar hook con tenant suspendido: NO inyecta tenant_id ni id_revendedora
+      const { data: hookSuspendido } = await serviceRole.rpc('custom_access_token_hook', {
+        event: { user_id: usuarioA!.id_usuario, claims: { app_metadata: {} } },
+      })
+      expect(hookSuspendido?.claims?.tenant_id).toBeUndefined()
+      expect(hookSuspendido?.claims?.id_revendedora).toBeUndefined()
+
+      // Para revendedora en tenant suspendido: tampoco inyecta tenant_id ni id_revendedora
+      const { data: hookRevSusp } = await serviceRole.rpc('custom_access_token_hook', {
+        event: { user_id: revendedoraUserId, claims: { app_metadata: {} } },
+      })
+      expect(hookRevSusp?.claims?.tenant_id).toBeUndefined()
+      expect(hookRevSusp?.claims?.id_revendedora).toBeUndefined()
+
+      // 4. Reactivar tenant A
+      const { error: errReactivar } = await serviceRole.rpc('sp_cambiar_estado_tenant', {
+        p_id_tenant: tenantA,
+        p_estado: 'activo',
+        p_actor: superAdminUserId,
+      })
+      expect(errReactivar).toBeNull()
+
+      const { data: tActivo } = await serviceRole.from('tenant').select('estado_tenant').eq('id_tenant', tenantA).single()
+      expect(tActivo).toBeDefined()
+      expect(tActivo!.estado_tenant).toBe('activo')
+
+      // 5. Probar hook con tenant reactivado: vuelve a inyectar tenant_id
+      const { data: hookReactivado } = await serviceRole.rpc('custom_access_token_hook', {
+        event: { user_id: usuarioA!.id_usuario, claims: { app_metadata: {} } },
+      })
+      expect(hookReactivado?.claims?.tenant_id).toBe(tenantA)
+    })
+  })
+
 })
