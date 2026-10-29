@@ -36,7 +36,7 @@ describe('TenantDetallePage (Server Component)', () => {
     expect(notFound).toHaveBeenCalled()
   })
 
-  it('si el tenant no existe en la base de datos -> llama a notFound()', async () => {
+  it('si el tenant no existe en la base de datos (tenant-inexistente) -> llama a notFound()', async () => {
     vi.mocked(obtenerTenantDetalle).mockRejectedValueOnce(new Error('tenant-inexistente'))
     const { default: TenantDetallePage } = await import('./page')
 
@@ -47,6 +47,19 @@ describe('TenantDetallePage (Server Component)', () => {
     ).rejects.toThrow('NOT_FOUND')
 
     expect(notFound).toHaveBeenCalled()
+  })
+
+  it('si ocurre un error de base de datos o genérico -> se propaga sin atrapar con notFound()', async () => {
+    vi.mocked(obtenerTenantDetalle).mockRejectedValueOnce(new Error('connection-refused-db-down'))
+    const { default: TenantDetallePage } = await import('./page')
+
+    await expect(
+      TenantDetallePage({
+        params: Promise.resolve({ id: '11111111-1111-4111-8111-111111111111' }),
+      }),
+    ).rejects.toThrow('connection-refused-db-down')
+
+    expect(notFound).not.toHaveBeenCalled()
   })
 
   it('si el tenant existe -> renderiza la vista de detalle con sus datos', async () => {
