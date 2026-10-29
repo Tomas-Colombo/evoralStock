@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { AuthorizationError } from '@/lib/dal/errors'
 import { createServerClient, createServiceClient } from '@/lib/dal/supabase'
 
@@ -36,30 +38,59 @@ export async function esSuperAdmin(idUsuario: string): Promise<boolean> {
 }
 
 /**
+ * Obtiene la identidad del superadministrador autenticado actualmente (REQ-SA-01 / DR-SA-01).
+ *
+ * Valida la existencia del usuario con `auth.getUser()` y confirma si figura en la tabla `superadmin`.
+ * Falla cerrada: ante cualquier error o si el usuario no es superadmin, retorna `null`.
+ */
+export async function superAdminActual(): Promise<SuperAdminIdentity | null> {
+  try {
+    const supabase = await createServerClient()
+    const { data: { user } = {}, error } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      return null
+    }
+
+    const isSuper = await esSuperAdmin(user.id)
+    if (!isSuper) {
+      return null
+    }
+
+    return {
+      id: user.id,
+      email: user.email ?? '',
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Compuerta de autorización para el módulo de plataforma (REQ-SA-01 / DR-SA-01).
  *
- * 1. Valida al usuario de forma segura con `auth.getUser()`.
- * 2. Valida pertenencia activa a la tabla `superadmin` vía `esSuperAdmin()`.
- *
- * Lanza:
+ * Construida encima de `superAdminActual()` con falla cerrada discriminada:
  *   - `AuthorizationError('no-session')` si no hay sesión válida o falla la autenticación.
- *   - `AuthorizationError('no-permission')` si el usuario no es superadmin.
+ *   - `AuthorizationError('no-permission')` si el usuario está autenticado pero no es superadmin.
  */
 export async function requireSuperAdmin(): Promise<SuperAdminIdentity> {
-  const supabase = await createServerClient()
-  const { data: { user } = {}, error } = await supabase.auth.getUser()
+  const sa = await superAdminActual()
+  if (sa) {
+    return sa
+  }
 
-  if (error || !user) {
+  // Falla cerrada: distinguir si el rechazo se debe a falta de sesión o falta de permisos
+  try {
+    const supabase = await createServerClient()
+    const { data: { user } = {}, error } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      throw new AuthorizationError('no-session')
+    }
+  } catch (err) {
+    if (err instanceof AuthorizationError) throw err
     throw new AuthorizationError('no-session')
   }
 
-  const isSuper = await esSuperAdmin(user.id)
-  if (!isSuper) {
-    throw new AuthorizationError('no-permission')
-  }
-
-  return {
-    id: user.id,
-    email: user.email ?? '',
-  }
+  throw new AuthorizationError('no-permission')
 }

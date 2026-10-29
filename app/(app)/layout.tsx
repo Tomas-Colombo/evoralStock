@@ -2,9 +2,8 @@ import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/shell/Sidebar'
 import { ToastProvider } from '@/components/ui/Toast'
 import { AuthorizationError } from '@/lib/dal/errors'
-import { esSuperAdmin } from '@/lib/dal/plataforma/guard'
+import { superAdminActual } from '@/lib/dal/plataforma/guard'
 import { verifySession } from '@/lib/dal/session'
-import { createServerClient } from '@/lib/dal/supabase'
 import { getTenantSubdomainFromHeaders, verifyTenantMatch } from '@/lib/dal/tenant'
 
 /**
@@ -32,9 +31,8 @@ export default async function AppShellLayout({
   } catch (error) {
     if (error instanceof AuthorizationError) {
       if (error.reason === 'no-session') {
-        const supabase = await createServerClient()
-        const { data: { user } = {} } = await supabase.auth.getUser()
-        if (user && (await esSuperAdmin(user.id))) {
+        const sa = await superAdminActual()
+        if (sa) {
           redirect('/plataforma')
         }
       }
