@@ -4,16 +4,14 @@
 --
 -- UP:
 --   1. Permisos para supabase_auth_admin sobre public.tenant (lectura de estado_tenant en el hook).
---   2. Permisos para service_role sobre auth.users (resolución de email de administrador en sp_alta_tenant).
---   3. Actualización de custom_access_token_hook: si el tenant no está 'activo', no inyecta claims.
---   4. sp_alta_tenant(p_nombre, p_subdominio, p_paquetes, p_id_auth_user, p_nombre_admin, p_permisos, p_actor) INVOKER.
---   5. sp_cambiar_estado_tenant(p_id_tenant, p_estado, p_actor) INVOKER.
---   6. Revocación de permisos a authenticated, anon y public sobre los nuevos SPs.
+--   2. Actualización de custom_access_token_hook: si el tenant no está 'activo', no inyecta claims.
+--   3. sp_alta_tenant(p_nombre, p_subdominio, p_paquetes, p_id_auth_user, p_email, p_nombre_admin, p_permisos, p_actor) INVOKER.
+--   4. sp_cambiar_estado_tenant(p_id_tenant, p_estado, p_actor) INVOKER.
+--   5. Revocación de permisos a authenticated, anon y public sobre los nuevos SPs.
 --
 -- DOWN:
 -- drop function if exists sp_cambiar_estado_tenant(uuid, text, uuid);
--- drop function if exists sp_alta_tenant(text, text, text[], uuid, text, jsonb, uuid);
--- revoke select on auth.users from service_role;
+-- drop function if exists sp_alta_tenant(text, text, text[], uuid, text, text, jsonb, uuid);
 -- drop policy if exists tenant_auth_admin_read on tenant;
 -- revoke select on public.tenant from supabase_auth_admin;
 -- create or replace function public.custom_access_token_hook(event jsonb)
@@ -58,15 +56,13 @@
 -- end;
 -- $$;
 
--- ─── 1. PERMISOS supabase_auth_admin Y service_role ──────────────────
+-- ─── 1. PERMISOS supabase_auth_admin ─────────────────────────────────
 grant select on public.tenant to supabase_auth_admin;
 
 drop policy if exists tenant_auth_admin_read on tenant;
 create policy tenant_auth_admin_read on tenant
   for select to supabase_auth_admin
   using (true);
-
-grant select on auth.users to service_role;
 
 -- ─── 2. ACTUALIZACIÓN custom_access_token_hook ────────────────────────
 -- D2: Si el tenant del usuario no está 'activo', el hook NO inyecta tenant_id ni id_revendedora.
@@ -125,6 +121,7 @@ create or replace function sp_alta_tenant(
   p_subdominio    text,
   p_paquetes      text[],
   p_id_auth_user  uuid,
+  p_email         text,
   p_nombre_admin  text,
   p_permisos      jsonb,
   p_actor         uuid
@@ -140,7 +137,6 @@ declare
   v_codigos    text[];
   v_codigo     text;
   v_id_modulo  uuid;
-  v_email      text;
 begin
   -- Validación de actor superadmin
   if p_actor is null or not exists (
@@ -165,16 +161,8 @@ begin
     raise exception 'subdominio-en-uso' using errcode = 'P0001';
   end if;
 
-  -- Validación de usuario Auth precreado
-  if p_id_auth_user is null then
-    raise exception 'usuario-invalido' using errcode = 'P0001';
-  end if;
-
-  select email into v_email
-    from auth.users
-   where id = p_id_auth_user;
-
-  if v_email is null then
+  -- Validación de usuario Auth y email
+  if p_id_auth_user is null or p_email is null or trim(p_email) = '' then
     raise exception 'usuario-invalido' using errcode = 'P0001';
   end if;
 
@@ -198,16 +186,21 @@ begin
     end loop;
   end if;
 
-  -- 1. Insertar tenant
-  insert into tenant (
-    nombre_comercial,
-    subdominio,
-    estado_tenant
-  ) values (
-    trim(p_nombre),
-    lower(trim(p_subdominio)),
-    'activo'
-  ) returning id_tenant into v_id_tenant;
+  -- 1. Insertar tenant (con captura de unique_violation ante carreras concurrentes)
+  begin
+    insert into tenant (
+      nombre_comercial,
+      subdominio,
+      estado_tenant
+    ) values (
+      trim(p_nombre),
+      lower(trim(p_subdominio)),
+      'activo'
+    ) returning id_tenant into v_id_tenant;
+  exception
+    when unique_violation then
+      raise exception 'subdominio-en-uso' using errcode = 'P0001';
+  end;
 
   -- 2. Insertar rol 'Administrador' con permisos
   insert into rol (
@@ -253,7 +246,7 @@ begin
   ) values (
     p_id_auth_user,
     v_id_tenant,
-    v_email,
+    lower(trim(p_email)),
     trim(p_nombre_admin),
     v_id_rol,
     'invitado'
@@ -263,7 +256,7 @@ begin
 end;
 $$;
 
-revoke all on function sp_alta_tenant(text, text, text[], uuid, text, jsonb, uuid) from authenticated, anon, public;
+revoke all on function sp_alta_tenant(text, text, text[], uuid, text, text, jsonb, uuid) from authenticated, anon, public;
 
 -- ─── 4. sp_cambiar_estado_tenant ─────────────────────────────────────
 -- D1, D4: Cambiar estado entre 'activo' y 'suspendido'. Idempotente.
