@@ -172,6 +172,26 @@ El super admin MUST poder cambiar el estado operativo de un tenant entre `'activ
 - **N3**: Estado solicitado no admitido (cualquier valor distinto de `'activo'` o `'suspendido'`, como `'archivado'`) → rechazo con slug `estado-invalido`.
 - **N4**: Operación idempotente: solicitar suspender un tenant ya suspendido o reactivar uno ya activo no produce error ni altera la consistencia de datos.
 
+
+### REQ-SA-11 — Listado paginado y filtros de tenants y movimientos
+
+El sistema MUST permitir paginar y filtrar la vista principal `/plataforma` y el historial de cuenta corriente en `/plataforma/[id]`.
+
+El listado de tenants MUST paginarse en el servidor en páginas de 25 registros utilizando la vista SQL `tenant_listado` mediante `.range()` y `count: 'exact'`, aplicando filtros por texto `q` (sobre `nombre_comercial` y `subdominio`, escapando comodines con `escaparPatronLike` y rechazando comas o paréntesis para evitar inyecciones en PostgREST), estado (`'todos' | 'activo' | 'suspendido'`), deuda (`'todos' | 'con-deuda' | 'al-dia'`) y orden (`'nombre_asc' | 'saldo_desc' | 'alta_desc'`).
+
+Los paquetes de módulos de los tenants de la página visible MUST resolverse en una segunda consulta con `.in('id_tenant', idsDeLaPagina)`, garantizando un máximo de 2 queries fijas por render ("Design for N").
+
+El historial unificado de cuenta corriente MUST paginarse de a 25 registros vía `?hpage` sobre la vista SQL `tenant_movimiento` con orden cronológico descendente (`fecha desc, created_at desc`). Los totales de la tarjeta de saldo del comercio MUST continuar calculándose globalmente desde `tenant_saldo`, nunca sobre el subconjunto de la página visible.
+
+Todo el estado de filtros y paginación MUST sincronizarse en la URL vía `searchParams`. Al cambiar cualquier filtro, la página vuelve a 1. Si la página solicitada supera el total de páginas, se muestra la última página disponible.
+
+- **Feliz (Paginación listado)**: Super admin navega a `/plataforma?page=2` → se consultan únicamente los registros correspondientes al rango de la página y sus módulos asociados en 2 queries fijas. El paginador se renderiza únicamente cuando el total supera 25.
+- **Feliz (Filtros)**: Super admin filtra por `estado='activo'`, `deuda='con-deuda'`, `q='tienda'` → la URL se actualiza, la página se resetea a 1 y los resultados coinciden con los criterios.
+- **Feliz (Historial paginado)**: Super admin navega el detalle `/plataforma/[id]?hpage=2` → el historial se pagina de a 25 movimientos sobre `tenant_movimiento` sin alterar los totales globales de la tarjeta de saldo.
+- **N1**: Parámetros de consulta con valores fuera de catálogo o página menor a 1 → se sanean mediante Zod a sus valores predeterminados sin lanzar excepciones al usuario.
+- **N2**: Texto de búsqueda con más de 100 caracteres o caracteres conflictivos (`,`, `(`, `)`) → se recortan y sanean evitando inyecciones de sintaxis en PostgREST.
+- **N3**: Estado vacío: si no hay comercios en la plataforma se muestra la vista inicial con acción de alta; si no hay coincidencias para los filtros aplicados se muestra mensaje contextual de búsqueda sin resultados.
+
 ---
 
 ## 2. Matriz de permisos

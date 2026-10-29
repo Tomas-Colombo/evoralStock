@@ -105,3 +105,29 @@ Cadena de PRs / slices, cada uno ≤ 400 líneas cambiadas y cerrado con su veri
   - Botón "Suspender comercio" / "Reactivar comercio" con confirmación (`ConfirmDialog`) en `TenantDetalleView`
   - Tests unitarios en `NuevoTenantModal.test.tsx`, `TenantsView.test.tsx` y `TenantDetalleView.test.tsx`
 - [ ] Deuda técnica: migrar `scripts/provision-tenant.mts` a `sp_alta_tenant` en una fase posterior (DR-SA-06)
+
+## Slice 6 — Paginación y filtros en plataforma (REQ-SA-11)
+
+- [x] Migración `supabase/migrations/00121_plataforma_paginacion.sql` (con reversión DOWN completa):
+  - Vista `tenant_listado` con `security_invoker = on` (consolidado de tenant con saldo, cargos y pagos)
+  - Vista `tenant_movimiento` con `security_invoker = on` (union all de cargos y pagos)
+  - `REVOKE ALL` a `authenticated, anon, public`
+  - Whitelist de `tests/db/rls-revendedoras.test.ts` actualizado
+- [x] Suite `tests/db/plataforma.test.ts`:
+  - `tenant_listado` devuelve saldo 0 para tenant sin movimientos
+  - Acceso denegado a anon y authenticated en `tenant_listado` y `tenant_movimiento`
+- [x] Tipos y validación Zod:
+  - Catálogos de filtros y orden en `lib/types/plataforma.ts` (`ESTADOS_TENANT_FILTRO`, `DEUDA_TENANT_FILTRO`, `ORDEN_TENANT_FILTRO`)
+  - Schema `filtrosTenantsSchema`, helper `parseFiltrosTenants` y `hpageSchema` en `lib/validation/plataforma.ts`
+  - Tests unitarios colocados en `lib/validation/plataforma.test.ts` (defaults, tope de 100 caracteres en `q`, comas/paréntesis rechazadas, `page < 1`)
+- [x] DAL en `lib/dal/plataforma/index.ts`:
+  - `listarTenantsPaginado`: consulta a `tenant_listado` con `.range()` y `count: 'exact'`, filtros de `q` (escapado con `escaparPatronLike`), `estado`, `deuda` y `orden`. Consulta de paquetes vía `.in('id_tenant', ids)` (máximo 2 queries por render)
+  - `obtenerTenantDetalle`: consulta paginada sobre `tenant_movimiento` con `?hpage` (25 por página) y preservación de totales de tarjeta desde `tenant_saldo`
+  - Tests unitarios colocados en `lib/dal/plataforma/index.test.ts`
+- [x] UI de plataforma:
+  - Barra de filtros con `FilterBar`, selects de catálogo y botón "Filtrar"
+  - Paginación server-side con `<Pagination>` (aparece solo con más de 25)
+  - Estado vacío contextual ("Sin comercios todavía" vs "No se encontraron comercios para los filtros aplicados")
+  - Modificación de filtros resetea `page` a 1
+  - Detalle con paginación `?hpage` en `HistorialTable`
+  - Tests unitarios en `page.test.tsx` y `TenantsView.test.tsx`
