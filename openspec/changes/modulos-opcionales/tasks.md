@@ -26,10 +26,10 @@ el siguiente número libre (hoy `00122`).
 
 ## PR 2 — DB: tablas del núcleo extendidas
 
-- [ ] Trigger `ingreso_mercaderia`: `consignacion` exige el paquete (REQ-MODOP-05 N2)
-- [ ] Trigger `proveedor`: `consignatario` en alta o cambio de tipo exige el paquete (REQ-MODOP-06 N2, N3)
-- [ ] `fn_modulo_tiene_estado_vivo`: N1 suma ítems `consignacion` en `en_revendedora` (fix forward de 00118)
-- [ ] `tests/db`: REQ-MODOP-05 N2, REQ-MODOP-06 N2/N3, REQ-MODOP-03 N1 con ítem en revendedora
+- [x] Trigger `ingreso_mercaderia`: `consignacion` exige el paquete (REQ-MODOP-05 N2)
+- [x] Trigger `proveedor`: `consignatario` en alta o cambio de tipo exige el paquete (REQ-MODOP-06 N2, N3)
+- [x] `fn_modulo_tiene_estado_vivo`: N1 suma ítems `consignacion` en `en_revendedora` (fix forward de 00118)
+- [x] `tests/db`: REQ-MODOP-05 N2, REQ-MODOP-06 N2/N3, REQ-MODOP-03 N1 con ítem en revendedora
 
 ## PR 3 — DB: SPs de consignación a proveedor
 
