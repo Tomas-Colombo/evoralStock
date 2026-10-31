@@ -8,22 +8,28 @@ número en el nombre.
 
 - [ ] Spec aprobada (`proposal.md` + `specs/REQ-MODOP.md`)
 
-## PR 1 — DB: guarda de `tenant_modulo`
+Todo el cambio vive en `feat/plataforma` (super admin depende del PR 1);
+nada va a `main` hasta probar el conjunto en local. Migraciones nuevas desde
+el siguiente número libre (hoy `00122`).
 
-- [ ] `fn_modulo_habilitado(p_tenant, p_codigo)` (INVOKER, stable)
-- [ ] Trigger: el núcleo no se apaga ni se borra (REQ-MODOP-01)
-- [ ] Constraint trigger diferido: paquete consignación de a par (REQ-MODOP-02)
-- [ ] Trigger: opcional con estado vivo no se apaga (REQ-MODOP-03, N1–N4)
-- [ ] `revoke` de `sp_reactivar_acceso_revendedora` (REQ-MODOP-10)
-- [ ] `provision-tenant`: núcleo siempre; `--modulos` solo opcionales, valida paquetes
-- [ ] Slugs `modulo-nucleo`, `modulo-paquete-incompleto`, `modulo-con-estado-vivo` en catálogo e inventario
-- [ ] `tests/db`: casos de REQ-MODOP-01, 02, 03, 10
+## PR 1 — DB: guarda de `tenant_modulo` (hecho: `6533702`, `194d86b`)
+
+- [x] `fn_modulo_habilitado(p_tenant, p_codigo)` (INVOKER, stable)
+- [x] Trigger: el núcleo no se apaga ni se borra (REQ-MODOP-01)
+- [x] Constraint trigger diferido: paquete consignación de a par (REQ-MODOP-02)
+- [x] Trigger: opcional con estado vivo no se apaga (REQ-MODOP-03, N1–N4) — N1 incompleto, se corrige en PR 2
+- [x] `revoke` de `sp_reactivar_acceso_revendedora` (REQ-MODOP-10)
+- [x] `provision-tenant`: núcleo siempre; `--modulos` solo opcionales, valida paquetes
+- [x] Slugs `modulo-nucleo`, `modulo-paquete-incompleto`, `modulo-con-estado-vivo` en catálogo e inventario
+- [x] `tests/db/tenant-modulo-guarda.test.ts`: casos de REQ-MODOP-01, 02, 03, 10
+- [x] `tests/db/comisiones.test.ts` ajustado al revoke de `sp_toggle_tenant_modulo` (00117)
 
 ## PR 2 — DB: tablas del núcleo extendidas
 
 - [ ] Trigger `ingreso_mercaderia`: `consignacion` exige el paquete (REQ-MODOP-05 N2)
 - [ ] Trigger `proveedor`: `consignatario` en alta o cambio de tipo exige el paquete (REQ-MODOP-06 N2, N3)
-- [ ] `tests/db`: casos N2/N3
+- [ ] `fn_modulo_tiene_estado_vivo`: N1 suma ítems `consignacion` en `en_revendedora` (fix forward de 00118)
+- [ ] `tests/db`: REQ-MODOP-05 N2, REQ-MODOP-06 N2/N3, REQ-MODOP-03 N1 con ítem en revendedora
 
 ## PR 3 — DB: SPs de consignación a proveedor
 
@@ -33,11 +39,12 @@ número en el nombre.
 ## PR 4 — DB: SPs de rendición
 
 - [ ] Chequeo de módulo en `preview_rendicion` y los 4 SPs
-- [ ] Ajustar `tests/db/comisiones.test.ts`: llama a `sp_toggle_tenant_modulo` como admin, denegado desde 00117
 - [ ] `tests/db`: REQ-MODOP-07 por función
 
 ## PR 5 — App: capa de capacidades + Ingresos + Proveedores
 
+- [ ] `lib/modulos/catalogo.ts`: `MODULOS_NUCLEO` + `PAQUETES_OPCIONALES` movido desde `lib/types/plataforma.ts` (plataforma lo importa) (DR-MODOP-3)
+- [ ] `tests/db`: el catálogo TS coincide con `fn_modulo_es_nucleo` y `fn_codigos_paquete`
 - [ ] `lib/modulos/capacidades.ts` + test colocado (REQ-MODOP-04), agregado a `include` de coverage
 - [ ] Schemas zod en `lib/validation/` para alta de ingreso y de proveedor, desde capacidades (`strictObject`)
 - [ ] `crearIngresoCompletoAction`: las tres gates con el schema nuevo (REQ-MODOP-05 N1, N3)

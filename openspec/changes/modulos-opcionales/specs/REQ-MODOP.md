@@ -10,7 +10,12 @@
 - **DR-MODOP-2** — La DB es la barrera: guarda en `tenant_modulo`, chequeo en
   cada `sp_*` del opcional, trigger en las tablas del núcleo que el opcional
   extiende. Action y UI se apoyan en ella, no la reemplazan.
-- **DR-MODOP-3** — `lib/modulos/capacidades.ts` es la única traducción de
+- **DR-MODOP-3** — El catálogo (núcleo y paquetes) vive en
+  `lib/modulos/catalogo.ts`: `MODULOS_NUCLEO` y `PAQUETES_OPCIONALES` (este
+  último se mueve desde `lib/types/plataforma.ts`, que pasa a importarlo).
+  Su espejo SQL es `fn_modulo_es_nucleo` (00118) y `fn_codigos_paquete`
+  (00119); un test de `tests/db` compara los dos lados para que no diverjan.
+  `lib/modulos/capacidades.ts` es la única traducción de
   módulos a capacidades. UI y zod derivan de ahí.
 - **DR-MODOP-4** — Apagar un opcional con estado vivo se rechaza (falla
   cerrado), no se advierte.
@@ -25,7 +30,7 @@ un código del núcleo.
 - **Feliz**: provisión de tenant → los seis códigos del núcleo quedan habilitados.
 - **N1**: service-role `update tenant_modulo set habilitado = false` sobre `ventas` → `modulo-nucleo`.
 - **N2**: service-role `delete` de la fila de `inventario` → `modulo-nucleo`.
-- **N3**: `pnpm provision-tenant --modulos revendedoras` (sin núcleo) → el núcleo se agrega igual; el script no lo deja afuera.
+- **N3**: `pnpm provision-tenant --modulos revendedoras` o `sp_alta_tenant` con solo paquetes (sin núcleo) → el núcleo se agrega igual.
 - **N4**: tenant sin fila del núcleo → la migración la crea habilitada.
 
 ### REQ-MODOP-02 — el paquete de consignación va de a par
@@ -43,7 +48,7 @@ Pasar un opcional a `habilitado = false` MUST fallar si el tenant tiene
 estado del opcional sin cerrar.
 
 - **Feliz**: tenant sin stock de terceros ni rendiciones pendientes → apaga `consignacionProveedor`.
-- **N1**: ítems de ingresos `consignacion` todavía en el local (disponibles o reservados) → `modulo-con-estado-vivo`.
+- **N1**: ítems de ingresos `consignacion` que siguen siendo de terceros (`disponible`, `reservado` o `en_revendedora`) → `modulo-con-estado-vivo`. Un ítem del proveedor prestado a una revendedora sigue siendo deuda con el proveedor.
 - **N2**: devolución a proveedor abierta (`consignacion.estado = 'activa'`) → `modulo-con-estado-vivo`.
 - **N3**: ventas de ítems en consignación sin rendir, o rendición generada sin pagar → `modulo-con-estado-vivo`.
 - **N3.a**: venta excluida de la rendición (`excluida_rendicion = true`) → NO bloquea.
@@ -161,10 +166,14 @@ sin el paquete valen 0.
 Número: el siguiente libre al aplicar. Cada SP se modifica partiendo de
 `pnpm sp:last <nombre>`, mostrando solo el diff del chequeo.
 
-1. `fn_modulo_habilitado`, guarda de `tenant_modulo` (núcleo, paquete como
-   constraint trigger diferido, estado vivo), `revoke` de
+1. **Hecha** — `00118_guarda_tenant_modulo.sql` (en `feat/plataforma`):
+   `fn_modulo_es_nucleo`, `fn_modulo_habilitado`,
+   `fn_modulo_tiene_estado_vivo`, guarda de `tenant_modulo` (núcleo, paquete
+   como constraint trigger diferido, estado vivo), `revoke` de
    `sp_reactivar_acceso_revendedora`.
-2. Triggers de `ingreso_mercaderia` y `proveedor`.
+2. Triggers de `ingreso_mercaderia` y `proveedor`, y `create or replace` de
+   `fn_modulo_tiene_estado_vivo` (desde 00118) para sumar al N1 los ítems
+   `consignacion` en estado `en_revendedora`. Fix forward, no se edita 00118.
 3. Chequeo de módulo en los 8 SPs de consignación a proveedor.
 4. Chequeo de módulo en `preview_rendicion` y los 4 SPs de rendición.
 
