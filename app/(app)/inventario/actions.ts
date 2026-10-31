@@ -3,7 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { requireModuleRole } from '@/lib/dal/guard'
-import { verifySession } from '@/lib/dal/session'
+import { verifySession, type Session } from '@/lib/dal/session'
+import { capacidades, tiposIngresoPermitidos, tiposProveedorPermitidos } from '@/lib/modulos/capacidades'
+import {
+  crearIngresoCompletoSchema,
+  proveedorSchema,
+  proveedorPatchSchema,
+  extraerReasonZod,
+} from '@/lib/validation/inventario'
 import {
   createCategoria,
   toggleCategoriaActiva,
@@ -11,6 +18,7 @@ import {
 } from '@/lib/dal/inventario/categoria'
 import {
   createProveedor,
+  getProveedor,
   updateProveedor,
 } from '@/lib/dal/inventario/proveedor'
 import {
@@ -54,11 +62,13 @@ import type { EstadoItem, TipoIngreso, TipoProveedor } from '@/lib/types/inventa
 
 type ActionResult<T = unknown> = { ok: true; data?: T } | { ok: false; reason: string }
 
-async function guarded(accion: string): Promise<{ tenantId: string; userId: string } | { error: string }> {
+async function guarded(
+  accion: string,
+): Promise<{ tenantId: string; userId: string; session: Session } | { error: string }> {
   try {
     const session = await verifySession()
     await requireModuleRole(session, 'inventario', accion)
-    return { tenantId: session.tenantId, userId: session.user.id }
+    return { tenantId: session.tenantId, userId: session.user.id, session }
   } catch (error) {
     if (error instanceof AuthorizationError) return { error: error.reason }
     throw error
@@ -158,21 +168,32 @@ export async function createProveedorAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const cap = capacidades(g.session.modulosHabilitados)
+  const tipos = tiposProveedorPermitidos(cap)
+  const schema = proveedorSchema(tipos)
+  const parsed = schema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
   try {
     const row = await createProveedor({
       id_tenant: g.tenantId,
-      nombre: input.nombre.trim(),
-      tipo: input.tipo,
-      telefono: input.telefono?.trim() || null,
-      email: input.email?.trim() || null,
-      cuit: input.cuit?.trim() || null,
-      dias_rotacion: input.dias_rotacion ?? null,
-      notas: input.notas?.trim() || null,
+      nombre: parsed.data.nombre.trim(),
+      tipo: parsed.data.tipo,
+      telefono: parsed.data.telefono?.trim() || null,
+      email: parsed.data.email?.trim() || null,
+      cuit: parsed.data.cuit?.trim() || null,
+      dias_rotacion: parsed.data.dias_rotacion ?? null,
+      notas: parsed.data.notas?.trim() || null,
     })
     revalidatePath('/proveedores')
     return { ok: true, data: { id: row.id_proveedor } }
   } catch (e) {
-    return { ok: false, reason: (e as Error).message }
+    const msg = (e as Error).message
+    if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
+    return { ok: false, reason: msg }
   }
 }
 
@@ -191,12 +212,37 @@ export async function updateProveedorAction(
 ): Promise<ActionResult> {
   const g = await guarded('editar')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const cap = capacidades(g.session.modulosHabilitados)
+  const permitidos = tiposProveedorPermitidos(cap)
+  let tiposAceptados: [TipoProveedor, ...TipoProveedor[]] = permitidos
+
+  // Si el tipo del patch no está en los permitidos por capacidades,
+  // permitimos mantener el tipo actual si el proveedor histórico ya era consignatario (REQ-MODOP-06 N3).
+  if (patch && typeof patch === 'object' && 'tipo' in patch && patch.tipo) {
+    const patchTipo = patch.tipo as TipoProveedor
+    if (!permitidos.includes(patchTipo)) {
+      const actual = await getProveedor(id)
+      if (actual && actual.tipo === patchTipo) {
+        tiposAceptados = [...permitidos, patchTipo] as [TipoProveedor, ...TipoProveedor[]]
+      }
+    }
+  }
+
+  const schema = proveedorPatchSchema(tiposAceptados)
+  const parsed = schema.safeParse(patch)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
   try {
-    await updateProveedor(id, patch)
+    await updateProveedor(id, parsed.data)
     revalidatePath('/proveedores')
     return { ok: true }
   } catch (e) {
-    return { ok: false, reason: (e as Error).message }
+    const msg = (e as Error).message
+    if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
+    return { ok: false, reason: msg }
   }
 }
 
@@ -641,11 +687,19 @@ export async function crearIngresoCompletoAction(input: {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
-  const norm = normalizarLineasRemito(input.lineas)
+  const cap = capacidades(g.session.modulosHabilitados)
+  const tipos = tiposIngresoPermitidos(cap)
+  const schema = crearIngresoCompletoSchema(tipos)
+  const parsed = schema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  const norm = normalizarLineasRemito(parsed.data.lineas as LineaRemitoInput[])
   if (!norm.ok) return norm
 
-  const numeroRemito = input.numeroRemito?.trim() || null
-  const idProveedor = input.idProveedor || null
+  const numeroRemito = parsed.data.numeroRemito?.trim() || null
+  const idProveedor = parsed.data.idProveedor || null
 
   if (numeroRemito) {
     try {
@@ -666,15 +720,16 @@ export async function crearIngresoCompletoAction(input: {
     idIngreso = await createIngresoBorrador({
       tenantId: g.tenantId,
       idProveedor,
-      tipoIngreso: input.tipoIngreso,
+      tipoIngreso: parsed.data.tipoIngreso,
       numeroRemito,
-      observaciones: input.observaciones?.trim() || null,
+      observaciones: parsed.data.observaciones?.trim() || null,
       idUsuarioAlta: g.userId,
     })
   } catch (e) {
     // Backstop del índice único: si dos cargas compiten, una recibe la
     // violación de unicidad. La traducimos a un mensaje de negocio.
     const msg = (e as Error).message
+    if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
     if (/ingreso_mercaderia_remito_uniq|duplicate key/i.test(msg)) {
       return {
         ok: false,
@@ -685,7 +740,7 @@ export async function crearIngresoCompletoAction(input: {
   }
 
   try {
-    await spImportarRemito({ idIngreso, moneda: input.moneda, lineas: norm.lineas })
+    await spImportarRemito({ idIngreso, moneda: parsed.data.moneda, lineas: norm.lineas })
     const itemsGenerados = await spConfirmarIngreso(idIngreso)
     revalidatePath('/inventario/ingresos')
     revalidatePath('/inventario')
@@ -698,6 +753,8 @@ export async function crearIngresoCompletoAction(input: {
     } catch {
       // Si la limpieza falla, priorizamos reportar el error original.
     }
-    return { ok: false, reason: (e as Error).message }
+    const msg = (e as Error).message
+    if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
+    return { ok: false, reason: msg }
   }
 }

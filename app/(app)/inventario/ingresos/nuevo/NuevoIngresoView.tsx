@@ -20,6 +20,7 @@ import type {
   ProductoConDetalle,
   ProveedorRow,
   TipoIngreso,
+  TipoProveedor,
 } from '@/lib/types/inventario'
 import { buscarMatchNombre, indexarPorNombre } from '@/lib/inventario/producto-match'
 import { sugerirCategoria } from '@/lib/inventario/categoria-match'
@@ -63,6 +64,8 @@ export function NuevoIngresoView({
   productos,
   categorias: categoriasIniciales,
   prefill,
+  tiposIngreso = ['compra'],
+  tiposProveedor,
 }: {
   proveedores: ProveedorRow[]
   productos: ProductoConDetalle[]
@@ -77,6 +80,8 @@ export function NuevoIngresoView({
     /** Costo del último ingreso — default del input, editable. */
     costoUnitario: number | null
   } | null
+  tiposIngreso?: readonly TipoIngreso[]
+  tiposProveedor?: readonly TipoProveedor[]
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -91,10 +96,18 @@ export function NuevoIngresoView({
   // bloqueado (regla de negocio: cada producto es mono-proveedor).
   const [idProveedor, setIdProveedor] = useState(prefill?.idProveedor ?? '')
   const proveedorBloqueado = !!prefill?.idProveedor
+  const soloCompra = tiposIngreso.length === 1 && tiposIngreso[0] === 'compra'
   // Sin valor por defecto en alta normal — «compra» y «consignación» pagan
-  // en momentos distintos, así que el usuario tiene que elegirlo. En modo
-  // restock arranca con el tipo del último ingreso del producto (editable).
-  const [tipoIngreso, setTipoIngreso] = useState<TipoIngreso | ''>(prefill?.tipoIngreso ?? '')
+  // en momentos distintos, así que el usuario tiene que elegirlo. Si solo
+  // hay 'compra', queda fijo en 'compra' y no se muestra el selector.
+  // En modo restock arranca con el tipo del último ingreso del producto (editable).
+  const [tipoIngreso, setTipoIngreso] = useState<TipoIngreso | ''>(() => {
+    if (soloCompra) return 'compra'
+    if (prefill?.tipoIngreso && tiposIngreso.includes(prefill.tipoIngreso)) {
+      return prefill.tipoIngreso
+    }
+    return ''
+  })
   const [numeroRemito, setNumeroRemito] = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -406,22 +419,24 @@ export function NuevoIngresoView({
             />
           </Field>
 
-          <Field htmlFor="i-tipo" label="Tipo de ingreso" required>
-            <Select
-              id="i-tipo"
-              value={tipoIngreso}
-              onChange={(e) => setTipoIngreso(e.target.value as TipoIngreso)}
-            >
-              <option value="" disabled>
-                — Elegí el tipo —
-              </option>
-              {TIPOS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+          {!soloCompra && (
+            <Field htmlFor="i-tipo" label="Tipo de ingreso" required>
+              <Select
+                id="i-tipo"
+                value={tipoIngreso}
+                onChange={(e) => setTipoIngreso(e.target.value as TipoIngreso)}
+              >
+                <option value="" disabled>
+                  — Elegí el tipo —
                 </option>
-              ))}
-            </Select>
-          </Field>
+                {TIPOS.filter((t) => tiposIngreso.includes(t.value)).map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
 
           <Field htmlFor="i-obs" label="Observaciones">
             <Textarea
@@ -684,6 +699,7 @@ export function NuevoIngresoView({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreated={onProveedorCreado}
+        tiposPermitidos={tiposProveedor}
       />
 
       <NuevaCategoriaModal

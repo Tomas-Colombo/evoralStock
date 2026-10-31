@@ -192,11 +192,13 @@ const MENSAJES: Record<string, string> = {
   'detalle-not-found': 'Esa línea del ingreso ya no existe. Recargá la página.',
   'no-es-pdf': 'El archivo tiene que ser un PDF.',
   'archivo-invalido': 'No se pudo leer el archivo. Revisá que no esté dañado.',
+  'tipo-ingreso-invalido': 'Elegí un tipo de ingreso válido.',
 
   // ─── Proveedores ───────────────────────────────────────────────────
   'proveedor-requerido': 'Elegí un proveedor.',
   'proveedor-vacio': 'Elegí un proveedor.',
   'proveedor-con-items': 'No se puede cambiar el proveedor: ya hay ítems apartados.',
+  'tipo-proveedor-invalido': 'Elegí un tipo de proveedor válido.',
 
   // ─── Ventas ────────────────────────────────────────────────────────
   'lineas-vacias': 'Agregá al menos un ítem al carrito.',

@@ -1,7 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import type { ProveedorRow } from '@/lib/types/inventario'
+import type { ProveedorRow, TipoProveedor } from '@/lib/types/inventario'
 import { NuevoProveedorForm } from './NuevoProveedorForm'
 
 /**
@@ -13,14 +13,23 @@ export function NuevoProveedorModal({
   open,
   onClose,
   onCreated,
+  tiposPermitidos,
+  tipoActual,
 }: {
   open: boolean
   onClose: () => void
   onCreated: (proveedor: ProveedorRow) => void
+  tiposPermitidos?: readonly TipoProveedor[]
+  tipoActual?: TipoProveedor
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Nuevo proveedor" size="lg">
-      <NuevoProveedorForm onSuccess={onCreated} onCancel={onClose} />
+      <NuevoProveedorForm
+        onSuccess={onCreated}
+        onCancel={onClose}
+        tiposPermitidos={tiposPermitidos}
+        tipoActual={tipoActual}
+      />
     </Modal>
   )
 }

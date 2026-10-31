@@ -44,15 +44,15 @@ el siguiente número libre (hoy `00122`).
 
 ## PR 5 — App: capa de capacidades + Ingresos + Proveedores
 
-- [ ] `lib/modulos/catalogo.ts`: `MODULOS_NUCLEO` + `PAQUETES_OPCIONALES` movido desde `lib/types/plataforma.ts` (plataforma lo importa) (DR-MODOP-3)
-- [ ] `tests/db`: el catálogo TS coincide con `fn_modulo_es_nucleo` y `fn_codigos_paquete`
-- [ ] `lib/modulos/capacidades.ts` + test colocado (REQ-MODOP-04), agregado a `include` de coverage
-- [ ] Schemas zod en `lib/validation/` para alta de ingreso y de proveedor, desde capacidades (`strictObject`)
-- [ ] `crearIngresoCompletoAction`: las tres gates con el schema nuevo (REQ-MODOP-05 N1, N3)
-- [ ] `createProveedorAction` / `updateProveedorAction`: tipo validado (REQ-MODOP-06 N1)
-- [ ] `NuevoIngresoView`: sin selector cuando solo hay `compra`
-- [ ] `NuevoProveedorForm`, `NuevoProveedorModal`: opciones desde capacidades
-- [ ] Slugs `tipo-ingreso-invalido`, `tipo-proveedor-invalido`
+- [x] `lib/modulos/catalogo.ts`: `MODULOS_NUCLEO` + `PAQUETES_OPCIONALES` movido desde `lib/types/plataforma.ts` (plataforma lo importa) (DR-MODOP-3)
+- [x] `tests/db`: el catálogo TS coincide con `fn_modulo_es_nucleo` y `fn_codigos_paquete`
+- [x] `lib/modulos/capacidades.ts` + test colocado (REQ-MODOP-04), agregado a `include` de coverage
+- [x] Schemas zod en `lib/validation/` para alta de ingreso y de proveedor, desde capacidades (`strictObject`)
+- [x] `crearIngresoCompletoAction`: las tres gates con el schema nuevo (REQ-MODOP-05 N1, N3)
+- [x] `createProveedorAction` / `updateProveedorAction`: tipo validado (REQ-MODOP-06 N1)
+- [x] `NuevoIngresoView`: sin selector cuando solo hay `compra`
+- [x] `NuevoProveedorForm`, `NuevoProveedorModal`: opciones desde capacidades
+- [x] Slugs `tipo-ingreso-invalido`, `tipo-proveedor-invalido`
 
 ## PR 6 — App: puntos de extensión restantes
 

@@ -4,6 +4,7 @@ import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { getProducto, listProductosConDetalle } from '@/lib/dal/inventario/producto'
 import { getUltimoContextoIngresoProducto } from '@/lib/dal/inventario/item'
+import { capacidades, tiposIngresoPermitidos, tiposProveedorPermitidos } from '@/lib/modulos/capacidades'
 import type { TipoIngreso } from '@/lib/types/inventario'
 import { NuevoIngresoView } from './NuevoIngresoView'
 import { safeBackHref } from '@/lib/utils/safeBackHref'
@@ -12,6 +13,9 @@ export default async function NuevoIngresoPage(props: {
   searchParams: Promise<{ producto?: string; from?: string }>
 }) {
   const session = await verifySession()
+  const cap = capacidades(session.modulosHabilitados)
+  const tiposIngreso = tiposIngresoPermitidos(cap)
+  const tiposProveedor = tiposProveedorPermitidos(cap)
   const { producto: idProductoParam, from } = await props.searchParams
 
   // Todo se carga en una sola pantalla: proveedores para la cabecera y
@@ -39,10 +43,14 @@ export default async function NuevoIngresoPage(props: {
       getUltimoContextoIngresoProducto(idProductoParam),
     ])
     if (prod) {
+      const tipoPrefill = ultimo?.tipoIngreso && tiposIngreso.includes(ultimo.tipoIngreso)
+        ? ultimo.tipoIngreso
+        : tiposIngreso[0]
+
       prefill = {
         idProducto: prod.id_producto,
         idProveedor: ultimo?.proveedor?.id_proveedor ?? null,
-        tipoIngreso: ultimo?.tipoIngreso ?? 'compra',
+        tipoIngreso: tipoPrefill,
         costoUnitario: ultimo?.costoUnitario ?? null,
       }
     }
@@ -61,6 +69,8 @@ export default async function NuevoIngresoPage(props: {
           productos={productos}
           categorias={categorias}
           prefill={prefill}
+          tiposIngreso={tiposIngreso}
+          tiposProveedor={tiposProveedor}
         />
       </main>
     </>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { NuevoProveedorModal } from '@/components/inventario/NuevoProveedorModal'
+import type { TipoProveedor } from '@/lib/types/inventario'
 
 /**
  * Alta de proveedor sin salir del listado: el formulario se abre en un modal
@@ -11,7 +12,11 @@ import { NuevoProveedorModal } from '@/components/inventario/NuevoProveedorModal
  * sigue existiendo para enlaces directos — mismo criterio que
  * `NuevoClienteModalButton`.
  */
-export function NuevoProveedorModalButton() {
+export function NuevoProveedorModalButton({
+  tiposPermitidos,
+}: {
+  tiposPermitidos?: readonly TipoProveedor[]
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
@@ -24,6 +29,7 @@ export function NuevoProveedorModalButton() {
       <NuevoProveedorModal
         open={open}
         onClose={() => setOpen(false)}
+        tiposPermitidos={tiposPermitidos}
         onCreated={() => {
           setOpen(false)
           router.refresh()

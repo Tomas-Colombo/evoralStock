@@ -13,11 +13,11 @@ import { createProveedorAction } from '@/app/(app)/inventario/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Select } from '@/components/ui/Select'
 
-const TIPOS: { value: TipoProveedor; label: string }[] = [
-  { value: 'mayorista', label: 'Mayorista' },
-  { value: 'particular', label: 'Particular' },
-  { value: 'consignatario', label: 'Consignatario' },
-]
+const TIPOS_LABEL: Record<TipoProveedor, string> = {
+  mayorista: 'Mayorista',
+  particular: 'Particular',
+  consignatario: 'Consignatario',
+}
 
 /**
  * Alta de proveedor. Un solo formulario para la ruta `/proveedores/nuevo`
@@ -29,16 +29,35 @@ const TIPOS: { value: TipoProveedor; label: string }[] = [
 export function NuevoProveedorForm({
   onSuccess,
   onCancel,
+  tiposPermitidos = ['mayorista', 'particular'],
+  tipoActual,
 }: {
   onSuccess?: (proveedor: ProveedorRow) => void
   onCancel?: () => void
+  tiposPermitidos?: readonly TipoProveedor[]
+  tipoActual?: TipoProveedor
 }) {
   const router = useRouter()
   const toast = useToast()
   const [pending, start] = useTransition()
 
+  // Si se edita un proveedor histórico de tipo consignatario, se suma su tipo a las opciones
+  const opciones = (() => {
+    const permitidos = [...tiposPermitidos]
+    if (tipoActual && !permitidos.includes(tipoActual)) {
+      permitidos.push(tipoActual)
+    }
+    return permitidos.map((val) => ({
+      value: val,
+      label: TIPOS_LABEL[val] ?? val,
+    }))
+  })()
+
   const [nombre, setNombre] = useState('')
-  const [tipo, setTipo] = useState<TipoProveedor>('mayorista')
+  const [tipo, setTipo] = useState<TipoProveedor>(() => {
+    if (tipoActual && opciones.some((o) => o.value === tipoActual)) return tipoActual
+    return opciones[0]?.value ?? 'mayorista'
+  })
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [cuit, setCuit] = useState('')
@@ -107,7 +126,7 @@ export function NuevoProveedorForm({
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoProveedor)}
           >
-            {TIPOS.map((t) => (
+            {opciones.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
