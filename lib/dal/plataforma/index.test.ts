@@ -35,10 +35,10 @@ describe('DAL Plataforma (lib/dal/plataforma)', () => {
   })
 
   describe('Defensa en profundidad: requireSuperAdmin()', () => {
-    it('listarTenants() rechaza si requireSuperAdmin falla', async () => {
+    it('listarTenantsPaginado() rechaza si requireSuperAdmin falla', async () => {
       mockRequireSuperAdmin.mockRejectedValue(new AuthorizationError('no-permission'))
-      const { listarTenants } = await import('./index')
-      await expect(listarTenants()).rejects.toThrow(AuthorizationError)
+      const { listarTenantsPaginado } = await import('./index')
+      await expect(listarTenantsPaginado({ page: 1 })).rejects.toThrow(AuthorizationError)
     })
 
     it('obtenerTenantDetalle() rechaza si requireSuperAdmin falla', async () => {

@@ -216,14 +216,6 @@ export async function listarTenantsPaginado(
 }
 
 /**
- * REQ-SA-02: Listado consolidado de tenants (retorna primera página amplia para retrocompatibilidad).
- */
-export async function listarTenants(): Promise<TenantPlataformaResumen[]> {
-  const { rows } = await listarTenantsPaginado({ page: 1, pageSize: 1000 })
-  return rows
-}
-
-/**
  * REQ-SA-07 / D5: Detalle del tenant, paquetes, saldo e historial de cuenta corriente paginado.
  * Resuelve la ficha, el saldo y el historial paginado de tenant_movimiento con queries fijas.
  */

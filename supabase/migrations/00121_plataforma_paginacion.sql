@@ -23,22 +23,13 @@ select
   t.estado_tenant,
   t.created_at,
   t.updated_at,
-  coalesce(c.total_cargos, 0) - coalesce(p.total_pagos, 0) as saldo,
-  coalesce(c.total_cargos, 0) as total_cargos,
-  coalesce(p.total_pagos, 0) as total_pagos
+  s.saldo,
+  s.total_cargos,
+  s.total_pagos
 from tenant t
-left join (
-  select id_tenant, sum(monto) as total_cargos
-  from tenant_cargo
-  where anulado_at is null
-  group by id_tenant
-) c on c.id_tenant = t.id_tenant
-left join (
-  select id_tenant, sum(monto) as total_pagos
-  from tenant_pago
-  where anulado_at is null
-  group by id_tenant
-) p on p.id_tenant = t.id_tenant;
+-- El saldo sale de tenant_saldo (00119): una sola fórmula, o el listado y el
+-- detalle terminan mostrando números distintos para el mismo tenant.
+join tenant_saldo s on s.id_tenant = t.id_tenant;
 
 revoke all on tenant_listado from authenticated, anon, public;
 
