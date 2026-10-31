@@ -14,13 +14,11 @@ export function NuevoProveedorModal({
   onClose,
   onCreated,
   tiposPermitidos,
-  tipoActual,
 }: {
   open: boolean
   onClose: () => void
   onCreated: (proveedor: ProveedorRow) => void
-  tiposPermitidos?: readonly TipoProveedor[]
-  tipoActual?: TipoProveedor
+  tiposPermitidos: readonly TipoProveedor[]
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Nuevo proveedor" size="lg">
@@ -28,7 +26,6 @@ export function NuevoProveedorModal({
         onSuccess={onCreated}
         onCancel={onClose}
         tiposPermitidos={tiposPermitidos}
-        tipoActual={tipoActual}
       />
     </Modal>
   )

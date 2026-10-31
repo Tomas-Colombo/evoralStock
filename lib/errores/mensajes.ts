@@ -195,6 +195,7 @@ const MENSAJES: Record<string, string> = {
   'tipo-ingreso-invalido': 'Elegí un tipo de ingreso válido.',
 
   // ─── Proveedores ───────────────────────────────────────────────────
+  'proveedor-invalido': 'El proveedor seleccionado no es válido.',
   'proveedor-requerido': 'Elegí un proveedor.',
   'proveedor-vacio': 'Elegí un proveedor.',
   'proveedor-con-items': 'No se puede cambiar el proveedor: ya hay ítems apartados.',

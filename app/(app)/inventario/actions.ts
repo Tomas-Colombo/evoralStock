@@ -1,5 +1,7 @@
 'use server'
 
+import { z } from 'zod'
+
 import { revalidatePath } from 'next/cache'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { requireModuleRole } from '@/lib/dal/guard'
@@ -212,6 +214,11 @@ export async function updateProveedorAction(
 ): Promise<ActionResult> {
   const g = await guarded('editar')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const idParsed = z.uuid('proveedor-invalido').safeParse(id)
+  if (!idParsed.success) {
+    return { ok: false, reason: 'proveedor-invalido' }
+  }
 
   const cap = capacidades(g.session.modulosHabilitados)
   const permitidos = tiposProveedorPermitidos(cap)

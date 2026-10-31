@@ -29,33 +29,23 @@ const TIPOS_LABEL: Record<TipoProveedor, string> = {
 export function NuevoProveedorForm({
   onSuccess,
   onCancel,
-  tiposPermitidos = ['mayorista', 'particular'],
-  tipoActual,
+  tiposPermitidos,
 }: {
   onSuccess?: (proveedor: ProveedorRow) => void
   onCancel?: () => void
-  tiposPermitidos?: readonly TipoProveedor[]
-  tipoActual?: TipoProveedor
+  tiposPermitidos: readonly TipoProveedor[]
 }) {
   const router = useRouter()
   const toast = useToast()
   const [pending, start] = useTransition()
 
-  // Si se edita un proveedor histórico de tipo consignatario, se suma su tipo a las opciones
-  const opciones = (() => {
-    const permitidos = [...tiposPermitidos]
-    if (tipoActual && !permitidos.includes(tipoActual)) {
-      permitidos.push(tipoActual)
-    }
-    return permitidos.map((val) => ({
-      value: val,
-      label: TIPOS_LABEL[val] ?? val,
-    }))
-  })()
+  const opciones = tiposPermitidos.map((val) => ({
+    value: val,
+    label: TIPOS_LABEL[val] ?? val,
+  }))
 
   const [nombre, setNombre] = useState('')
   const [tipo, setTipo] = useState<TipoProveedor>(() => {
-    if (tipoActual && opciones.some((o) => o.value === tipoActual)) return tipoActual
     return opciones[0]?.value ?? 'mayorista'
   })
   const [telefono, setTelefono] = useState('')

@@ -64,7 +64,7 @@ export function NuevoIngresoView({
   productos,
   categorias: categoriasIniciales,
   prefill,
-  tiposIngreso = ['compra'],
+  tiposIngreso,
   tiposProveedor,
 }: {
   proveedores: ProveedorRow[]
@@ -80,8 +80,8 @@ export function NuevoIngresoView({
     /** Costo del último ingreso — default del input, editable. */
     costoUnitario: number | null
   } | null
-  tiposIngreso?: readonly TipoIngreso[]
-  tiposProveedor?: readonly TipoProveedor[]
+  tiposIngreso: readonly TipoIngreso[]
+  tiposProveedor: readonly TipoProveedor[]
 }) {
   const router = useRouter()
   const toast = useToast()

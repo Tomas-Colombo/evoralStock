@@ -15,7 +15,7 @@ import type { TipoProveedor } from '@/lib/types/inventario'
 export function NuevoProveedorModalButton({
   tiposPermitidos,
 }: {
-  tiposPermitidos?: readonly TipoProveedor[]
+  tiposPermitidos: readonly TipoProveedor[]
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)

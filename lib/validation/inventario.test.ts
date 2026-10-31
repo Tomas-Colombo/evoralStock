@@ -33,6 +33,19 @@ describe('Validación de inventario: ingresos — REQ-MODOP-05', () => {
     }
   })
 
+  it('rechaza idProveedor que no sea un UUID válido con proveedor-invalido', () => {
+    const schema = crearIngresoCompletoSchema(['compra'])
+    const res = schema.safeParse({
+      idProveedor: 'no-es-un-uuid',
+      tipoIngreso: 'compra',
+      lineas: [],
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('proveedor-invalido')
+    }
+  })
+
   it('REQ-MODOP-05 N3: input con campo extra rechaza con campo-desconocido (strictObject)', () => {
     const schema = crearIngresoCompletoSchema(['compra'])
     const res = schema.safeParse({
@@ -84,7 +97,19 @@ describe('Validación de inventario: proveedores — REQ-MODOP-06', () => {
     }
   })
 
-  it('REQ-MODOP-06 N3: patch con campo desconocido rechaza con campo-desconocido', () => {
+  it('rechaza alta con nombre en blanco con nombre-requerido', () => {
+    const schemaAlta = proveedorSchema(['mayorista', 'particular'])
+    const res = schemaAlta.safeParse({
+      nombre: '   ',
+      tipo: 'mayorista',
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(extraerReasonZod(res.error)).toBe('nombre-requerido')
+    }
+  })
+
+  it('REQ-MODOP-06 patch con campo desconocido rechaza (strictObject)', () => {
     const schemaPatch = proveedorPatchSchema(['mayorista', 'particular'])
     const resPatch = schemaPatch.safeParse({
       nombre: 'Nuevo Nombre',

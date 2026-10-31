@@ -14,7 +14,7 @@ const payloadParams = {
 export function crearIngresoCompletoSchema(tipos: readonly [TipoIngreso, ...TipoIngreso[]]) {
   return z.strictObject(
     {
-      idProveedor: z.string().nullable().optional(),
+      idProveedor: z.uuid('proveedor-invalido').nullable().optional(),
       tipoIngreso: z.enum(tipos, 'tipo-ingreso-invalido'),
       numeroRemito: z.string().nullable().optional(),
       observaciones: z.string().nullable().optional(),
@@ -33,7 +33,7 @@ export function crearIngresoCompletoSchema(tipos: readonly [TipoIngreso, ...Tipo
 export function proveedorSchema(tipos: readonly [TipoProveedor, ...TipoProveedor[]]) {
   return z.strictObject(
     {
-      nombre: z.string('nombre-invalido').trim().min(1, 'nombre-invalido'),
+      nombre: z.string('nombre-requerido').trim().min(1, 'nombre-requerido'),
       tipo: z.enum(tipos, 'tipo-proveedor-invalido'),
       telefono: z.string().nullable().optional(),
       email: z.string().nullable().optional(),

@@ -3,7 +3,12 @@ import {
   PAQUETES_OPCIONALES,
   type PaqueteOpcional,
 } from './catalogo'
-import type { TipoIngreso, TipoProveedor } from '@/lib/types/inventario'
+import {
+  TIPOS_INGRESO,
+  TIPOS_PROVEEDOR,
+  type TipoIngreso,
+  type TipoProveedor,
+} from '@/lib/types/inventario'
 
 export type Capacidades = Record<PaqueteOpcional, boolean>
 
@@ -23,22 +28,24 @@ export function capacidades(modulosHabilitados: readonly string[]): Capacidades 
 
 /**
  * Tipos de ingreso de mercadería permitidos según las capacidades del tenant.
- * Sin consignacionProveedor, solo se permite 'compra'.
+ * Derivado de TIPOS_INGRESO: 'consignacion' solo se ofrece si cap.consignacionProveedor.
  */
 export function tiposIngresoPermitidos(cap: Capacidades): [TipoIngreso, ...TipoIngreso[]] {
-  return cap.consignacionProveedor
-    ? ['compra', 'consignacion']
-    : ['compra']
+  const permitidos = TIPOS_INGRESO.filter(
+    (t) => t !== 'consignacion' || cap.consignacionProveedor,
+  )
+  return permitidos as [TipoIngreso, ...TipoIngreso[]]
 }
 
 /**
  * Tipos de proveedor permitidos según las capacidades del tenant.
- * Sin consignacionProveedor, solo 'mayorista' y 'particular'.
+ * Derivado de TIPOS_PROVEEDOR: 'consignatario' solo se ofrece si cap.consignacionProveedor.
  */
 export function tiposProveedorPermitidos(cap: Capacidades): [TipoProveedor, ...TipoProveedor[]] {
-  return cap.consignacionProveedor
-    ? ['mayorista', 'particular', 'consignatario']
-    : ['mayorista', 'particular']
+  const permitidos = TIPOS_PROVEEDOR.filter(
+    (t) => t !== 'consignatario' || cap.consignacionProveedor,
+  )
+  return permitidos as [TipoProveedor, ...TipoProveedor[]]
 }
 
 /**
