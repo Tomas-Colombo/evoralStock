@@ -34,8 +34,8 @@ el siguiente número libre (hoy `00122`).
 
 ## PR 3 — DB: SPs de consignación a proveedor
 
-- [ ] Chequeo de módulo en los 8 SPs de la matriz (desde `pnpm sp:last`)
-- [ ] `tests/db`: REQ-MODOP-07 N1, N2 por función
+- [x] Chequeo de módulo en los 8 SPs de la matriz (desde `pnpm sp:last`)
+- [x] `tests/db`: REQ-MODOP-07 N1, N2 por función
 
 ## PR 4 — DB: SPs de rendición
 

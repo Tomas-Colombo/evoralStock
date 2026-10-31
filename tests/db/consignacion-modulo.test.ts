@@ -141,4 +141,120 @@ describe.skipIf(!hasTestDb)('SPs de consignación a proveedor — REQ-MODOP-07',
       })
     })
   })
+
+  describe('Grupo B: alta, edición, confirmación y baja', () => {
+    describe('sp_crear_consignacion_con_items', () => {
+      it('REQ-MODOP-07 N1 sp_crear_consignacion_con_items', async () => {
+        const tenant = await createTenantWithUser('modop-07-n1-crear')
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_crear_consignacion_con_items', {
+          p_id_proveedor: randomUUID(),
+          p_items: [randomUUID()],
+        })
+
+        expect(error).not.toBeNull()
+        expect(error?.message).toMatch(/module-disabled/)
+      })
+
+      it('REQ-MODOP-07 N2 sp_crear_consignacion_con_items', async () => {
+        const tenant = await createTenantWithUser('modop-07-n2-crear')
+        await habilitarPaqueteConsignacion(tenant.tenantId)
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_crear_consignacion_con_items', {
+          p_id_proveedor: randomUUID(),
+          p_items: [randomUUID()],
+        })
+
+        if (error) {
+          expect(error.message).not.toMatch(/module-disabled/)
+        }
+      })
+    })
+
+    describe('sp_editar_consignacion', () => {
+      it('REQ-MODOP-07 N1 sp_editar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n1-editar')
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_editar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        expect(error).not.toBeNull()
+        expect(error?.message).toMatch(/module-disabled/)
+      })
+
+      it('REQ-MODOP-07 N2 sp_editar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n2-editar')
+        await habilitarPaqueteConsignacion(tenant.tenantId)
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_editar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        if (error) {
+          expect(error.message).not.toMatch(/module-disabled/)
+        }
+      })
+    })
+
+    describe('sp_confirmar_consignacion', () => {
+      it('REQ-MODOP-07 N1 sp_confirmar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n1-confirmar')
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_confirmar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        expect(error).not.toBeNull()
+        expect(error?.message).toMatch(/module-disabled/)
+      })
+
+      it('REQ-MODOP-07 N2 sp_confirmar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n2-confirmar')
+        await habilitarPaqueteConsignacion(tenant.tenantId)
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_confirmar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        if (error) {
+          expect(error.message).not.toMatch(/module-disabled/)
+        }
+      })
+    })
+
+    describe('sp_eliminar_consignacion', () => {
+      it('REQ-MODOP-07 N1 sp_eliminar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n1-eliminar')
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_eliminar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        expect(error).not.toBeNull()
+        expect(error?.message).toMatch(/module-disabled/)
+      })
+
+      it('REQ-MODOP-07 N2 sp_eliminar_consignacion', async () => {
+        const tenant = await createTenantWithUser('modop-07-n2-eliminar')
+        await habilitarPaqueteConsignacion(tenant.tenantId)
+        const auth = await signInAs(tenant)
+
+        const { error } = await auth.rpc('sp_eliminar_consignacion', {
+          p_id_consignacion: randomUUID(),
+        })
+
+        if (error) {
+          expect(error.message).not.toMatch(/module-disabled/)
+        }
+      })
+    })
+  })
 })
