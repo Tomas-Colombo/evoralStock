@@ -11,7 +11,7 @@ import { mensajeDeError } from '@/lib/errores/mensajes'
 import {
   CLAVES_PAQUETES_OPCIONALES,
   type PaqueteOpcional,
-} from '@/lib/types/plataforma'
+} from '@/lib/modulos/catalogo'
 
 const PAQUETES_LABELS: Record<PaqueteOpcional, { label: string; descripcion: string }> = {
   revendedoras: {

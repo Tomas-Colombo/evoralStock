@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { CLAVES_PAQUETES_OPCIONALES } from '@/lib/modulos/catalogo'
 import {
   MEDIOS_PAGO_TENANT,
-  CLAVES_PAQUETES_OPCIONALES,
+
   TIPOS_MOVIMIENTO_TENANT,
   ESTADOS_TENANT_FILTRO,
   DEUDA_TENANT_FILTRO,

@@ -42,9 +42,11 @@ export const ESTADO_ITEM_VARIANT: Record<EstadoItem, 'success' | 'info' | 'warni
   en_revendedora: 'warning',
 }
 
-export type TipoIngreso = 'compra' | 'consignacion'
+export const TIPOS_INGRESO = ['compra', 'consignacion'] as const
+export type TipoIngreso = (typeof TIPOS_INGRESO)[number]
 
-export type TipoProveedor = 'mayorista' | 'particular' | 'consignatario'
+export const TIPOS_PROVEEDOR = ['mayorista', 'particular', 'consignatario'] as const
+export type TipoProveedor = (typeof TIPOS_PROVEEDOR)[number]
 
 export type TipoMovimientoItem =
   | 'alta'

@@ -61,6 +61,7 @@ export default defineConfig({
         // que ningun slug crudo llegue a la UI. Va medido.
         'lib/errores/**',
         'lib/inventario/**',
+        'lib/modulos/**',
         'lib/precios/**',
         'lib/reportes/**',
         'lib/tenant/**',

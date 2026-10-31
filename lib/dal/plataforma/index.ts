@@ -1,4 +1,5 @@
 import 'server-only'
+import { PAQUETES_OPCIONALES, type PaqueteOpcional } from '@/lib/modulos/catalogo'
 
 import { createServiceClient } from '@/lib/dal/supabase'
 import { requireSuperAdmin } from '@/lib/dal/plataforma/guard'
@@ -6,9 +7,9 @@ import { generarPassword } from '@/lib/tenant/password'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 import { escaparPatronLike } from '@/lib/inventario/codigo'
 import {
-  PAQUETES_OPCIONALES,
+
   PAGE_SIZE_PLATAFORMA,
-  type PaqueteOpcional,
+
   type TenantPlataformaResumen,
   type TenantPlataformaDetalle,
   type MovimientoCuentaCorriente,

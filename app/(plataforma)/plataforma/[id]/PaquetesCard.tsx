@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/Checkbox'
 import {
   CLAVES_PAQUETES_OPCIONALES,
   type PaqueteOpcional,
-} from '@/lib/types/plataforma'
+} from '@/lib/modulos/catalogo'
 
 export const PAQUETES_META: Record<
   PaqueteOpcional,

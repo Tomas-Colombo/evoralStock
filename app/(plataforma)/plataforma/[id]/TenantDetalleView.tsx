@@ -16,10 +16,11 @@ import {
   togglePaqueteTenantAction,
 } from '@/app/(plataforma)/plataforma/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
+import type { PaqueteOpcional } from '@/lib/modulos/catalogo'
 import type {
   MedioPagoTenant,
   MovimientoCuentaCorriente,
-  PaqueteOpcional,
+
   TenantPlataformaDetalle,
 } from '@/lib/types/plataforma'
 import { formatearMoneda } from '@/lib/utils/moneda'

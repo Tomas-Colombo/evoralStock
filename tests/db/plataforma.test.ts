@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { createAnonTestClient, createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, hasTestDb, signInAs, runPsql } from './_helpers'
-import { MEDIOS_PAGO_TENANT, PAQUETES_OPCIONALES } from '@/lib/types/plataforma'
+import { MEDIOS_PAGO_TENANT } from '@/lib/types/plataforma'
+import { PAQUETES_OPCIONALES } from '@/lib/modulos/catalogo'
 
 describe.skipIf(!hasTestDb)('DB: Super Admin Plataforma (REQ-SA-03..08 / DR-SA-01..05)', () => {
   const serviceRole = createServiceRoleTestClient()
