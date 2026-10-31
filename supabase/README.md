@@ -47,10 +47,12 @@ re-running it completes whatever is missing instead of duplicating rows. The
 target tenants are the `v_subs` array on the first lines of the file.
 
 It is gitignored on purpose: it seeds one developer's local database, not a
-shared fixture. That is why `config.toml` reaches it through the glob
-`./seeds/*.sql` rather than naming the file — a missing literal path breaks
-`supabase start`, while a glob that matches nothing is a no-op, so CI keeps
-booting without it.
+shared fixture. `config.toml` no longer loads `./seeds/*.sql` (24c6deb): with
+the glob, `supabase db reset --linked` would push demo tenants and the dev
+admin into a cloud database. Load them locally with `pnpm db:seed:local`
+(both seed files, against the `supabase_db_utopia` container), or reset and
+seed in one step with `pnpm db:reset:local`. `pnpm gate:db` resets without
+seeding, so run `pnpm db:seed:local` again after it.
 
 Products are deliberately out of scope (they come from the PDF importer), but
 the **development admin user is not**: §12 writes it straight into

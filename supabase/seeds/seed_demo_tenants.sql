@@ -1,6 +1,6 @@
 -- Utopia demo tenants and fixtures for local development.
--- Kept in seeds/ so it is loaded by `supabase start` / local `supabase db reset`,
--- but NEVER loaded into production by `supabase db reset --linked`.
+-- Kept in seeds/, outside config.toml's sql_paths, so `supabase db reset --linked`
+-- never loads it into a cloud database. Load it locally with `pnpm db:seed:local`.
 
 -- Slice 5 seed part 2: demo tenants + 1 rol each + all 7 modulos linked +
 -- 1 configuracion each (design §14, REQ-MTD-11, spec 3.5). Idempotent.
