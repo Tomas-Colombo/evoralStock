@@ -39,8 +39,8 @@ el siguiente número libre (hoy `00122`).
 
 ## PR 4 — DB: SPs de rendición
 
-- [ ] Chequeo de módulo en `preview_rendicion` y los 4 SPs
-- [ ] `tests/db`: REQ-MODOP-07 por función
+- [x] Chequeo de módulo en `preview_rendicion` y los 4 SPs
+- [x] `tests/db`: REQ-MODOP-07 por función
 
 ## PR 5 — App: capa de capacidades + Ingresos + Proveedores
 
