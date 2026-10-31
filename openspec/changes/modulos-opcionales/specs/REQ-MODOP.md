@@ -75,6 +75,7 @@ Sin `consignacionProveedor`, Ingresos MUST crear solo `compra`.
 - **N2**: insert directo por PostgREST en `ingreso_mercaderia` con `tipo_ingreso = 'consignacion'` → `module-disabled` (trigger).
 - **N3**: input con campos extra → rechazo (`strictObject`).
 - **N4**: un ingreso histórico `consignacion` → se sigue viendo en el listado y la ficha.
+- **N5**: alta de ítems 'consignacion' sin el paquete por sp_crear_stock_directo, confirmación de un borrador 'consignacion' o insert directo en item_producto → module-disabled (trigger en item_producto).
 
 ### REQ-MODOP-06 — proveedor consignatario
 

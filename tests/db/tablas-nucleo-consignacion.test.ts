@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
-import { createTenantWithUser, hasTestDb } from './_helpers'
+import { createTenantWithUser, hasTestDb, signInAs } from './_helpers'
 
 describe.skipIf(!hasTestDb)('Tablas del núcleo extendidas por consignación — REQ-MODOP-05, 06, 03', () => {
   const serviceRole = createServiceRoleTestClient()
@@ -116,6 +116,121 @@ describe.skipIf(!hasTestDb)('Tablas del núcleo extendidas por consignación —
         tipo_ingreso: 'consignacion',
       })
       expect(errConsignacion).toBeNull()
+    })
+
+    it('REQ-MODOP-05 N5 (a): sp_crear_stock_directo con tipo consignacion sin paquete levanta module-disabled', async () => {
+      const tenant = await createTenantWithUser('modop-05-n5-dir')
+      const auth = await signInAs(tenant)
+
+      const { data: cat } = await serviceRole
+        .from('categoria')
+        .insert({ id_tenant: tenant.tenantId, nombre: 'Cat Directo N5' })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await serviceRole
+        .from('producto')
+        .insert({ id_tenant: tenant.tenantId, id_categoria: cat!.id_categoria, nombre: 'Prod Directo N5' })
+        .select('id_producto')
+        .single()
+
+      const { error } = await auth.rpc('sp_crear_stock_directo', {
+        p_id_producto: prod!.id_producto,
+        p_costo: 1000,
+        p_tipo_ingreso: 'consignacion',
+        p_items: [{ talle: 'M', cantidad: 1 }],
+      })
+
+      expect(error).not.toBeNull()
+      expect(error?.message).toMatch(/module-disabled/)
+    })
+
+    it('REQ-MODOP-05 N5 (b): sp_confirmar_ingreso de borrador consignacion tras apagar el paquete levanta module-disabled', async () => {
+      const tenant = await createTenantWithUser('modop-05-n5-borr')
+      const auth = await signInAs(tenant)
+
+      // 1. Habilitar el paquete para crear el borrador consignacion
+      await habilitarPaqueteConsignacion(tenant.tenantId)
+
+      const { data: prov } = await serviceRole
+        .from('proveedor')
+        .insert({ id_tenant: tenant.tenantId, nombre: 'Prov Borrador N5', tipo: 'consignatario' })
+        .select('id_proveedor')
+        .single()
+
+      const { data: cat } = await serviceRole
+        .from('categoria')
+        .insert({ id_tenant: tenant.tenantId, nombre: 'Cat Borrador N5' })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await serviceRole
+        .from('producto')
+        .insert({ id_tenant: tenant.tenantId, id_categoria: cat!.id_categoria, nombre: 'Prod Borrador N5' })
+        .select('id_producto')
+        .single()
+
+      // Crear ingreso en borrador (confirmado = false)
+      const { data: ingreso } = await serviceRole
+        .from('ingreso_mercaderia')
+        .insert({
+          id_tenant: tenant.tenantId,
+          id_proveedor: prov!.id_proveedor,
+          tipo_ingreso: 'consignacion',
+          confirmado: false,
+        })
+        .select('id_ingreso')
+        .single()
+
+      // Detalle del ingreso
+      await serviceRole.from('ingreso_mercaderia_detalle').insert({
+        id_ingreso: ingreso!.id_ingreso,
+        id_tenant: tenant.tenantId,
+        id_producto: prod!.id_producto,
+        cantidad: 2,
+        costo_unitario: 500,
+        talle: 'L',
+      })
+
+      // 2. Apagar paquete (sin ítems generados no hay estado vivo, pasa ok)
+      const { error: errApagar } = await deshabilitarPaqueteConsignacion(tenant.tenantId)
+      expect(errApagar).toBeNull()
+
+      // 3. Confirmar con el cliente autenticado del tenant
+      const { error: errConfirmar } = await auth.rpc('sp_confirmar_ingreso', {
+        p_id_ingreso: ingreso!.id_ingreso,
+      })
+
+      expect(errConfirmar).not.toBeNull()
+      expect(errConfirmar?.message).toMatch(/module-disabled/)
+    })
+
+    it('REQ-MODOP-05 N5 (c): insert directo en item_producto con tipo consignacion sin paquete levanta module-disabled', async () => {
+      const tenant = await createTenantWithUser('modop-05-n5-ins')
+
+      const { data: cat } = await serviceRole
+        .from('categoria')
+        .insert({ id_tenant: tenant.tenantId, nombre: 'Cat Directo Ins' })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await serviceRole
+        .from('producto')
+        .insert({ id_tenant: tenant.tenantId, id_categoria: cat!.id_categoria, nombre: 'Prod Directo Ins' })
+        .select('id_producto')
+        .single()
+
+      const { error } = await serviceRole.from('item_producto').insert({
+        id_tenant: tenant.tenantId,
+        id_producto: prod!.id_producto,
+        tipo_ingreso: 'consignacion',
+        estado_item: 'disponible',
+        costo_ingreso: 1200,
+        qr_code: `TEST-QR-N5-INS-${Date.now()}`,
+      })
+
+      expect(error).not.toBeNull()
+      expect(error?.message).toMatch(/module-disabled/)
     })
   })
 
