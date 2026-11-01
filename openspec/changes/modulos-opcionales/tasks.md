@@ -56,9 +56,9 @@ el siguiente número libre (hoy `00122`).
 
 ## PR 6 — App: puntos de extensión restantes
 
-- [ ] Ficha de proveedor: KPIs y tablas de consignación/rendición por capacidad
-- [ ] Reportes: `BloqueMercaderia`, `BloqueMovimientoPlata`, bloque Proveedores en `lib/reportes/bloques.ts`
-- [ ] `PermisosEditor` / `RolesModal`: módulos por capacidad; rol "Revendedora" oculto sin el opcional
-- [ ] Schemas de rol desde capacidades (REQ-MODOP-09 N1)
-- [ ] `docs/modulos.md`: núcleo, opcionales y paquetes
+- [x] Ficha de proveedor: KPIs y tablas de consignación/rendición por capacidad
+- [x] Reportes: `BloqueMercaderia`, `BloqueMovimientoPlata`, bloque Proveedores en `lib/reportes/bloques.ts`
+- [x] `PermisosEditor` / `RolesModal`: módulos por capacidad; rol "Revendedora" oculto sin el opcional
+- [x] Schemas de rol desde capacidades (REQ-MODOP-09 N1)
+- [x] `docs/modulos.md`: núcleo, opcionales y paquetes
 - [ ] e2e: tenant sin opcionales recorre Ingresos, Proveedores, Reportes y Roles

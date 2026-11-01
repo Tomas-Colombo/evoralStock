@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { verifySession, type Session } from '@/lib/dal/session'
+import { capacidades } from '@/lib/modulos/capacidades'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -27,7 +28,7 @@ export default async function RevendedoraLayout({
   }
 
   // Módulo apagado: pantalla clara sin 500
-  const moduloHabilitado = session.modulosHabilitados.includes('revendedoras')
+  const moduloHabilitado = capacidades(session.modulosHabilitados).revendedoras
   if (!moduloHabilitado) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-bg text-text text-center">

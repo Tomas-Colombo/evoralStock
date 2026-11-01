@@ -11,6 +11,7 @@ import {
   cambiarPasswordSchema,
 } from './administracion'
 import { LOGO_MAX_BYTES } from '@/lib/tenant/logo'
+import { MODULOS_NUCLEO } from '@/lib/modulos/catalogo'
 
 const UUID = '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
 
@@ -74,22 +75,22 @@ describe('permisosSchema', () => {
 
 describe('createRolSchema', () => {
   it('recorta el nombre y mide el mínimo sobre lo recortado', () => {
-    const r = createRolSchema.safeParse({ nombre: '  Vendedora  ', permisos: {} })
+    const r = createRolSchema().safeParse({ nombre: '  Vendedora  ', permisos: {} })
     expect(r.success && r.data.nombre).toBe('Vendedora')
-    expect(createRolSchema.safeParse({ nombre: '  a  ', permisos: {} }).success).toBe(false)
+    expect(createRolSchema().safeParse({ nombre: '  a  ', permisos: {} }).success).toBe(false)
   })
 
   it('rechaza un nombre demasiado largo', () => {
-    const r = createRolSchema.safeParse({ nombre: 'x'.repeat(61), permisos: {} })
+    const r = createRolSchema().safeParse({ nombre: 'x'.repeat(61), permisos: {} })
     expect(r.success).toBe(false)
   })
 
   it('rechaza un nombre que no es string', () => {
-    expect(createRolSchema.safeParse({ nombre: 42, permisos: {} }).success).toBe(false)
+    expect(createRolSchema().safeParse({ nombre: 42, permisos: {} }).success).toBe(false)
   })
 
   it('rechaza campos de más en el payload', () => {
-    const r = createRolSchema.safeParse({
+    const r = createRolSchema().safeParse({
       nombre: 'Vendedora',
       permisos: {},
       id_tenant: 'otro-tenant',
@@ -98,7 +99,7 @@ describe('createRolSchema', () => {
   })
 
   it('exige permisos', () => {
-    expect(createRolSchema.safeParse({ nombre: 'Vendedora' }).success).toBe(false)
+    expect(createRolSchema().safeParse({ nombre: 'Vendedora' }).success).toBe(false)
   })
 })
 
@@ -107,12 +108,12 @@ describe('updateRolSchema / deleteRolSchema', () => {
     expect(deleteRolSchema.safeParse({ idRol: UUID }).success).toBe(true)
     expect(deleteRolSchema.safeParse({ idRol: 'no-soy-un-uuid' }).success).toBe(false)
     expect(
-      updateRolSchema.safeParse({ idRol: '1', nombre: 'Vendedora', permisos: {} }).success,
+      updateRolSchema().safeParse({ idRol: '1', nombre: 'Vendedora', permisos: {} }).success,
     ).toBe(false)
   })
 
   it('aceptan un payload completo', () => {
-    const r = updateRolSchema.safeParse({
+    const r = updateRolSchema().safeParse({
       idRol: UUID,
       nombre: 'Vendedora',
       permisos: { ventas: ['ver', 'crear'] },
@@ -251,11 +252,11 @@ describe('reasons estables', () => {
   })
 
   it('los errores del payload también son slugs', () => {
-    const extra = createRolSchema.safeParse({ nombre: 'Vendedora', permisos: {}, x: 1 })
+    const extra = createRolSchema().safeParse({ nombre: 'Vendedora', permisos: {}, x: 1 })
     expect(extra.success).toBe(false)
     if (!extra.success) expect(primerReason(extra.error)).toBe('campo-desconocido')
 
-    const corto = createRolSchema.safeParse({ nombre: 'a', permisos: {} })
+    const corto = createRolSchema().safeParse({ nombre: 'a', permisos: {} })
     expect(corto.success).toBe(false)
     if (!corto.success) expect(primerReason(corto.error)).toBe('nombre-corto (nombre)')
 
@@ -267,10 +268,33 @@ describe('reasons estables', () => {
 
 describe('payloads que no son objetos', () => {
   it('caen en payload-invalido, no en campo-desconocido', () => {
-    for (const schema of [createRolSchema, updateRolSchema, deleteRolSchema, updateConfiguracionQrSchema, updateTenantLogoSchema, cambiarPasswordSchema]) {
+    for (const schema of [createRolSchema(), updateRolSchema(), deleteRolSchema, updateConfiguracionQrSchema, updateTenantLogoSchema, cambiarPasswordSchema]) {
       const r = schema.safeParse(null)
       expect(r.success).toBe(false)
       if (!r.success) expect(primerReason(r.error)).toBe('payload-invalido')
+    }
+  })
+})
+
+describe('REQ-MODOP-09: schemas de rol con módulos visibles', () => {
+  it('REQ-MODOP-09 Feliz: solo núcleo → acepta', () => {
+    const schema = createRolSchema(MODULOS_NUCLEO)
+    const res = schema.safeParse({
+      nombre: 'Vendedora',
+      permisos: { ventas: ['ver', 'crear'] },
+    })
+    expect(res.success).toBe(true)
+  })
+
+  it('REQ-MODOP-09 N1: permisos de un módulo no visible → rechazo', () => {
+    const schema = createRolSchema(MODULOS_NUCLEO)
+    const res = schema.safeParse({
+      nombre: 'Vendedora',
+      permisos: { revendedoras: ['ver'] },
+    })
+    expect(res.success).toBe(false)
+    if (!res.success) {
+      expect(primerReason(res.error)).toBe('modulo-desconocido')
     }
   })
 })

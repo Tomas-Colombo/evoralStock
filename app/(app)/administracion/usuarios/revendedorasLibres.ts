@@ -1,5 +1,6 @@
 import { listarRevendedoras } from '@/lib/dal/revendedoras'
 import type { Session } from '@/lib/dal/session'
+import { capacidades } from '@/lib/modulos/capacidades'
 
 export interface RevendedoraLibre {
   id_revendedora: string
@@ -19,7 +20,7 @@ export interface RevendedoraLibre {
  * llevaba datos de la revendedora que la pantalla no necesita.
  */
 export async function getRevendedorasLibres(session: Session): Promise<RevendedoraLibre[]> {
-  if (!session.modulosHabilitados.includes('revendedoras')) {
+  if (!capacidades(session.modulosHabilitados).revendedoras) {
     return []
   }
   const allRevs = await listarRevendedoras(session)

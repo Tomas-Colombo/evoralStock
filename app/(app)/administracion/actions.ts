@@ -6,6 +6,7 @@ import { requireModuleRole } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { createServerClient } from '@/lib/dal/supabase'
 import {
+  getRol,
   inviteUsuario,
   spAsignarRol,
   spCreateRol,
@@ -27,17 +28,19 @@ import {
   cambiarPasswordSchema,
 } from '@/lib/validation/administracion'
 import type { UsuarioEstado } from '@/lib/types/administracion'
+import { Session } from '@/lib/dal/session'
+import { capacidades, modulosDePermisoVisibles } from '@/lib/modulos/capacidades'
 
 type ActionResult<T = unknown> = { ok: true; data?: T } | { ok: false; reason: string }
 type Guarded =
-  | { ok: true; tenantId: string; userId: string }
+  | { ok: true; session: Session; tenantId: string; userId: string }
   | { ok: false; error: string }
 
 async function guarded(accion: string): Promise<Guarded> {
   try {
     const session = await verifySession()
     await requireModuleRole(session, 'administracion', accion)
-    return { ok: true, tenantId: session.tenantId, userId: session.user.id }
+    return { ok: true, session, tenantId: session.tenantId, userId: session.user.id }
   } catch (e) {
     if (e instanceof AuthorizationError) return { ok: false, error: e.reason }
     throw e
@@ -112,7 +115,9 @@ export async function createRolAction(input: {
   const g = await guarded('crear')
   if (!g.ok) return { ok: false, reason: g.error }
 
-  const parsed = createRolSchema.safeParse(input)
+  const cap = capacidades(g.session.modulosHabilitados)
+  const modulosVisibles = modulosDePermisoVisibles(cap)
+  const parsed = createRolSchema(modulosVisibles).safeParse(input)
   if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
 
   try {
@@ -135,14 +140,34 @@ export async function updateRolAction(input: {
   const g = await guarded('editar')
   if (!g.ok) return { ok: false, reason: g.error }
 
-  const parsed = updateRolSchema.safeParse(input)
+  const cap = capacidades(g.session.modulosHabilitados)
+  const modulosVisibles = modulosDePermisoVisibles(cap)
+  const parsed = updateRolSchema(modulosVisibles).safeParse(input)
   if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
 
   try {
+    // Si el rol ya tenía permisos guardados de módulos hoy apagados (no visibles),
+    // los preservamos para no borrarlos al editar el rol. Al reactivar el módulo,
+    // el tenant recuperará esos permisos intactos (REQ-MODOP-09).
+    const rolActual = await getRol(parsed.data.idRol)
+    const permisosPreservados: Record<string, string[]> = {}
+    if (rolActual?.permisos) {
+      for (const [mod, acc] of Object.entries(rolActual.permisos)) {
+        if (!modulosVisibles.includes(mod)) {
+          permisosPreservados[mod] = acc
+        }
+      }
+    }
+
+    const permisosFinales = {
+      ...permisosPreservados,
+      ...parsed.data.permisos,
+    }
+
     await spUpdateRol({
       idRol: parsed.data.idRol,
       nombre: parsed.data.nombre,
-      permisos: compactarPermisos(parsed.data.permisos),
+      permisos: compactarPermisos(permisosFinales),
     })
     revalidatePath('/administracion')
     return { ok: true }

@@ -29,7 +29,13 @@ type Vista = { kind: 'lista' } | { kind: 'form'; rol: RolRow | null }
  * Los datos llegan del server component (`listRoles()`), así que después de
  * cada mutación alcanza con `router.refresh()` para re-hidratar el listado.
  */
-export function RolesModal({ roles }: { roles: RolRow[] }) {
+export function RolesModal({
+  roles,
+  modulosVisibles,
+}: {
+  roles: RolRow[]
+  modulosVisibles: string[]
+}) {
   const router = useRouter()
   const toast = useToast()
   const [pending, start] = useTransition()
@@ -111,6 +117,7 @@ export function RolesModal({ roles }: { roles: RolRow[] }) {
           <RolForm
             key={vista.rol?.id_rol ?? 'nuevo'}
             rol={vista.rol}
+            modulosVisibles={modulosVisibles}
             pending={pending}
             onSubmit={(nombre, permisos) => {
               start(async () => {
@@ -132,6 +139,7 @@ export function RolesModal({ roles }: { roles: RolRow[] }) {
         ) : (
           <ListaRoles
             roles={roles}
+            modulosVisibles={modulosVisibles}
             pending={pending}
             onNuevo={() => setVista({ kind: 'form', rol: null })}
             onEditar={(rol) => setVista({ kind: 'form', rol })}
@@ -160,12 +168,14 @@ export function RolesModal({ roles }: { roles: RolRow[] }) {
 
 function ListaRoles({
   roles,
+  modulosVisibles,
   pending,
   onNuevo,
   onEditar,
   onEliminar,
 }: {
   roles: RolRow[]
+  modulosVisibles: string[]
   pending: boolean
   onNuevo: () => void
   onEditar: (rol: RolRow) => void
@@ -204,7 +214,7 @@ function ListaRoles({
             </div>
           </div>
           <div className="grid grid-cols-1 gap-1 text-xs">
-            {Object.keys(CATALOGO_PERMISOS).map((mod) => {
+            {modulosVisibles.map((mod) => {
               const acciones = r.permisos?.[mod] ?? []
               return (
                 <div key={mod} className="flex items-baseline gap-2">
@@ -230,10 +240,12 @@ function ListaRoles({
 
 function RolForm({
   rol,
+  modulosVisibles,
   pending,
   onSubmit,
 }: {
   rol: RolRow | null
+  modulosVisibles: string[]
   pending: boolean
   onSubmit: (nombre: string, permisos: Record<string, string[]>) => void
 }) {
@@ -245,7 +257,15 @@ function RolForm({
     e.preventDefault()
     if (nombre.trim().length < 2) return setErr('Nombre muy corto')
     setErr(null)
-    onSubmit(nombre.trim(), permisos)
+    // Se mandan solo las claves de los módulos visibles para que el schema
+    // las acepte; las claves de módulos apagados se preservan en updateRolAction (REQ-MODOP-09).
+    const permisosVisibles: Record<string, string[]> = {}
+    for (const mod of modulosVisibles) {
+      if (permisos[mod] && permisos[mod].length > 0) {
+        permisosVisibles[mod] = permisos[mod]
+      }
+    }
+    onSubmit(nombre.trim(), permisosVisibles)
   }
 
   return (
@@ -264,7 +284,12 @@ function RolForm({
 
       <div>
         <h3 className="font-display text-lg mb-2">Permisos</h3>
-        <PermisosEditor value={permisos} onChange={setPermisos} disabled={rol?.nombre === 'Revendedora'} />
+        <PermisosEditor
+          value={permisos}
+          onChange={setPermisos}
+          disabled={rol?.nombre === 'Revendedora'}
+          modulosVisibles={modulosVisibles}
+        />
       </div>
     </form>
   )

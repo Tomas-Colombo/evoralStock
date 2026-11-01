@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Topbar } from '@/components/shell/Topbar'
 import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
+import { capacidades, modulosDePermisoVisibles } from '@/lib/modulos/capacidades'
 import {
   getConfiguracionQrLadoMm,
   listAuditoria,
@@ -29,6 +30,8 @@ function cardLink(c: { href: string; label: string; value: string }) {
 
 export default async function AdministracionHome() {
   const session = await verifySession()
+  const cap = capacidades(session.modulosHabilitados)
+  const modulosVisibles = modulosDePermisoVisibles(cap)
   const [usuarios, roles, ultimasAcciones, ladoMm] = await Promise.all([
     listUsuarios(),
     listRoles(),
@@ -51,7 +54,10 @@ export default async function AdministracionHome() {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {cards.slice(0, 1).map(cardLink)}
-          <RolesModal roles={roles} />
+          <RolesModal
+            roles={cap.revendedoras ? roles : roles.filter((r) => r.nombre !== 'Revendedora')}
+            modulosVisibles={modulosVisibles}
+          />
           {cards.slice(1).map(cardLink)}
         </section>
 

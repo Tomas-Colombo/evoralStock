@@ -33,22 +33,30 @@ import { LOGO_MAX_BYTES, LOGO_MIME } from '@/lib/tenant/logo'
  *
  * Un rol sin permisos (`{}`) es válido: se crea el rol y se le dan después.
  */
-const permisosShape = Object.fromEntries(
-  Object.entries(CATALOGO_PERMISOS).map(([modulo, acciones]) => [
-    modulo,
-    z
-      .array(z.enum(acciones, 'accion-invalida'), 'permisos-no-array')
-      // Duplicados no rompen nada al leer, pero el JSON se guarda tal cual
-      // viene y queda sucio para siempre. Se rechazan en la puerta.
-      .refine((as) => new Set(as).size === as.length, 'acciones-duplicadas')
-      .optional(),
-  ]),
-)
+export function createPermisosSchema(modulosVisibles?: readonly string[]) {
+  const permitidos = modulosVisibles
+    ? Object.entries(CATALOGO_PERMISOS).filter(([modulo]) => modulosVisibles.includes(modulo))
+    : Object.entries(CATALOGO_PERMISOS)
 
-export const permisosSchema = z.strictObject(permisosShape, {
-  error: (issue) =>
-    issue.code === 'unrecognized_keys' ? 'modulo-desconocido' : 'permisos-no-objeto',
-})
+  const permisosShape = Object.fromEntries(
+    permitidos.map(([modulo, acciones]) => [
+      modulo,
+      z
+        .array(z.enum(acciones, 'accion-invalida'), 'permisos-no-array')
+        // Duplicados no rompen nada al leer, pero el JSON se guarda tal cual
+        // viene y queda sucio para siempre. Se rechazan en la puerta.
+        .refine((as) => new Set(as).size === as.length, 'acciones-duplicadas')
+        .optional(),
+    ]),
+  )
+
+  return z.strictObject(permisosShape, {
+    error: (issue) =>
+      issue.code === 'unrecognized_keys' ? 'modulo-desconocido' : 'permisos-no-objeto',
+  })
+}
+
+export const permisosSchema = createPermisosSchema()
 
 /**
  * `trim` va como `transform` explícito y los largos como `refine` posteriores:
@@ -66,15 +74,19 @@ const payloadParams = {
     issue.code === 'unrecognized_keys' ? 'campo-desconocido' : 'payload-invalido',
 }
 
-export const createRolSchema = z.strictObject(
-  { nombre: nombreRolSchema, permisos: permisosSchema },
-  payloadParams,
-)
+export function createRolSchema(modulosVisibles?: readonly string[]) {
+  return z.strictObject(
+    { nombre: nombreRolSchema, permisos: createPermisosSchema(modulosVisibles) },
+    payloadParams,
+  )
+}
 
-export const updateRolSchema = z.strictObject(
-  { idRol: z.uuid('id-rol-invalido'), nombre: nombreRolSchema, permisos: permisosSchema },
-  payloadParams,
-)
+export function updateRolSchema(modulosVisibles?: readonly string[]) {
+  return z.strictObject(
+    { idRol: z.uuid('id-rol-invalido'), nombre: nombreRolSchema, permisos: createPermisosSchema(modulosVisibles) },
+    payloadParams,
+  )
+}
 
 export const deleteRolSchema = z.strictObject(
   { idRol: z.uuid('id-rol-invalido') },

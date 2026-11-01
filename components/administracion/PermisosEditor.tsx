@@ -12,11 +12,16 @@ export function PermisosEditor({
   value,
   onChange,
   disabled,
+  modulosVisibles,
 }: {
   value: Record<string, string[]>
   onChange: (v: Record<string, string[]>) => void
   disabled?: boolean
+  modulosVisibles?: string[]
 }) {
+  const modulos = modulosVisibles
+    ? Object.entries(CATALOGO_PERMISOS).filter(([mod]) => modulosVisibles.includes(mod))
+    : Object.entries(CATALOGO_PERMISOS)
   function toggle(modulo: string, accion: string, on: boolean) {
     if (disabled) return
     const current = value[modulo] ?? []
@@ -38,7 +43,7 @@ export function PermisosEditor({
           <Th align="center">Eliminar</Th>
         </THead>
         <TBody>
-          {Object.entries(CATALOGO_PERMISOS).map(([mod, acciones]) => {
+          {modulos.map(([mod, acciones]) => {
             const activas = value[mod] ?? []
             return (
               <Tr key={mod}>
