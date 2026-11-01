@@ -47,12 +47,23 @@ describe('bloquesVisibles', () => {
     const session = {
       rolId: '123',
       tenantId: '123',
-      modulosHabilitados: ['rendiciones'],
+      modulosHabilitados: ['consignaciones', 'rendiciones'],
       permisos: { rendiciones: ['ver'] }
     } as unknown as Session
     const bloques = bloquesVisibles(session)
     expect(bloques).toContain('proveedores')
     expect(bloques).not.toContain('mercaderia')
+  })
+
+  it('REQ-MODOP-08 N1: rol con rendiciones:ver en tenant sin el paquete → sin proveedores', () => {
+    const session = {
+      rolId: '123',
+      tenantId: '123',
+      modulosHabilitados: ['rendiciones'],
+      permisos: { rendiciones: ['ver'] },
+    } as unknown as Session
+    const bloques = bloquesVisibles(session)
+    expect(bloques).not.toContain('proveedores')
   })
 
   it('retorna bloques de revendedoras si tiene acceso', () => {

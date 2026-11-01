@@ -10,12 +10,13 @@ function formatMoney(value: number | null | undefined) {
 
 interface BloqueMercaderiaProps {
   posicion: FinanzasPosicion
+  tieneConsignacion?: boolean
 }
 
-export function BloqueMercaderia({ posicion }: BloqueMercaderiaProps) {
+export function BloqueMercaderia({ posicion, tieneConsignacion = false }: BloqueMercaderiaProps) {
   const tieneSinPrecio = posicion.productos_sin_precio > 0
   const capital = posicion.capital_propio ?? 0
-  const consignacion = posicion.mercaderia_terceros ?? 0
+  const consignacion = tieneConsignacion ? (posicion.mercaderia_terceros ?? 0) : 0
 
   return (
     <Card as="section" padding="none" aria-labelledby="h2-mercaderia" className="overflow-hidden h-full flex flex-col">
@@ -32,16 +33,18 @@ export function BloqueMercaderia({ posicion }: BloqueMercaderiaProps) {
           </p>
         </div>
         
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className={`grid ${tieneConsignacion ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
           <div className="bg-panel-2 p-3 rounded-lg border border-border">
             <p className="text-xs text-muted mb-1">Capital propio</p>
             <p className="font-medium tabular-nums text-ink">{formatMoney(capital)}</p>
           </div>
           
-          <div className="bg-panel-2 p-3 rounded-lg border border-border">
-            <p className="text-xs text-muted mb-1">Mercadería de terceros</p>
-            <p className="font-medium tabular-nums text-ink">{formatMoney(consignacion)}</p>
-          </div>
+          {tieneConsignacion && (
+            <div className="bg-panel-2 p-3 rounded-lg border border-border">
+              <p className="text-xs text-muted mb-1">Mercadería de terceros</p>
+              <p className="font-medium tabular-nums text-ink">{formatMoney(consignacion)}</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-panel p-3 rounded-lg border border-border mt-auto">

@@ -4,6 +4,7 @@ import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { Kpi } from '@/components/ui/Kpi'
 import { verifySession } from '@/lib/dal/session'
+import { capacidades } from '@/lib/modulos/capacidades'
 import {
   getPerfilProveedorPorId,
   getProveedor,
@@ -33,6 +34,7 @@ export default async function ProveedorPerfilPage(props: {
   }>
 }) {
   const session = await verifySession()
+  const cap = capacidades(session.modulosHabilitados)
   const { id } = await props.params
   const sp = await props.searchParams
 
@@ -40,10 +42,10 @@ export default async function ProveedorPerfilPage(props: {
   if (!proveedor) notFound()
 
   const [perfil, ingresosAll, consignacionesAll, rendicionesAll] = await Promise.all([
-    getPerfilProveedorPorId(id),
+    cap.consignacionProveedor ? getPerfilProveedorPorId(id) : null,
     listIngresosDeProveedor(id),
-    listConsignaciones({ idProveedor: id }),
-    listRendiciones({ idProveedor: id }),
+    cap.consignacionProveedor ? listConsignaciones({ idProveedor: id }) : Promise.resolve([]),
+    cap.consignacionProveedor ? listRendiciones({ idProveedor: id }) : Promise.resolve([]),
   ])
 
   // Filtro de fechas compartido (vacío = sin filtro). El input <input type="date">
@@ -107,7 +109,7 @@ export default async function ProveedorPerfilPage(props: {
             <BajaProveedorButton
               id={proveedor.id_proveedor}
               activo={proveedor.activo}
-              tieneDeudaPendiente={perfil.monto_pendiente_rendicion > 0}
+              tieneDeudaPendiente={Boolean(perfil && perfil.monto_pendiente_rendicion > 0)}
             />
           </header>
 
@@ -150,7 +152,8 @@ export default async function ProveedorPerfilPage(props: {
         </Card>
 
         {/* ─── Deuda y contadores ──────────────────────── */}
-        <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        {cap.consignacionProveedor && perfil && (
+          <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <Kpi
             label="Deuda total"
             value={fmtMoney(perfil.deuda_total_consignacion)}
@@ -182,6 +185,8 @@ export default async function ProveedorPerfilPage(props: {
             value={perfil.consignaciones_activas.toString()}
           />
         </section>
+
+        )}
 
         {/* ─── Filtro de período compartido ────────────── */}
         <PerfilPeriodoForm id={id} desde={sp.desde ?? ''} hasta={sp.hasta ?? ''} />
@@ -251,6 +256,7 @@ export default async function ProveedorPerfilPage(props: {
         </section>
 
         {/* ─── Consignaciones ─────────────────────────── */}
+        {cap.consignacionProveedor && (
         <section className="space-y-2">
           <TableFrame>
             <div className="border-b border-border px-4 py-3 flex items-baseline justify-between">
@@ -312,7 +318,10 @@ export default async function ProveedorPerfilPage(props: {
           />
         </section>
 
+        )}
+
         {/* ─── Rendiciones ────────────────────────────── */}
+        {cap.consignacionProveedor && (
         <section className="space-y-2">
           <TableFrame>
             <div className="border-b border-border px-4 py-3 flex items-baseline justify-between">
@@ -377,6 +386,7 @@ export default async function ProveedorPerfilPage(props: {
             total={rendicionesFiltradas.length}
           />
         </section>
+        )}
       </main>
     </>
   )

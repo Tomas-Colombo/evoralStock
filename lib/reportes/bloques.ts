@@ -1,5 +1,6 @@
 import { Session } from '../dal/session'
 import { hasModuleAccess } from '../dal/guard'
+import { capacidades } from '../modulos/capacidades'
 
 export type TipoBloqueFinanzas =
   | 'resultados'
@@ -16,6 +17,7 @@ export type TipoBloqueFinanzas =
  * REQ-APP-04: Mapeo de bloques a módulos y permisos requeridos para verlos
  */
 export function bloquesVisibles(session: Session): TipoBloqueFinanzas[] {
+  const cap = capacidades(session.modulosHabilitados)
   const visibles: TipoBloqueFinanzas[] = []
 
   // - resultados/flujo/serie/cobrar → módulo ventas
@@ -33,8 +35,8 @@ export function bloquesVisibles(session: Session): TipoBloqueFinanzas[] {
     visibles.push('mercaderia', 'ranking')
   }
 
-  // - proveedores → módulo rendiciones
-  if (hasModuleAccess(session, 'rendiciones', 'ver')) {
+  // - proveedores → capacidad consignacionProveedor y permiso rendiciones (REQ-MODOP-08)
+  if (cap.consignacionProveedor && hasModuleAccess(session, 'rendiciones', 'ver')) {
     visibles.push('proveedores')
   }
 

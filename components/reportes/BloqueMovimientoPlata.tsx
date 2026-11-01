@@ -13,9 +13,14 @@ function formatMoney(value: number | null | undefined) {
 interface BloqueMovimientoPlataProps {
   flujo: FinanzasFlujoRow
   tieneGastos: boolean
+  tieneConsignacion?: boolean
 }
 
-export function BloqueMovimientoPlata({ flujo, tieneGastos }: BloqueMovimientoPlataProps) {
+export function BloqueMovimientoPlata({
+  flujo,
+  tieneGastos,
+  tieneConsignacion = false,
+}: BloqueMovimientoPlataProps) {
   const porAcreditarList = Object.entries(flujo.por_acreditar ?? {})
     .map(([cuenta, monto]) => ({ cuenta, monto }))
     .filter(x => x.monto > 0)
@@ -64,13 +69,15 @@ export function BloqueMovimientoPlata({ flujo, tieneGastos }: BloqueMovimientoPl
                 {flujo.compras_mercaderia > 0 ? '-' : ''}{formatMoney(flujo.compras_mercaderia)}
               </Td>
             </Tr>
-            <Tr>
-              <Td className="text-ink">Pagos a proveedores</Td>
-              <Td className="text-muted hidden sm:table-cell">Rendiciones pagadas</Td>
-              <Td align="right">
-                {flujo.pagos_proveedores > 0 ? '-' : ''}{formatMoney(flujo.pagos_proveedores)}
-              </Td>
-            </Tr>
+            {tieneConsignacion && (
+              <Tr>
+                <Td className="text-ink">Pagos a proveedores</Td>
+                <Td className="text-muted hidden sm:table-cell">Rendiciones pagadas</Td>
+                <Td align="right">
+                  {flujo.pagos_proveedores > 0 ? '-' : ''}{formatMoney(flujo.pagos_proveedores)}
+                </Td>
+              </Tr>
+            )}
             {tieneGastos && (
               <Tr>
                 <Td className="text-ink">Gastos operativos</Td>

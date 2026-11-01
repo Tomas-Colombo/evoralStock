@@ -53,9 +53,13 @@ describe('Componentes de Reportes (Bloques 1-5)', () => {
   })
 
   it('renderiza BloqueMovimientoPlata', () => {
-    render(<BloqueMovimientoPlata flujo={mockFlujo} tieneGastos={true} />)
+    const { rerender } = render(<BloqueMovimientoPlata flujo={mockFlujo} tieneGastos={true} tieneConsignacion={false} />)
     expect(screen.getByText('Movimiento de plata')).toBeDefined()
     expect(screen.getByText('MercadoPago')).toBeDefined()
+    expect(screen.queryByText('Pagos a proveedores')).toBeNull()
+
+    rerender(<BloqueMovimientoPlata flujo={mockFlujo} tieneGastos={true} tieneConsignacion={true} />)
+    expect(screen.getByText('Pagos a proveedores')).toBeDefined()
   })
 
   it('renderiza GraficoTendencia (estado vacío si no hay serie)', () => {
@@ -114,9 +118,13 @@ describe('Componentes de Reportes (Bloques 6-9)', () => {
   })
 
   it('renderiza BloqueMercaderia', () => {
-    render(<BloqueMercaderia posicion={mockPosicion} />)
+    const { rerender } = render(<BloqueMercaderia posicion={mockPosicion} tieneConsignacion={false} />)
     expect(screen.getByText('Tu stock hoy')).toBeDefined()
     expect(screen.getByText('3 productos sin precio')).toBeDefined()
+    expect(screen.queryByText('Mercadería de terceros')).toBeNull()
+
+    rerender(<BloqueMercaderia posicion={mockPosicion} tieneConsignacion={true} />)
+    expect(screen.getByText('Mercadería de terceros')).toBeDefined()
   })
 
   it('renderiza BloqueProveedores', () => {

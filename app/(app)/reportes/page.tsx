@@ -1,5 +1,7 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
+import { capacidades } from '@/lib/modulos/capacidades'
+import { bloquesVisibles } from '@/lib/reportes/bloques'
 import { hasModuleAccess } from '@/lib/dal/guard'
 import {
   getContextoPeriodo,
@@ -59,7 +61,9 @@ export default async function ReportesPage(props: {
   const puedeVerInventario = hasModuleAccess(session, 'inventario', 'ver')
   const puedeVerRevendedoras = hasModuleAccess(session, 'revendedoras', 'ver')
   const tieneGastos = session.modulosHabilitados.includes('gastos')
-  const tieneRendiciones = session.modulosHabilitados.includes('rendiciones')
+  const cap = capacidades(session.modulosHabilitados)
+  const bloques = bloquesVisibles(session)
+  const puedeVerProveedores = bloques.includes('proveedores')
   const idRevendedora = parsed.success ? parsed.data.id_revendedora : undefined
 
   // Las funciones rf_finanzas_* reciben fechas y tratan `hasta` como inclusivo:
@@ -123,7 +127,7 @@ export default async function ReportesPage(props: {
           )}
 
           {flujoReq.ok ? (
-            <BloqueMovimientoPlata flujo={flujoReq.data!} tieneGastos={tieneGastos} />
+            <BloqueMovimientoPlata flujo={flujoReq.data!} tieneGastos={tieneGastos} tieneConsignacion={cap.consignacionProveedor} />
           ) : (
             <BloqueError />
           )}
@@ -149,7 +153,7 @@ export default async function ReportesPage(props: {
           {puedeVerInventario && (
             posicionReq.ok ? (
               <div className="md:col-span-1 xl:col-span-1">
-                <BloqueMercaderia posicion={posicionReq.data!} />
+                <BloqueMercaderia posicion={posicionReq.data!} tieneConsignacion={cap.consignacionProveedor} />
               </div>
             ) : (
               <div className="md:col-span-1 xl:col-span-1">
@@ -158,7 +162,7 @@ export default async function ReportesPage(props: {
             )
           )}
 
-          {tieneRendiciones && (
+          {puedeVerProveedores && (
             posicionReq.ok ? (
               <div className="md:col-span-1 xl:col-span-1">
                 <BloqueProveedores posicion={posicionReq.data!} />
