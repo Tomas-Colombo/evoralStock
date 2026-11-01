@@ -1,21 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
   compactarPermisos,
+  createPermisosSchema,
   createRolSchema,
   deleteRolSchema,
-  permisosSchema,
   primerReason,
   updateConfiguracionQrSchema,
   updateRolSchema,
   updateTenantLogoSchema,
   cambiarPasswordSchema,
 } from './administracion'
+import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 import { LOGO_MAX_BYTES } from '@/lib/tenant/logo'
 import { MODULOS_NUCLEO } from '@/lib/modulos/catalogo'
 
 const UUID = '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+const MODULOS_TODOS = Object.keys(CATALOGO_PERMISOS)
 
-describe('permisosSchema', () => {
+describe('createPermisosSchema', () => {
+  const permisosSchema = createPermisosSchema(MODULOS_TODOS)
   it('acepta un subconjunto de módulos', () => {
     const r = permisosSchema.safeParse({ inventario: ['ver', 'crear'], revendedoras: ['ver', 'crear'] })
     expect(r.success).toBe(true)
@@ -75,22 +78,22 @@ describe('permisosSchema', () => {
 
 describe('createRolSchema', () => {
   it('recorta el nombre y mide el mínimo sobre lo recortado', () => {
-    const r = createRolSchema().safeParse({ nombre: '  Vendedora  ', permisos: {} })
+    const r = createRolSchema(MODULOS_TODOS).safeParse({ nombre: '  Vendedora  ', permisos: {} })
     expect(r.success && r.data.nombre).toBe('Vendedora')
-    expect(createRolSchema().safeParse({ nombre: '  a  ', permisos: {} }).success).toBe(false)
+    expect(createRolSchema(MODULOS_TODOS).safeParse({ nombre: '  a  ', permisos: {} }).success).toBe(false)
   })
 
   it('rechaza un nombre demasiado largo', () => {
-    const r = createRolSchema().safeParse({ nombre: 'x'.repeat(61), permisos: {} })
+    const r = createRolSchema(MODULOS_TODOS).safeParse({ nombre: 'x'.repeat(61), permisos: {} })
     expect(r.success).toBe(false)
   })
 
   it('rechaza un nombre que no es string', () => {
-    expect(createRolSchema().safeParse({ nombre: 42, permisos: {} }).success).toBe(false)
+    expect(createRolSchema(MODULOS_TODOS).safeParse({ nombre: 42, permisos: {} }).success).toBe(false)
   })
 
   it('rechaza campos de más en el payload', () => {
-    const r = createRolSchema().safeParse({
+    const r = createRolSchema(MODULOS_TODOS).safeParse({
       nombre: 'Vendedora',
       permisos: {},
       id_tenant: 'otro-tenant',
@@ -99,7 +102,7 @@ describe('createRolSchema', () => {
   })
 
   it('exige permisos', () => {
-    expect(createRolSchema().safeParse({ nombre: 'Vendedora' }).success).toBe(false)
+    expect(createRolSchema(MODULOS_TODOS).safeParse({ nombre: 'Vendedora' }).success).toBe(false)
   })
 })
 
@@ -108,12 +111,12 @@ describe('updateRolSchema / deleteRolSchema', () => {
     expect(deleteRolSchema.safeParse({ idRol: UUID }).success).toBe(true)
     expect(deleteRolSchema.safeParse({ idRol: 'no-soy-un-uuid' }).success).toBe(false)
     expect(
-      updateRolSchema().safeParse({ idRol: '1', nombre: 'Vendedora', permisos: {} }).success,
+      updateRolSchema(MODULOS_TODOS).safeParse({ idRol: '1', nombre: 'Vendedora', permisos: {} }).success,
     ).toBe(false)
   })
 
   it('aceptan un payload completo', () => {
-    const r = updateRolSchema().safeParse({
+    const r = updateRolSchema(MODULOS_TODOS).safeParse({
       idRol: UUID,
       nombre: 'Vendedora',
       permisos: { ventas: ['ver', 'crear'] },
@@ -209,6 +212,7 @@ describe('cambiarPasswordSchema', () => {
 })
 
 describe('compactarPermisos', () => {
+  const permisosSchema = createPermisosSchema(MODULOS_TODOS)
   it('descarta los módulos ausentes en vez de dejarlos como undefined', () => {
     const parsed = permisosSchema.parse({ inventario: ['ver'] })
     const compacto = compactarPermisos(parsed)
@@ -221,6 +225,7 @@ describe('compactarPermisos', () => {
 })
 
 describe('primerReason', () => {
+  const permisosSchema = createPermisosSchema(MODULOS_TODOS)
   it('devuelve el mensaje con la ruta del campo', () => {
     const r = permisosSchema.safeParse({ ventas: ['eliminar'] })
     expect(r.success).toBe(false)
@@ -235,6 +240,7 @@ describe('primerReason', () => {
 })
 
 describe('reasons estables', () => {
+  const permisosSchema = createPermisosSchema(MODULOS_TODOS)
   // El `reason` viaja al cliente y `RolesModal` lo traduce por prefijo: si zod
   // devolviera su prosa en inglés, el toast la mostraría cruda.
   const casos: Array<[string, unknown, string]> = [
@@ -252,11 +258,11 @@ describe('reasons estables', () => {
   })
 
   it('los errores del payload también son slugs', () => {
-    const extra = createRolSchema().safeParse({ nombre: 'Vendedora', permisos: {}, x: 1 })
+    const extra = createRolSchema(MODULOS_TODOS).safeParse({ nombre: 'Vendedora', permisos: {}, x: 1 })
     expect(extra.success).toBe(false)
     if (!extra.success) expect(primerReason(extra.error)).toBe('campo-desconocido')
 
-    const corto = createRolSchema().safeParse({ nombre: 'a', permisos: {} })
+    const corto = createRolSchema(MODULOS_TODOS).safeParse({ nombre: 'a', permisos: {} })
     expect(corto.success).toBe(false)
     if (!corto.success) expect(primerReason(corto.error)).toBe('nombre-corto (nombre)')
 
@@ -268,7 +274,7 @@ describe('reasons estables', () => {
 
 describe('payloads que no son objetos', () => {
   it('caen en payload-invalido, no en campo-desconocido', () => {
-    for (const schema of [createRolSchema(), updateRolSchema(), deleteRolSchema, updateConfiguracionQrSchema, updateTenantLogoSchema, cambiarPasswordSchema]) {
+    for (const schema of [createRolSchema(MODULOS_TODOS), updateRolSchema(MODULOS_TODOS), deleteRolSchema, updateConfiguracionQrSchema, updateTenantLogoSchema, cambiarPasswordSchema]) {
       const r = schema.safeParse(null)
       expect(r.success).toBe(false)
       if (!r.success) expect(primerReason(r.error)).toBe('payload-invalido')

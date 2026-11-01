@@ -13,13 +13,13 @@ function formatMoney(value: number | null | undefined) {
 interface BloqueMovimientoPlataProps {
   flujo: FinanzasFlujoRow
   tieneGastos: boolean
-  tieneConsignacion?: boolean
+  tieneConsignacion: boolean
 }
 
 export function BloqueMovimientoPlata({
   flujo,
   tieneGastos,
-  tieneConsignacion = false,
+  tieneConsignacion,
 }: BloqueMovimientoPlataProps) {
   const porAcreditarList = Object.entries(flujo.por_acreditar ?? {})
     .map(([cuenta, monto]) => ({ cuenta, monto }))

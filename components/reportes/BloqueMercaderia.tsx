@@ -10,10 +10,10 @@ function formatMoney(value: number | null | undefined) {
 
 interface BloqueMercaderiaProps {
   posicion: FinanzasPosicion
-  tieneConsignacion?: boolean
+  tieneConsignacion: boolean
 }
 
-export function BloqueMercaderia({ posicion, tieneConsignacion = false }: BloqueMercaderiaProps) {
+export function BloqueMercaderia({ posicion, tieneConsignacion }: BloqueMercaderiaProps) {
   const tieneSinPrecio = posicion.productos_sin_precio > 0
   const capital = posicion.capital_propio ?? 0
   const consignacion = tieneConsignacion ? (posicion.mercaderia_terceros ?? 0) : 0

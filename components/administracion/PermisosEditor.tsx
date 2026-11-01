@@ -17,11 +17,11 @@ export function PermisosEditor({
   value: Record<string, string[]>
   onChange: (v: Record<string, string[]>) => void
   disabled?: boolean
-  modulosVisibles?: string[]
+  modulosVisibles: string[]
 }) {
-  const modulos = modulosVisibles
-    ? Object.entries(CATALOGO_PERMISOS).filter(([mod]) => modulosVisibles.includes(mod))
-    : Object.entries(CATALOGO_PERMISOS)
+  const modulos = Object.entries(CATALOGO_PERMISOS).filter(([mod]) =>
+    modulosVisibles.includes(mod),
+  )
   function toggle(modulo: string, accion: string, on: boolean) {
     if (disabled) return
     const current = value[modulo] ?? []

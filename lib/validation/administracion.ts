@@ -33,10 +33,10 @@ import { LOGO_MAX_BYTES, LOGO_MIME } from '@/lib/tenant/logo'
  *
  * Un rol sin permisos (`{}`) es válido: se crea el rol y se le dan después.
  */
-export function createPermisosSchema(modulosVisibles?: readonly string[]) {
-  const permitidos = modulosVisibles
-    ? Object.entries(CATALOGO_PERMISOS).filter(([modulo]) => modulosVisibles.includes(modulo))
-    : Object.entries(CATALOGO_PERMISOS)
+export function createPermisosSchema(modulosVisibles: readonly string[]) {
+  const permitidos = Object.entries(CATALOGO_PERMISOS).filter(([modulo]) =>
+    modulosVisibles.includes(modulo),
+  )
 
   const permisosShape = Object.fromEntries(
     permitidos.map(([modulo, acciones]) => [
@@ -56,8 +56,6 @@ export function createPermisosSchema(modulosVisibles?: readonly string[]) {
   })
 }
 
-export const permisosSchema = createPermisosSchema()
-
 /**
  * `trim` va como `transform` explícito y los largos como `refine` posteriores:
  * así el orden de evaluación es visible y el mínimo se mide sobre el nombre ya
@@ -74,14 +72,14 @@ const payloadParams = {
     issue.code === 'unrecognized_keys' ? 'campo-desconocido' : 'payload-invalido',
 }
 
-export function createRolSchema(modulosVisibles?: readonly string[]) {
+export function createRolSchema(modulosVisibles: readonly string[]) {
   return z.strictObject(
     { nombre: nombreRolSchema, permisos: createPermisosSchema(modulosVisibles) },
     payloadParams,
   )
 }
 
-export function updateRolSchema(modulosVisibles?: readonly string[]) {
+export function updateRolSchema(modulosVisibles: readonly string[]) {
   return z.strictObject(
     { idRol: z.uuid('id-rol-invalido'), nombre: nombreRolSchema, permisos: createPermisosSchema(modulosVisibles) },
     payloadParams,
@@ -149,7 +147,7 @@ export function primerReason(error: z.ZodError): string {
 }
 
 /** Permisos ya validados: sin claves desconocidas y sin acciones inventadas. */
-export type PermisosValidados = z.infer<typeof permisosSchema>
+export type PermisosValidados = z.infer<ReturnType<typeof createPermisosSchema>>
 
 /**
  * Las claves ausentes salen del parse como `undefined`. Si eso viajara al SP,
