@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // @ts-nocheck
 import { describe, expect, test } from 'vitest'
-import { ventaFixture, venderContado, venderFinanciado, PRECIO, COSTO } from './_fixtures-ventas'
+import { ventaFixture, venderContado, venderFinanciado, PRECIO, COSTO, habilitarPaqueteConsignacion } from './_fixtures-ventas'
 import { createTenantWithUser, signInAs } from './_helpers'
 
 describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
@@ -16,6 +16,7 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     const f = await ventaFixture('EscA', 1, { tipoIngreso: 'compra' }) // items[0] = compra (S1)
 
     // Crear más ítems para este tenant
+    await habilitarPaqueteConsignacion(f.tenantId, f.serviceRole)
     const { error: err2 } = await f.authenticated.rpc('sp_crear_stock_directo', {
       p_id_producto: f.idProducto,
       p_costo: COSTO,
@@ -125,6 +126,7 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     // Como todo afecta al mismo tenant y necesitamos replicar A,
     // crearemos todo en el mismo test.
     const f = await ventaFixture('EscB', 1, { tipoIngreso: 'compra' })
+    await habilitarPaqueteConsignacion(f.tenantId, f.serviceRole)
     await f.authenticated.rpc('sp_crear_stock_directo', {
       p_id_producto: f.idProducto,
       p_costo: COSTO,

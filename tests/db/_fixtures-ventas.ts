@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import {
   createTenantWithUser,
   signInAs,
@@ -31,6 +32,35 @@ export interface VentaFixture extends TenantFixture {
 export const PRECIO = 60_000
 export const COSTO = 20_000
 
+/**
+ * Habilita el paquete de consignaciones y rendiciones para un tenant vía service role.
+ * Requerido por la guarda de 00123 al crear o mutar stock con tipo_ingreso = 'consignacion'.
+ */
+export async function habilitarPaqueteConsignacion(
+  tenantIdOrFixture: string | { tenantId: string; serviceRole?: ReturnType<typeof createServiceRoleTestClient> },
+  client?: ReturnType<typeof createServiceRoleTestClient>,
+) {
+  const tenantId = typeof tenantIdOrFixture === 'string' ? tenantIdOrFixture : tenantIdOrFixture.tenantId
+  const sr = client ?? (typeof tenantIdOrFixture === 'object' && tenantIdOrFixture.serviceRole ? tenantIdOrFixture.serviceRole : createServiceRoleTestClient())
+  const { data: modulos, error: errMod } = await sr
+    .from('modulo')
+    .select('id_modulo, codigo')
+    .in('codigo', ['consignaciones', 'rendiciones'])
+  expect(errMod, 'lookup modulos consignaciones/rendiciones').toBeNull()
+  expect(modulos?.length).toBe(2)
+
+  const { error: errUpsert } = await sr.from('tenant_modulo').upsert(
+    modulos!.map((m) => ({
+      id_tenant: tenantId,
+      id_modulo: m.id_modulo,
+      habilitado: true,
+    })),
+  )
+  expect(errUpsert, 'habilitar consignaciones y rendiciones').toBeNull()
+}
+
+export const habilitarConsignaciones = habilitarPaqueteConsignacion
+
 export async function ventaFixture(
   prefix: string,
   cantidadItems = 1,
@@ -39,6 +69,10 @@ export async function ventaFixture(
   const user = await createTenantWithUser(prefix)
   const authenticated = await signInAs(user)
   const sr = user.serviceRole
+
+  if (opts.tipoIngreso === 'consignacion') {
+    await habilitarPaqueteConsignacion(user.tenantId, sr)
+  }
 
   const categoria = unwrapFixture(
     'categoria insert',
