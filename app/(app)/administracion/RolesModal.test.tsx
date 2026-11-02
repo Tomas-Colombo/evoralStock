@@ -12,7 +12,10 @@ it('RolesModal renderiza el módulo revendedoras', async () => {
   const user = userEvent.setup()
   render(
     <ToastProvider>
-      <RolesModal roles={[{ id_rol: '1', nombre: 'Admin', permisos: { revendedoras: ['ver'] }, id_tenant: 't', created_at: '', updated_at: '' }]} />
+      <RolesModal
+        roles={[{ id_rol: '1', nombre: 'Admin', permisos: { revendedoras: ['ver'] }, id_tenant: 't', created_at: '', updated_at: '' }]}
+        modulosVisibles={['revendedoras']}
+      />
     </ToastProvider>
   )
   

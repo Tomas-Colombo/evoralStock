@@ -300,7 +300,7 @@ describe('REQ-MODOP-09: schemas de rol con módulos visibles', () => {
     })
     expect(res.success).toBe(false)
     if (!res.success) {
-      expect(primerReason(res.error)).toBe('modulo-desconocido')
+      expect(primerReason(res.error)).toBe('modulo-desconocido (permisos)')
     }
   })
 })
