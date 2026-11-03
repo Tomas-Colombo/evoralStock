@@ -72,32 +72,35 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       // 3. Apagar ayuda como service-role (no debe fallar con modulo-con-estado-vivo)
       await deshabilitarAyuda(tenant.tenantId)
 
-      // 4. Si existe superadmin, verificar que sp_toggle_tenant_modulo_admin también alterna el paquete
+      // 4. Crear superadmin y verificar que sp_toggle_tenant_modulo_admin también alterna el paquete
       const emailSA = `${withScopedTenant('sa')}@utopia.test`
-      const { data: saUser } = await serviceRole.auth.admin.createUser({
+      const { data: saUser, error: saErr } = await serviceRole.auth.admin.createUser({
         email: emailSA,
         password: 'Password123!',
         email_confirm: true,
       })
-      if (saUser?.user) {
-        await serviceRole.from('superadmin').insert({ id_auth_user: saUser.user.id })
+      expect(saErr).toBeNull()
+      expect(saUser?.user).toBeDefined()
+      const saUserId = saUser!.user!.id
 
-        const { error: errToggleOn } = await serviceRole.rpc('sp_toggle_tenant_modulo_admin', {
-          p_id_tenant: tenant.tenantId,
-          p_paquete: 'ayuda',
-          p_habilitado: true,
-          p_actor: saUser.user.id,
-        })
-        expect(errToggleOn).toBeNull()
+      const { error: saInsertErr } = await serviceRole.from('superadmin').insert({ id_auth_user: saUserId })
+      expect(saInsertErr).toBeNull()
 
-        const { error: errToggleOff } = await serviceRole.rpc('sp_toggle_tenant_modulo_admin', {
-          p_id_tenant: tenant.tenantId,
-          p_paquete: 'ayuda',
-          p_habilitado: false,
-          p_actor: saUser.user.id,
-        })
-        expect(errToggleOff).toBeNull()
-      }
+      const { error: errToggleOn } = await serviceRole.rpc('sp_toggle_tenant_modulo_admin', {
+        p_id_tenant: tenant.tenantId,
+        p_paquete: 'ayuda',
+        p_habilitado: true,
+        p_actor: saUserId,
+      })
+      expect(errToggleOn).toBeNull()
+
+      const { error: errToggleOff } = await serviceRole.rpc('sp_toggle_tenant_modulo_admin', {
+        p_id_tenant: tenant.tenantId,
+        p_paquete: 'ayuda',
+        p_habilitado: false,
+        p_actor: saUserId,
+      })
+      expect(errToggleOff).toBeNull()
     })
 
     it('authenticated no puede escribir tenant_modulo de ayuda', async () => {
@@ -112,9 +115,12 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       })
       expect(errInsert).not.toBeNull()
 
+      // Habilitar ayuda con service-role para que la fila exista en tenant_modulo
+      await habilitarAyuda(tenant.tenantId)
+
       const { error: errUpdate } = await auth
         .from('tenant_modulo')
-        .update({ habilitado: true })
+        .update({ habilitado: false })
         .eq('id_tenant', tenant.tenantId)
         .eq('id_modulo', mod.id_modulo)
       expect(errUpdate).not.toBeNull()
@@ -447,13 +453,15 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       const user2 = await createUserInTenant(tenant.tenantId, tenant.rolId, 'ayuda-u2')
       const auth2 = await signInAs(user2)
 
-      const { data: idConsulta } = await auth1.rpc('sp_registrar_consulta_ayuda', {
+      const { data: idConsulta, error: errReg } = await auth1.rpc('sp_registrar_consulta_ayuda', {
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta de usuario 1',
         p_respuesta: 'Respuesta',
         p_entrada_id: 'ayuda-uso',
         p_resultado: 'respondida',
       })
+      expect(errReg).toBeNull()
+      expect(idConsulta).toEqual(expect.any(String))
 
       const { error } = await auth2.rpc('sp_calificar_consulta_ayuda', {
         p_id: idConsulta,
@@ -473,13 +481,15 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       const authA = await signInAs(tenantA)
       const authB = await signInAs(tenantB)
 
-      const { data: idConsultaA } = await authA.rpc('sp_registrar_consulta_ayuda', {
+      const { data: idConsultaA, error: errRegA } = await authA.rpc('sp_registrar_consulta_ayuda', {
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta tenant A',
         p_respuesta: 'Respuesta',
         p_entrada_id: 'ayuda-uso',
         p_resultado: 'respondida',
       })
+      expect(errRegA).toBeNull()
+      expect(idConsultaA).toEqual(expect.any(String))
 
       const { error } = await authB.rpc('sp_calificar_consulta_ayuda', {
         p_id: idConsultaA,
@@ -495,13 +505,15 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       await habilitarAyuda(tenant.tenantId)
       const auth = await signInAs(tenant)
 
-      const { data: idError } = await auth.rpc('sp_registrar_consulta_ayuda', {
+      const { data: idError, error: errRegError } = await auth.rpc('sp_registrar_consulta_ayuda', {
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta con fallo',
         p_respuesta: null,
         p_entrada_id: null,
         p_resultado: 'error',
       })
+      expect(errRegError).toBeNull()
+      expect(idError).toEqual(expect.any(String))
 
       const { error } = await auth.rpc('sp_calificar_consulta_ayuda', {
         p_id: idError,
@@ -517,13 +529,15 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       await habilitarAyuda(tenant.tenantId)
       const auth = await signInAs(tenant)
 
-      const { data: idConsulta } = await auth.rpc('sp_registrar_consulta_ayuda', {
+      const { data: idConsulta, error: errReg } = await auth.rpc('sp_registrar_consulta_ayuda', {
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta',
         p_respuesta: 'Respuesta',
         p_entrada_id: 'ayuda-uso',
         p_resultado: 'respondida',
       })
+      expect(errReg).toBeNull()
+      expect(idConsulta).toEqual(expect.any(String))
 
       await deshabilitarAyuda(tenant.tenantId)
 

@@ -11,7 +11,7 @@
 --
 -- DOWN:
 -- delete from tenant_modulo where id_modulo in (select id_modulo from modulo where codigo = 'ayuda');
--- update rol set permisos = permisos - 'ayuda' where nombre = 'Administrador';
+-- update rol set permisos = permisos - 'ayuda' where permisos ? 'ayuda';
 -- create or replace function fn_codigos_paquete(p_paquete text)
 -- returns text[]
 -- language sql
