@@ -35,9 +35,9 @@ describe('createPermisosSchema', () => {
   })
 
   it('rechaza una acción que ese módulo no tiene', () => {
-    // `ventas` no declara `eliminar`: un `record` con un único esquema de
+    // `reportes` no declara `eliminar`: un `record` con un único esquema de
     // valor dejaría pasar esto.
-    expect(permisosSchema.safeParse({ ventas: ['eliminar'] }).success).toBe(false)
+    expect(permisosSchema.safeParse({ reportes: ['eliminar'] }).success).toBe(false)
     expect(permisosSchema.safeParse({ inventario: ['eliminar'] }).success).toBe(true)
   })
 
@@ -227,9 +227,9 @@ describe('compactarPermisos', () => {
 describe('primerReason', () => {
   const permisosSchema = createPermisosSchema(MODULOS_TODOS)
   it('devuelve el mensaje con la ruta del campo', () => {
-    const r = permisosSchema.safeParse({ ventas: ['eliminar'] })
+    const r = permisosSchema.safeParse({ reportes: ['eliminar'] })
     expect(r.success).toBe(false)
-    if (!r.success) expect(primerReason(r.error)).toContain('ventas')
+    if (!r.success) expect(primerReason(r.error)).toContain('reportes')
   })
 
   it('devuelve el mensaje sin ruta cuando el error es de la raíz', () => {
@@ -245,7 +245,7 @@ describe('reasons estables', () => {
   // devolviera su prosa en inglés, el toast la mostraría cruda.
   const casos: Array<[string, unknown, string]> = [
     ['módulo inexistente', { contabilidad: ['ver'] }, 'modulo-desconocido'],
-    ['acción inexistente', { ventas: ['eliminar'] }, 'accion-invalida'],
+    ['acción inexistente', { reportes: ['eliminar'] }, 'accion-invalida'],
     ['valor no array', { inventario: 'ver' }, 'permisos-no-array'],
     ['duplicados', { inventario: ['ver', 'ver'] }, 'acciones-duplicadas'],
     ['no es objeto', null, 'permisos-no-objeto'],
