@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation'
+import { PanelAyuda } from '@/components/ayuda/PanelAyuda'
 import { Sidebar } from '@/components/shell/Sidebar'
+import { ayudaDisponible } from '@/lib/ayuda/config'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { ToastProvider } from '@/components/ui/Toast'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { superAdminActual } from '@/lib/dal/plataforma/guard'
@@ -67,6 +70,7 @@ export default async function AppShellLayout({
         <Sidebar session={session} />
         <div className="flex min-w-0 flex-1 flex-col w-full">{children}</div>
       </div>
+      {hasModuleAccess(session, 'ayuda', 'consultar') && ayudaDisponible() && <PanelAyuda />}
     </ToastProvider>
   )
 }
