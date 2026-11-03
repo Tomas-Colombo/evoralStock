@@ -8,9 +8,10 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     permisos: ['administracion.ver'],
     pasos: [
       'Ingresá a Administración desde el menú principal de navegación.',
-      'Revisá en la cabecera el acceso rápido a Usuarios, Roles y Auditoría.',
-      'Verificá el logo comercial cargado y el tamaño configurado para etiquetas QR.',
-      'Consultá la sección de últimas acciones auditadas con la fecha y el usuario responsable.',
+      'Revisá los accesos a "Usuarios", "Roles" y "Auditoría".',
+      'Consultá la configuración en "Logo del negocio" y "Etiquetas QR de inventario".',
+      'Revisá la tarjeta "Seguridad de la cuenta" para cambiar tu clave personal.',
+      'Consultá la sección de "Últimas acciones auditadas" para revisar las operaciones recientes.',
     ],
   },
   {
@@ -79,10 +80,10 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
     pasos: [
-      'En Administración, desplazate hasta la tarjeta "Logo comercial".',
-      'Hacé clic en "Elegir imagen" o en la miniatura para seleccionar un archivo PNG o WebP.',
-      'Previsualizá la adaptación del logo en la tarjeta.',
-      'Hacé clic en "Guardar cambios" para aplicar el nuevo logo a la barra lateral del sistema.',
+      'En Administración, desplazate hasta la tarjeta "Logo del negocio".',
+      'Hacé clic en "Cambiar imagen" para seleccionar un archivo PNG, SVG o WebP.',
+      'Previsualizá la adaptación del logo en el recuadro.',
+      'Hacé clic en "Guardar logo" para aplicar el nuevo logo a la barra lateral del sistema.',
     ],
   },
   {
@@ -91,7 +92,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
     pasos: [
-      'En Administración, localizá la tarjeta "Logo comercial".',
+      'En Administración, localizá la tarjeta "Logo del negocio".',
       'En la parte inferior de la tarjeta, hacé clic en "Quitar logo".',
       'El sistema removerá la imagen y mostrará el nombre comercial del negocio en texto.',
     ],
@@ -139,10 +140,10 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     permisos: ['administracion.ver', 'administracion.crear'],
     pasos: [
       'En la pantalla de Usuarios, hacé clic en "Invitar usuario".',
-      'Ingresá el correo electrónico y el nombre completo del colaborador.',
-      'Seleccioná el rol que determinará sus permisos en el sistema.',
-      'Ingresá o generá una contraseña temporal de al menos 8 caracteres.',
-      'Hacé clic en "Crear usuario" (o "Invitar") y compartí los datos de acceso iniciales.',
+      'Completá el campo "Email" con la dirección de correo del colaborador.',
+      'Ingresá su "Nombre completo".',
+      'Seleccioná el "Rol" que determinará sus permisos en el sistema.',
+      'Hacé clic en "Invitar usuario" para enviar la invitación y crear el usuario.',
     ],
   },
   {

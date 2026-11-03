@@ -20,10 +20,10 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     pasos: [
       'En Revendedoras, hacé clic en "Nueva revendedora".',
-      'Completá el nombre y apellido obligatorios, más teléfono y correo electrónico de contacto.',
-      'Si deseás otorgarle comisión diferencial, ingresá el porcentaje fijo inicial.',
-      'Si vas a habilitarle acceso al portal, marcá la opción correspondiente y definí su contraseña temporal.',
-      'Hacé clic en "Guardar revendedora" para registrar el alta en el sistema.',
+      'Completá los campos obligatorios "Nombre" y "Apellido".',
+      'Ingresá opcionalmente los datos de contacto en "Teléfono" y "Email".',
+      'Escribí observaciones adicionales en el campo "Notas".',
+      'Hacé clic en "Guardar" para asentar el alta de la revendedora.',
     ],
   },
   {
@@ -32,7 +32,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver'],
     pasos: [
-      'Desde el listado de Revendedoras, buscá a la revendedora y hacé clic en "Ficha" (o en su nombre).',
+      'Desde el listado de Revendedoras, hacé clic en el nombre de la revendedora para abrir su perfil.',
       'Consultá sus datos personales, información de contacto y notas registradas.',
       'Navegá entre las pestañas para revisar sus prendas en poder, ventas, consignaciones, cuenta y liquidaciones.',
     ],
@@ -43,26 +43,9 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     pasos: [
-      'Ingresá a Revendedoras y hacé clic en la ficha de la colaboradora deseada.',
-      'En la pestaña Perfil Revendedora, modificá los campos de nombre, apellido, teléfono, correo o notas.',
+      'Ingresá a Revendedoras y hacé clic en el nombre de la colaboradora deseada.',
+      'Modificá los campos de "Nombre", "Apellido", "Teléfono", "Email" o "Notas".',
       'Hacé clic en "Guardar cambios" para asentar las actualizaciones.',
-    ],
-  },
-  {
-    id: 'revendedoras-dar-de-baja',
-    titulo: 'Cómo dar de baja a una revendedora',
-    ruta: '/revendedoras',
-    permisos: ['revendedoras.ver', 'revendedoras.eliminar'],
-    pasos: [
-      'Desde Revendedoras, abrí la ficha de la colaboradora.',
-      'En la parte inferior del formulario de perfil, hacé clic en "Dar de baja".',
-      'Confirmá la baja en el diálogo de advertencia para cambiar su estado a inactiva.',
-    ],
-    detalles: [
-      {
-        tema: 'Piezas y saldos pendientes',
-        texto: 'No se puede dar de baja a una revendedora si aún posee mercadería en su poder o registra deuda pendiente.',
-      },
     ],
   },
   {
@@ -72,9 +55,21 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar', 'administracion.crear'],
     pasos: [
       'En la ficha de la revendedora, verificá que tenga un correo electrónico cargado.',
-      'En la sección Acceso al portal, hacé clic en "Dar acceso".',
-      'Ingresá o generá una contraseña temporal de al menos 8 caracteres.',
-      'Hacé clic en "Confirmar acceso" y compartí las credenciales de ingreso generadas con la revendedora.',
+      'Hacé clic en el botón "Dar acceso".',
+      'Ingresá una contraseña temporal de al menos 8 caracteres.',
+      'Hacé clic en "Dar acceso" en la ventana modal para confirmar.',
+    ],
+  },
+  {
+    id: 'revendedoras-revocar-acceso',
+    titulo: 'Cómo revocar el acceso al portal de una revendedora',
+    ruta: '/revendedoras',
+    permisos: ['revendedoras.ver', 'revendedoras.editar', 'administracion.eliminar'],
+    pasos: [
+      'En Revendedoras, abrí la ficha de la colaboradora que ya tiene usuario vinculado.',
+      'En el formulario, hacé clic en el botón "Revocar acceso".',
+      'Confirmá la acción en el cuadro de advertencia del navegador.',
+      'El acceso quedará revocado inmediatamente impidiendo nuevos inicios de sesión.',
     ],
   },
   {
@@ -108,10 +103,23 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     pasos: [
       'En Revendedoras, abrí la ficha de la colaboradora deseada.',
-      'En la tarjeta de Comisión, hacé clic en "Asignar comisión propia" (o "Modificar").',
+      'En la tarjeta de comisión, hacé clic en "Asignar comisión propia".',
       'Seleccioná si la comisión será un porcentaje fijo o una escala por objetivos.',
       'Indicá los porcentajes correspondientes y la fecha de inicio de vigencia.',
       'Hacé clic en "Guardar comisión" para priorizar este porcentaje sobre la regla general.',
+    ],
+  },
+  {
+    id: 'revendedoras-comisiones-terminar-regla',
+    titulo: 'Cómo finalizar la vigencia de una regla de comisión',
+    ruta: '/revendedoras/comisiones',
+    permisos: ['revendedoras.ver', 'revendedoras.editar'],
+    pasos: [
+      'Ingresá a Revendedoras y hacé clic en "Comisiones".',
+      'En la tabla de reglas de comisión, localizá la regla vigente.',
+      'Hacé clic en "Finalizar hoy" en la columna de acciones.',
+      'Confirmá en el mensaje del navegador para cerrar la vigencia de la regla a partir de la fecha actual.',
+      'Para comisiones particulares en la ficha de una revendedora, hacé clic en "Volver a regla general".',
     ],
   },
   {
@@ -133,11 +141,11 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     pasos: [
-      'En la lista de Revendedoras, localizá a la persona y hacé clic en el botón "Devolución" (o entrá a su ficha).',
-      'Escaneá el código QR o seleccioná en la lista las piezas que la revendedora está reintegrando.',
-      'Verificá que las prendas coincidan con las que figuraban en su poder.',
-      'Ingresá opcionalmente un motivo u observación.',
-      'Hacé clic en "Confirmar devolución" para retornar los ítems al stock disponible del local.',
+      'En la lista de Revendedoras, buscá a la revendedora y hacé clic en "Devolución".',
+      'Marcá las casillas de las piezas a devolver en la tabla de prendas en su poder.',
+      'Indicá la condición en "¿Cómo vuelve la mercadería?" y escribí un "Motivo (opcional)".',
+      'Hacé clic en "Guardar" para abrir la confirmación.',
+      'Hacé clic en "Confirmar" para reingresar las piezas al local.',
     ],
   },
   {
@@ -157,10 +165,10 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     ruta: '/revendedoras/declaraciones',
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     pasos: [
-      'En la bandeja de Declaraciones, localizá la operación en estado pendiente.',
-      'Hacé clic en "Confirmar" en la fila correspondiente.',
-      'En la ventana modal, confirmá el método y cuenta de cobro si hubo ingreso de dinero o asentala en su cuenta corriente.',
-      'Hacé clic en "Aceptar" para convertir la declaración en venta efectiva y descontar la pieza de su poder.',
+      'En la bandeja de Declaraciones, localizá la operación en estado Pendiente.',
+      'Hacé clic en "Confirmar" en la fila correspondiente para abrir el modal.',
+      'Revisá los datos del artículo, precio de lista y nota de la revendedora.',
+      'Hacé clic en "Confirmar venta" para registrar la venta en el canal revendedora y aplicar la comisión a su cuenta corriente.',
     ],
   },
   {
@@ -169,10 +177,10 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     ruta: '/revendedoras/declaraciones',
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     pasos: [
-      'En la bandeja de Declaraciones, ubicá la declaración pendiente.',
-      'Hacé clic en "Rechazar" en la fila del registro.',
-      'Ingresá el motivo del rechazo en el campo de texto.',
-      'Hacé clic en "Confirmar rechazo" para descartar la declaración, dejando la prenda en poder de la colaboradora.',
+      'En la bandeja de Declaraciones, localizá la declaración en estado Pendiente.',
+      'Hacé clic en "Rechazar" en la fila correspondiente.',
+      'Escribí la razón en el campo "Motivo del rechazo (obligatorio)".',
+      'Hacé clic en "Rechazar declaración" para descartar la operación y mantener la prenda en poder de la revendedora.',
     ],
   },
   {
@@ -196,9 +204,9 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     pasos: [
       'Desde la ficha de la revendedora, ingresá a la pestaña "Liquidaciones".',
       'Hacé clic en "Ver detalle" sobre la liquidación pendiente.',
-      'Hacé clic en el botón "Registrar cobro" (o "Registrar pago").',
-      'Seleccioná la cuenta destino donde ingresó el dinero, el método de pago y la fecha.',
-      'Hacé clic en "Registrar" para asentar la acreditación de fondos y saldar la liquidación.',
+      'Hacé clic en el botón "Registrar pago".',
+      'Seleccioná la "Cuenta de destino" e indicá la "Fecha de pago", "Método de pago" y "Referencia de comprobante".',
+      'Hacé clic en "Confirmar pago" para asentar el cobro de la liquidación.',
     ],
   },
 ]

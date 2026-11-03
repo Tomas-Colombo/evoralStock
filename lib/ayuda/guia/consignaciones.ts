@@ -21,10 +21,10 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
     pasos: [
       'En Consignaciones, hacé clic en "Nueva devolución".',
-      'Seleccioná el Proveedor destinatario en el menú desplegable.',
+      'Seleccioná el proveedor destinatario en el menú desplegable.',
       'Buscá los productos en consignación a devolver o escaneá sus códigos QR para sumarlos al lote.',
-      'Ingresá opcionalmente el motivo de la devolución y observaciones del lote.',
-      'Hacé clic en "Crear lote de devolución" para asentar la operación con los ítems en estado pendiente.',
+      'Ingresá opcionalmente el motivo y observaciones del lote.',
+      'Hacé clic en "Devolver productos" para asentar la operación con los ítems en estado pendiente.',
     ],
     detalles: [
       {
@@ -39,9 +39,9 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
     pasos: [
-      'Desde el listado de Consignaciones, localizá el lote en estado activa.',
-      'Hacé clic en "Confirmar salida" en la fila (o abrilo y hacé clic en "Confirmar todos los pendientes").',
-      'En el diálogo de confirmación, hacé clic en "Confirmar salida".',
+      'En Consignaciones, hacé clic en "Abrir" sobre el lote activo.',
+      'En la cabecera de la ficha, hacé clic en el botón "Confirmar lote".',
+      'En el cuadro de diálogo, hacé clic en "Sí, salió todo".',
       'El sistema asentará la salida física de todos los ítems pendientes y cerrará el lote.',
     ],
     detalles: [
@@ -58,9 +58,9 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" sobre el lote deseado.',
-      'En la sección Agregar ítem al lote, ingresá el código QR o buscá el producto por nombre.',
-      'Escribí opcionalmente el motivo por el cual devolvés la prenda.',
-      'Hacé clic en "Agregar al lote" para incorporar la unidad en estado pendiente.',
+      'En la sección "Apartar ítem", escaneá el código QR o buscá el producto por nombre.',
+      'Escribí opcionalmente el motivo en "Motivo (aplica al próximo)".',
+      'Hacé clic en "Apartar" para incorporar la unidad en estado pendiente.',
     ],
   },
   {
@@ -72,7 +72,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
       'En Consignaciones, hacé clic en "Abrir" para acceder a la ficha del lote.',
       'En la tabla de ítems, localizá la prenda pendiente.',
       'Hacé clic en "Confirmar salida" en la fila del ítem.',
-      'En el diálogo de confirmación, hacé clic en "Confirmar" para asentar la salida individual.',
+      'En el diálogo de confirmación, hacé clic en "Sí, salió" para asentar la salida individual.',
     ],
   },
   {
@@ -81,10 +81,10 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
     pasos: [
-      'Desde la ficha del lote en Consignaciones, buscá el ítem pendiente que no vas a devolver.',
-      'Hacé clic en "Cancelar devolución" en la fila correspondiente.',
-      'Ingresá el motivo por el cual la prenda permanece en el local.',
-      'Hacé clic en "Cancelar ítem" para dejarlo en estado cancelado y mantenerlo en el stock disponible.',
+      'Desde la ficha del lote en Consignaciones, buscá el ítem pendiente en la tabla.',
+      'Hacé clic en "Liberar" en la fila del ítem correspondiente.',
+      'En el cuadro de diálogo, hacé clic en "Sí, liberar" para cancelar la salida.',
+      'La prenda volverá a estar disponible para la venta en el local.',
     ],
   },
   {
@@ -93,15 +93,15 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
     pasos: [
-      'En la lista de Consignaciones, buscá el lote activo (o hacé clic en "Abrir" para ver su detalle).',
-      'Hacé clic en "Cerrar" (o en "Cerrar consignación" dentro de la ficha).',
-      'En el cuadro de diálogo, hacé clic en "Cerrar lote".',
+      'En la lista de Consignaciones, hacé clic en "Abrir" sobre el lote deseado.',
+      'En la cabecera de la ficha, hacé clic en "Cerrar lote".',
+      'En el cuadro de confirmación, hacé clic en "Sí, cerrar".',
       'El lote pasará a estado cerrada y no admitirá nuevos ítems ni modificaciones.',
     ],
     detalles: [
       {
-        tema: 'Pendientes no devueltos',
-        texto: 'Si el lote contenía ítems pendientes al cerrarse, esos ítems se dan de baja del lote y siguen en stock.',
+        tema: 'Pendientes resueltos',
+        texto: 'Solo se puede cerrar el lote si no quedan ítems pendientes de resolución.',
       },
     ],
   },
@@ -112,7 +112,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['consignaciones.ver', 'consignaciones.eliminar'],
     pasos: [
       'En el listado de Consignaciones, localizá el lote a anular.',
-      'Hacé clic en "Eliminar" en la fila (o dentro de la ficha hacé clic en "Eliminar lote").',
+      'Hacé clic en "Eliminar" en la fila correspondiente.',
       'Confirmá la acción haciendo clic en "Sí, eliminar" en la ventana de confirmación.',
     ],
     detalles: [
@@ -141,10 +141,10 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['rendiciones.ver', 'rendiciones.crear'],
     pasos: [
       'En Rendiciones, hacé clic en "Generar rendición".',
-      'Seleccioná el Proveedor en el menú desplegable para cargar las ventas pendientes de liquidar.',
+      'Seleccioná el proveedor en el menú desplegable para cargar las ventas pendientes de liquidar.',
       'Revisá las líneas de productos vendidos en consignación y el subtotal a pagar.',
-      'Ingresá opcionalmente observaciones sobre la rendición.',
-      'Hacé clic en "Generar rendición" y luego confirmá en el diálogo para asentar la deuda en estado pendiente.',
+      'Ingresá opcionalmente anotaciones en el campo "Observaciones".',
+      'Hacé clic en "Confirmar rendición" y luego en "Sí, generar" en el diálogo de confirmación.',
     ],
     detalles: [
       {
@@ -162,7 +162,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
       'Desde la pantalla de Generar rendición, seleccioná el proveedor.',
       'En la tabla de ventas pendientes, localizá la línea de la prenda.',
       'Hacé clic en "Excluir" en el extremo derecho de la fila.',
-      'La línea se removerá del subtotal a pagar y se marcará como excluida para no rendirse.',
+      'La línea se removerá del subtotal a pagar y no volverá a aparecer en futuras rendiciones.',
     ],
     detalles: [
       {
@@ -179,7 +179,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     pasos: [
       'En el listado de Rendiciones, buscá la rendición en estado pendiente y hacé clic en "Ver".',
       'En la esquina superior derecha de la ficha, hacé clic en "Marcar pagada".',
-      'Indicá la fecha en la que se realizó el pago al proveedor.',
+      'Indicá la fecha en el campo "Fecha de pago".',
       'Hacé clic en "Confirmar" para asentar el pago y cambiar el estado a pagada.',
     ],
   },
