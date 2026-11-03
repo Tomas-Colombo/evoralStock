@@ -5,7 +5,7 @@
 --   1. Registra módulo 'ayuda' en tabla modulo.
 --   2. Actualiza fn_codigos_paquete para incluir paquete 'ayuda'.
 --   3. Asigna permiso 'ayuda.consultar' al rol Administrador en todos los tenants.
---   4. Crea tabla consulta_ayuda con checks, RLS, índice y grants restringidos (sin delete).
+--   4. Crea tabla consulta_ayuda con checks, RLS (tenant + restrictiva de revendedora), índice y grants restringidos (sin delete).
 --   5. Crea sp_registrar_consulta_ayuda (INVOKER, valida tenant_id y fn_modulo_habilitado).
 --   6. Crea sp_calificar_consulta_ayuda (INVOKER, actualiza util en fila propia respondida).
 --
@@ -95,6 +95,12 @@ create policy consulta_ayuda_tenant on consulta_ayuda
   for all to authenticated
   using (id_tenant = auth_tenant_id())
   with check (id_tenant = auth_tenant_id());
+
+-- Una revendedora del portal tiene JWT con el tenant de la tienda: sin esta
+-- policy leería por PostgREST las preguntas de los operadores (ACC-11).
+create policy restrict_revendedora_consulta_ayuda on consulta_ayuda
+  as restrictive for all to authenticated
+  using (auth_revendedora_id() is null);
 
 revoke all on consulta_ayuda from public, anon;
 grant select, insert on consulta_ayuda to authenticated;

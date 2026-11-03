@@ -113,6 +113,7 @@ respuesta igual llega al usuario (se loguea el slug).
 - **N2**: otro tenant → 0 filas visibles (RLS).
 - **N3**: módulo `ayuda` apagado → `module-disabled`.
 - **N4**: `pregunta` de 301 caracteres directo al SP → rechazo por CHECK.
+- **N5**: revendedora con sesión del mismo tenant → 0 filas y no puede registrar (ACC-11).
 
 ### REQ-AYUDA-11 — Calificar solo la fila propia
 
@@ -151,8 +152,10 @@ No aplica: el cambio no crea ni modifica cifras.
 
 ## 4. INVOKER contra RLS restrictiva
 
-Ambos `sp_*` son INVOKER y la tabla no tiene policy restrictiva de
-revendedora: **filtra por diseño** (RLS por tenant). La fila propia se
+Ambos `sp_*` son INVOKER. La tabla lleva `restrict_revendedora_consulta_ayuda`
+(guardia ACC-11 de `tests/db/rls-revendedoras.test.ts`): una revendedora del
+portal tiene JWT con el tenant de la tienda y sin esa policy leería las
+preguntas de los operadores; con ella no ve ni escribe nada. La fila propia se
 garantiza en el SP (`id_usuario = auth.uid()`), no en una policy, porque el
 proyecto no tiene policies por usuario (ver DR-AYUDA-4). Ninguna DEFINER.
 
@@ -187,6 +190,7 @@ Una sola migración, número = siguiente libre al aplicar. Contenido:
    CHECK: `(resultado = 'respondida') = (entrada_id is not null)`.
    Índice `(id_tenant, created_at desc)`.
    RLS: policy `consulta_ayuda_tenant` `for all to authenticated using/with check (id_tenant = auth_tenant_id())`.
+   Policy restrictiva `restrict_revendedora_consulta_ayuda` (`auth_revendedora_id() is null`), ver §4.
    Grants: `select, insert` y `update (util)` a `authenticated`; sin `delete`.
 
 6. `sp_registrar_consulta_ayuda(p_id_conversacion uuid, p_pregunta text,

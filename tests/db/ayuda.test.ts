@@ -284,6 +284,80 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       expect(error).not.toBeNull()
       expect(error?.message).toMatch(/check|consulta_ayuda_pregunta_check/i)
     })
+
+    it('REQ-AYUDA-10 N5: revendedora del mismo tenant no ve ni escribe consulta_ayuda (ACC-11)', async () => {
+      const tenant = await createTenantWithUser('ayuda-r10-n5')
+      await habilitarAyuda(tenant.tenantId)
+      const authAdmin = await signInAs(tenant)
+
+      const { data: modRev } = await serviceRole
+        .from('modulo')
+        .select('id_modulo')
+        .eq('codigo', 'revendedoras')
+        .single()
+      await serviceRole
+        .from('tenant_modulo')
+        .upsert({ id_tenant: tenant.tenantId, id_modulo: modRev!.id_modulo, habilitado: true })
+
+      const { data: rolRev } = await serviceRole
+        .from('rol')
+        .insert({
+          id_tenant: tenant.tenantId,
+          nombre: 'Revendedora',
+          permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        })
+        .select('id_rol')
+        .single()
+
+      const { data: idRev, error: errRev } = await authAdmin.rpc('sp_crear_revendedora', {
+        p_nombre: 'Rita',
+        p_apellido: 'Ayuda',
+        p_email: `${withScopedTenant('rita')}@example.com`,
+      })
+      expect(errRev, 'crear revendedora').toBeNull()
+
+      const emailRev = `${withScopedTenant('rita-auth')}@example.com`
+      const { data: userRev } = await serviceRole.auth.admin.createUser({
+        email: emailRev,
+        password: 'Password123!',
+        email_confirm: true,
+      })
+      const { error: errEnlace } = await serviceRole.rpc('sp_enlazar_revendedora_usuario', {
+        p_id_revendedora: idRev,
+        p_id_usuario: userRev!.user!.id,
+        p_id_tenant: tenant.tenantId,
+        p_email: emailRev,
+        p_nombre: 'Rita Ayuda',
+        p_id_rol: rolRev!.id_rol,
+      })
+      expect(errEnlace, 'enlazar revendedora').toBeNull()
+      const authRev = await signInAs({ email: emailRev, password: 'Password123!' })
+
+      const { data: idConsulta, error: errAdmin } = await authAdmin.rpc('sp_registrar_consulta_ayuda', {
+        p_id_conversacion: randomUUID(),
+        p_pregunta: 'Pregunta del operador',
+        p_respuesta: 'Respuesta',
+        p_entrada_id: 'ayuda-uso',
+        p_resultado: 'respondida',
+      })
+      expect(errAdmin).toBeNull()
+
+      const { data: filas, error: errSelect } = await authRev
+        .from('consulta_ayuda')
+        .select('*')
+        .eq('id_consulta_ayuda', idConsulta)
+      expect(errSelect).toBeNull()
+      expect(filas).toEqual([])
+
+      const { error: errInsert } = await authRev.rpc('sp_registrar_consulta_ayuda', {
+        p_id_conversacion: randomUUID(),
+        p_pregunta: 'Pregunta de la revendedora',
+        p_respuesta: null,
+        p_entrada_id: null,
+        p_resultado: 'error',
+      })
+      expect(errInsert).not.toBeNull()
+    })
   })
 
   describe('CHECK de resultado/entrada_id en consulta_ayuda', () => {
