@@ -9,9 +9,8 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     pasos: [
       'Ingresá a Inventario desde el menú principal.',
       'Revisá los indicadores de stock disponible, productos activos, productos bajo mínimo y cantidad de proveedores.',
-      'Revisá los paneles de Alertas de reposición y Rotación vencida en caso de requerir reponer mercadería o devolver unidades.',
+      'Revisá los paneles de Reposición urgente y Rotación vencida en caso de requerir reponer mercadería o devolver unidades.',
       'Utilizá el buscador para filtrar por nombre o código SKU, o seleccioná una categoría en el filtro.',
-      'Si tenés el módulo de revendedoras activo, podés filtrar por tenencia entre local o revendedoras.',
       'Hacé clic en cualquier producto de la tabla para abrir su ficha y ver el detalle.',
     ],
   },
@@ -86,7 +85,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Unidades modificables',
-        texto: 'La asignación retroactiva se aplica por orden FIFO únicamente sobre las prendas que siguen en estado disponible; los ítems vendidos o reservados no se modifican.',
+        texto: 'La asignación retroactiva se aplica empezando por las prendas que ingresaron primero, únicamente sobre las prendas que siguen en estado disponible; los ítems vendidos o reservados no se modifican.',
       },
     ],
   },
@@ -173,9 +172,9 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver'],
     pasos: [
-      'Desde Inventario, hacé clic en "Escanear QR" (o ingresá a la sección de escaneo de ítems).',
+      'Desde Inventario, hacé clic en "Escanear QR" (o ingresá a la pantalla Escanear ítem).',
       'Apuntá la cámara al código QR de la etiqueta para leerlo automáticamente.',
-      'Si no tenés cámara, escribí manualmente el código QR o el SKU en el campo de texto y hacé clic en "Buscar".',
+      'Si no tenés cámara, ingresá el nombre o código en el campo "Buscar por nombre o código" y hacé clic en "Buscar ítem".',
       'El sistema abrirá la ficha del ítem mostrando su producto, talle, estado actual, proveedor e historial.',
     ],
   },
@@ -431,9 +430,27 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     pasos: [
       'En el listado de Proveedores, hacé clic en "Ver" sobre el proveedor a consultar.',
       'Revisá los datos de contacto, CUIT, días de rotación y notas en la cabecera.',
-      'Si tenés el módulo de consignaciones activo, consultá los indicadores de deuda total, stock en consignación y montos pendientes de rendir.',
       'Ajustá el filtro de período con fechas Desde y Hasta para delimitar los comprobantes a visualizar.',
-      'Revisá el historial de ingresos de mercadería, consignaciones o rendiciones asociadas al proveedor.',
+      'Revisá el historial de ingresos de mercadería asociados al proveedor.',
+    ],
+  },
+  {
+    id: 'proveedores-perfil-consignacion',
+    titulo: 'Cómo consultar el estado de cuenta y consignaciones de un proveedor',
+    ruta: '/proveedores',
+    permisos: ['inventario.ver', 'consignaciones.ver', 'rendiciones.ver'],
+    pasos: [
+      'Desde Proveedores, hacé clic en "Ver" sobre el proveedor consignatario.',
+      'Revisá los indicadores de deuda total, valor de stock en consignación y monto pendiente de rendir.',
+      'Consultá las rendiciones pendientes de pago y las consignaciones activas.',
+      'Ajustá el filtro de período con fechas Desde y Hasta para acotar los movimientos.',
+      'Revisá las tablas de consignaciones recibidas y rendiciones generadas del proveedor.',
+    ],
+    detalles: [
+      {
+        tema: 'Cálculo de deuda total',
+        texto: 'La deuda total suma el monto de ventas pendientes de rendir más el valor a costo de todos los ítems en consignación que siguen en stock.',
+      },
     ],
   },
   {
