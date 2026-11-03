@@ -340,6 +340,11 @@ const MENSAJES: Record<string, string> = {
   'periodo-invalido': 'El período pedido no es válido.',
   'orden-invalido': 'El criterio de orden no es válido.',
 
+  // ─── Asistente de ayuda ────────────────────────────────────────────
+  'ayuda-no-disponible': 'El asistente de ayuda no está disponible en este momento.',
+  'ayuda-error': 'No pudimos consultar al asistente de ayuda. Probá de nuevo en unos minutos.',
+  'consulta-no-encontrada': 'No se encontró la consulta de ayuda.',
+
   // ─── Plataforma (Super Admin) ──────────────────────────────────────
   'concepto-invalido': 'Escribí un concepto para el movimiento.',
   'medio-pago-invalido': 'Elegí un medio de pago válido.',

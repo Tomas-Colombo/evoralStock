@@ -33,11 +33,9 @@ import {
 import type { FiltrosTenantsParsed } from '@/lib/validation/plataforma'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { NuevoTenantModal } from './NuevoTenantModal'
+import { PAQUETES_INFO } from '@/lib/modulos/catalogo'
 
-const PAQUETES_LABELS: Record<string, string> = {
-  revendedoras: 'Revendedoras',
-  consignacionProveedor: 'Consignación de proveedor',
-}
+
 
 export interface TenantsViewProps {
   tenants: TenantPlataformaResumen[]
@@ -273,7 +271,7 @@ export function TenantsView({
                       <div className="flex flex-wrap gap-1">
                         {t.paquetesHabilitados.map((pkg) => (
                           <Badge key={pkg} variant="neutral">
-                            {PAQUETES_LABELS[pkg] ?? pkg}
+                            {PAQUETES_INFO[pkg]?.nombre ?? pkg}
                           </Badge>
                         ))}
                       </div>

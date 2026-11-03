@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card'
 import { Checkbox } from '@/components/ui/Checkbox'
 import {
   CLAVES_PAQUETES_OPCIONALES,
+  PAQUETES_INFO,
   type PaqueteOpcional,
 } from '@/lib/modulos/catalogo'
 
@@ -12,14 +13,16 @@ export const PAQUETES_META: Record<
   { label: string; descripcion: string }
 > = {
   revendedoras: {
-    label: 'Revendedoras',
-    descripcion:
-      'Módulo de venta por catálogo, asignación de stock en poder y liquidaciones.',
+    label: PAQUETES_INFO.revendedoras.nombre,
+    descripcion: PAQUETES_INFO.revendedoras.descripcion,
   },
   consignacionProveedor: {
-    label: 'Consignación de proveedor',
-    descripcion:
-      'Recepción de artículos en consignación y generación periódica de rendiciones.',
+    label: PAQUETES_INFO.consignacionProveedor.nombre,
+    descripcion: PAQUETES_INFO.consignacionProveedor.descripcion,
+  },
+  ayuda: {
+    label: PAQUETES_INFO.ayuda.nombre,
+    descripcion: PAQUETES_INFO.ayuda.descripcion,
   },
 }
 
@@ -47,7 +50,7 @@ export function PaquetesCard({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {CLAVES_PAQUETES_OPCIONALES.map((pkg) => {
-          const meta = PAQUETES_META[pkg]
+          const meta = PAQUETES_INFO[pkg]
           const habilitado = paquetes[pkg] ?? false
           return (
             <label
@@ -65,7 +68,7 @@ export function PaquetesCard({
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-ink">
-                  {meta.label}
+                  {meta.nombre}
                 </span>
                 <span className="text-xs text-muted">
                   {meta.descripcion}

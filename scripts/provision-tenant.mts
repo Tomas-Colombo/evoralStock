@@ -29,7 +29,7 @@ import {
   validarSubdominio,
 } from '../lib/tenant/subdominio.ts'
 import { generarPassword } from '../lib/tenant/password.ts'
-import { CATALOGO_PERMISOS } from '../lib/types/administracion.ts'
+import { accionesDelModulo } from '../lib/types/administracion.ts'
 
 /** Every action the permission model recognizes (`rol.permisos`, REQ-AG-02). */
 const ACCIONES = ['ver', 'crear', 'editar', 'eliminar'] as const
@@ -224,7 +224,7 @@ async function provision(opts: Opciones): Promise<void> {
         nombre: 'Administrador',
         permisos: Object.fromEntries(
           modulos.map((m) => {
-            const permitidas = CATALOGO_PERMISOS[m.codigo] ?? [...ACCIONES]
+            const permitidas = accionesDelModulo(m.codigo) ?? [...ACCIONES]
             return [
               m.codigo,
               m.codigo === 'revendedoras'

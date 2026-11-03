@@ -10,7 +10,7 @@ import {
   type E2EUser,
 } from '../config/env'
 import { serviceRoleClient, unwrap } from './supabase'
-import { CATALOGO_PERMISOS } from '../../lib/types/administracion'
+import { accionesDelModulo } from '../../lib/types/administracion'
 
 /**
  * Provisioning of the throwaway tenant every spec runs inside.
@@ -185,11 +185,11 @@ export async function provisionTenant(): Promise<SeedData> {
     throw new Error('The `modulo` catalog is empty — apply supabase/seed.sql first.')
   }
   for (const m of catalogo) {
-    const permitidas = CATALOGO_PERMISOS[m.codigo] ?? [...ACCIONES]
+    const permitidas = accionesDelModulo(m.codigo) ?? [...ACCIONES]
     PERMISOS_ADMIN[m.codigo] =
       m.codigo === 'revendedoras'
         ? permitidas.filter((a) => a !== 'ver_propio' && a !== 'declarar')
-        : permitidas
+        : [...permitidas]
   }
 
   const tenant = unwrap(

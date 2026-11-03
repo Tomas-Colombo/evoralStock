@@ -15,6 +15,7 @@ describe('capacidades — REQ-MODOP-04', () => {
     expect(cap).toEqual({
       revendedoras: true,
       consignacionProveedor: true,
+      ayuda: false,
     })
     expect(tiposIngresoPermitidos(cap)).toEqual(['compra', 'consignacion'])
     expect(tiposProveedorPermitidos(cap)).toEqual(['mayorista', 'particular', 'consignatario'])
@@ -43,6 +44,7 @@ describe('capacidades — REQ-MODOP-04', () => {
     expect(cap).toEqual({
       revendedoras: false,
       consignacionProveedor: false,
+      ayuda: false,
     })
     expect(tiposIngresoPermitidos(cap)).toEqual(['compra'])
     expect(tiposProveedorPermitidos(cap)).toEqual(['mayorista', 'particular'])

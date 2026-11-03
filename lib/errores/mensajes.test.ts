@@ -14,7 +14,7 @@ import { MENSAJE_GENERICO, mensajeDeError, SLUGS_CON_MENSAJE } from './mensajes'
 const SLUGS_DE_LA_APP = [
   // Permisos y sesión
   'no-permission', 'module-disabled', 'tenant-mismatch', 'no-session', 'no-tenant', 'modulo-revendedoras-deshabilitado',
-  'modulo-nucleo', 'modulo-paquete-incompleto', 'modulo-con-estado-vivo',
+  'modulo-nucleo', 'modulo-paquete-incompleto', 'modulo-con-estado-vivo', 'ayuda-no-disponible', 'ayuda-error', 'consulta-no-encontrada',
   'email-duplicado', 'revendedora-not-found', 'revendedora-con-stock', 'acceso-duplicado', 'error-invitacion', 'error-enlazar', 'sin-acceso', 'error-desvincular', 'error-desactivar', 'error-rol-no-encontrado',
   // Actions
   'apellido-invalido', 'archivo-invalido', 'consignacion-vacia', 'cuotas-invalidas',

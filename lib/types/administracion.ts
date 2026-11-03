@@ -58,7 +58,7 @@ export interface AuditoriaConActor extends AuditoriaRow {
  * Las claves deben coincidir con `moduloCodigo` del seed y los valores
  * con lo que cada guard/action valida.
  */
-export const CATALOGO_PERMISOS: Record<string, string[]> = {
+const _CATALOGO = {
   inventario: ['ver', 'crear', 'editar', 'eliminar'],
   precios: ['ver', 'crear', 'editar', 'eliminar'],
   ventas: ['ver', 'crear', 'editar'],
@@ -68,6 +68,25 @@ export const CATALOGO_PERMISOS: Record<string, string[]> = {
   reportes: ['ver'],
   administracion: ['ver', 'crear', 'editar', 'eliminar'],
   revendedoras: ['ver', 'crear', 'editar', 'eliminar', 'liquidar', 'ver_propio', 'declarar'],
+  ayuda: ['consultar'],
+} as const satisfies Record<string, readonly string[]>
+
+export const CATALOGO_PERMISOS: typeof _CATALOGO & Record<string, readonly string[]> = _CATALOGO
+
+export type ModuloPermiso = keyof typeof _CATALOGO
+
+export type Permiso = {
+  [M in ModuloPermiso]: `${M}.${(typeof _CATALOGO)[M][number]}`
+}[ModuloPermiso]
+
+/**
+ * Helper tipado para consumidores que indexan con string (ej. scripts o e2e).
+ */
+export function accionesDelModulo(modulo: string): readonly string[] | undefined {
+  if (Object.hasOwn(CATALOGO_PERMISOS, modulo)) {
+    return CATALOGO_PERMISOS[modulo as ModuloPermiso]
+  }
+  return undefined
 }
 
 export const MODULO_NOMBRE: Record<string, string> = {
@@ -80,4 +99,5 @@ export const MODULO_NOMBRE: Record<string, string> = {
   reportes: 'Reportes',
   administracion: 'Administración',
   revendedoras: 'Revendedoras',
+  ayuda: 'Ayuda',
 }

@@ -10,19 +10,9 @@ import { altaTenantAction } from '@/app/(plataforma)/plataforma/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import {
   CLAVES_PAQUETES_OPCIONALES,
+  PAQUETES_INFO,
   type PaqueteOpcional,
 } from '@/lib/modulos/catalogo'
-
-const PAQUETES_LABELS: Record<PaqueteOpcional, { label: string; descripcion: string }> = {
-  revendedoras: {
-    label: 'Revendedoras',
-    descripcion: 'Venta por catálogo y comisiones.',
-  },
-  consignacionProveedor: {
-    label: 'Consignación de proveedor',
-    descripcion: 'Artículos en consignación y rendiciones periódicas.',
-  },
-}
 
 export interface NuevoTenantModalProps {
   open: boolean
@@ -276,7 +266,7 @@ export function NuevoTenantModal({
           </p>
           <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
             {CLAVES_PAQUETES_OPCIONALES.map((pkg) => {
-              const meta = PAQUETES_LABELS[pkg]
+              const meta = PAQUETES_INFO[pkg]
               const checked = paquetes.includes(pkg)
               return (
                 <label
@@ -296,7 +286,7 @@ export function NuevoTenantModal({
                   />
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-medium text-ink">
-                      {meta?.label ?? pkg}
+                      {meta?.nombre ?? pkg}
                     </span>
                     <span className="text-[11.5px] text-muted">
                       {meta?.descripcion}

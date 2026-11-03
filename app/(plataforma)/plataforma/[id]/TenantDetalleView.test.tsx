@@ -38,6 +38,7 @@ const MOCK_DETALLE: TenantPlataformaDetalle = {
   paquetes: {
     revendedoras: true,
     consignacionProveedor: false,
+    ayuda: false,
   },
   saldo: 15000,
   totalCargos: 40000,
