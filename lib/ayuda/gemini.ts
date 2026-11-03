@@ -1,5 +1,5 @@
 import 'server-only'
-import { GoogleGenAI, ThinkingLevel, type ThinkingConfig } from '@google/genai'
+import { GoogleGenAI, ThinkingLevel, type Schema, type ThinkingConfig } from '@google/genai'
 import type { ErrorModelo, ModeloAyuda } from './tipos'
 import { esquemaSalida } from './salida'
 
@@ -24,17 +24,23 @@ export function nivelPensamiento(modelo: string): ThinkingConfig {
 
 interface LogFalloParams {
   modelo: string
+  apiKey?: string
   status?: number
   nombre?: string
   mensaje?: string
 }
 
 function logFallo(tipo: ErrorModelo, params: LogFalloParams): void {
+  let mensaje = params.mensaje ?? ''
+  if (params.apiKey && params.apiKey.trim().length > 0) {
+    mensaje = mensaje.replaceAll(params.apiKey, '[REDACTED]')
+  }
+
   console.error(`ayuda: ${tipo}`, {
     modelo: params.modelo,
     status: params.status,
     nombre: params.nombre ?? 'Error',
-    mensaje: (params.mensaje ?? '').slice(0, 200),
+    mensaje: mensaje.slice(0, 200),
   })
 }
 
@@ -76,6 +82,7 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
     if (!cfg.apiKey || cfg.apiKey.trim() === '') {
       logFallo('sin-clave', {
         modelo: cfg.modelo,
+        apiKey: cfg.apiKey,
         nombre: 'SinClaveError',
         mensaje: 'Falta GEMINI_API_KEY',
       })
@@ -109,13 +116,9 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
           systemInstruction: prompt.instrucciones,
           temperature: 0.2,
           responseMimeType: 'application/json',
-          responseSchema: esquemaSalida(idsPermitidos) as unknown,
+          responseSchema: esquemaSalida(idsPermitidos) as Schema,
           thinkingConfig: nivelPensamiento(cfg.modelo),
           abortSignal: abortController.signal,
-          httpOptions: {
-            timeout: 10_000,
-            retryOptions: { attempts: 1 },
-          },
         },
       })
     } catch (err: unknown) {
@@ -128,6 +131,7 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
       if (isTimeout) {
         logFallo('timeout', {
           modelo: cfg.modelo,
+          apiKey: cfg.apiKey,
           nombre: extraerNombre(err, 'AbortError'),
           mensaje: extraerMensaje(err),
         })
@@ -136,6 +140,7 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
 
       logFallo('proveedor', {
         modelo: cfg.modelo,
+        apiKey: cfg.apiKey,
         status: extraerStatus(err),
         nombre: extraerNombre(err, 'ApiError'),
         mensaje: extraerMensaje(err),
@@ -149,6 +154,7 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
     if (typeof rawText !== 'string') {
       logFallo('formato', {
         modelo: cfg.modelo,
+        apiKey: cfg.apiKey,
         nombre: 'FormatoError',
         mensaje: 'La respuesta de Gemini no contiene texto',
       })
@@ -158,11 +164,12 @@ export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): Mode
     try {
       const salida = JSON.parse(rawText) as unknown
       return { ok: true, salida }
-    } catch (err: unknown) {
+    } catch {
       logFallo('formato', {
         modelo: cfg.modelo,
-        nombre: extraerNombre(err, 'SyntaxError'),
-        mensaje: extraerMensaje(err),
+        apiKey: cfg.apiKey,
+        nombre: 'SyntaxError',
+        mensaje: 'JSON inválido',
       })
       return { ok: false, error: 'formato' }
     }

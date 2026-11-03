@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ayudaDisponible, leerConfigAyuda } from './config'
 
 describe('lib/ayuda/config', () => {
@@ -36,9 +36,18 @@ describe('lib/ayuda/config', () => {
       expect(ayudaDisponible()).toBe(false)
     })
 
-    it('devuelve true si GEMINI_API_KEY tiene contenido', () => {
+    it('devuelve true si GEMINI_API_KEY y GEMINI_MODEL son válidos', () => {
       process.env.GEMINI_API_KEY = 'test-key-123'
       expect(ayudaDisponible()).toBe(true)
+    })
+
+    it('devuelve false si GEMINI_MODEL es inválido (alineado con leerConfigAyuda)', () => {
+      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      process.env.GEMINI_API_KEY = 'test-key-123'
+      process.env.GEMINI_MODEL = 'Gemini 3!'
+
+      expect(ayudaDisponible()).toBe(false)
+      spyError.mockRestore()
     })
   })
 
@@ -79,16 +88,24 @@ describe('lib/ayuda/config', () => {
       })
     })
 
-    it('lanza error si GEMINI_MODEL tiene caracteres no permitidos (mayúsculas, espacios, símbolos)', () => {
+    it('devuelve null, ayudaDisponible false y loguea "ayuda: configuración inválida" sin valores si GEMINI_MODEL es inválido', () => {
+      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
       process.env.GEMINI_API_KEY = 'clave-secreta'
-      process.env.GEMINI_MODEL = 'Gemini-3-Flash'
-      expect(() => leerConfigAyuda()).toThrow()
+      process.env.GEMINI_MODEL = 'Gemini 3!'
 
-      process.env.GEMINI_MODEL = 'gemini flash'
-      expect(() => leerConfigAyuda()).toThrow()
+      const cfg = leerConfigAyuda()
+      expect(cfg).toBeNull()
+      expect(ayudaDisponible()).toBe(false)
 
-      process.env.GEMINI_MODEL = 'gemini_3_flash'
-      expect(() => leerConfigAyuda()).toThrow()
+      expect(spyError).toHaveBeenCalledWith('ayuda: configuración inválida')
+      for (const callArgs of spyError.mock.calls) {
+        expect(callArgs).toHaveLength(1)
+        expect(callArgs[0]).toBe('ayuda: configuración inválida')
+        expect(callArgs[0]).not.toContain('clave-secreta')
+        expect(callArgs[0]).not.toContain('Gemini 3!')
+      }
+
+      spyError.mockRestore()
     })
   })
 })

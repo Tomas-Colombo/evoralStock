@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { GoogleGenAI } from '@google/genai'
 import type { PromptAyuda } from './tipos'
 
 const mockGenerateContent = vi.fn()
@@ -83,6 +84,14 @@ describe('lib/ayuda/gemini', () => {
         salida: mockSalida,
       })
 
+      expect(GoogleGenAI).toHaveBeenCalledWith({
+        apiKey: 'clave-gemini-super-secreta',
+        httpOptions: {
+          timeout: 10_000,
+          retryOptions: { attempts: 1 },
+        },
+      })
+
       expect(mockGenerateContent).toHaveBeenCalledTimes(1)
       const callArgs = mockGenerateContent.mock.calls[0][0]
       expect(callArgs.model).toBe('gemini-3-flash-preview')
@@ -96,11 +105,9 @@ describe('lib/ayuda/gemini', () => {
       expect(callArgs.config.responseMimeType).toBe('application/json')
       expect(callArgs.config.responseSchema).toBeDefined()
       expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'MINIMAL' })
-      expect(callArgs.config.httpOptions).toEqual({
-        timeout: 10_000,
-        retryOptions: { attempts: 1 },
-      })
       expect(callArgs.config.abortSignal).toBeDefined()
+      // Solo el cliente tiene httpOptions, no generateContent config
+      expect(callArgs.config.httpOptions).toBeUndefined()
     })
   })
 
@@ -183,17 +190,71 @@ describe('lib/ayuda/gemini', () => {
       spyError.mockRestore()
     })
 
-    it('N3: spy de console.error no recibe ningún argumento instanceof Error ni el texto del prompt ni la clave', async () => {
+    it('JSON inválido ("Hola, para cargar un gasto") devuelve error "formato" y nunca loguea el texto del modelo', async () => {
       const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
       const modelo = crearModeloGemini(cfgValida)
 
-      // Provocamos un fallo con mensaje que podría contener datos
-      const errorConMensajeLargo = new Error('Error de red al procesar la petición con clave expuesta')
-      mockGenerateContent.mockRejectedValueOnce(errorConMensajeLargo)
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Hola, para cargar un gasto',
+      })
 
+      const resultado = await modelo(promptEjemplo, idsPermitidos)
+
+      expect(resultado).toEqual({
+        ok: false,
+        error: 'formato',
+      })
+
+      expect(spyError).toHaveBeenCalledWith(
+        'ayuda: formato',
+        expect.objectContaining({
+          modelo: 'gemini-3-flash-preview',
+          nombre: 'SyntaxError',
+          mensaje: 'JSON inválido',
+        }),
+      )
+
+      for (const callArgs of spyError.mock.calls) {
+        for (const arg of callArgs) {
+          const serializado = typeof arg === 'string' ? arg : JSON.stringify(arg)
+          expect(serializado).not.toContain('Hola')
+          expect(serializado).not.toContain('gasto')
+        }
+      }
+
+      spyError.mockRestore()
+    })
+
+    it('N3: spy de console.error no recibe ningún argumento instanceof Error ni el texto del prompt ni la clave a través de los caminos proveedor, timeout y formato', async () => {
+      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const modelo = crearModeloGemini(cfgValida)
+
+      // 1. Camino proveedor (503 con mensaje de error)
+      mockGenerateContent.mockRejectedValueOnce(
+        Object.assign(new Error('503 Service Unavailable with clave-gemini-super-secreta leak attempt'), {
+          status: 503,
+        }),
+      )
       await modelo(promptEjemplo, idsPermitidos)
 
-      expect(spyError).toHaveBeenCalled()
+      // 2. Camino timeout
+      mockGenerateContent.mockRejectedValueOnce(new DOMException('Timed out', 'AbortError'))
+      await modelo(promptEjemplo, idsPermitidos)
+
+      // 3. Camino formato (JSON inválido con respuesta de texto)
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Hola, para cargar un gasto: RESPUESTA_DEL_MODELO_A_IGNORAR',
+      })
+      await modelo(promptEjemplo, idsPermitidos)
+
+      // 4. Camino formato (texto undefined)
+      mockGenerateContent.mockResolvedValueOnce({
+        text: undefined,
+      })
+      await modelo(promptEjemplo, idsPermitidos)
+
+      // Verificamos todas las llamadas generadas
+      expect(spyError.mock.calls.length).toBeGreaterThanOrEqual(4)
 
       for (const callArgs of spyError.mock.calls) {
         for (const arg of callArgs) {
@@ -209,34 +270,11 @@ describe('lib/ayuda/gemini', () => {
 
           // Tampoco debe exponerse la clave de API
           expect(serializado).not.toContain('clave-gemini-super-secreta')
+
+          // Tampoco la respuesta del modelo
+          expect(serializado).not.toContain('RESPUESTA_DEL_MODELO_A_IGNORAR')
         }
       }
-
-      spyError.mockRestore()
-    })
-
-    it('JSON inválido o respuesta sin texto devuelve error "formato"', async () => {
-      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const modelo = crearModeloGemini(cfgValida)
-
-      mockGenerateContent.mockResolvedValueOnce({
-        text: 'ESTO NO ES UN JSON',
-      })
-
-      const resultado = await modelo(promptEjemplo, idsPermitidos)
-
-      expect(resultado).toEqual({
-        ok: false,
-        error: 'formato',
-      })
-
-      expect(spyError).toHaveBeenCalledWith(
-        'ayuda: formato',
-        expect.objectContaining({
-          modelo: 'gemini-3-flash-preview',
-          nombre: 'SyntaxError',
-        }),
-      )
 
       spyError.mockRestore()
     })
