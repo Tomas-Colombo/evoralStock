@@ -133,7 +133,7 @@ Archivos: `components/ayuda/*` (+ test), `app/(app)/layout.tsx` (solo el montaje
 - [x] `PanelAyuda` según spec §6 UI y REQ-AYUDA-12, solo primitivas existentes de `components/ui/`
 - [x] `idConversacion` con `crypto.randomUUID()` al abrir; historial ≤ 6 al enviar; `focoId` = último `entrada.id`
 - [x] Test (testing-library): N3 Escape, N4 doble envío, turno fallido devuelve el texto al input
-- [x] Probar en claro y oscuro
+- [ ] Probar en claro y oscuro
 
 ## G — Cierre (Ola 3)
 
