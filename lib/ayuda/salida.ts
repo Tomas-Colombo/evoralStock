@@ -33,14 +33,14 @@ export function esquemaSalida(ids: readonly string[]): object {
 
 /**
  * Re-valida en el servidor la salida estructurada devuelta por el modelo.
- * Garantiza que entradaId pertenezca al enum permitido de la consulta (o sea null)
- * y que respuesta no supere los 2000 caracteres.
+ * Garantiza que entradaId pertenezca al enum permitido de la consulta (o sea null),
+ * que respuesta no esté vacía ni contenga solo espacios, y que no supere los 2000 caracteres.
  */
 export function salidaSchema(ids: readonly string[]): z.ZodType<SalidaModelo> {
   const idsValidos = new Set(ids)
 
   return z.object({
-    respuesta: z.string().max(2000),
+    respuesta: z.string().trim().min(1).max(2000),
     entradaId: z
       .string()
       .nullable()

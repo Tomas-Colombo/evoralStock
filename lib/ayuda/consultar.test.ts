@@ -312,4 +312,32 @@ describe('consultarAyuda', () => {
       error: 'formato',
     })
   })
+
+  it('REQ-AYUDA-05: respuesta vacía o con solo espacios termina en error formato en consultarAyuda', async () => {
+    const fake = crearFakeModelo([
+      {
+        ok: true,
+        salida: {
+          respuesta: '   ',
+          entradaId: 'ayuda-uso',
+        },
+      },
+    ])
+
+    const res = await consultarAyuda(
+      {
+        pregunta: 'Consulta con respuesta en blanco',
+        historial: [],
+        focoId: null,
+        permisos: permisosConAyuda,
+      },
+      fake.modelo,
+    )
+
+    expect(fake.llamadas).toBe(1)
+    expect(res).toEqual({
+      resultado: 'error',
+      error: 'formato',
+    })
+  })
 })

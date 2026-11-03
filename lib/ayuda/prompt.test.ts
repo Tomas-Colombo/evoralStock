@@ -20,9 +20,7 @@ describe('armarPrompt', () => {
       pasos: ['Ir a gastos', 'Click en nuevo gasto'],
       ruta: '/gastos',
       permisos: ['gastos.ver', 'gastos.crear'],
-      detalles: [
-        { tema: 'Comprobantes', texto: 'Adjuntar PDF o foto de la factura.' },
-      ],
+      // sin detalles
     },
   ]
 
@@ -42,6 +40,20 @@ describe('armarPrompt', () => {
     })
 
     expect(prompt1.instrucciones).toBe(prompt2.instrucciones)
+  })
+
+  it('REQ-AYUDA-07: solo las entradas con detalles llevan la marca "| con detalles" y las instrucciones mencionan necesitaDetalle', () => {
+    const prompt = armarPrompt({
+      entradas: fixtureEntradas,
+      foco: null,
+      historial: [],
+      pregunta: '¿Cómo cargo una venta?',
+    })
+
+    expect(prompt.instrucciones).toContain('ventas-crear | Crear venta | Ir a ventas · Click en nueva venta | con detalles')
+    expect(prompt.instrucciones).toContain('gasto-nuevo | Registrar gasto | Ir a gastos · Click en nuevo gasto')
+    expect(prompt.instrucciones).not.toContain('gasto-nuevo | Registrar gasto | Ir a gastos · Click en nuevo gasto | con detalles')
+    expect(prompt.instrucciones).toContain('necesitaDetalle true')
   })
 
   it('REQ-AYUDA-04 N1: el índice y las instrucciones no contienen ninguna ruta', () => {
@@ -70,7 +82,6 @@ describe('armarPrompt', () => {
     expect(turnoFinal.texto).toContain('Detalles: ninguno')
     expect(turnoFinal.texto).toContain('Pregunta del usuario: ¿Dónde veo las cosas?')
     expect(turnoFinal.texto).not.toContain('Descuentos')
-    expect(turnoFinal.texto).not.toContain('Comprobantes')
   })
 
   it('REQ-AYUDA-04 N3: historial de 6 respeta orden y roles', () => {
@@ -110,6 +121,5 @@ describe('armarPrompt', () => {
     const turnoFinal = prompt.turnos[0]
     expect(turnoFinal.texto).toContain('Entrada en foco: ventas-crear')
     expect(turnoFinal.texto).toContain('Descuentos: Se aplican sobre el total antes de impuestos.')
-    expect(turnoFinal.texto).not.toContain('Comprobantes')
   })
 })

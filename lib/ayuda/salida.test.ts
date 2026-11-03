@@ -70,6 +70,13 @@ describe('salida', () => {
     expect(schema.safeParse({ respuesta: 123, entradaId: 'venta-nueva' }).success).toBe(false)
   })
 
+  it('REQ-AYUDA-05 N2: respuesta vacía o con solo espacios es rechazada', () => {
+    const schema = salidaSchema(idsPermitidos)
+
+    expect(schema.safeParse({ respuesta: '', entradaId: 'venta-nueva' }).success).toBe(false)
+    expect(schema.safeParse({ respuesta: '   ', entradaId: 'venta-nueva' }).success).toBe(false)
+  })
+
   it('REQ-AYUDA-05 N3: respuesta mayor a 2000 caracteres es rechazada', () => {
     const schema = salidaSchema(idsPermitidos)
     const parse = schema.safeParse({

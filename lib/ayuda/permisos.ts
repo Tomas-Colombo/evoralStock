@@ -1,20 +1,19 @@
 import type { Permiso } from '@/lib/types/administracion'
 import { accionesDelModulo } from '@/lib/types/administracion'
 
+// Es estructural porque lib/ayuda no puede importar lib/dal (REQ-AYUDA-09)
 export interface SessionPermisosInput {
   rolId: string | null
   permisos: Record<string, readonly string[] | string[]>
   modulosHabilitados: readonly string[] | string[]
 }
 
-export type Session = SessionPermisosInput
-
 /**
  * Devuelve el conjunto de permisos efectivos de la sesión.
  * Solo incluye acciones válidas de módulos habilitados en el tenant para un rol asignado.
  */
 export function permisosEfectivos(
-  s: Pick<SessionPermisosInput, 'rolId' | 'permisos' | 'modulosHabilitados'>,
+  s: SessionPermisosInput,
 ): ReadonlySet<Permiso> {
   if (!s.rolId) {
     return new Set<Permiso>()
