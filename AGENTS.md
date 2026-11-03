@@ -132,6 +132,7 @@ folder name — see `docs/modulos.md`.
 | Touching | Read first |
 | --- | --- |
 | Any route, permission, layout | `docs/modulos.md`, `lib/types/administracion.ts` (`CATALOGO_PERMISOS`) |
+| A screen, button or permission | `docs/ayuda.md`: update `lib/ayuda/guia/` (enforced by `cobertura.test.ts`) |
 | A migration or `sp_*` | `supabase/README.md` (CI applies them: `supabase db push`) |
 | A mutation | the three gates above + `lib/dal/guard.ts` |
 | An error message | `lib/errores/mensajes.ts` |

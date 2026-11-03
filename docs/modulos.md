@@ -22,9 +22,7 @@ de la tabla `modulo`. Si cambia el mapeo, se actualiza acá en el mismo commit.
 | — (sin ruta propia) | — | `reservas` |
 
 
-Permisos existentes (9): administracion, consignaciones, gastos, inventario,
-precios, rendiciones, reportes, revendedoras, ventas. **No existen** `clientes`, `cuotas` ni
-`proveedores` como permiso.
+Permisos existentes (10 módulos, 35 acciones en total en `CATALOGO_PERMISOS`): administracion, ayuda, consignaciones, gastos, inventario, precios, rendiciones, reportes, revendedoras, ventas (incluye `ventas.eliminar`, que agregó b8f4187, y `ayuda.consultar`). **No existen** `clientes`, `cuotas` ni `proveedores` como permiso.
 
 Esto es deliberado: clientes y cuotas viven bajo el permiso de ventas;
 proveedores bajo el de inventario.
@@ -56,6 +54,7 @@ Los 6 módulos base del sistema:
 Cada paquete agrupa uno o más códigos de módulo de `tenant_modulo`:
 - **`revendedoras`**: código `['revendedoras']`. Canal de venta externa, stock en poder, portal y liquidaciones.
 - **`consignacionProveedor`**: códigos `['consignaciones', 'rendiciones']`. Ingreso de mercadería por consignación, tipo de proveedor consignatario, devoluciones a proveedor y rendiciones de ventas. Se habilitan y apagan siempre de a par (invariante en DB).
+- **`ayuda`**: código `['ayuda']`. Panel flotante de consulta con asistente IA (permiso `ayuda.consultar`). Sin ruta propia: es un panel flotante y sus actions viven en `app/(app)/ayuda/actions.ts` sin `page.tsx`.
 
 ### Regla de capacidades en la UI
 La UI y los Server Actions **nunca** chequean códigos de módulos sueltos directamente (`session.modulosHabilitados.includes(...)` está prohibido en `app/` y `components/`). Toda consulta funcional deriva de **capacidades**:

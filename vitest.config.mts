@@ -54,6 +54,8 @@ export default defineConfig({
        *    a form and a Server Action; e2e territory for the same reason.
        */
       include: [
+        // Asistente de ayuda: filtro, prompt, salida, resolver y guía curada tipada.
+        'lib/ayuda/**',
         'lib/cobros/**',
         'lib/cuotas/**',
         'lib/design-tokens/**',
