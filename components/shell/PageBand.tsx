@@ -9,6 +9,10 @@ export interface BandKpi {
   tone?: 'default' | 'warn'
   /** Small caption under the value. */
   sub?: ReactNode
+  /** Right-aligned note on the label row ("por nivel", "▲ 12 % vs. sep"). */
+  hint?: ReactNode
+  /** Mini chart under the value (segmented bar, sparkline). */
+  viz?: ReactNode
 }
 
 interface PageBandProps {
@@ -45,7 +49,7 @@ interface PageBandProps {
  */
 export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, backHref, backLabel }: PageBandProps) {
   const hasKpis = !!kpis && kpis.length > 0
-  const filasKpi = kpis?.some((k) => k.sub) ? 'row-span-3' : 'row-span-2'
+  const filasKpi = kpis?.some((k) => k.sub || k.viz) ? 'row-span-3' : 'row-span-2'
   return (
     <header
       aria-label="Barra superior"
@@ -114,24 +118,36 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
                 // Each KPI spans the same row tracks (subgrid): a label that wraps to two
                 // lines in a narrow column grows the shared label row instead of pushing
                 // only its own number down, so every value stays on one baseline.
-                className="@container grid grid-cols-2 border-t border-band-line lg:[grid-template-columns:var(--kpi-cols)]"
+                // `content-start self-start`: the grid row is as tall as the actions
+                // column, and stretched auto tracks left a tall gap between label and value.
+                className="@container grid grid-cols-2 content-start self-start border-t border-band-line lg:[grid-template-columns:var(--kpi-cols)]"
               >
                 {kpis.map((k) => (
                   <div
                     key={k.label}
-                    className={`grid min-w-0 grid-rows-subgrid content-start gap-y-2 pb-1 pr-4 pt-3 ${filasKpi} lg:[&:not(:first-child)]:border-l lg:[&:not(:first-child)]:border-band-line lg:[&:not(:first-child)]:pl-4`}
+                    className={`grid min-w-0 grid-rows-subgrid content-start gap-y-3 pb-2 pr-4 pt-4 ${filasKpi} lg:[&:not(:first-child)]:border-l lg:[&:not(:first-child)]:border-band-line lg:[&:not(:first-child)]:pl-5`}
                   >
-                    <dt className="eyebrow text-band-label">{k.label}</dt>
+                    <dt className="flex min-w-0 items-baseline justify-between gap-2">
+                      <span className={`eyebrow ${k.tone === 'warn' ? 'text-warn-on-dark' : 'text-band-label'}`}>
+                        {k.label}
+                      </span>
+                      {k.hint && <span className="shrink-0 text-xs text-band-muted">{k.hint}</span>}
+                    </dt>
                     <dd
                       // Sized from the whole strip (cqi of the <dl>), not per cell: every
                       // value gets the same height whatever its column width.
-                      className={`self-end font-figure text-[clamp(1.5rem,3.6cqi,2rem)] leading-none [overflow-wrap:anywhere] ${
+                      className={`font-figure text-[clamp(1.75rem,3.8cqi,2.5rem)] font-bold leading-none [font-stretch:100%] [overflow-wrap:anywhere] ${
                         k.tone === 'warn' ? 'text-warn-on-dark' : 'text-band-ink'
                       }`}
                     >
                       {k.value}
                     </dd>
-                    {k.sub && <div className="text-xs text-band-muted">{k.sub}</div>}
+                    {(k.viz || k.sub) && (
+                      <div className="flex flex-col gap-2">
+                        {k.viz}
+                        {k.sub && <div className="text-xs text-band-muted">{k.sub}</div>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </dl>
