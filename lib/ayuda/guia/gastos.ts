@@ -23,7 +23,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
       'Seleccioná la categoría correspondiente al gasto (o creá una nueva si no existe).',
       'Ingresá el monto y la fecha del comprobante.',
       'Escribí opcionalmente una descripción del gasto y el número de factura o recibo en referencia.',
-      'Hacé clic en "Guardar gasto" para asentar el movimiento.',
+      'Hacé clic en "Registrar gasto" para asentar el movimiento.',
     ],
     detalles: [
       {
@@ -39,7 +39,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     permisos: ['gastos.ver', 'gastos.editar'],
     pasos: [
       'Desde el listado de Gastos, localizá el gasto en la tabla de últimos gastos registrados.',
-      'Hacé clic en el botón de eliminar (ícono de papelera) en la fila correspondiente.',
+      'Hacé clic en el botón "Eliminar" en la fila del gasto correspondiente.',
       'En el cuadro de confirmación, hacé clic en "Eliminar" para borrar el registro físico.',
     ],
     detalles: [

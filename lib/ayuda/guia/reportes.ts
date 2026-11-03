@@ -5,7 +5,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     id: 'reportes-tablero-general',
     titulo: 'Cómo consultar el tablero financiero general',
     ruta: '/reportes',
-    permisos: ['reportes.ver'],
+    permisos: ['reportes.ver', 'ventas.ver'],
     pasos: [
       'Ingresá a Reportes desde el menú principal de navegación.',
       'Ajustá el período de consulta seleccionando las fechas desde y hasta en el filtro superior.',
@@ -32,20 +32,20 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     ],
   },
   {
-    id: 'reportes-consignaciones',
-    titulo: 'Cómo consultar mercadería en consignación y proveedores en reportes',
+    id: 'reportes-proveedores',
+    titulo: 'Cómo consultar la deuda con proveedores en reportes',
     ruta: '/reportes',
-    permisos: ['reportes.ver', 'consignaciones.ver'],
+    permisos: ['reportes.ver', 'rendiciones.ver'],
     pasos: [
-      'Ingresá al tablero de Reportes con el paquete de consignaciones contratado.',
-      'En el bloque Movimiento de plata, revisá los pagos realizados a proveedores consignatarios.',
-      'En el bloque Mercadería, consultá la valorización del stock propio versus stock recibido en consignación.',
-      'En el bloque Proveedores, verificá la deuda acumulada pendiente de rendición.',
+      'Ingresá al tablero de Reportes con el módulo de rendiciones activo.',
+      'Ubicá el bloque "Lo que debés" en la sección de posición financiera.',
+      'Consultá el monto acumulado adeudado a proveedores por mercadería en consignación vendida.',
+      'Si existen saldos impagos, podés hacer clic en "Ver rendiciones pendientes →" para abrir el detalle.',
     ],
     detalles: [
       {
         tema: 'Paquete de consignación',
-        texto: 'El bloque de deuda a proveedores y la separación de stock en consignación requieren el paquete de consignaciones activo.',
+        texto: 'El bloque de proveedores solo se muestra si el negocio tiene contratado el paquete de consignación de proveedores.',
       },
     ],
   },

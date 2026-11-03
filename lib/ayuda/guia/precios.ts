@@ -258,7 +258,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.crear'],
     pasos: [
-      'En Cuentas y recargos, desplazate al panel Recargo por cuotas y hacé clic en "+ Nuevo recargo".',
+      'En Cuentas y recargos, desplazate al panel Recargo por cuotas y hacé clic en "Nuevo recargo".',
       'Seleccioná la cantidad de cuotas entre los planes activos.',
       'Elegí si aplica a cualquier procesador o filtrá por cuenta destino y medio de pago específico.',
       'Ingresá el valor del recargo porcentual a cobrar al cliente.',
@@ -269,6 +269,19 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
         tema: 'Financiación propia',
         texto: 'Si el recargo corresponde a crédito de la casa, no se puede asociar a una cuenta de destino ni a un procesador externo.',
       },
+    ],
+  },
+  {
+    id: 'precios-recargos-editar',
+    titulo: 'Cómo editar un recargo por cuotas',
+    ruta: '/precios/cuentas',
+    permisos: ['precios.ver', 'precios.editar'],
+    pasos: [
+      'En Cuentas y recargos, hacé clic en "Costo de cobro" sobre la cuenta correspondiente.',
+      'Desplazate hasta el bloque Recargo por cuotas.',
+      'Ubicá la fila del plan a modificar y hacé clic en "Editar".',
+      'Modificá el valor porcentual del recargo en el campo de texto.',
+      'Hacé clic en "Guardar" para asentar el nuevo recargo.',
     ],
   },
   {
