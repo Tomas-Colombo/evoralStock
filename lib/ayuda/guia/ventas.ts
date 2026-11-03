@@ -46,7 +46,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     pasos: [
       'Desde el listado de Ventas, buscá la venta y hacé clic en "Ver" para abrir su ficha.',
       'En la tarjeta superior de datos de la venta, hacé clic en "Emitir comprobante".',
-      'Seleccioná el tipo de comprobante en el desplegable (Factura A, B, C, Recibo o Ticket).',
+      'Seleccioná el tipo de comprobante en el desplegable (Factura A, Factura B, Factura C, Remito o Ticket).',
       'Ingresá el número de comprobante.',
       'Hacé clic en "Emitir" para asociar el comprobante a la venta.',
     ],
@@ -119,7 +119,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver'],
     pasos: [
-      'Ingresá a Ventas y hacé clic en el botón "Reservas" de la barra superior (o navegá a /ventas/reservas).',
+      'Ingresá a la sección Reservas desde el menú o desde el botón "Reservas" en Ventas.',
       'Revisá la lista con cliente, fecha de alta, fecha de vencimiento, cantidad de ítems y estado.',
       'Si una reserva activa está lista para cobrarse, hacé clic en "Vender" para cargarla directo en el mostrador.',
       'Hacé clic en "Abrir" en cualquier fila para revisar los ítems reservados o cancelarla.',
@@ -131,7 +131,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver', 'ventas.editar'],
     pasos: [
-      'Ingresá a la sección de Reservas en /ventas/reservas.',
+      'Ingresá a la sección Reservas.',
       'En el extremo superior derecho, hacé clic en el botón "Purgar vencidas".',
       'El sistema buscará las reservas cuya fecha límite expiró y las marcará como vencidas.',
     ],
@@ -213,10 +213,10 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
   {
     id: 'ventas-clientes-crear',
     titulo: 'Cómo registrar un nuevo cliente',
-    ruta: '/clientes',
+    ruta: '/clientes/nuevo',
     permisos: ['ventas.ver', 'ventas.crear'],
     pasos: [
-      'En la pantalla de Clientes, hacé clic en el botón "Nuevo cliente" de la cabecera.',
+      'Ingresá a la pantalla de Nuevo cliente (o hacé clic en "Nuevo cliente" desde la cabecera del listado).',
       'Completá el apellido y el nombre del cliente (ambos son campos obligatorios).',
       'Ingresá el número de teléfono, correo electrónico o notas si contás con esos datos.',
       'Hacé clic en "Crear cliente" para guardar el nuevo registro en la cartera.',
