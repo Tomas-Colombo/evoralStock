@@ -61,7 +61,9 @@ export interface AuditoriaConActor extends AuditoriaRow {
 const _CATALOGO = {
   inventario: ['ver', 'crear', 'editar', 'eliminar'],
   precios: ['ver', 'crear', 'editar', 'eliminar'],
-  ventas: ['ver', 'crear', 'editar'],
+  // `eliminar` = marcar una cuota como incobrable. Faltaba desde el primer
+  // commit: la action lo exigía y ningún rol podía tenerlo, ni el admin.
+  ventas: ['ver', 'crear', 'editar', 'eliminar'],
   consignaciones: ['ver', 'crear', 'editar', 'eliminar'],
   rendiciones: ['ver', 'crear', 'editar'],
   gastos: ['ver', 'crear', 'editar'],
