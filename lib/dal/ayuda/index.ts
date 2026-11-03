@@ -4,9 +4,9 @@ import { createServerClient } from '@/lib/dal/supabase'
 import { extractErrorSlug, type ReglaSlug } from '@/lib/dal/revendedoras/slug-error'
 
 export const REGLAS_SLUG: readonly ReglaSlug[] = [
-  { slug: 'no-tenant', codigo: '42501', contiene: ['no-tenant'] },
-  { slug: 'module-disabled', codigo: 'P0001', contiene: ['module-disabled'] },
-  { slug: 'consulta-no-encontrada', codigo: '42704', contiene: ['consulta-no-encontrada'] },
+  { slug: 'no-tenant' },
+  { slug: 'module-disabled' },
+  { slug: 'consulta-no-encontrada' },
 ]
 
 export interface RegistrarConsultaAyudaPayload {
@@ -39,7 +39,11 @@ export async function registrarConsultaAyuda(
       return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
     }
 
-    return { ok: true, id: String(data) }
+    if (typeof data !== 'string' || data.trim() === '') {
+      return { ok: false, reason: 'error-desconocido' }
+    }
+
+    return { ok: true, id: data }
   } catch (err) {
     return { ok: false, reason: extractErrorSlug(err, REGLAS_SLUG) }
   }

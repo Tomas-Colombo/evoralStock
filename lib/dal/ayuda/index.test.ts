@@ -14,38 +14,52 @@ vi.mock('@/lib/dal/supabase', () => ({
   })),
 }))
 
+const payloadValido: RegistrarConsultaAyudaPayload = {
+  idConversacion: '11111111-1111-1111-1111-111111111111',
+  pregunta: '¿Cómo crear una venta?',
+  respuesta: 'Tenés que ir a Ventas > Nueva venta.',
+  entradaId: 'ventas-nueva',
+  resultado: 'respondida',
+}
+
 describe('lib/dal/ayuda', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   describe('REGLAS_SLUG', () => {
-    it('declara las reglas para no-tenant, module-disabled y consulta-no-encontrada', () => {
-      const slugs = REGLAS_SLUG.map((r) => r.slug)
-      expect(slugs).toContain('no-tenant')
-      expect(slugs).toContain('module-disabled')
-      expect(slugs).toContain('consulta-no-encontrada')
+    it('declara las reglas solo por texto para no-tenant, module-disabled y consulta-no-encontrada', () => {
+      expect(REGLAS_SLUG).toEqual([
+        { slug: 'no-tenant' },
+        { slug: 'module-disabled' },
+        { slug: 'consulta-no-encontrada' },
+      ])
+    })
 
-      const reglaNoTenant = REGLAS_SLUG.find((r) => r.slug === 'no-tenant')
-      expect(reglaNoTenant?.codigo).toBe('42501')
+    it('no mapea errores 42501 genéricos (RLS) a no-tenant', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: null,
+        error: { code: '42501', message: 'new row violates row-level security policy' },
+      })
 
-      const reglaModuleDisabled = REGLAS_SLUG.find((r) => r.slug === 'module-disabled')
-      expect(reglaModuleDisabled?.codigo).toBe('P0001')
+      const res = await registrarConsultaAyuda(payloadValido)
+      expect(res.ok).toBe(false)
+      expect((res as { reason: string }).reason).not.toBe('no-tenant')
+    })
 
-      const reglaConsultaNoEncontrada = REGLAS_SLUG.find((r) => r.slug === 'consulta-no-encontrada')
-      expect(reglaConsultaNoEncontrada?.codigo).toBe('42704')
+    it('no mapea errores P0001 con otro mensaje a module-disabled', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: null,
+        error: { code: 'P0001', message: 'otra-cosa' },
+      })
+
+      const res = await registrarConsultaAyuda(payloadValido)
+      expect(res.ok).toBe(false)
+      expect((res as { reason: string }).reason).not.toBe('module-disabled')
     })
   })
 
   describe('registrarConsultaAyuda', () => {
-    const payloadValido: RegistrarConsultaAyudaPayload = {
-      idConversacion: '11111111-1111-1111-1111-111111111111',
-      pregunta: '¿Cómo crear una venta?',
-      respuesta: 'Tenés que ir a Ventas > Nueva venta.',
-      entradaId: 'ventas-nueva',
-      resultado: 'respondida',
-    }
-
     it('llama a sp_registrar_consulta_ayuda y devuelve id en caso de éxito', async () => {
       rpcMock.mockResolvedValueOnce({
         data: '22222222-2222-2222-2222-222222222222',
@@ -67,7 +81,23 @@ describe('lib/dal/ayuda', () => {
       })
     })
 
-    it('mapea error no-tenant (42501)', async () => {
+    it('devuelve ok: false con error-desconocido si data es null o string vacío', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: null,
+        error: null,
+      })
+      const resNull = await registrarConsultaAyuda(payloadValido)
+      expect(resNull).toEqual({ ok: false, reason: 'error-desconocido' })
+
+      rpcMock.mockResolvedValueOnce({
+        data: '   ',
+        error: null,
+      })
+      const resVacio = await registrarConsultaAyuda(payloadValido)
+      expect(resVacio).toEqual({ ok: false, reason: 'error-desconocido' })
+    })
+
+    it('mapea error no-tenant', async () => {
       rpcMock.mockResolvedValueOnce({
         data: null,
         error: { code: '42501', message: 'no-tenant' },
@@ -77,7 +107,7 @@ describe('lib/dal/ayuda', () => {
       expect(res).toEqual({ ok: false, reason: 'no-tenant' })
     })
 
-    it('mapea error module-disabled (P0001)', async () => {
+    it('mapea error module-disabled', async () => {
       rpcMock.mockResolvedValueOnce({
         data: null,
         error: { code: 'P0001', message: 'module-disabled' },
@@ -125,7 +155,7 @@ describe('lib/dal/ayuda', () => {
       expect(res).toEqual({ ok: true })
     })
 
-    it('mapea error consulta-no-encontrada (42704)', async () => {
+    it('mapea error consulta-no-encontrada', async () => {
       rpcMock.mockResolvedValueOnce({
         data: null,
         error: { code: '42704', message: 'consulta-no-encontrada' },
@@ -139,7 +169,7 @@ describe('lib/dal/ayuda', () => {
       expect(res).toEqual({ ok: false, reason: 'consulta-no-encontrada' })
     })
 
-    it('mapea error no-tenant (42501)', async () => {
+    it('mapea error no-tenant', async () => {
       rpcMock.mockResolvedValueOnce({
         data: null,
         error: { code: '42501', message: 'no-tenant' },
@@ -153,7 +183,7 @@ describe('lib/dal/ayuda', () => {
       expect(res).toEqual({ ok: false, reason: 'no-tenant' })
     })
 
-    it('mapea error module-disabled (P0001)', async () => {
+    it('mapea error module-disabled', async () => {
       rpcMock.mockResolvedValueOnce({
         data: null,
         error: { code: 'P0001', message: 'module-disabled' },
