@@ -57,6 +57,7 @@ export function PanelAyuda() {
   const [error, setError] = useState<string | null>(null)
 
   const enVueloRef = useRef(false)
+  const prevEnVueloRef = useRef(false)
   const botonRef = useRef<HTMLButtonElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -89,6 +90,13 @@ export function PanelAyuda() {
       textareaRef.current?.focus()
     }
   }, [abierto])
+
+  useEffect(() => {
+    if (prevEnVueloRef.current && !enVuelo && abierto) {
+      textareaRef.current?.focus()
+    }
+    prevEnVueloRef.current = enVuelo
+  }, [enVuelo, abierto])
 
   useEffect(() => {
     if (abierto && typeof mensajesEndRef.current?.scrollIntoView === 'function') {

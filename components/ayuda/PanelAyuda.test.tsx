@@ -1,7 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { PanelAyuda } from './PanelAyuda'
 import { ToastProvider } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
@@ -119,6 +118,7 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Pasos para venta.')).toBeInTheDocument()
+      expect(textarea).toHaveFocus()
     })
   })
 
@@ -146,6 +146,7 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
 
     // El texto volvió al textarea
     expect(textarea).toHaveValue('Pregunta que fallará')
+    expect(textarea).toHaveFocus()
   })
 
   it('fuera_de_opciones → tarjeta fija sin texto del modelo', async () => {
