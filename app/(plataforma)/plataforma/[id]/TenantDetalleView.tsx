@@ -16,7 +16,7 @@ import {
   togglePaqueteTenantAction,
 } from '@/app/(plataforma)/plataforma/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
-import type { PaqueteOpcional } from '@/lib/modulos/catalogo'
+import { PAQUETES_INFO, type PaqueteOpcional } from '@/lib/modulos/catalogo'
 import type {
   MedioPagoTenant,
   MovimientoCuentaCorriente,
@@ -27,7 +27,7 @@ import { formatearMoneda } from '@/lib/utils/moneda'
 import { HistorialTable } from './HistorialTable'
 import { NuevoCargoModal } from './NuevoCargoModal'
 import { NuevoPagoModal } from './NuevoPagoModal'
-import { PAQUETES_META, PaquetesCard } from './PaquetesCard'
+import { PaquetesCard } from './PaquetesCard'
 
 interface TenantDetalleViewProps {
   detalle: TenantPlataformaDetalle
@@ -288,7 +288,7 @@ export function TenantDetalleView({ detalle }: TenantDetalleViewProps) {
         open={paqueteADesactivar !== null}
         title={
           paqueteADesactivar
-            ? `¿Desactivar paquete ${PAQUETES_META[paqueteADesactivar].label}?`
+            ? `¿Desactivar paquete ${PAQUETES_INFO[paqueteADesactivar].nombre}?`
             : ''
         }
         description="Al desactivar este paquete se ocultarán los accesos y funciones para este comercio. Si tiene mercadería asociada o estado vivo, la base de datos rechazará la operación."

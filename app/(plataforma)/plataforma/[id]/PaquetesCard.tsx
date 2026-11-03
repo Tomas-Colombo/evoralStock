@@ -8,24 +8,6 @@ import {
   type PaqueteOpcional,
 } from '@/lib/modulos/catalogo'
 
-export const PAQUETES_META: Record<
-  PaqueteOpcional,
-  { label: string; descripcion: string }
-> = {
-  revendedoras: {
-    label: PAQUETES_INFO.revendedoras.nombre,
-    descripcion: PAQUETES_INFO.revendedoras.descripcion,
-  },
-  consignacionProveedor: {
-    label: PAQUETES_INFO.consignacionProveedor.nombre,
-    descripcion: PAQUETES_INFO.consignacionProveedor.descripcion,
-  },
-  ayuda: {
-    label: PAQUETES_INFO.ayuda.nombre,
-    descripcion: PAQUETES_INFO.ayuda.descripcion,
-  },
-}
-
 interface PaquetesCardProps {
   paquetes: Record<PaqueteOpcional, boolean>
   isPending: boolean

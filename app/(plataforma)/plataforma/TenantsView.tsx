@@ -31,11 +31,9 @@ import {
   type TenantPlataformaResumen,
 } from '@/lib/types/plataforma'
 import type { FiltrosTenantsParsed } from '@/lib/validation/plataforma'
+import { PAQUETES_INFO } from '@/lib/modulos/catalogo'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { NuevoTenantModal } from './NuevoTenantModal'
-import { PAQUETES_INFO } from '@/lib/modulos/catalogo'
-
-
 
 export interface TenantsViewProps {
   tenants: TenantPlataformaResumen[]
@@ -271,7 +269,7 @@ export function TenantsView({
                       <div className="flex flex-wrap gap-1">
                         {t.paquetesHabilitados.map((pkg) => (
                           <Badge key={pkg} variant="neutral">
-                            {PAQUETES_INFO[pkg]?.nombre ?? pkg}
+                            {PAQUETES_INFO[pkg].nombre}
                           </Badge>
                         ))}
                       </div>

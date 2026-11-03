@@ -286,10 +286,10 @@ export function NuevoTenantModal({
                   />
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-medium text-ink">
-                      {meta?.nombre ?? pkg}
+                      {meta.nombre}
                     </span>
                     <span className="text-[11.5px] text-muted">
-                      {meta?.descripcion}
+                      {meta.descripcion}
                     </span>
                   </div>
                 </label>
