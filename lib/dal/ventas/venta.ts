@@ -108,18 +108,20 @@ async function recorrerPeriodo<T>(select: string, opts: PeriodoVentas): Promise<
 export async function resumenVentasPeriodo(
   opts: PeriodoVentas,
 ): Promise<{ registradas: number; anuladas: number; facturado: number }> {
-  const filas = await recorrerPeriodo<{ estado_venta: string; total: number | string }>(
-    'estado_venta, total',
-    opts,
-  )
-  let registradas = 0
-  let facturado = 0
-  for (const f of filas) {
-    if (f.estado_venta !== 'registrada') continue
-    registradas++
-    facturado += Number(f.total)
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .rpc('rf_resumen_ventas_periodo', {
+      p_desde: opts.desde ?? null,
+      p_hasta_exclusivo: opts.hastaExclusivo ?? null,
+      p_canal: opts.canal ?? null,
+    })
+    .single<{ registradas: number | string; anuladas: number | string; facturado: number | string }>()
+  if (error) throw new Error(`resumenVentasPeriodo: ${error.message}`)
+  return {
+    registradas: Number(data?.registradas ?? 0),
+    anuladas: Number(data?.anuladas ?? 0),
+    facturado: Number(data?.facturado ?? 0),
   }
-  return { registradas, anuladas: filas.length - registradas, facturado }
 }
 
 /** Todas las ventas del período, para exportar. */
