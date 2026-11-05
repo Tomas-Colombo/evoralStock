@@ -76,7 +76,6 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
 
       const hoy = getHoyBuenosAires()
       const { error: errReg } = await authAdmin.rpc('sp_registrar_cotizacion_bcra', {
-        p_fecha: hoy,
         p_valor: 1546.5,
         p_fecha_valor: hoy,
         p_desactualizada: false,
@@ -183,7 +182,6 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
       const hoy = getHoyBuenosAires()
 
       const { error } = await authAdmin.rpc('sp_registrar_cotizacion_bcra', {
-        p_fecha: hoy,
         p_valor: 0,
         p_fecha_valor: hoy,
         p_desactualizada: false,
@@ -215,7 +213,6 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
 
       const hoy = getHoyBuenosAires()
       await authAdminA.rpc('sp_registrar_cotizacion_bcra', {
-        p_fecha: hoy,
         p_valor: 1500,
         p_fecha_valor: hoy,
         p_desactualizada: false,
