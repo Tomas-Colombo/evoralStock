@@ -26,16 +26,16 @@ Archivos:
 - `lib/errores/mensajes.ts` (+ `lib/errores/mensajes.test.ts`)
 
 Tareas:
-- [ ] Agregar `'editar_cotizacion'` al catálogo de acciones de `precios` en `lib/types/administracion.ts` (REQ-USD-02, REQ-USD-05).
-- [ ] Documentar el nuevo permiso `precios.editar_cotizacion` en la tabla de `docs/modulos.md` explicitando que es una compuerta a nivel de Server Action (guard de aplicación).
-- [ ] Crear schemas Zod con `strictObject` en `lib/validation/cotizacion.ts`:
+- [x] Agregar `'editar_cotizacion'` al catálogo de acciones de `precios` en `lib/types/administracion.ts` (REQ-USD-02, REQ-USD-05).
+- [x] Documentar el nuevo permiso `precios.editar_cotizacion` en la tabla de `docs/modulos.md` explicitando que es una compuerta a nivel de Server Action (guard de aplicación).
+- [x] Crear schemas Zod con `strictObject` en `lib/validation/cotizacion.ts`:
   - `actualizarCotizacionSchema` (`valor: z.number().positive().max(10_000_000)`).
   - `cambiarModoCotizacionSchema` (`modo: z.enum(['automatica', 'manual'])`).
-- [ ] Agregar tests unitarios para los schemas Zod.
-- [ ] Incorporar los 5 nuevos slugs en español con voseo y punto final en `lib/errores/mensajes.ts`:
+- [x] Agregar tests unitarios para los schemas Zod.
+- [x] Incorporar los 5 nuevos slugs en español con voseo y punto final en `lib/errores/mensajes.ts`:
   - `sin-cotizacion-dolar`, `cotizacion-manual-invalida`, `modo-cotizacion-invalido`, `bcra-no-disponible`, `cotizacion-desactualizada`.
-- [ ] Agregar los casos correspondientes en `lib/errores/mensajes.test.ts`.
-- [ ] Verificar con `pnpm gate`.
+- [x] Agregar los casos correspondientes en `lib/errores/mensajes.test.ts`.
+- [x] Verificar con `pnpm gate`.
 
 ---
 
@@ -43,29 +43,32 @@ Tareas:
 
 Cierra estructura relacional, aislamiento tenant + revendedora y persistencia INVOKER.
 Archivos:
-- `supabase/migrations/NNNNN_cotizacion_usd.sql` (siguiente número libre)
+- `supabase/migrations/00130_cotizacion_usd.sql`
+- `supabase/migrations/00131_admin_permiso_precios_editar_cotizacion.sql`
 - `tests/db/cotizacion-usd.test.ts`
 
 Tareas:
-- [ ] Crear migración con bloque reversible `-- DOWN:` completo (validado por `pnpm gate:db`).
-- [ ] Crear tabla `cotizacion_config` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_config` (`auth_revendedora_id() is null`).
-- [ ] Crear tabla `cotizacion_dolar` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_dolar` (`auth_revendedora_id() is null`). Clave única `(id_tenant, fecha, origen)`. Única fuente de verdad para valores de cotización.
-- [ ] Alterar `costo_producto` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
-- [ ] Alterar `ingreso_mercaderia_detalle` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
-- [ ] Crear funciones PL/pgSQL INVOKER resolviendo "hoy" en `tenant.zona_horaria`:
-  - `sp_get_cotizacion_vigente() returns jsonb`: en modo automático filtra `origen = 'bcra'`; en modo manual, toma la última fila con `origen = 'manual'`.
+- [x] Crear migración `00130_cotizacion_usd.sql` con bloque reversible `-- DOWN:` completo (validado por `pnpm gate:db`).
+- [x] Crear tabla `cotizacion_config` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_config` (`auth_revendedora_id() is null`).
+- [x] Crear tabla `cotizacion_dolar` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_dolar` (`auth_revendedora_id() is null`). Clave única `(id_tenant, fecha, origen)`. Única fuente de verdad para valores de cotización.
+- [x] Alterar `costo_producto` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
+- [x] Alterar `ingreso_mercaderia_detalle` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
+- [x] Crear funciones PL/pgSQL INVOKER resolviendo "hoy" en `tenant.zona_horaria`:
+  - `sp_get_cotizacion_vigente() returns jsonb`: sin fila en `cotizacion_config` = modo `'automatica'` (coalesce sin depender de backfill); en modo automático filtra `origen = 'bcra'`; en modo manual, toma la última fila con `origen = 'manual'`.
   - `sp_set_cotizacion_manual(p_valor numeric, p_ip inet) returns void`
   - `sp_set_modo_cotizacion(p_modo text, p_ip inet) returns void`
   - `sp_registrar_cotizacion_bcra(p_fecha date, p_valor numeric, p_fecha_valor date, p_desactualizada boolean) returns void`
-  - `sp_revaluar_costos_usd_vigentes(p_ip inet) returns jsonb`
-- [ ] Tests en `tests/db/cotizacion-usd.test.ts`:
+- [x] Crear migración `00131_admin_permiso_precios_editar_cotizacion.sql` (patrón 00128) que agrega `'editar_cotizacion'` a `precios` en `rol.permisos` del rol Administrador de los tenants existentes (idempotente, con DOWN que lo quita).
+- [x] Tests en `tests/db/cotizacion-usd.test.ts`:
   - Flujo feliz de guardado y lectura de cotización manual y automática.
+  - Fallback a `'automatica'` cuando no existe fila en `cotizacion_config`.
   - N1: intento de modificación por usuario sin tenant o valor <= 0.
   - N2: aislamiento entre tenants (Tenant A no ve ni altera cotizaciones de Tenant B).
   - N3: verificar que funciones son INVOKER.
   - N4: test de seguridad de revendedora (REQ-USD-01 N5 y REQ-USD-02 N4): sesión con JWT de revendedora no puede leer ni escribir en `cotizacion_config` ni `cotizacion_dolar`.
   - N5: carga de valor manual y posterior conmutación a modo automático el mismo día (REQ-USD-02 N5) → `sp_get_cotizacion_vigente` resuelve o consulta BCRA, nunca el valor manual.
-- [ ] **PUNTO DE PARADA**: chequear regresión manual de seguridad quitando temporalmente la policy RLS para confirmar que el test falla.
+  - Verificación de backfill de permisos de Administrador (`precios.editar_cotizacion` presente en rol Administrador).
+- [x] **PUNTO DE PARADA**: chequear regresión manual de seguridad quitando temporalmente la policy RLS restrictiva para confirmar que el test falla.
 - [ ] Verificar con `pnpm gate:db`.
 
 ---
@@ -99,7 +102,7 @@ Tareas:
 
 ## Slice 4 — Conversión en Carga de Productos e Ingresos (Circuitos A y B)
 
-Cierra REQ-USD-03 y REQ-USD-04 asegurando que el equivalente en ARS alimente ambos circuitos a la fecha de carga.
+Cierra REQ-USD-03 y REQ-USD-04 asegurando que el equivalente en ARS alimente ambos circuitos a la fecha de carga, y revaluación masiva.
 Archivos:
 - `lib/dal/inventario/producto.ts`
 - `lib/dal/inventario/ingreso.ts`
@@ -110,6 +113,9 @@ Archivos:
 Tareas:
 - [ ] Actualizar `sp_set_costo_producto` para recibir `p_costo_original_usd`, `p_cotizacion_aplicada` y `p_cotizacion_fecha_valor`.
 - [ ] Actualizar `sp_importar_remito` para recibir y persistir metadatos de cotización en `ingreso_mercaderia_detalle` cuando `p_moneda = 'USD'`.
+- [ ] Implementar `sp_revaluar_costos_usd_vigentes(p_ip inet) returns jsonb`:
+  - Obtiene cotización vigente del tenant.
+  - Para cada producto con costo vigente donde `moneda = 'USD'`, invoca `sp_set_costo_producto` preservando `costo_original_usd` y `moneda = 'USD'`.
 - [ ] En `createProductoAction` (`app/(app)/inventario/actions.ts`):
   - Si `input.moneda === 'USD'`: resolver cotización vigente a la fecha de carga.
   - Calcular `costoArs = round(input.costoInicial * cotizacion, 2)`.
@@ -121,6 +127,7 @@ Tareas:
   - Producto nuevo con USD: verifica `costo_producto.costo` en ARS e `item_producto.costo_ingreso` en ARS.
   - Ingreso de producto existente con USD: verifica `ingreso_mercaderia_detalle.costo_unitario` en ARS.
   - Revaluación masiva: verifica que `costo_producto` se actualiza al nuevo tipo de cambio pero `item_producto.costo_ingreso` no cambia.
+  - Caso negativo revaluación: asegurar que `sp_revaluar_costos_usd_vigentes` propague `costo_original_usd` y `moneda = 'USD'` a la nueva fila para evitar que el producto quede huérfano sin poder revaluarse de nuevo.
 - [ ] Verificar con `pnpm gate:db`.
 
 ---
