@@ -14,7 +14,7 @@ export default async function PreciosLayout({
   } catch (error) {
     if (error instanceof AuthorizationError) {
       if (error.reason === 'no-session') redirect('/login')
-      redirect(`/?e=${error.reason}`)
+      redirect(`/no-autorizado?e=${error.reason}`)
     }
     throw error
   }

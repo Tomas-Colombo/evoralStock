@@ -22,6 +22,10 @@ export const RUTAS_SIN_AYUDA: readonly string[] = [
   // app/(app)/inventario/productos/page.tsx: es un redirect a /inventario preservando query params.
   // El catálogo de productos ahora vive directamente en /inventario; la ruta se mantiene solo por retrocompatibilidad.
   '/inventario/productos',
+
+  // app/(app)/no-autorizado/page.tsx: pantalla de bloqueo cuando el usuario no tiene permisos o el módulo está deshabilitado.
+  // No ofrece guía interactiva porque el usuario no tiene acceso a operar el sistema en esta vista.
+  '/no-autorizado',
 ]
 
 /**

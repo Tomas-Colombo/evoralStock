@@ -1,14 +1,24 @@
 import { redirect } from 'next/navigation'
+import { verifySession } from '@/lib/dal/session'
+import { primeraRutaPermitida } from '@/lib/modulos/rutas'
+
+interface RaizPageProps {
+  searchParams?: Promise<{ e?: string }>
+}
 
 /**
- * La raíz ya no muestra dashboard: el vendedor entra directo a Ventas, que es
- * donde trabaja.
- *
- * Se conserva como redirect en vez de borrarse para que sigan funcionando los
- * favoritos viejos, el `revalidatePath('/')` de administración y cualquier
- * enlace a la raíz. El dashboard anterior (KPIs + alertas) está en el
- * historial de git si hace falta recuperarlo.
+ * La raíz redirige a la primera sección a la que el rol tiene acceso de lectura,
+ * según el orden de módulos del Sidebar. Si el usuario no tiene acceso a ningún
+ * módulo, redirige a /no-autorizado.
  */
-export default async function RaizPage() {
-  redirect('/ventas')
+export default async function RaizPage(props: RaizPageProps) {
+  const session = await verifySession()
+  const ruta = primeraRutaPermitida(session)
+
+  if (!ruta) {
+    const sp = await props.searchParams
+    redirect(sp?.e ? `/no-autorizado?e=${encodeURIComponent(sp.e)}` : '/no-autorizado')
+  }
+
+  redirect(ruta)
 }

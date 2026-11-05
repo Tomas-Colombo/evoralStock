@@ -4,6 +4,17 @@ export type AuthorizationErrorReason =
   | 'module-disabled'
   | 'tenant-mismatch'
 
+export const AUTHORIZATION_REASONS: readonly AuthorizationErrorReason[] = [
+  'no-session',
+  'no-permission',
+  'module-disabled',
+  'tenant-mismatch',
+] as const
+
+export function isAuthorizationReason(value: unknown): value is AuthorizationErrorReason {
+  return typeof value === 'string' && (AUTHORIZATION_REASONS as readonly string[]).includes(value)
+}
+
 /**
  * Fail-closed DAL error (design §7). Every guard/session check throws this
  * instead of returning a falsy value, so a missing catch never silently
