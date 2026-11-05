@@ -13,7 +13,6 @@ export default async function RendicionesLayout({
     await requireModuleRole(session, 'rendiciones', 'ver')
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      if (error.reason === 'no-session') redirect('/login')
       redirect(`/no-autorizado?e=${error.reason}`)
     }
     throw error

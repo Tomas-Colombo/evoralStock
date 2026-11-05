@@ -7,11 +7,8 @@ import { logoutAction } from '@/app/(app)/actions'
 import { ThemeToggle } from '@/components/theming/ThemeToggle'
 import { Logo } from './Logo'
 
-export interface SidebarNavItem {
-  href: string
-  label: string
-  icon: string
-}
+import type { SidebarNavItem } from '@/lib/modulos/rutas'
+export type { SidebarNavItem }
 
 export interface SidebarNavGroup {
   /** Mono, letter-spaced section heading (GENERAL, OPERACIONES, …). */

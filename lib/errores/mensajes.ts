@@ -73,6 +73,7 @@ const MENSAJES: Record<string, string> = {
   'tenant-mismatch': 'Esos datos pertenecen a otro negocio.',
   'no-session': 'Se cerró tu sesión. Volvé a iniciar sesión.',
   'no-tenant': 'Tu sesión no está asociada a ningún negocio. Volvé a iniciar sesión.',
+  'usuario-sin-rol': 'Tu usuario todavía no tiene un rol asignado. Pedile a un administrador que configure tu acceso.',
   'zona-horaria-invalida': 'La zona horaria elegida no es válida.',
   'qr-lado-mm-invalido': 'El tamaño del QR debe estar entre 15 y 100 mm.',
   'logo-invalido': 'Elegí una imagen para el logo.',

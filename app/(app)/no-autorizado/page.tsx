@@ -15,17 +15,21 @@ interface NoAutorizadoPageProps {
  * Pantalla de acceso no autorizado.
  *
  * Muestra el motivo del rechazo validado por whitelist (AuthorizationErrorReason)
- * y una lista de accesos directos a los módulos permitidos para el usuario.
- * Si el usuario no tiene permisos en ningún módulo, se muestra una indicación
- * para contactar al administrador y la opción de cerrar sesión.
+ * o un mensaje específico si el usuario no tiene un rol asignado en la sesión.
+ * Ofrece accesos directos a los módulos disponibles o el botón de cierre de sesión.
  */
 export default async function NoAutorizadoPage(props: NoAutorizadoPageProps) {
   const { e } = await props.searchParams
-  const validReason = e && isAuthorizationReason(e) ? e : null
-  const mensaje = validReason ? mensajeDeError(validReason) : MENSAJE_GENERICO
-
   const session = await verifySession()
   const permitidos = itemsPermitidos(session)
+
+  let mensaje: string
+  if (!session.rolId) {
+    mensaje = mensajeDeError('usuario-sin-rol')
+  } else {
+    const validReason = e && isAuthorizationReason(e) ? e : null
+    mensaje = validReason ? mensajeDeError(validReason) : MENSAJE_GENERICO
+  }
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">

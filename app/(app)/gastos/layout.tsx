@@ -15,7 +15,6 @@ export default async function GastosLayout({
     await requireModuleRole(session, 'gastos', 'ver')
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      if (error.reason === 'no-session') redirect('/login')
       redirect(`/no-autorizado?e=${error.reason}`)
     }
     throw error

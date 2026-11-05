@@ -17,7 +17,6 @@ export default async function AdministracionLayout({
     await requireModuleRole(session, 'administracion', 'ver')
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      if (error.reason === 'no-session') redirect('/login')
       redirect(`/no-autorizado?e=${error.reason}`)
     }
     throw error

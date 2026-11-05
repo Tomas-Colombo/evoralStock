@@ -1,15 +1,11 @@
-export type AuthorizationErrorReason =
-  | 'no-session'
-  | 'no-permission'
-  | 'module-disabled'
-  | 'tenant-mismatch'
-
-export const AUTHORIZATION_REASONS: readonly AuthorizationErrorReason[] = [
+export const AUTHORIZATION_REASONS = [
   'no-session',
   'no-permission',
   'module-disabled',
   'tenant-mismatch',
 ] as const
+
+export type AuthorizationErrorReason = (typeof AUTHORIZATION_REASONS)[number]
 
 export function isAuthorizationReason(value: unknown): value is AuthorizationErrorReason {
   return typeof value === 'string' && (AUTHORIZATION_REASONS as readonly string[]).includes(value)

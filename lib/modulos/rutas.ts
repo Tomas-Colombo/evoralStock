@@ -1,6 +1,11 @@
 import type { Session } from '@/lib/dal/session'
 import { hasModuleAccess } from '@/lib/dal/guard'
-import type { SidebarNavItem } from '@/components/shell/SidebarClient'
+
+export interface SidebarNavItem {
+  href: string
+  label: string
+  icon: string
+}
 
 export type NavGroup = 'OPERACIONES' | 'FINANZAS' | 'SISTEMA'
 
@@ -44,8 +49,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
 /**
  * Retorna todos los ítems de navegación a los que la sesión tiene acceso de lectura ('ver').
+ * Si la sesión no tiene rol asignado (`session.rolId` nulo), retorna un array vacío.
  */
 export function itemsPermitidos(session: Session): NavItem[] {
+  if (!session.rolId) return []
   return NAV_ITEMS.filter((item) => hasModuleAccess(session, item.moduloCodigo, 'ver'))
 }
 
@@ -55,10 +62,5 @@ export function itemsPermitidos(session: Session): NavItem[] {
  * si el usuario no tiene acceso a ningún módulo.
  */
 export function primeraRutaPermitida(session: Session): string | null {
-  for (const item of NAV_ITEMS) {
-    if (hasModuleAccess(session, item.moduloCodigo, 'ver')) {
-      return item.href
-    }
-  }
-  return null
+  return itemsPermitidos(session)[0]?.href ?? null
 }
