@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 
 import { AuthorizationError } from '@/lib/dal/errors'
 import { createServerClient, createServiceClient } from '@/lib/dal/supabase'
@@ -43,7 +44,7 @@ export async function esSuperAdmin(idUsuario: string): Promise<boolean> {
  * Valida la existencia del usuario con `auth.getUser()` y confirma si figura en la tabla `superadmin`.
  * Falla cerrada: ante cualquier error o si el usuario no es superadmin, retorna `null`.
  */
-export async function superAdminActual(): Promise<SuperAdminIdentity | null> {
+export const superAdminActual = cache(async (): Promise<SuperAdminIdentity | null> => {
   try {
     const supabase = await createServerClient()
     const { data: { user } = {}, error } = await supabase.auth.getUser()
@@ -64,7 +65,7 @@ export async function superAdminActual(): Promise<SuperAdminIdentity | null> {
   } catch {
     return null
   }
-}
+})
 
 /**
  * Compuerta de autorización para el módulo de plataforma (REQ-SA-01 / DR-SA-01).
@@ -73,7 +74,7 @@ export async function superAdminActual(): Promise<SuperAdminIdentity | null> {
  *   - `AuthorizationError('no-session')` si no hay sesión válida o falla la autenticación.
  *   - `AuthorizationError('no-permission')` si el usuario está autenticado pero no es superadmin.
  */
-export async function requireSuperAdmin(): Promise<SuperAdminIdentity> {
+export const requireSuperAdmin = cache(async (): Promise<SuperAdminIdentity> => {
   const sa = await superAdminActual()
   if (sa) {
     return sa
@@ -93,4 +94,4 @@ export async function requireSuperAdmin(): Promise<SuperAdminIdentity> {
   }
 
   throw new AuthorizationError('no-permission')
-}
+})
