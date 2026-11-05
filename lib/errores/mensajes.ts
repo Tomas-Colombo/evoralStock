@@ -294,6 +294,14 @@ const MENSAJES: Record<string, string> = {
     'Este proveedor no tiene líneas pendientes de rendir en este momento.',
 
   // ─── Precios: reglas, aranceles, recargos ──────────────────────────
+  'sin-cotizacion-dolar':
+    'No hay una cotización del dólar disponible para hoy. Cargá una cotización manual en Precios.',
+  'cotizacion-manual-invalida': 'La cotización del dólar tiene que ser un número mayor a cero.',
+  'modo-cotizacion-invalido': 'El modo de cotización elegido no es válido.',
+  'bcra-no-disponible':
+    'El servicio del Banco Central no respondió. Verificá la conexión o cambiá a cotización manual.',
+  'cotizacion-desactualizada':
+    'La cotización oficial no se encuentra al día. Revisá el valor o ingresá una cotización manual.',
   // ─── Liquidaciones (Revendedoras) ──────────────────────────────────
   'liquidacion-vacia': 'No hay ventas pendientes de liquidar en el período seleccionado.',
   'liquidacion-ya-pagada': 'Esta liquidación ya fue marcada como pagada.',

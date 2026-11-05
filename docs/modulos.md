@@ -22,7 +22,9 @@ de la tabla `modulo`. Si cambia el mapeo, se actualiza acá en el mismo commit.
 | — (sin ruta propia) | — | `reservas` |
 
 
-Permisos existentes (10 módulos, 35 acciones en total en `CATALOGO_PERMISOS`): administracion, ayuda, consignaciones, gastos, inventario, precios, rendiciones, reportes, revendedoras, ventas (incluye `ventas.eliminar`, que agregó b8f4187, y `ayuda.consultar`). **No existen** `clientes`, `cuotas` ni `proveedores` como permiso.
+Permisos existentes (10 módulos, 36 acciones en total en `CATALOGO_PERMISOS`): administracion, ayuda, consignaciones, gastos, inventario, precios, rendiciones, reportes, revendedoras, ventas (incluye `ventas.eliminar`, `ayuda.consultar` y `precios.editar_cotizacion`). **No existen** `clientes`, `cuotas` ni `proveedores` como permiso.
+
+La acción `precios.editar_cotizacion` es un **guard de aplicación** (`requireModuleRole`) que permite configurar el modo de cotización (automático/manual), fijar el valor manual del dólar y revaluar costos en lote en Control de Precios, separando esta potestad del permiso general `precios.editar`. Al igual que el resto de los permisos del sistema, a nivel de base de datos las funciones son INVOKER y validan aislamiento por tenant (`auth_tenant_id()`), no restricciones por usuario.
 
 Esto es deliberado: clientes y cuotas viven bajo el permiso de ventas;
 proveedores bajo el de inventario.

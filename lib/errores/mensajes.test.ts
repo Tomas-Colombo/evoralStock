@@ -17,6 +17,7 @@ const SLUGS_DE_LA_APP = [
   'modulo-nucleo', 'modulo-paquete-incompleto', 'modulo-con-estado-vivo', 'ayuda-no-disponible', 'ayuda-error', 'consulta-no-encontrada',
   'email-duplicado', 'revendedora-not-found', 'revendedora-con-stock', 'acceso-duplicado', 'error-invitacion', 'error-enlazar', 'sin-acceso', 'error-desvincular', 'error-desactivar', 'error-rol-no-encontrado',
   // Actions
+  'sin-cotizacion-dolar', 'cotizacion-manual-invalida', 'modo-cotizacion-invalido', 'bcra-no-disponible', 'cotizacion-desactualizada',
   'apellido-invalido', 'archivo-invalido', 'consignacion-vacia', 'cuotas-invalidas',
   'cuotas-medio-invalido', 'demasiados-productos-en-un-batch', 'dias-invalidos',
   'email-invalido', 'financiacion-sin-cliente', 'ids-vacios', 'items-vacios',
