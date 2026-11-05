@@ -110,24 +110,24 @@ Archivos:
 - `tests/db/conversion-costo-usd.test.ts`
 
 Tareas:
-- [ ] Actualizar `sp_set_costo_producto` para recibir `p_costo_original_usd`, `p_cotizacion_aplicada` y `p_cotizacion_fecha_valor`.
-- [ ] Actualizar `sp_importar_remito` para recibir y persistir metadatos de cotización en `ingreso_mercaderia_detalle` cuando `p_moneda = 'USD'`.
-- [ ] Implementar `sp_revaluar_costos_usd_vigentes(p_ip inet) returns jsonb`:
+- [x] Actualizar `sp_set_costo_producto` para recibir `p_costo_original_usd`, `p_cotizacion_aplicada` y `p_cotizacion_fecha_valor`.
+- [x] Actualizar `sp_importar_remito` para recibir y persistir metadatos de cotización en `ingreso_mercaderia_detalle` cuando `p_moneda = 'USD'`.
+- [x] Implementar `sp_revaluar_costos_usd_vigentes(p_ip inet) returns jsonb`:
   - Obtiene cotización vigente del tenant.
   - Para cada producto con costo vigente donde `moneda = 'USD'`, invoca `sp_set_costo_producto` preservando `costo_original_usd` y `moneda = 'USD'`.
-- [ ] En `createProductoAction` (`app/(app)/inventario/actions.ts`):
+- [x] En `createProductoAction` (`app/(app)/inventario/actions.ts`):
   - Si `input.moneda === 'USD'`: resolver cotización vigente a la fecha de carga.
   - Calcular `costoArs = round(input.costoInicial * cotizacion, 2)`.
   - Pasar `costoArs` y metadatos a `addIngresoDetalle` / `spCrearStockDirecto` (Circuito B físico).
   - Pasar `costoArs` y metadatos a `spSetCostoProducto` (Circuito A catálogo).
-- [ ] En `crearIngresoCompletoAction` e `importarRemitoAction`:
+- [x] En `crearIngresoCompletoAction` e `importarRemitoAction`:
   - Si el ingreso o líneas indican moneda `USD`, resolver cotización vigente a la fecha de carga y persistir `costo_unitario` en ARS con metadatos de cotización.
-- [ ] Tests DB en `tests/db/conversion-costo-usd.test.ts`:
+- [x] Tests DB en `tests/db/conversion-costo-usd.test.ts`:
   - Producto nuevo con USD: verifica `costo_producto.costo` en ARS e `item_producto.costo_ingreso` en ARS.
   - Ingreso de producto existente con USD: verifica `ingreso_mercaderia_detalle.costo_unitario` en ARS.
   - Revaluación masiva: verifica que `costo_producto` se actualiza al nuevo tipo de cambio pero `item_producto.costo_ingreso` no cambia.
   - Caso negativo revaluación: asegurar que `sp_revaluar_costos_usd_vigentes` propague `costo_original_usd` y `moneda = 'USD'` a la nueva fila para evitar que el producto quede huérfano sin poder revaluarse de nuevo.
-- [ ] Verificar con `pnpm gate:db`.
+- [x] Verificar con `pnpm gate:db`.
 
 ---
 
@@ -160,6 +160,7 @@ Archivos:
 - `app/(app)/precios/control/ControlDePreciosView.tsx` (botón de revaluación masiva)
 - `app/(app)/inventario/productos/nuevo/NuevoProductoForm.tsx`
 - `app/(app)/inventario/ingresos/nuevo/NuevoIngresoView.tsx`
+- `app/(app)/inventario/ingresos/[id]/RemitoImportPanel.tsx`
 - `lib/ayuda/guia/precios.ts`
 - `lib/ayuda/guia/cobertura.test.ts`
 
@@ -171,7 +172,8 @@ Tareas:
   - Banner de advertencia si la cotización figura como `desactualizada` y botón para forzar reintento de sincronización.
 - [ ] En `ControlDePreciosView.tsx`:
   - Botón "Revaluar costos USD al dólar vigente" visible solo con permiso `precios.editar_cotizacion` que invoca `revaluarCostosUsdAction`.
-- [ ] En `NuevoProductoForm.tsx` y `NuevoIngresoView.tsx`:
+- [ ] En `NuevoProductoForm.tsx`, `NuevoIngresoView.tsx` y `RemitoImportPanel.tsx`:
+  - Selectores de moneda (`ARS` / `USD`) para comprobantes de ingreso y remito.
   - Al seleccionar moneda `USD`, mostrar hint con la cotización oficial aplicada y el cálculo estimado en pesos ARS.
 - [ ] Actualizar `lib/ayuda/guia/precios.ts` con la explicación funcional del dólar oficial, modo manual, revaluación masiva y conversión de costos.
 - [ ] Verificar cobertura de ayuda con `lib/ayuda/guia/cobertura.test.ts`.

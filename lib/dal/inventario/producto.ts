@@ -248,6 +248,10 @@ export async function spSetCostoProducto(input: {
   costo: number
   moneda?: string
   motivo?: string | null
+  ip?: string | null
+  costoOriginalUsd?: number | null
+  cotizacionAplicada?: number | null
+  cotizacionFechaValor?: string | null
 }): Promise<string> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_set_costo_producto', {
@@ -255,6 +259,10 @@ export async function spSetCostoProducto(input: {
     p_costo: input.costo,
     p_moneda: input.moneda ?? 'ARS',
     p_motivo: input.motivo ?? null,
+    p_ip: input.ip ?? null,
+    p_costo_original_usd: input.costoOriginalUsd ?? null,
+    p_cotizacion_aplicada: input.cotizacionAplicada ?? null,
+    p_cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
   })
   if (error) throw new Error(`sp_set_costo_producto: ${error.message}`)
   return data as string

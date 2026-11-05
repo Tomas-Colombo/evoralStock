@@ -29,6 +29,8 @@ import {
   spSetCostoProducto,
   updateProducto,
 } from '@/lib/dal/inventario/producto'
+import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
+import { convertirUsdEnArs } from '@/lib/cotizacion/convertir'
 import {
   spAsignarTallesAProducto,
   spTransicionItem,
@@ -287,6 +289,28 @@ export async function createProductoAction(input: {
     return { ok: false, reason: excedeOperacion(totalUnidades) }
   }
 
+  const esUsd = input.moneda === 'USD'
+  let costoArs = input.costoInicial ?? 0
+  let costoOriginalUsd: number | null = null
+  let cotizacionAplicada: number | null = null
+  let cotizacionFechaValor: string | null = null
+
+  if (esUsd && input.costoInicial != null && input.costoInicial > 0) {
+    try {
+      const cot = await getCotizacionVigente()
+      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
+        return { ok: false, reason: 'sin-cotizacion-dolar' }
+      }
+      costoOriginalUsd = input.costoInicial
+      cotizacionAplicada = cot.valor
+      cotizacionFechaValor = cot.fechaValor
+      costoArs = convertirUsdEnArs(input.costoInicial, cot.valor)
+    } catch (e) {
+      const msg = (e as Error).message
+      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
+    }
+  }
+
   try {
     const id = await spCreateProducto({
       idCategoria: input.idCategoria,
@@ -298,9 +322,12 @@ export async function createProductoAction(input: {
     if (input.costoInicial != null && input.costoInicial > 0) {
       await spSetCostoProducto({
         idProducto: id,
-        costo: input.costoInicial,
+        costo: esUsd ? costoArs : input.costoInicial,
         moneda: input.moneda ?? 'ARS',
         motivo: 'costo inicial',
+        costoOriginalUsd,
+        cotizacionAplicada,
+        cotizacionFechaValor,
       })
     }
     let itemsCreados = 0
@@ -322,8 +349,11 @@ export async function createProductoAction(input: {
             idIngreso,
             idProducto: id,
             cantidad: s.cantidad,
-            costoUnitario: input.costoInicial ?? 0,
+            costoUnitario: esUsd ? costoArs : (input.costoInicial ?? 0),
             talle: s.talle,
+            costoOriginalUsd,
+            cotizacionAplicada,
+            cotizacionFechaValor,
           })
         }
         itemsCreados = await spConfirmarIngreso(idIngreso)
@@ -331,7 +361,7 @@ export async function createProductoAction(input: {
       } else {
         itemsCreados = await spCrearStockDirecto({
           idProducto: id,
-          costo: input.costoInicial ?? 0,
+          costo: esUsd ? costoArs : (input.costoInicial ?? 0),
           items: stock,
         })
       }
@@ -656,11 +686,44 @@ export async function importarRemitoAction(input: {
   const norm = normalizarLineasRemito(input.lineas)
   if (!norm.ok) return norm
 
+  const esUsd = input.moneda === 'USD'
+  let cotizacionValor: number | null = null
+  let cotizacionFechaValor: string | null = null
+
+  if (esUsd) {
+    try {
+      const cot = await getCotizacionVigente()
+      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
+        return { ok: false, reason: 'sin-cotizacion-dolar' }
+      }
+      cotizacionValor = cot.valor
+      cotizacionFechaValor = cot.fechaValor
+    } catch (e) {
+      const msg = (e as Error).message
+      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
+    }
+  }
+
+  const lineasParaDal = norm.lineas.map((linea) => {
+    if (esUsd && cotizacionValor != null) {
+      const costoOriginal = linea.costoUnitario
+      const costoArs = convertirUsdEnArs(costoOriginal, cotizacionValor)
+      return {
+        ...linea,
+        costoUnitario: costoArs,
+        costoOriginalUsd: costoOriginal,
+      }
+    }
+    return linea
+  })
+
   try {
     const res = await spImportarRemito({
       idIngreso: input.idIngreso,
       moneda: input.moneda,
-      lineas: norm.lineas,
+      cotizacionAplicada: cotizacionValor,
+      cotizacionFechaValor,
+      lineas: lineasParaDal,
     })
     revalidatePath(`/inventario/ingresos/${input.idIngreso}`)
     revalidatePath('/inventario')
@@ -708,6 +771,37 @@ export async function crearIngresoCompletoAction(input: {
   const numeroRemito = parsed.data.numeroRemito?.trim() || null
   const idProveedor = parsed.data.idProveedor || null
 
+  const esUsd = parsed.data.moneda === 'USD'
+  let cotizacionValor: number | null = null
+  let cotizacionFechaValor: string | null = null
+
+  if (esUsd) {
+    try {
+      const cot = await getCotizacionVigente()
+      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
+        return { ok: false, reason: 'sin-cotizacion-dolar' }
+      }
+      cotizacionValor = cot.valor
+      cotizacionFechaValor = cot.fechaValor
+    } catch (e) {
+      const msg = (e as Error).message
+      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
+    }
+  }
+
+  const lineasParaDal = norm.lineas.map((linea) => {
+    if (esUsd && cotizacionValor != null) {
+      const costoOriginal = linea.costoUnitario
+      const costoArs = convertirUsdEnArs(costoOriginal, cotizacionValor)
+      return {
+        ...linea,
+        costoUnitario: costoArs,
+        costoOriginalUsd: costoOriginal,
+      }
+    }
+    return linea
+  })
+
   if (numeroRemito) {
     try {
       const dup = await remitoDuplicado({ idProveedor, numeroRemito })
@@ -747,7 +841,13 @@ export async function crearIngresoCompletoAction(input: {
   }
 
   try {
-    await spImportarRemito({ idIngreso, moneda: parsed.data.moneda, lineas: norm.lineas })
+    await spImportarRemito({
+      idIngreso,
+      moneda: parsed.data.moneda,
+      cotizacionAplicada: cotizacionValor,
+      cotizacionFechaValor,
+      lineas: lineasParaDal,
+    })
     const itemsGenerados = await spConfirmarIngreso(idIngreso)
     revalidatePath('/inventario/ingresos')
     revalidatePath('/inventario')

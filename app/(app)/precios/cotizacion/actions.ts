@@ -11,6 +11,7 @@ import {
 } from '@/lib/validation/cotizacion'
 import {
   sincronizarCotizacionBcra,
+  spRevaluarCostosUsd,
   spSetCotizacionManual,
   spSetModoCotizacion,
 } from '@/lib/dal/precios/cotizacion'
@@ -115,6 +116,41 @@ export async function sincronizarCotizacionBcraAction(
     revalidatePath('/precios')
     revalidatePath('/precios/cotizacion')
     return { ok: true }
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { ok: false, reason: error.reason }
+    }
+    return { ok: false, reason: (error as Error).message }
+  }
+}
+
+/**
+ * Server Action: Revalúa masivamente los costos vigentes en USD al tipo de cambio actual.
+ * 3 compuertas: requireModuleRole('precios', 'editar_cotizacion') -> Zod -> DAL.
+ */
+export async function revaluarCostosUsdAction(
+  rawInput?: unknown,
+): Promise<ActionResult<{ revaluados: number; omitidos_sin_original: number }>> {
+  try {
+    // 1. Autorización
+    const session = await verifySession()
+    await requireModuleRole(session, 'precios', 'editar_cotizacion')
+
+    // 2. Validación Zod
+    const parsed = emptyPayloadSchema.safeParse(rawInput ?? {})
+    if (!parsed.success) {
+      return { ok: false, reason: 'payload-invalido' }
+    }
+
+    const ip = await getClientIp()
+
+    // 3. Mutación en DAL
+    const data = await spRevaluarCostosUsd({ ip })
+
+    revalidatePath('/precios')
+    revalidatePath('/precios/control')
+    revalidatePath('/inventario')
+    return { ok: true, data }
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return { ok: false, reason: error.reason }

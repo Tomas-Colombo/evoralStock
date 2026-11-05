@@ -202,6 +202,9 @@ export async function addIngresoDetalle(input: {
   cantidad: number
   costoUnitario: number
   talle?: string | null
+  costoOriginalUsd?: number | null
+  cotizacionAplicada?: number | null
+  cotizacionFechaValor?: string | null
 }): Promise<string> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
@@ -213,6 +216,9 @@ export async function addIngresoDetalle(input: {
       cantidad: input.cantidad,
       costo_unitario: input.costoUnitario,
       talle: input.talle ?? null,
+      costo_original_usd: input.costoOriginalUsd ?? null,
+      cotizacion_aplicada: input.cotizacionAplicada ?? null,
+      cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
     })
     .select('id_detalle')
     .single()
@@ -237,12 +243,16 @@ export type DetalleImportado = {
 export async function spImportarRemito(input: {
   idIngreso: string
   moneda?: string
+  cotizacionAplicada?: number | null
+  cotizacionFechaValor?: string | null
+  ip?: string | null
   lineas: Array<{
     esNuevo: boolean
     idProducto: string | null
     idCategoria: string | null
     nombre: string
     costoUnitario: number
+    costoOriginalUsd?: number | null
     partes: Array<{ talle: string | null; cantidad: number }>
   }>
 }): Promise<{ creados: number; vinculados: number; detalles: DetalleImportado[] }> {
@@ -251,6 +261,9 @@ export async function spImportarRemito(input: {
     p_id_ingreso: input.idIngreso,
     p_moneda: input.moneda ?? 'ARS',
     p_lineas: input.lineas,
+    p_ip: input.ip ?? null,
+    p_cotizacion_aplicada: input.cotizacionAplicada ?? null,
+    p_cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
   })
   if (error) throw new Error(`sp_importar_remito: ${error.message}`)
   const r = (data ?? {}) as {
