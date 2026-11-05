@@ -5,6 +5,7 @@ import { detectarFormatoImagen, EXTENSION_LOGO, LOGO_BUCKET } from '@/lib/tenant
 import { QR_LADO_MM_DEFAULT, QR_LADO_MM_MAX, QR_LADO_MM_MIN } from '@/lib/inventario/limites'
 import type {
   AuditoriaConActor,
+  AuditoriaRow,
   RolRow,
   UsuarioConRol,
   UsuarioEstado,
@@ -288,53 +289,44 @@ export async function listAuditoria(opts?: {
     .from('auditoria')
     .select(`
       id_auditoria, id_tenant, id_usuario, entidad, entidad_id, accion,
-      cambios, ts, ip,
-      actor:usuario!auditoria_id_usuario_fkey(email, nombre_completo)
+      cambios, ts, ip
     `)
     .order('ts', { ascending: false })
     .limit(opts?.limit ?? 200)
   if (opts?.entidad) q = q.eq('entidad', opts.entidad)
   if (opts?.desde) q = q.gte('ts', opts.desde)
   if (opts?.hasta) q = q.lte('ts', opts.hasta)
-  const { data, error } = await q
-  if (error) {
-    // Si la FK del select no existe con ese nombre, retry sin join
-    // y sin actor (fallback más seguro que romper la página).
-    const { data: raw, error: e2 } = await supabase
-      .from('auditoria').select('*')
-      .order('ts', { ascending: false })
-      .limit(opts?.limit ?? 200)
-    if (e2) throw new Error(`listAuditoria: ${error.message} / ${e2.message}`)
-    return ((raw ?? []) as Array<Omit<AuditoriaConActor, 'actor_email' | 'actor_nombre'>>).map((r) => ({
-      ...r,
-      actor_email: null,
-      actor_nombre: null,
-    }))
+
+  const { data: rawRows, error } = await q
+  if (error) throw new Error(`listAuditoria: ${error.message}`)
+
+  const rows = (rawRows ?? []) as AuditoriaRow[]
+  if (rows.length === 0) return []
+
+  const userIds = Array.from(
+    new Set(rows.map((r) => r.id_usuario).filter((id): id is string => Boolean(id))),
+  )
+
+  const userMap = new Map<string, { email: string; nombre_completo: string | null }>()
+  if (userIds.length > 0) {
+    const { data: users, error: userError } = await supabase
+      .from('usuario')
+      .select('id_usuario, email, nombre_completo')
+      .in('id_usuario', userIds)
+    if (userError) throw new Error(`listAuditoria usuario: ${userError.message}`)
+    for (const u of users ?? []) {
+      userMap.set(u.id_usuario, { email: u.email, nombre_completo: u.nombre_completo })
+    }
   }
-  return ((data ?? []) as unknown as Array<{
-    id_auditoria: string
-    id_tenant: string
-    id_usuario: string | null
-    entidad: string
-    entidad_id: string | null
-    accion: string
-    cambios: Record<string, unknown>
-    ts: string
-    ip: string | null
-    actor: { email: string; nombre_completo: string | null } | null
-  }>).map((r) => ({
-    id_auditoria: r.id_auditoria,
-    id_tenant: r.id_tenant,
-    id_usuario: r.id_usuario,
-    entidad: r.entidad,
-    entidad_id: r.entidad_id,
-    accion: r.accion,
-    cambios: r.cambios,
-    ts: r.ts,
-    ip: r.ip,
-    actor_email: r.actor?.email ?? null,
-    actor_nombre: r.actor?.nombre_completo ?? null,
-  }))
+
+  return rows.map((r) => {
+    const actor = r.id_usuario ? userMap.get(r.id_usuario) : null
+    return {
+      ...r,
+      actor_email: actor?.email ?? null,
+      actor_nombre: actor?.nombre_completo ?? null,
+    }
+  })
 }
 
 /** Lista de entidades distintas para el filtro (dinámico). */
