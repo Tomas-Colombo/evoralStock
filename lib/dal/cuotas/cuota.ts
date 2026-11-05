@@ -35,9 +35,6 @@ export interface FiltroCuotas {
   hastaInclusivo?: string
 }
 
-/** Filas por request al recorrer el conjunto filtrado completo (KPIs). */
-const CHUNK = 1000
-
 const SELECT_LISTADO = `
   *,
   cliente:cliente!inner(id_cliente, nombre, apellido, nombre_completo, telefono),
@@ -54,7 +51,7 @@ type CuotaCruda = CuotaFinanciadaRow & {
  * explícito en vez de tomar el tipo entero porque las consultas de este
  * módulo difieren entre sí y no comparten un tipo nombrable.
  */
-interface FiltrableCuotas<Self> {
+export interface FiltrableCuotas<Self> {
   eq(columna: string, valor: unknown): Self
   in(columna: string, valores: readonly unknown[]): Self
   lt(columna: string, valor: unknown): Self
@@ -71,7 +68,7 @@ interface FiltrableCuotas<Self> {
  * cliente: dos llamadas a `now()` a caballo de la medianoche darían conjuntos
  * distintos y los totales no cerrarían contra las filas.
  */
-function aplicarFiltro<T extends FiltrableCuotas<T>>(q: T, f: FiltroCuotas, hoy: string): T {
+export function aplicarFiltro<T extends FiltrableCuotas<T>>(q: T, f: FiltroCuotas, hoy: string): T {
   let b = q
 
   switch (f.estado ?? 'con_deuda') {
@@ -152,6 +149,7 @@ export async function listCuotasPaginado(
     total: count ?? 0,
   }
 }
+
 /**
  * Estado de cuenta de un cliente. Acepta el MISMO filtro que el panel para
  * que "vencidas" signifique lo mismo en las dos pantallas: si divergieran,
@@ -322,12 +320,10 @@ export interface DeudorRow {
 }
 
 /**
- * Deudores + KPIs en UNA sola pasada.
+ * Deudores + KPIs en UNA sola pasada en PostgreSQL.
  *
- * PostgREST no agrupa, asi que se recorre el conjunto filtrado en chunks y se
- * agrega en TS — mismo criterio que `resumenVentasPeriodo`. Se devuelven las
- * dos cosas juntas porque salen del mismo recorrido: separarlas costaba dos
- * consultas para leer exactamente las mismas filas.
+ * Delega en la función `rf_deudores_resumen` (SECURITY INVOKER) para calcular
+ * tanto las filas agrupadas por cliente como los KPIs sobre el dataset filtrado.
  *
  * La paginacion es sobre los CLIENTES ya agrupados, no sobre las cuotas: con
  * `range()` en la consulta, un cliente podria quedar partido entre paginas y
@@ -337,130 +333,29 @@ export async function listDeudores(
   f: FiltroCuotas & { hoy: string },
 ): Promise<{ rows: DeudorRow[]; resumen: ResumenCuotas }> {
   const supabase = await createServerClient()
-  type Fila = {
-    id_cliente: string
-    id_venta: string
-    estado: EstadoCuota
-    monto: number | string
-    monto_pagado: number | string
-    fecha_vencimiento: string
-    cliente: CuotaListada['cliente']
-  }
-
-  const acc: Fila[] = []
-  for (let offset = 0; ; offset += CHUNK) {
-    let q = supabase
-      .from('cuota_financiada')
-      .select(
-        `id_cliente, id_venta, estado, monto, monto_pagado, fecha_vencimiento,
-         cliente:cliente!inner(id_cliente, nombre, apellido, nombre_completo, telefono)`,
-      )
-      .order('fecha_vencimiento', { ascending: true })
-      .range(offset, offset + CHUNK - 1)
-    q = aplicarFiltro(q, f, f.hoy)
-
-    const { data, error } = await q
-    if (error) throw new Error(`listDeudores: ${error.message}`)
-    const chunk = (data ?? []) as unknown as Fila[]
-    acc.push(...chunk)
-    if (chunk.length < CHUNK) break
-  }
-
-  const inicio = inicioDeMes(f.hoy)
-  const fin = finDeMes(f.hoy)
-  const manana = sumarDias(f.hoy, 1)
-  const porCliente = new Map<string, DeudorRow & { _planes: Set<string> }>()
-
-  let aCobrar = 0
-  let venceHoy = 0
-  let venceManana = 0
-  let venceEsteMes = 0
-  let vencido = 0
-  let incobrable = 0
-  let clientesVencidos = 0
-
-  for (const c of acc) {
-    const saldo = Number(c.monto) - Number(c.monto_pagado)
-
-    if (c.estado === 'incobrable') {
-      incobrable += saldo
-      continue
-    }
-    if (c.estado !== 'pendiente' && c.estado !== 'parcial') continue
-
-    aCobrar += saldo
-    // Vencer HOY no es estar vencida: el cliente tiene todo el dia para
-    // pagar. Por eso hoy suma a su propio contador y no a `vencido` — meterla
-    // ahi inflaria la mora con plata que todavia nadie debe.
-    const estaVencida = c.fecha_vencimiento < f.hoy
-    if (estaVencida) vencido += saldo
-    else {
-      if (c.fecha_vencimiento === f.hoy) venceHoy += saldo
-      else if (c.fecha_vencimiento === manana) venceManana += saldo
-      if (c.fecha_vencimiento >= inicio && c.fecha_vencimiento <= fin) {
-        venceEsteMes += saldo
-      }
-    }
-
-    let d = porCliente.get(c.id_cliente)
-    if (!d) {
-      d = {
-        id_cliente: c.id_cliente,
-        cliente: c.cliente,
-        pendientes: 0,
-        vencidas: 0,
-        adeudado: 0,
-        vencido: 0,
-        proximo_vencimiento: null,
-        vencida_desde: null,
-        planes: 0,
-        _planes: new Set<string>(),
-      }
-      porCliente.set(c.id_cliente, d)
-    }
-    d.pendientes++
-    d.adeudado = redondear2(d.adeudado + saldo)
-    d._planes.add(c.id_venta)
-    if (estaVencida) {
-      d.vencidas++
-      d.vencido = redondear2(d.vencido + saldo)
-      if (d.vencida_desde === null || c.fecha_vencimiento < d.vencida_desde) {
-        d.vencida_desde = c.fecha_vencimiento
-      }
-    } else if (
-      d.proximo_vencimiento === null ||
-      c.fecha_vencimiento < d.proximo_vencimiento
-    ) {
-      d.proximo_vencimiento = c.fecha_vencimiento
-    }
-  }
-
-  for (const d of porCliente.values()) if (d.vencidas > 0) clientesVencidos++
-
-  const rows = [...porCliente.values()].map(({ _planes, ...d }) => ({
-    ...d,
-    planes: _planes.size,
-  }))
-
-  // Lo vencido primero, y dentro de eso lo que mas debe: es el orden en el
-  // que hay que levantar el telefono.
-  rows.sort((a, b) => {
-    if (a.vencido !== b.vencido) return b.vencido - a.vencido
-    return b.adeudado - a.adeudado
+  const { data, error } = await supabase.rpc('rf_deudores_resumen', {
+    p_hoy: f.hoy,
+    p_estado: f.estado ?? 'con_deuda',
+    p_desde: f.desde ?? null,
+    p_hasta: f.hastaInclusivo ?? null,
+    p_search: f.search ? f.search.trim() : null,
   })
-
-  return {
-    rows,
-    resumen: {
-      aCobrar: redondear2(aCobrar),
-      venceHoy: redondear2(venceHoy),
-      venceManana: redondear2(venceManana),
-      venceEsteMes: redondear2(venceEsteMes),
-      vencido: redondear2(vencido),
-      incobrable: redondear2(incobrable),
-      clientesConDeuda: porCliente.size,
-      clientesVencidos,
-      filas: acc.length,
-    },
-  }
+  if (error) throw new Error(`listDeudores: ${error.message}`)
+  const resultado = data as unknown as { rows: DeudorRow[]; resumen: ResumenCuotas } | null
+  return (
+    resultado ?? {
+      rows: [],
+      resumen: {
+        aCobrar: 0,
+        venceHoy: 0,
+        venceManana: 0,
+        venceEsteMes: 0,
+        vencido: 0,
+        incobrable: 0,
+        clientesConDeuda: 0,
+        clientesVencidos: 0,
+        filas: 0,
+      },
+    }
+  )
 }
