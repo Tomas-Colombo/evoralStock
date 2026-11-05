@@ -396,7 +396,7 @@ export function NuevaVentaView({
     if (lineas.length === 0) return
     let cancelled = false
     ;(async () => {
-      const refreshed: LineaCarrito[] = []
+      const porQr = new Map<string, LineaCarrito>()
       for (const l of lineas) {
         try {
           const qs = new URLSearchParams({ qr: l.qr_code, forma_pago: formaPago })
@@ -405,13 +405,12 @@ export function NuevaVentaView({
           if (descuentosKey) qs.set('descuentos', descuentosKey)
           const r = await fetch(`/api/ventas/lookup-item?${qs.toString()}`)
           const data = await r.json()
-          if (data.ok) refreshed.push(data.linea as LineaCarrito)
-          else refreshed.push(l) // dejo la vieja si falla
+          if (data.ok) porQr.set(l.qr_code, data.linea as LineaCarrito)
         } catch {
-          refreshed.push(l)
+          /* si falla el lookup, se preserva la línea existente */
         }
       }
-      if (!cancelled) setLineas(refreshed)
+      if (!cancelled) setLineas(ls => ls.map(l => porQr.get(l.qr_code) ?? l))
     })()
     return () => {
       cancelled = true
