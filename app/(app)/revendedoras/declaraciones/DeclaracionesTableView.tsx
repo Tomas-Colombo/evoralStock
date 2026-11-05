@@ -207,7 +207,7 @@ export function DeclaracionesTableView({ declaraciones, puedeGestionar }: Props)
               )}
             </div>
             <p className="text-xs text-muted">
-              Esta operación registrará la venta en el canal &ldquo;revendedora&rdquo;, marcará la prenda como vendida y aplicará la comisión correspondiente a su cuenta corriente.
+              Esta operación registrará la venta en el canal &ldquo;revendedora&rdquo;, marcará el artículo como vendido y aplicará la comisión correspondiente a su cuenta corriente.
             </p>
             <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-border">
               <Button
@@ -246,7 +246,7 @@ export function DeclaracionesTableView({ declaraciones, puedeGestionar }: Props)
               <strong className="text-text">
                 {declaracionRechazar.revendedora_nombre} {declaracionRechazar.revendedora_apellido}
               </strong>{' '}
-              para la prenda <strong className="text-text">{declaracionRechazar.nombre_producto}</strong>. La prenda continuará figurando en su poder.
+              para el artículo <strong className="text-text">{declaracionRechazar.nombre_producto}</strong>. El artículo continuará figurando en su poder.
             </p>
 
             <div className="space-y-1.5">

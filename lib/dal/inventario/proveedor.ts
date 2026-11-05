@@ -101,7 +101,7 @@ export async function getPerfilProveedorPorId(
     // Stock de consignación en poder de la tienda (deuda potencial): todos
     // los estados que NO son 'vendido' (ya cuenta como pendiente de rendir),
     // NO son 'devuelto' (fue al proveedor) ni 'baja' (ajuste). Incluye
-    // 'en_revendedora' porque la prenda sigue siendo responsabilidad del local.
+    // 'en_revendedora' porque el artículo sigue siendo responsabilidad del local.
     supabase
       .from('item_producto')
       .select('costo_ingreso, ingreso_mercaderia!inner(id_proveedor)')

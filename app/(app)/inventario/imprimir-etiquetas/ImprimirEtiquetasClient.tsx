@@ -110,7 +110,7 @@ export function ImprimirEtiquetasClient({
 
         {/* Regla operativa de pegado visible para el operador antes de imprimir */}
         <p className="mb-4 text-xs text-muted print:hidden">
-          Pegá cada etiqueta en una prenda del mismo producto y talle; no importa en cuál.
+          Pegá cada etiqueta en un artículo del mismo producto y variante; no importa en cuál.
         </p>
 
         {/* Navegación entre tandas cuando supera el tope */}

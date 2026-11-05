@@ -47,7 +47,7 @@ export const MAX_PDF_BYTES = 1024 * 1024
  * está bien — así encaja directo en el `reason` que devuelven las actions.
  *
  * Rechaza fraccionarios de forma explícita: cada unidad es una fila en
- * `item_producto`, así que "2.5 remeras" no tiene representación posible.
+ * `item_producto`, así que "2,5 unidades" no tiene representación posible.
  */
 export function unidadesInvalidas(cantidad: unknown, contexto: string): string | null {
   if (typeof cantidad !== 'number' || !Number.isInteger(cantidad) || cantidad <= 0) {

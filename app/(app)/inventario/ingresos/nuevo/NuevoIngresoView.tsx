@@ -181,7 +181,7 @@ export function NuevoIngresoView({
         costoUnitario: '',
         esNuevo: true,
         idProducto: '',
-        idCategoria: sugerirCategoria('', categorias), // arranca en "accesorios"
+        idCategoria: '', // sin sugerencia hasta que haya nombre
         talles: [],
         tallesAbierto: false,
       },
@@ -224,7 +224,7 @@ export function NuevoIngresoView({
             esNuevo: !match,
             idProducto: match?.id_producto ?? '',
             // Producto nuevo: sugerimos categoría por el nombre; vinculado: da igual.
-            idCategoria: sugerirCategoria(l.nombre, categorias),
+            idCategoria: sugerirCategoria(l.nombre, categorias) ?? '',
             talles: [] as LineaTalle[],
             tallesAbierto: false,
           }
@@ -240,8 +240,9 @@ export function NuevoIngresoView({
 
   // Al editar el nombre: si pasa a coincidir con un producto existente,
   // destildamos "es nuevo" y lo vinculamos automáticamente. Si es nuevo,
-  // resugerimos la categoría según el nombre (campera → camperas, etc.);
-  // solo reseteamos talles si la categoría efectivamente cambió.
+  // resugerimos la categoría según el nombre (anillo → anillos, etc.); sin
+  // coincidencia se conserva la que eligió el usuario. Solo reseteamos talles
+  // si la categoría efectivamente cambió.
   function cambiarNombre(i: number, nombre: string) {
     setFilas((fs) =>
       fs.map((f, idx) => {
@@ -249,7 +250,7 @@ export function NuevoIngresoView({
         const match = buscarMatchNombre(porNombre, nombre)
         if (match) return { ...f, nombre, esNuevo: false, idProducto: match.id_producto }
         if (!f.esNuevo) return { ...f, nombre }
-        const idCategoria = sugerirCategoria(nombre, categorias)
+        const idCategoria = sugerirCategoria(nombre, categorias) ?? f.idCategoria
         return idCategoria === f.idCategoria
           ? { ...f, nombre }
           : { ...f, nombre, idCategoria, talles: [], tallesAbierto: false }
@@ -510,7 +511,7 @@ export function NuevoIngresoView({
                         onClick={() =>
                           actualizar(i, {
                             esNuevo: true,
-                            idCategoria: sugerirCategoria(f.nombre, categorias),
+                            idCategoria: sugerirCategoria(f.nombre, categorias) ?? '',
                             talles: [],
                             tallesAbierto: false,
                           })
@@ -547,6 +548,11 @@ export function NuevoIngresoView({
                         aria-label="Categoría del producto nuevo"
                         className="min-w-[8rem] flex-1"
                       >
+                        {/* Sin esta opción el select mostraba la primera categoría
+                            mientras el estado seguía en '' y el submit la rechazaba. */}
+                        <option value="" disabled>
+                          Elegí una categoría
+                        </option>
                         {categorias.map((c) => (
                           <option key={c.id_categoria} value={c.id_categoria}>
                             {c.nombre}

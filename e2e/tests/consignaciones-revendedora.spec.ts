@@ -93,7 +93,7 @@ test.describe('Consignaciones a revendedora', () => {
     await dialogDevolucion.getByRole('button', { name: 'Confirmar', exact: true }).click()
     await shell.expectSuccessToast('1 pieza de vuelta en el local')
     await page.waitForURL(`**/revendedoras/${idRevendedora}/en-poder`)
-    await expect(page.getByText('Sin prendas en su poder')).toBeVisible()
+    await expect(page.getByText('Sin artículos en su poder')).toBeVisible()
 
     // 7. Verificar que el ítem vuelve a disponibilidad central
     await page.goto('/inventario')

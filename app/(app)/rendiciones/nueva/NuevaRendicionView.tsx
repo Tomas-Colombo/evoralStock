@@ -219,7 +219,7 @@ export function NuevaRendicionView({
           <div className="rounded-md border border-border bg-card-2 p-3 text-xs text-muted">
             <b>Excluir</b> marca la línea con <code>excluida_rendicion=true</code>{' '}
             en la base de datos: <b>nunca más</b> vuelve a aparecer en una rendición
-            futura. Usalo cuando decidís no rendirle una prenda de consignación
+            futura. Usalo cuando decidís no rendirle un artículo de consignación
             al proveedor. Se puede reincluir mientras no confirmes esta rendición.
           </div>
 

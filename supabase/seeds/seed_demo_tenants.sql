@@ -34,7 +34,7 @@ from tenant t
 where t.subdominio in ('utopia-demo', 'boutique-alfa')
 on conflict (id_tenant, seccion, clave) do nothing;
 
--- Etapa 3 seed: categorías base de indumentaria (Planificacion.txt Etapa 3 §62
+-- Etapa 3 seed: categorías de ejemplo del tenant demo, de indumentaria (Planificacion.txt Etapa 3 §62
 -- "seed de categorías base + alta desde la app"). Idempotente por (id_tenant, lower(nombre)).
 insert into categoria (id_tenant, nombre, descripcion)
 select t.id_tenant, cat.nombre, cat.descripcion

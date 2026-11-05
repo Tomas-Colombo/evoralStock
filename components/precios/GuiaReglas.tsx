@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 const EJEMPLO_REGLAS = [
   { nombre: 'Margen general', tipo: 'Margen', alcance: 'Global', valor: '40%' },
   { nombre: 'Margen perfumería', tipo: 'Margen', alcance: 'Categoría', valor: '60%' },
-  { nombre: 'Descuento temporada', tipo: 'Descuento', alcance: 'Global', valor: '10%' },
+  { nombre: 'Descuento liquidación', tipo: 'Descuento', alcance: 'Global', valor: '10%' },
   { nombre: 'Descuento perfumería', tipo: 'Descuento', alcance: 'Categoría', valor: '5%' },
   { nombre: 'Recargo 3 cuotas', tipo: 'Recargo', alcance: 'Global', valor: '15%' },
 ]

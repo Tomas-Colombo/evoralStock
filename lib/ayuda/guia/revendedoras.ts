@@ -34,7 +34,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     pasos: [
       'Desde el listado de Revendedoras, hacé clic en el nombre de la revendedora para abrir su perfil.',
       'Consultá sus datos personales, información de contacto y notas registradas.',
-      'Navegá entre las pestañas para revisar sus prendas en poder, ventas, consignaciones, cuenta y liquidaciones.',
+      'Navegá entre las pestañas para revisar sus artículos en poder, ventas, consignaciones, cuenta y liquidaciones.',
     ],
   },
   {
@@ -124,7 +124,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
   },
   {
     id: 'revendedoras-consignar-prendas',
-    titulo: 'Cómo entregar prendas en consignación a una revendedora',
+    titulo: 'Cómo entregar artículos en consignación a una revendedora',
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     pasos: [
@@ -132,17 +132,17 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
       'Hacé clic en "Nueva consignación".',
       'Buscá los productos disponibles en el local por nombre o escaneá sus códigos QR y seleccioná los talles.',
       'Opcionalmente definí las fechas del período y anotá observaciones.',
-      'Hacé clic en "Guardar" y luego en "Confirmar" en la ventana para transferir las prendas a su poder.',
+      'Hacé clic en "Guardar" y luego en "Confirmar" en la ventana para transferir los artículos a su poder.',
     ],
   },
   {
     id: 'revendedoras-devolver-prendas',
-    titulo: 'Cómo registrar la devolución de prendas de una revendedora',
+    titulo: 'Cómo registrar la devolución de artículos de una revendedora',
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     pasos: [
       'En la lista de Revendedoras, buscá a la revendedora y hacé clic en "Devolución".',
-      'Marcá las casillas de las piezas a devolver en la tabla de prendas en su poder.',
+      'Marcá las casillas de los artículos a devolver en la tabla de artículos en su poder.',
       'Indicá la condición en "¿Cómo vuelve la mercadería?" y escribí un "Motivo (opcional)".',
       'Hacé clic en "Guardar" para abrir la confirmación.',
       'Hacé clic en "Confirmar" para reingresar las piezas al local.',
@@ -156,7 +156,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     pasos: [
       'Ingresá a Revendedoras y hacé clic en "Declaraciones" en la cabecera.',
       'Filtrá por estado entre pendientes, confirmadas, rechazadas o retiradas.',
-      'Revisá los datos de cada declaración enviada: fecha, revendedora, prenda vendida y precio declarado.',
+      'Revisá los datos de cada declaración enviada: fecha, revendedora, artículo vendido y precio declarado.',
     ],
   },
   {
@@ -180,7 +180,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
       'En la bandeja de Declaraciones, localizá la declaración en estado Pendiente.',
       'Hacé clic en "Rechazar" en la fila correspondiente.',
       'Escribí la razón en el campo "Motivo del rechazo (obligatorio)".',
-      'Hacé clic en "Rechazar declaración" para descartar la operación y mantener la prenda en poder de la revendedora.',
+      'Hacé clic en "Rechazar declaración" para descartar la operación y mantener el artículo en poder de la revendedora.',
     ],
   },
   {

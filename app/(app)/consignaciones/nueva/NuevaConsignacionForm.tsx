@@ -277,7 +277,7 @@ export function NuevaConsignacionForm({
 
   /**
    * El carrito se muestra agrupado por producto + talle con un contador, no
-   * una fila por unidad: devolver 8 remeras M no tiene que ocupar 8 renglones.
+   * una fila por unidad: devolver 8 unidades del mismo producto y variante no tiene que ocupar 8 renglones.
    */
   const grupos = useMemo<GrupoCarrito[]>(() => {
     const mapa = new Map<string, GrupoCarrito>()
@@ -443,7 +443,7 @@ export function NuevaConsignacionForm({
           rows={3}
           value={obs}
           onChange={(e) => setObs(e.target.value)}
-          placeholder="Motivo general del lote (rotación baja, temporada anterior, defectos, etc.)"
+          placeholder="Motivo general del lote (baja rotación, fin de exhibición, defectos, etc.)"
         />
       </Field>
 

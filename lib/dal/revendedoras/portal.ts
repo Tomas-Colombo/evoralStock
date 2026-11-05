@@ -125,7 +125,7 @@ export async function listarMisVentas(
     data: ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
       id_venta: String(r.id_venta),
       id_detalle_venta: String(r.id_detalle_venta),
-      descripcion: String(r.descripcion ?? 'Prenda'),
+      descripcion: String(r.descripcion ?? 'Artículo'),
       talle: r.talle ? String(r.talle) : null,
       fecha_venta: String(r.fecha_venta),
       precio_venta: Number(r.precio_venta ?? 0),

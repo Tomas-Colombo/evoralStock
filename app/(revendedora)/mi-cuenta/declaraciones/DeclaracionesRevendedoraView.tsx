@@ -27,7 +27,7 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
       })
 
       if (res.ok) {
-        toast.success('Declaración retirada', 'La prenda volvió a figurar disponible en tu stock.')
+        toast.success('Declaración retirada', 'El artículo volvió a figurar disponible en tu stock.')
         setSelectedParaRetirar(null)
       } else {
         toast.error('Error al retirar', mensajeDeError(res.reason))
@@ -41,7 +41,7 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Declaraciones de venta</h1>
           <p className="text-sm text-muted">
-            Prendas que declaraste como vendidas pendientes de confirmar por el local.
+            Artículos que declaraste como vendidos pendientes de confirmar por el local.
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
@@ -137,7 +137,7 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
           <div className="space-y-4">
             <p className="text-sm text-muted">
               Vas a retirar la declaración de venta de{' '}
-              <strong className="text-text">{selectedParaRetirar.nombre_producto}</strong>. La prenda volverá a figurar disponible en tu stock para declarar más adelante.
+              <strong className="text-text">{selectedParaRetirar.nombre_producto}</strong>. El artículo volverá a figurar disponible en tu stock para declarar más adelante.
             </p>
             <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-border">
               <Button

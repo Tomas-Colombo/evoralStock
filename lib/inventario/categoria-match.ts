@@ -16,25 +16,21 @@ function prefijoComun(a: string, b: string): number {
  * Sugiere la categoría de un producto nuevo a partir de su nombre. Elige la
  * categoría cuyo nombre comparte el prefijo más largo con la primera palabra
  * del producto, siempre que coincidan al menos `MIN_COINCIDENCIA_CATEGORIA`
- * letras. Así "campera" cae en "camperas" y "pant" en "pantalón", pero
- * "camisa" no se confunde con "campera" (comparten solo 3 letras).
+ * letras. Así "anillo" cae en "anillos" y "coll" en "collares", pero
+ * "collar" no se confunde con "colgante" (comparten solo 3 letras).
  *
- * Si nada llega al mínimo, cae en la categoría "accesorios"; si tampoco existe,
- * en la primera categoría de la lista. Devuelve el `id_categoria` elegido, o
- * '' si no hay categorías.
+ * Si nada llega al mínimo devuelve `null` y el usuario elige. Antes caía en una
+ * categoría "accesorios" que solo existía en el seed de indumentaria: en otro
+ * rubro la sugerencia era arbitraria y pasaba inadvertida.
  */
-export function sugerirCategoria(nombre: string, categorias: CategoriaRow[]): string {
-  if (categorias.length === 0) return ''
+export function sugerirCategoria(nombre: string, categorias: CategoriaRow[]): string | null {
+  if (categorias.length === 0) return null
 
-  const fallback =
-    categorias.find((c) => normalizar(c.nombre).startsWith('accesor'))?.id_categoria ??
-    categorias[0].id_categoria
-
-  // Comparamos contra la primera palabra: "campera negra" → "campera".
+  // Comparamos contra la primera palabra: "anillo dorado" → "anillo".
   const primeraPalabra = normalizar(nombre).split(' ')[0] ?? ''
-  if (primeraPalabra.length < MIN_COINCIDENCIA_CATEGORIA) return fallback
+  if (primeraPalabra.length < MIN_COINCIDENCIA_CATEGORIA) return null
 
-  let mejorId = fallback
+  let mejorId: string | null = null
   let mejorPrefijo = MIN_COINCIDENCIA_CATEGORIA - 1
   for (const c of categorias) {
     const p = prefijoComun(primeraPalabra, normalizar(c.nombre))

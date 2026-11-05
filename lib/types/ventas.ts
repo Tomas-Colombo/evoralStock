@@ -484,7 +484,7 @@ export interface FinanciacionInput {
 /**
  * Una línea del reparto del costo no cubierto. Es una ATRIBUCIÓN proporcional
  * al costo, no un hecho: la plata es fungible y no hay tal cosa como "esta
- * cuota pagó la remera y no el pantalón".
+ * cuota pagó un artículo y no el otro".
  */
 export interface LineaCostoNoCubierto {
   id_detalle_venta: string

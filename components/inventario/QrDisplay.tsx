@@ -86,7 +86,7 @@ export function QrDisplay({
           <img src={dataUrl} alt={`QR ${value}`} width={size} height={size} className="block" />
         ) : (
           /* El error se MUESTRA, no se traga. Un QR en blanco en pantalla es
-             molesto; en una etiqueta impresa y pegada a la prenda es un ítem
+             molesto; en una etiqueta impresa y pegada al artículo es un ítem
              mal identificado que nadie va a poder escanear. */
           <div
             style={{ width: size, height: size }}

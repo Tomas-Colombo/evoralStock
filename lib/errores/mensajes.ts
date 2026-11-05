@@ -11,7 +11,7 @@
  * Reglas de este archivo:
  *
  *  1. UN solo lugar. Si un mensaje no está acá, no existe.
- *  2. NADA de jerga. El que lee esto vende ropa, no escribe software: no hay
+ *  2. NADA de jerga. El que lee esto atiende un comercio, no escribe software: no hay
  *     "SKU", "tenant", "payload", "constraint" ni nombres de tabla.
  *  3. Cuando hay algo que hacer, el mensaje lo dice. Un "no se puede" sin
  *     salida deja al operador mirando la pantalla.
@@ -111,7 +111,7 @@ const MENSAJES: Record<string, string> = {
   'id-liquidacion-invalido': 'No se pudo identificar la liquidación. Recargá la página y probá de nuevo.',
   'id-declaracion-invalido': 'No se pudo identificar la venta declarada. Recargá la página y probá de nuevo.',
   'id-cuenta-invalido': 'No se pudo identificar la cuenta. Elegí una cuenta de la lista.',
-  'demasiados-items': 'Son demasiadas prendas para una sola operación: el máximo es 200.',
+  'demasiados-items': 'Son demasiados artículos para una sola operación: el máximo es 200.',
   'fecha-invalida': 'La fecha no es válida.',
   'fecha-desde-invalida': 'La fecha "desde" no es válida.',
   'fecha-hasta-invalida': 'La fecha "hasta" no es válida.',
@@ -213,7 +213,7 @@ const MENSAJES: Record<string, string> = {
   'item-no-esta-vendido': 'El ítem no pertenece a esta venta o no está vendido.',
   'detalle-ya-devuelto': 'Esa línea de la venta ya fue devuelta.',
   'detalle-ya-cambiado': 'Esa línea de la venta ya fue cambiada por otro producto.',
-  'linea-ya-cambiada': 'Esta prenda ya fue cambiada en otra operación y no puede devolverse.',
+  'linea-ya-cambiada': 'Este artículo ya fue cambiado en otra operación y no puede devolverse.',
   'cambio-venta-con-cuotas-abiertas': 'No se puede cambiar el producto porque la venta tiene cuotas sin pagar.',
   'item-no-en-poder-revendedora': 'Ese producto no está en poder de esa revendedora.',
   'diferencia-negativa-no-permitida': 'El nuevo producto no puede tener un precio menor al original.',

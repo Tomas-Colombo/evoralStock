@@ -46,7 +46,7 @@ export default async function ItemsEnPoderPage(props: PageProps) {
               Piezas en su poder
             </div>
             <div className="mt-2 text-2xl font-bold font-mono">{totalCantidad}</div>
-            <div className="mt-1 text-xs text-muted">prendas activamente en consignación</div>
+            <div className="mt-1 text-xs text-muted">artículos activamente en consignación</div>
           </Card>
 
           <Card>
@@ -62,9 +62,9 @@ export default async function ItemsEnPoderPage(props: PageProps) {
 
         {items.length === 0 ? (
           <Card padding="none" className="border-dashed p-10 text-center">
-            <p className="font-display text-lg mb-2">Sin prendas en su poder</p>
+            <p className="font-display text-lg mb-2">Sin artículos en su poder</p>
             <p className="text-sm text-muted mb-4">
-              La revendedora no tiene actualmente prendas en consignación.
+              La revendedora no tiene actualmente artículos en consignación.
             </p>
             <Link
               href={`/revendedoras/${revendedora.id_revendedora}/consignaciones/nueva`}

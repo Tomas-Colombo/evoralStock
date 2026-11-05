@@ -85,7 +85,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Unidades modificables',
-        texto: 'La asignación retroactiva se aplica empezando por las prendas que ingresaron primero, únicamente sobre las prendas que siguen en estado disponible; los ítems vendidos o reservados no se modifican.',
+        texto: 'La asignación retroactiva se aplica empezando por los artículos que ingresaron primero, únicamente sobre los artículos que siguen en estado disponible; los ítems vendidos o reservados no se modifican.',
       },
     ],
   },
@@ -234,10 +234,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Criterio de pegado',
-        texto: 'Cada etiqueta puede pegarse en cualquier prenda del mismo producto y talle; no importa en cuál.',
+        texto: 'Cada etiqueta puede pegarse en cualquier artículo del mismo producto y variante; no importa en cuál.',
       },
       {
-        tema: 'Prendas imprimibles',
+        tema: 'Artículos imprimibles',
         texto: 'Solo se generan etiquetas para unidades en estado disponible o reservado.',
       },
     ],
@@ -289,7 +289,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Pago al vender',
-        texto: 'La mercadería ingresada por consignación no genera deuda inmediata al local; la deuda se acumula recién cuando las prendas se venden y se liquidan en una rendición.',
+        texto: 'La mercadería ingresada por consignación no genera deuda inmediata al local; la deuda se acumula recién cuando los artículos se venden y se liquidan en una rendición.',
       },
     ],
   },
@@ -303,7 +303,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Seleccioná el archivo PDF del remito provisto por el proveedor.',
       'El sistema extraerá las líneas de productos, cantidades y costos unitarios automáticamente.',
       'Revisá cada línea para confirmar si es un producto "Nuevo" con su categoría o "Vincular" a un artículo existente.',
-      'Si las prendas cuentan con talles, hacé clic en "Cargar talles" para desglosar las unidades.',
+      'Si los artículos cuentan con talles, hacé clic en "Cargar talles" para desglosar las unidades.',
       'Hacé clic en "Guardar" y confirmá la operación para dar de alta los ítems.',
     ],
     detalles: [
@@ -343,7 +343,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     permisos: ['inventario.ver', 'inventario.crear'],
     pasos: [
       'En Ingresos, hacé clic en "Abrir" sobre el ingreso borrador.',
-      'En el formulario "Agregar producto a mano", seleccioná si la prenda "Es nuevo" o "Del inventario".',
+      'En el formulario "Agregar producto a mano", seleccioná si el artículo "Es nuevo" o "Del inventario".',
       'Ingresá o elegí el nombre del producto, la categoría (si es nuevo), el talle, la cantidad y el costo unitario.',
       'Hacé clic en "Agregar línea" para sumarlo a la tabla del ingreso.',
     ],

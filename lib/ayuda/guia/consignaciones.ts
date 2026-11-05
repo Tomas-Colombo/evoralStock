@@ -47,13 +47,13 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Baja del stock',
-        texto: 'Al confirmar el lote, las prendas se descuentan definitivamente del inventario disponible.',
+        texto: 'Al confirmar el lote, los artículos se descuentan definitivamente del inventario disponible.',
       },
     ],
   },
   {
     id: 'consignaciones-agregar-item',
-    titulo: 'Cómo agregar una prenda a un lote de consignación activo',
+    titulo: 'Cómo agregar un artículo a un lote de consignación activo',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
     pasos: [
@@ -70,7 +70,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" para acceder a la ficha del lote.',
-      'En la tabla de ítems, localizá la prenda pendiente.',
+      'En la tabla de ítems, localizá el artículo pendiente.',
       'Hacé clic en "Confirmar salida" en la fila del ítem.',
       'En el diálogo de confirmación, hacé clic en "Sí, salió" para asentar la salida individual.',
     ],
@@ -84,7 +84,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
       'Desde la ficha del lote en Consignaciones, buscá el ítem pendiente en la tabla.',
       'Hacé clic en "Liberar" en la fila del ítem correspondiente.',
       'En el cuadro de diálogo, hacé clic en "Sí, liberar" para cancelar la salida.',
-      'La prenda volverá a estar disponible para la venta en el local.',
+      'El artículo volverá a estar disponible para la venta en el local.',
     ],
   },
   {
@@ -131,7 +131,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
       'Ingresá a Rendiciones desde el menú principal de navegación.',
       'Revisá en la cabecera los indicadores de cantidad total, rendiciones pendientes y monto adeudado.',
       'Consultá la tabla con la fecha, proveedor, cantidad de ítems, monto total y estado de cada rendición.',
-      'Hacé clic en "Ver" en la fila correspondiente para revisar el detalle de prendas saldadas.',
+      'Hacé clic en "Ver" en la fila correspondiente para revisar el detalle de artículos saldados.',
     ],
   },
   {
@@ -149,7 +149,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Ventas imputadas',
-        texto: 'Solo se incluyen prendas vendidas de ese proveedor cuya rendición no haya sido generada ni excluida previamente.',
+        texto: 'Solo se incluyen artículos vendidos de ese proveedor cuya rendición no haya sido generada ni excluida previamente.',
       },
     ],
   },
@@ -160,7 +160,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['rendiciones.ver', 'rendiciones.editar'],
     pasos: [
       'Desde la pantalla de Generar rendición, seleccioná el proveedor.',
-      'En la tabla de ventas pendientes, localizá la línea de la prenda.',
+      'En la tabla de ventas pendientes, localizá la línea del artículo.',
       'Hacé clic en "Excluir" en el extremo derecho de la fila.',
       'La línea se removerá del subtotal a pagar y no volverá a aparecer en futuras rendiciones.',
     ],

@@ -42,7 +42,7 @@ describe('ImprimirEtiquetasClient', () => {
 
     expect(
       screen.getByText(
-        'Pegá cada etiqueta en una prenda del mismo producto y talle; no importa en cuál.',
+        'Pegá cada etiqueta en un artículo del mismo producto y variante; no importa en cuál.',
       ),
     ).toBeInTheDocument()
 

@@ -799,7 +799,7 @@ export function VentaDetalleView({
               id="c-motivo"
               value={motivoCambio}
               onChange={(e) => setMotivoCambio(e.target.value)}
-              placeholder="Ej: Cambio de talle / color"
+              placeholder="Ej: Cambio de medida o variante"
               rows={2}
             />
           </Field>

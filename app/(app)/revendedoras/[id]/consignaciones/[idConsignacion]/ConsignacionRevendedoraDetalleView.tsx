@@ -454,7 +454,7 @@ export function ConsignacionRevendedoraDetalleView({
               id="motivo-devolucion"
               value={motivoDevolucion}
               onChange={(e) => setMotivoDevolucion(e.target.value)}
-              placeholder="Ej: Cambio de temporada, rotura de costura..."
+              placeholder="Ej: Baja rotación, artículo dañado..."
             />
           </Field>
 

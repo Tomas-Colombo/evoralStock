@@ -58,17 +58,17 @@ export function StockRevendedoraView({ items }: Props) {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Mercadería en tu poder</h1>
           <p className="text-sm text-muted">
-            Prendas consignadas que tenés disponibles para vender.
+            Artículos consignados que tenés disponibles para vender.
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {items.length} {items.length === 1 ? 'prenda' : 'prendas'}
+          {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
         </span>
       </div>
 
       {items.length === 0 ? (
         <div className="p-8 text-center rounded-lg border border-dashed border-border bg-card">
-          <p className="text-muted text-sm">No tenés prendas en tu poder en este momento.</p>
+          <p className="text-muted text-sm">No tenés artículos en tu poder en este momento.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -119,7 +119,7 @@ export function StockRevendedoraView({ items }: Props) {
         <Modal
           open={true}
           onClose={handleCloseModal}
-          title="Declarar venta de prenda"
+          title="Declarar venta de artículo"
         >
           <div className="space-y-4">
             <div className="p-3 rounded-lg bg-panel-2 border border-border space-y-1">

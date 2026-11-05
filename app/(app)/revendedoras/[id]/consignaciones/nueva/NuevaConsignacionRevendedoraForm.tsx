@@ -349,7 +349,7 @@ export function NuevaConsignacionRevendedoraForm({
               id="motivo"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ej: Muestrario temporada primavera"
+              placeholder="Ej: Muestrario de lanzamiento"
             />
           </Field>
         </div>

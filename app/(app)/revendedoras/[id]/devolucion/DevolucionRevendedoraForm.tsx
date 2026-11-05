@@ -247,7 +247,7 @@ export function DevolucionRevendedoraForm({
             id="motivo-devolucion"
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Ej: Fin de temporada"
+            placeholder="Ej: Fin de exhibición"
           />
         </Field>
       </div>

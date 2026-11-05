@@ -119,7 +119,7 @@ test.describe('Portal de revendedora y declaraciones (Slice 9d)', () => {
       await cardProd1.getByRole('button', { name: 'Declarar venta' }).click()
 
       // Modal de declaración
-      await expect(rev1Page.getByText('Declarar venta de prenda')).toBeVisible()
+      await expect(rev1Page.getByText('Declarar venta de artículo')).toBeVisible()
       await rev1Page.locator('#nota-declaracion').fill('Vendida en feria fin de semana')
       await rev1Page.getByRole('button', { name: 'Confirmar declaración' }).click()
 
@@ -172,7 +172,7 @@ test.describe('Portal de revendedora y declaraciones (Slice 9d)', () => {
         // Stock vacío
         await rev2Page.getByRole('link', { name: 'Mi stock', exact: true }).click()
         await rev2Page.waitForURL(/\/mi-cuenta\/stock/)
-        await expect(rev2Page.getByText('No tenés prendas en tu poder en este momento.')).toBeVisible()
+        await expect(rev2Page.getByText('No tenés artículos en tu poder en este momento.')).toBeVisible()
         await expect(rev2Page.getByText(nombreProd1)).not.toBeVisible()
         await expect(rev2Page.getByText(nombreProd2)).not.toBeVisible()
 
