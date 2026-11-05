@@ -4,7 +4,6 @@ import * as dalCotizacion from '@/lib/dal/precios/cotizacion'
 import * as dalProducto from '@/lib/dal/inventario/producto'
 import * as dalIngreso from '@/lib/dal/inventario/ingreso'
 import * as sessionModule from '@/lib/dal/session'
-import { revalidatePath } from 'next/cache'
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
@@ -80,7 +79,10 @@ describe('Conversión de moneda en Server Actions de Inventario', () => {
         stock: [{ talle: 'M', cantidad: 2 }],
       })
 
-      expect(res).toEqual({ ok: true, data: { id: 'prod-uuid-1', itemsCreados: 2 } })
+      expect(res).toEqual({
+        ok: true,
+        data: { id: 'prod-uuid-1', itemsCreados: 2, cotizacionDesactualizada: false },
+      })
 
       // Circuito A: spSetCostoProducto recibe 150000 ARS y metadatos
       expect(dalProducto.spSetCostoProducto).toHaveBeenCalledWith({
@@ -210,7 +212,10 @@ describe('Conversión de moneda en Server Actions de Inventario', () => {
         ],
       })
 
-      expect(res).toEqual({ ok: true, data: { id: 'ing-uuid-1', itemsGenerados: 30 } })
+      expect(res).toEqual({
+        ok: true,
+        data: { id: 'ing-uuid-1', itemsGenerados: 30, cotizacionDesactualizada: false },
+      })
       // UNA sola llamada a getCotizacionVigente
       expect(dalCotizacion.getCotizacionVigente).toHaveBeenCalledTimes(1)
 
@@ -289,7 +294,10 @@ describe('Conversión de moneda en Server Actions de Inventario', () => {
         ],
       })
 
-      expect(res).toEqual({ ok: true, data: { creados: 1, vinculados: 0, detalles: [] } })
+      expect(res).toEqual({
+        ok: true,
+        data: { creados: 1, vinculados: 0, detalles: [], cotizacionDesactualizada: false },
+      })
       expect(dalCotizacion.getCotizacionVigente).toHaveBeenCalledTimes(1)
       expect(dalIngreso.spImportarRemito).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -305,6 +313,42 @@ describe('Conversión de moneda en Server Actions de Inventario', () => {
           ],
         }),
       )
+    })
+
+    it('devuelve cotizacionDesactualizada: true cuando la cotización es de un día anterior', async () => {
+      vi.mocked(dalCotizacion.getCotizacionVigente).mockResolvedValueOnce({
+        modo: 'automatica',
+        valor: 1550,
+        fecha: '2026-11-04',
+        fechaValor: '2026-11-03',
+        origen: 'bcra',
+        desactualizada: true,
+      })
+      vi.mocked(dalIngreso.spImportarRemito).mockResolvedValueOnce({
+        creados: 1,
+        vinculados: 0,
+        detalles: [],
+      })
+
+      const res = await importarRemitoAction({
+        idIngreso: 'ing-uuid-3',
+        moneda: 'USD',
+        lineas: [
+          {
+            esNuevo: true,
+            idProducto: null,
+            idCategoria: 'cat-uuid-1',
+            nombre: 'Item Desact',
+            cantidad: 1,
+            costoUnitario: 10,
+          },
+        ],
+      })
+
+      expect(res).toEqual({
+        ok: true,
+        data: { creados: 1, vinculados: 0, detalles: [], cotizacionDesactualizada: true },
+      })
     })
   })
 })

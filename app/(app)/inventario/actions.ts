@@ -79,6 +79,64 @@ async function guarded(
   }
 }
 
+/**
+ * Helper compartido para resolver cotización vigente y convertir líneas de carga en USD a ARS.
+ * Mantiene una sola consulta de cotización por acción y propaga cotizacionDesactualizada.
+ */
+async function resolverConversionCarga<T extends { costoUnitario: number }>(
+  moneda: string | undefined | null,
+  lineas: T[],
+): Promise<
+  | {
+      ok: true
+      esUsd: boolean
+      cotizacionValor: number | null
+      cotizacionFechaValor: string | null
+      cotizacionDesactualizada: boolean
+      lineas: (T & { costoOriginalUsd?: number | null })[]
+    }
+  | { ok: false; reason: string }
+> {
+  const esUsd = moneda === 'USD'
+  if (!esUsd) {
+    return {
+      ok: true,
+      esUsd: false,
+      cotizacionValor: null,
+      cotizacionFechaValor: null,
+      cotizacionDesactualizada: false,
+      lineas,
+    }
+  }
+
+  try {
+    const cot = await getCotizacionVigente()
+    if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
+      return { ok: false, reason: 'sin-cotizacion-dolar' }
+    }
+    const lineasConvertidas = lineas.map((linea) => {
+      const costoOriginal = linea.costoUnitario
+      const costoArs = convertirUsdEnArs(costoOriginal, cot.valor)
+      return {
+        ...linea,
+        costoUnitario: costoArs,
+        costoOriginalUsd: costoOriginal,
+      }
+    })
+    return {
+      ok: true,
+      esUsd: true,
+      cotizacionValor: cot.valor,
+      cotizacionFechaValor: cot.fechaValor,
+      cotizacionDesactualizada: Boolean(cot.desactualizada),
+      lineas: lineasConvertidas,
+    }
+  } catch (e) {
+    const msg = (e as Error).message
+    return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
+  }
+}
+
 // ─── Categorías ──────────────────────────────────────────────────────
 
 /** Normaliza talles: trim, saca vacíos y duplicados (case-insensitive). */
@@ -272,7 +330,7 @@ export async function createProductoAction(input: {
   // Stock inicial opcional: crea items físicos por talle. Si va vacío, el
   // producto se crea sin unidades (comportamiento anterior).
   stock?: Array<{ talle: string | null; cantidad: number }>
-}): Promise<ActionResult<{ id: string; itemsCreados: number }>> {
+}): Promise<ActionResult<{ id: string; itemsCreados: number; cotizacionDesactualizada?: boolean }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
@@ -289,27 +347,16 @@ export async function createProductoAction(input: {
     return { ok: false, reason: excedeOperacion(totalUnidades) }
   }
 
-  const esUsd = input.moneda === 'USD'
-  let costoArs = input.costoInicial ?? 0
-  let costoOriginalUsd: number | null = null
-  let cotizacionAplicada: number | null = null
-  let cotizacionFechaValor: string | null = null
+  const conversion = await resolverConversionCarga(
+    input.moneda,
+    input.costoInicial != null && input.costoInicial > 0 ? [{ costoUnitario: input.costoInicial }] : [],
+  )
+  if (!conversion.ok) return conversion
 
-  if (esUsd && input.costoInicial != null && input.costoInicial > 0) {
-    try {
-      const cot = await getCotizacionVigente()
-      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
-        return { ok: false, reason: 'sin-cotizacion-dolar' }
-      }
-      costoOriginalUsd = input.costoInicial
-      cotizacionAplicada = cot.valor
-      cotizacionFechaValor = cot.fechaValor
-      costoArs = convertirUsdEnArs(input.costoInicial, cot.valor)
-    } catch (e) {
-      const msg = (e as Error).message
-      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
-    }
-  }
+  const { esUsd, cotizacionValor, cotizacionFechaValor, cotizacionDesactualizada } = conversion
+  const costoArs = conversion.lineas[0]?.costoUnitario ?? input.costoInicial ?? 0
+  const costoOriginalUsd = conversion.lineas[0]?.costoOriginalUsd ?? null
+  const cotizacionAplicada = cotizacionValor
 
   try {
     const id = await spCreateProducto({
@@ -367,7 +414,7 @@ export async function createProductoAction(input: {
       }
     }
     revalidatePath('/inventario')
-    return { ok: true, data: { id, itemsCreados } }
+    return { ok: true, data: { id, itemsCreados, cotizacionDesactualizada } }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }
@@ -679,43 +726,16 @@ export async function importarRemitoAction(input: {
   idIngreso: string
   moneda?: string
   lineas: LineaRemitoInput[]
-}): Promise<ActionResult<{ creados: number; vinculados: number; detalles: DetalleCreado[] }>> {
+}): Promise<ActionResult<{ creados: number; vinculados: number; detalles: DetalleCreado[]; cotizacionDesactualizada?: boolean }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
   const norm = normalizarLineasRemito(input.lineas)
   if (!norm.ok) return norm
 
-  const esUsd = input.moneda === 'USD'
-  let cotizacionValor: number | null = null
-  let cotizacionFechaValor: string | null = null
-
-  if (esUsd) {
-    try {
-      const cot = await getCotizacionVigente()
-      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
-        return { ok: false, reason: 'sin-cotizacion-dolar' }
-      }
-      cotizacionValor = cot.valor
-      cotizacionFechaValor = cot.fechaValor
-    } catch (e) {
-      const msg = (e as Error).message
-      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
-    }
-  }
-
-  const lineasParaDal = norm.lineas.map((linea) => {
-    if (esUsd && cotizacionValor != null) {
-      const costoOriginal = linea.costoUnitario
-      const costoArs = convertirUsdEnArs(costoOriginal, cotizacionValor)
-      return {
-        ...linea,
-        costoUnitario: costoArs,
-        costoOriginalUsd: costoOriginal,
-      }
-    }
-    return linea
-  })
+  const conversion = await resolverConversionCarga(input.moneda as 'ARS' | 'USD' | undefined, norm.lineas)
+  if (!conversion.ok) return conversion
+  const { cotizacionValor, cotizacionFechaValor, cotizacionDesactualizada, lineas: lineasParaDal } = conversion
 
   try {
     const res = await spImportarRemito({
@@ -730,7 +750,12 @@ export async function importarRemitoAction(input: {
     revalidatePath('/inventario')
     return {
       ok: true,
-      data: { creados: res.creados, vinculados: res.vinculados, detalles: res.detalles },
+      data: {
+        creados: res.creados,
+        vinculados: res.vinculados,
+        detalles: res.detalles,
+        cotizacionDesactualizada,
+      },
     }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
@@ -753,7 +778,7 @@ export async function crearIngresoCompletoAction(input: {
   observaciones?: string | null
   moneda?: string
   lineas: LineaRemitoInput[]
-}): Promise<ActionResult<{ id: string; itemsGenerados: number }>> {
+}): Promise<ActionResult<{ id: string; itemsGenerados: number; cotizacionDesactualizada?: boolean }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
@@ -771,36 +796,9 @@ export async function crearIngresoCompletoAction(input: {
   const numeroRemito = parsed.data.numeroRemito?.trim() || null
   const idProveedor = parsed.data.idProveedor || null
 
-  const esUsd = parsed.data.moneda === 'USD'
-  let cotizacionValor: number | null = null
-  let cotizacionFechaValor: string | null = null
-
-  if (esUsd) {
-    try {
-      const cot = await getCotizacionVigente()
-      if (!cot || !cot.valor || cot.valor <= 0 || !cot.fechaValor) {
-        return { ok: false, reason: 'sin-cotizacion-dolar' }
-      }
-      cotizacionValor = cot.valor
-      cotizacionFechaValor = cot.fechaValor
-    } catch (e) {
-      const msg = (e as Error).message
-      return { ok: false, reason: msg.includes('sin-cotizacion-dolar') ? 'sin-cotizacion-dolar' : msg }
-    }
-  }
-
-  const lineasParaDal = norm.lineas.map((linea) => {
-    if (esUsd && cotizacionValor != null) {
-      const costoOriginal = linea.costoUnitario
-      const costoArs = convertirUsdEnArs(costoOriginal, cotizacionValor)
-      return {
-        ...linea,
-        costoUnitario: costoArs,
-        costoOriginalUsd: costoOriginal,
-      }
-    }
-    return linea
-  })
+  const conversion = await resolverConversionCarga(parsed.data.moneda as 'ARS' | 'USD' | undefined, norm.lineas)
+  if (!conversion.ok) return conversion
+  const { cotizacionValor, cotizacionFechaValor, cotizacionDesactualizada, lineas: lineasParaDal } = conversion
 
   if (numeroRemito) {
     try {
@@ -851,7 +849,7 @@ export async function crearIngresoCompletoAction(input: {
     const itemsGenerados = await spConfirmarIngreso(idIngreso)
     revalidatePath('/inventario/ingresos')
     revalidatePath('/inventario')
-    return { ok: true, data: { id: idIngreso, itemsGenerados } }
+    return { ok: true, data: { id: idIngreso, itemsGenerados, cotizacionDesactualizada } }
   } catch (e) {
     // Rollback pragmático: el ingreso quedó como borrador sin confirmar (o a
     // medias). Lo borramos para no dejar un ingreso huérfano.

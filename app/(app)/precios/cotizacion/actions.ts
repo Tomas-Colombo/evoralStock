@@ -10,6 +10,7 @@ import {
   cambiarModoCotizacionSchema,
 } from '@/lib/validation/cotizacion'
 import {
+  getCotizacionVigente,
   sincronizarCotizacionBcra,
   spRevaluarCostosUsd,
   spSetCotizacionManual,
@@ -127,10 +128,11 @@ export async function sincronizarCotizacionBcraAction(
 /**
  * Server Action: Revalúa masivamente los costos vigentes en USD al tipo de cambio actual.
  * 3 compuertas: requireModuleRole('precios', 'editar_cotizacion') -> Zod -> DAL.
+ * Consulta primero getCotizacionVigente() (que contacta al BCRA si es necesario) y luego ejecuta el SP.
  */
 export async function revaluarCostosUsdAction(
   rawInput?: unknown,
-): Promise<ActionResult<{ revaluados: number; omitidos_sin_original: number }>> {
+): Promise<ActionResult<{ revaluados: number; omitidos_sin_original: number; sin_cambios: number }>> {
   try {
     // 1. Autorización
     const session = await verifySession()
@@ -140,6 +142,12 @@ export async function revaluarCostosUsdAction(
     const parsed = emptyPayloadSchema.safeParse(rawInput ?? {})
     if (!parsed.success) {
       return { ok: false, reason: 'payload-invalido' }
+    }
+
+    // Asegurar sincronización previa con BCRA si hace falta
+    const cotizacion = await getCotizacionVigente()
+    if (cotizacion.desactualizada) {
+      return { ok: false, reason: 'cotizacion-desactualizada' }
     }
 
     const ip = await getClientIp()

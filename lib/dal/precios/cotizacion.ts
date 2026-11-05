@@ -195,20 +195,22 @@ export async function spSetModoCotizacion(
 
 /**
  * Revalúa masivamente los costos vigentes en USD al tipo de cambio actual.
- * Devuelve la cantidad de costos revaluados y cuántos se omitieron por no tener costo_original_usd.
+ * Devuelve la cantidad de costos revaluados, cuántos se omitieron por no tener costo_original_usd,
+ * y cuántos se omitieron por no tener cambios en la cotización aplicada.
  */
 export async function spRevaluarCostosUsd(
   params?: { ip?: string | null },
   client?: SupabaseClient,
-): Promise<{ revaluados: number; omitidos_sin_original: number }> {
+): Promise<{ revaluados: number; omitidos_sin_original: number; sin_cambios: number }> {
   const supabase = client ?? (await createServerClient())
   const { data, error } = await supabase.rpc('sp_revaluar_costos_usd_vigentes', {
     p_ip: params?.ip ?? null,
   })
   if (error) throw new Error(extraerSlugRpc(error))
-  const res = (data ?? {}) as { revaluados?: number; omitidos_sin_original?: number }
+  const res = (data ?? {}) as { revaluados?: number; omitidos_sin_original?: number; sin_cambios?: number }
   return {
     revaluados: res.revaluados ?? 0,
     omitidos_sin_original: res.omitidos_sin_original ?? 0,
+    sin_cambios: res.sin_cambios ?? 0,
   }
 }

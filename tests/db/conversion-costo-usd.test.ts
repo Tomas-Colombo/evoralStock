@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, hasTestDb, runPsql, signInAs, withScopedTenant } from './_helpers'
-import { createProductoAction, crearIngresoCompletoAction, importarRemitoAction } from '@/app/(app)/inventario/actions'
-import { revaluarCostosUsdAction } from '@/app/(app)/precios/cotizacion/actions'
 
 function getHoyBuenosAires(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
@@ -290,6 +287,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       })
       expect(errReval1).toBeNull()
       expect(resReval1.revaluados).toBe(1)
+      expect(resReval1.sin_cambios).toBe(0)
 
       // Verificar nuevo costo vigente: 160.000 ARS conservando costo_original_usd = 100
       const { data: cp1 } = await serviceRole
@@ -311,6 +309,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       })
       expect(errReval2).toBeNull()
       expect(resReval2.revaluados).toBe(1)
+      expect(resReval2.sin_cambios).toBe(0)
 
       // Verificar nuevo costo vigente: 175.000 ARS conservando costo_original_usd = 100
       const { data: cp2 } = await serviceRole
@@ -323,6 +322,47 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(Number(cp2!.costo)).toBe(175000.0)
       expect(Number(cp2!.costo_original_usd)).toBe(100.0)
       expect(Number(cp2!.cotizacion_aplicada)).toBe(1750.0)
+    })
+
+    it('Misma cotización dos veces → sin_cambios (no genera historial duplicado)', async () => {
+      const t = await setupTenantWithCotizacion('reval-sin-cambios', 1500)
+
+      const { data: prod } = await serviceRole
+        .from('producto')
+        .insert({
+          id_tenant: t.tenantId,
+          id_categoria: t.idCategoria,
+          nombre: 'Vestido Sin Cambios USD',
+        })
+        .select('id_producto')
+        .single()
+
+      await t.authAdmin.rpc('sp_set_costo_producto', {
+        p_id_producto: prod!.id_producto,
+        p_costo: 150000.0,
+        p_moneda: 'USD',
+        p_motivo: 'costo inicial',
+        p_costo_original_usd: 100.0,
+        p_cotizacion_aplicada: 1500.0,
+        p_cotizacion_fecha_valor: t.hoy,
+      })
+
+      // Revaluar con la misma cotización (1500): cotizacion_aplicada ya es 1500
+      const { data: res, error } = await t.authAdmin.rpc('sp_revaluar_costos_usd_vigentes', {
+        p_ip: '127.0.0.1',
+      })
+      expect(error).toBeNull()
+      expect(res.revaluados).toBe(0)
+      expect(res.sin_cambios).toBe(1)
+      expect(res.omitidos_sin_original).toBe(0)
+
+      // Total de filas en costo_producto sigue siendo exactamente 1
+      const { count: countCosto } = await serviceRole
+        .from('costo_producto')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_producto', prod!.id_producto)
+
+      expect(countCosto).toBe(1)
     })
 
     it('Una fila USD vieja (sin costo_original_usd) se omite y se cuenta', async () => {
@@ -355,6 +395,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(error).toBeNull()
       expect(res.revaluados).toBe(0)
       expect(res.omitidos_sin_original).toBe(1)
+      expect(res.sin_cambios).toBe(0)
 
       // La fila vieja no debe haber cambiado
       const { data: cp } = await serviceRole
@@ -424,12 +465,82 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       }
     })
 
+    it('Sin fila de hoy + BCRA caído (desactualizada=true) → rechazo cotizacion-desactualizada y 0 filas nuevas', async () => {
+      const fixture = await createTenantWithUser(withScopedTenant('bcra-caido'))
+      const authAdmin = await signInAs(fixture)
+
+      const { data: cat } = await serviceRole
+        .from('categoria')
+        .insert({
+          id_tenant: fixture.tenantId,
+          nombre: 'Cat BCRA',
+        })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await serviceRole
+        .from('producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_categoria: cat!.id_categoria,
+          nombre: 'Producto BCRA Caído',
+        })
+        .select('id_producto')
+        .single()
+
+      // Costo inicial en USD cargado hace 5 días
+      await serviceRole.from('costo_producto').insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        costo: 140000.0,
+        moneda: 'USD',
+        costo_original_usd: 100.0,
+        cotizacion_aplicada: 1400.0,
+        cotizacion_fecha_valor: '2026-11-01',
+      })
+
+      // Configurar modo automatico con solo una cotización vieja de hace 2 días con origen 'bcra'
+      await serviceRole.from('cotizacion_config').insert({
+        id_tenant: fixture.tenantId,
+        modo: 'automatica',
+      })
+      await serviceRole.from('cotizacion_dolar').insert({
+        id_tenant: fixture.tenantId,
+        valor: 1400.0,
+        fecha: '2026-11-03',
+        fecha_valor: '2026-11-02',
+        origen: 'bcra',
+        desactualizada: true,
+      })
+
+      const countBefore = await serviceRole
+        .from('costo_producto')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_tenant', fixture.tenantId)
+
+      // Ejecutar revaluación en base de datos: debe rechazar porque sp_get_cotizacion_vigente retorna desactualizada=true
+      const { error } = await authAdmin.rpc('sp_revaluar_costos_usd_vigentes', {
+        p_ip: '127.0.0.1',
+      })
+
+      expect(error).not.toBeNull()
+      expect(error!.message).toContain('cotizacion-desactualizada')
+
+      // Verificar 0 filas nuevas en costo_producto
+      const countAfter = await serviceRole
+        .from('costo_producto')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_tenant', fixture.tenantId)
+
+      expect(countAfter.count).toBe(countBefore.count)
+    })
+
     it('Sin cotización → sin-cotizacion-dolar y no se escribe nada', async () => {
       // Tenant NUEVO sin cotización cargada
       const fixture = await createTenantWithUser(withScopedTenant('sin-cot'))
       const authAdmin = await signInAs(fixture)
 
-      const { data, error } = await authAdmin.rpc('sp_revaluar_costos_usd_vigentes', {
+      const { error } = await authAdmin.rpc('sp_revaluar_costos_usd_vigentes', {
         p_ip: '127.0.0.1',
       })
 
