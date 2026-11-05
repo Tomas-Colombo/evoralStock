@@ -49,11 +49,11 @@ Archivos:
 Tareas:
 - [ ] Crear migración con bloque reversible `-- DOWN:` completo (validado por `pnpm gate:db`).
 - [ ] Crear tabla `cotizacion_config` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_config` (`auth_revendedora_id() is null`).
-- [ ] Crear tabla `cotizacion_dolar` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_dolar` (`auth_revendedora_id() is null`). Única fuente de verdad para el valor manual.
+- [ ] Crear tabla `cotizacion_dolar` con RLS por `id_tenant` y policy restrictiva de revendedora `restrict_revendedora_cotizacion_dolar` (`auth_revendedora_id() is null`). Clave única `(id_tenant, fecha, origen)`. Única fuente de verdad para valores de cotización.
 - [ ] Alterar `costo_producto` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
 - [ ] Alterar `ingreso_mercaderia_detalle` agregando `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`.
 - [ ] Crear funciones PL/pgSQL INVOKER resolviendo "hoy" en `tenant.zona_horaria`:
-  - `sp_get_cotizacion_vigente() returns jsonb`
+  - `sp_get_cotizacion_vigente() returns jsonb`: en modo automático filtra `origen = 'bcra'`; en modo manual, toma la última fila con `origen = 'manual'`.
   - `sp_set_cotizacion_manual(p_valor numeric, p_ip inet) returns void`
   - `sp_set_modo_cotizacion(p_modo text, p_ip inet) returns void`
   - `sp_registrar_cotizacion_bcra(p_fecha date, p_valor numeric, p_fecha_valor date, p_desactualizada boolean) returns void`
@@ -64,6 +64,7 @@ Tareas:
   - N2: aislamiento entre tenants (Tenant A no ve ni altera cotizaciones de Tenant B).
   - N3: verificar que funciones son INVOKER.
   - N4: test de seguridad de revendedora (REQ-USD-01 N5 y REQ-USD-02 N4): sesión con JWT de revendedora no puede leer ni escribir en `cotizacion_config` ni `cotizacion_dolar`.
+  - N5: carga de valor manual y posterior conmutación a modo automático el mismo día (REQ-USD-02 N5) → `sp_get_cotizacion_vigente` resuelve o consulta BCRA, nunca el valor manual.
 - [ ] **PUNTO DE PARADA**: chequear regresión manual de seguridad quitando temporalmente la policy RLS para confirmar que el test falla.
 - [ ] Verificar con `pnpm gate:db`.
 

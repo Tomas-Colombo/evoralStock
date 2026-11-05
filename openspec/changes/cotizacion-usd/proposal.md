@@ -191,7 +191,7 @@ create table if not exists cotizacion_dolar (
   desactualizada           boolean not null default false, -- TRUE SOLO SI FALLÓ EL FETCH AL BCRA
   id_usuario               uuid references auth.users(id), -- Null en sync automático, actor en manual
   created_at               timestamptz not null default now(),
-  constraint cotizacion_dolar_tenant_fecha_uk unique (id_tenant, fecha)
+  constraint cotizacion_dolar_tenant_fecha_origen_uk unique (id_tenant, fecha, origen)
 );
 
 alter table cotizacion_dolar enable row level security;
@@ -230,7 +230,7 @@ alter table ingreso_mercaderia_detalle
    - Resuelve `v_hoy` en la zona horaria del tenant.
    - Lee `cotizacion_config.modo`.
    - Si es manual: lee la última fila de `cotizacion_dolar` donde `origen = 'manual'`.
-   - Si es automática: busca la fila en `cotizacion_dolar` para `fecha = v_hoy`. Devuelve el registro (incluyendo si `desactualizada = true` para indicar si requiere reintento). Si no hay fila de hoy, busca la última disponible con `desactualizada = true`.
+   - Si es automática: busca la fila en `cotizacion_dolar` para `fecha = v_hoy and origen = 'bcra'`. Devuelve el registro (incluyendo si `desactualizada = true` para indicar si requiere reintento al BCRA). Si no hay fila de hoy con `origen = 'bcra'`, busca la última disponible con `origen = 'bcra'` marcada con `desactualizada = true`. En ningún caso devuelve una fila con `origen = 'manual'` cuando el modo es automático.
 2. `sp_set_cotizacion_manual(p_valor numeric, p_ip inet)`:
    - Valida `p_valor > 0`.
    - Setea `cotizacion_config.modo = 'manual'`.
@@ -349,6 +349,7 @@ El sistema MUST permitir a usuarios autorizados conmutar el modo a `manual` y fi
 - **N2**: Operador envía valor 0 o negativo → rechazo con slug `cotizacion-manual-invalida`.
 - **N3**: Invocación desde otro tenant → RLS aísla las tablas (0 filas / rechazo).
 - **N4**: Sesión de revendedora del mismo tenant intenta leer o escribir `cotizacion_config` → rechazo por policy restrictiva `restrict_revendedora_cotizacion_config`.
+- **N5**: Se carga un valor manual y luego se conmuta el tenant a modo automático el mismo día → el sistema utiliza o consulta el BCRA (`origen = 'bcra'`), jamás el valor manual cargado previamente.
 
 ### REQ-USD-03 — Conversión en Carga Inicial de Producto (Circuito A y B inicial)
 Al dar de alta un producto nuevo con costo en `USD`, el sistema MUST convertir el importe a pesos a la cotización vigente a la fecha de carga antes de persistir en `costo_producto` y generar el ingreso inicial.
