@@ -3,6 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, createUserWithoutTenant, hasTestDb, runPsql, signInAs, withScopedTenant } from './_helpers'
 
+function getHoyBuenosAires(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
+}
+
 describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y SPs)', () => {
   const serviceRole = createServiceRoleTestClient()
 
@@ -70,7 +74,7 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
       const tenant = await createTenantWithUser('cotiz-bcra')
       const authAdmin = await signInAs(tenant)
 
-      const hoy = new Date().toISOString().slice(0, 10)
+      const hoy = getHoyBuenosAires()
       const { error: errReg } = await authAdmin.rpc('sp_registrar_cotizacion_bcra', {
         p_fecha: hoy,
         p_valor: 1546.5,
@@ -176,7 +180,7 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
     it('sp_registrar_cotizacion_bcra rechaza valor <= 0', async () => {
       const tenant = await createTenantWithUser('cotiz-bcra-neg')
       const authAdmin = await signInAs(tenant)
-      const hoy = new Date().toISOString().slice(0, 10)
+      const hoy = getHoyBuenosAires()
 
       const { error } = await authAdmin.rpc('sp_registrar_cotizacion_bcra', {
         p_fecha: hoy,
@@ -209,7 +213,7 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
       const authAdminA = await signInAs(tenantA)
       const authAdminB = await signInAs(tenantB)
 
-      const hoy = new Date().toISOString().slice(0, 10)
+      const hoy = getHoyBuenosAires()
       await authAdminA.rpc('sp_registrar_cotizacion_bcra', {
         p_fecha: hoy,
         p_valor: 1500,
@@ -268,10 +272,10 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
       // Revendedora intenta INSERT en cotizacion_dolar -> rechazo por RLS restrictiva
       const { error: errInsertDolar } = await authRev.from('cotizacion_dolar').insert({
         id_tenant: tenant.tenantId,
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: getHoyBuenosAires(),
         valor: 2000,
         origen: 'manual',
-        fecha_valor: new Date().toISOString().slice(0, 10),
+        fecha_valor: getHoyBuenosAires(),
       })
       expect(errInsertDolar).not.toBeNull()
     })
