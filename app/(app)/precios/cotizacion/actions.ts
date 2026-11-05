@@ -14,6 +14,7 @@ import {
   spSetCotizacionManual,
   spSetModoCotizacion,
 } from '@/lib/dal/precios/cotizacion'
+import { getClientIp } from '@/lib/utils/ip'
 
 type ActionResult<T = unknown> = { ok: true; data?: T } | { ok: false; reason: string }
 
@@ -34,11 +35,13 @@ export async function actualizarCotizacionManualAction(
     // 2. Validación Zod
     const parsed = actualizarCotizacionSchema.safeParse(rawInput)
     if (!parsed.success) {
-      return { ok: false, reason: 'payload-invalido' }
+      return { ok: false, reason: 'cotizacion-manual-invalida' }
     }
 
+    const ip = await getClientIp()
+
     // 3. Mutación en DAL
-    await spSetCotizacionManual({ valor: parsed.data.valor })
+    await spSetCotizacionManual({ valor: parsed.data.valor, ip })
 
     revalidatePath('/precios')
     revalidatePath('/precios/cotizacion')
@@ -66,11 +69,13 @@ export async function cambiarModoCotizacionAction(
     // 2. Validación Zod
     const parsed = cambiarModoCotizacionSchema.safeParse(rawInput)
     if (!parsed.success) {
-      return { ok: false, reason: 'payload-invalido' }
+      return { ok: false, reason: 'modo-cotizacion-invalido' }
     }
 
+    const ip = await getClientIp()
+
     // 3. Mutación en DAL
-    await spSetModoCotizacion({ modo: parsed.data.modo })
+    await spSetModoCotizacion({ modo: parsed.data.modo, ip })
 
     revalidatePath('/precios')
     revalidatePath('/precios/cotizacion')

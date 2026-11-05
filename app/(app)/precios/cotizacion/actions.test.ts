@@ -7,11 +7,16 @@ import {
 import * as dalCotizacion from '@/lib/dal/precios/cotizacion'
 import * as guard from '@/lib/dal/guard'
 import * as sessionModule from '@/lib/dal/session'
+import * as ipModule from '@/lib/utils/ip'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { revalidatePath } from 'next/cache'
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
+}))
+
+vi.mock('@/lib/utils/ip', () => ({
+  getClientIp: vi.fn(),
 }))
 
 vi.mock('@/lib/dal/session', () => ({
@@ -47,6 +52,7 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
   describe('actualizarCotizacionManualAction', () => {
     it('caso feliz: pasa las 3 compuertas y llama al DAL', async () => {
       vi.mocked(guard.requireModuleRole).mockResolvedValueOnce(undefined)
+      vi.mocked(ipModule.getClientIp).mockResolvedValueOnce('192.168.1.50')
       vi.mocked(dalCotizacion.spSetCotizacionManual).mockResolvedValueOnce(undefined)
 
       const res = await actualizarCotizacionManualAction({ valor: 1540.5 })
@@ -58,6 +64,7 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
       )
       expect(dalCotizacion.spSetCotizacionManual).toHaveBeenCalledWith({
         valor: 1540.5,
+        ip: '192.168.1.50',
       })
       expect(revalidatePath).toHaveBeenCalledWith('/precios')
       expect(revalidatePath).toHaveBeenCalledWith('/precios/cotizacion')
@@ -80,20 +87,20 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
     })
 
-    it('rechaza con payload-invalido si el valor es inválido o el payload no cumple Zod', async () => {
+    it('rechaza con cotizacion-manual-invalida si el valor es inválido o el payload no cumple Zod', async () => {
       vi.mocked(guard.requireModuleRole).mockResolvedValueOnce(undefined)
 
       // Valor <= 0
       const resCero = await actualizarCotizacionManualAction({ valor: 0 })
-      expect(resCero).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(resCero).toEqual({ ok: false, reason: 'cotizacion-manual-invalida' })
 
       // Tipo incorrecto
       const resString = await actualizarCotizacionManualAction({ valor: '1500' })
-      expect(resString).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(resString).toEqual({ ok: false, reason: 'cotizacion-manual-invalida' })
 
       // Extra fields (strictObject)
       const resExtra = await actualizarCotizacionManualAction({ valor: 1500, desconocido: true })
-      expect(resExtra).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(resExtra).toEqual({ ok: false, reason: 'cotizacion-manual-invalida' })
 
       expect(dalCotizacion.spSetCotizacionManual).not.toHaveBeenCalled()
     })
@@ -102,6 +109,7 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
   describe('cambiarModoCotizacionAction', () => {
     it('caso feliz: pasa las 3 compuertas y conmuta el modo en DAL', async () => {
       vi.mocked(guard.requireModuleRole).mockResolvedValueOnce(undefined)
+      vi.mocked(ipModule.getClientIp).mockResolvedValueOnce('192.168.1.50')
       vi.mocked(dalCotizacion.spSetModoCotizacion).mockResolvedValueOnce(undefined)
 
       const res = await cambiarModoCotizacionAction({ modo: 'manual' })
@@ -113,6 +121,7 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
       )
       expect(dalCotizacion.spSetModoCotizacion).toHaveBeenCalledWith({
         modo: 'manual',
+        ip: '192.168.1.50',
       })
       expect(revalidatePath).toHaveBeenCalledWith('/precios')
       expect(revalidatePath).toHaveBeenCalledWith('/precios/cotizacion')
@@ -135,12 +144,12 @@ describe('Server Actions de Cotización USD (3 compuertas)', () => {
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
     })
 
-    it('rechaza con payload-invalido si el modo no es permitido por Zod', async () => {
+    it('rechaza con modo-cotizacion-invalido si el modo no es permitido por Zod', async () => {
       vi.mocked(guard.requireModuleRole).mockResolvedValueOnce(undefined)
 
       const res = await cambiarModoCotizacionAction({ modo: 'otro-modo' })
 
-      expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(res).toEqual({ ok: false, reason: 'modo-cotizacion-invalido' })
       expect(dalCotizacion.spSetModoCotizacion).not.toHaveBeenCalled()
     })
   })
