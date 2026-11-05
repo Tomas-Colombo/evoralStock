@@ -61,6 +61,81 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     ],
   },
   {
+    id: 'precios-control-revaluar-usd',
+    titulo: 'Cómo revaluar costos en dólares al tipo de cambio vigente',
+    ruta: '/precios/control',
+    permisos: ['precios.ver', 'precios.editar_cotizacion'],
+    pasos: [
+      'Ingresá a Precios y seleccioná "Control de precios".',
+      'En la barra superior de acciones, hacé clic en "Revaluar costos USD al dólar vigente".',
+      'En el cuadro de confirmación, revisá cuántos productos con costo en USD se verán afectados.',
+      'Hacé clic en "Revaluar costos" para ejecutar la actualización masiva.',
+      'Revisá el resumen con la cantidad de productos revaluados, sin cambios u omitidos.',
+    ],
+    detalles: [
+      {
+        tema: 'Productos alcanzados',
+        texto: 'La revaluación toma todos los productos con costo vigente en USD, calcula su nuevo costo en pesos al tipo de cambio oficial actual y marca sus precios de venta como desactualizados para recalcularlos.',
+      },
+      {
+        tema: 'Productos omitidos',
+        texto: 'Los productos omitidos corresponden a costos que fueron cargados en USD antes de implementar este mecanismo y que carecen de su costo original registrado, por lo que no pueden convertirse automáticamente.',
+      },
+      {
+        tema: 'Invariante de stock físico',
+        texto: 'La revaluación masiva solo actualiza el costo de catálogo y marca el precio de venta; los costos de ingreso de las unidades físicas ya existentes en stock no se modifican.',
+      },
+    ],
+  },
+  {
+    id: 'precios-cotizacion-consultar',
+    titulo: 'Cómo consultar la cotización oficial del dólar',
+    ruta: '/precios/cotizacion',
+    permisos: ['precios.ver'],
+    pasos: [
+      'Ingresá a Precios y hacé clic en la tarjeta "Cotización USD".',
+      'Verificá el tipo de cambio vigente, el origen (Oficial BCRA o Manual) y la fecha del valor oficial reportado.',
+      'Si la cotización figura como desactualizada, revisá el aviso de advertencia.',
+      'Si contás con permiso de edición, podés conmutar entre modo Automático (BCRA) o Manual.',
+    ],
+    detalles: [
+      {
+        tema: 'Dólar oficial vs. billete',
+        texto: 'La cotización automática toma la cotización oficial publicada por el BCRA al cierre del último día hábil, no el dólar billete ni cotizaciones financieras. Para operar con dólar billete o fijar un tipo de cambio comercial propio, cambiá a modo manual.',
+      },
+      {
+        tema: 'Modo manual',
+        texto: 'En modo manual podés ingresar cualquier tipo de cambio mayor a cero y guardarlo para que rija en las conversiones de costos.',
+      },
+      {
+        tema: 'Reintento de sincronización',
+        texto: 'Si el servicio del BCRA no respondió o la cotización quedó desactualizada, hacé clic en "Reintentar" para forzar una nueva consulta al servidor del Banco Central.',
+      },
+    ],
+  },
+  {
+    id: 'precios-cotizacion-editar',
+    titulo: 'Cómo cambiar el modo o fijar una cotización manual',
+    ruta: '/precios/cotizacion',
+    permisos: ['precios.ver', 'precios.editar_cotizacion'],
+    pasos: [
+      'Desde Cotización USD, hacé clic en el botón "Manual" en la sección de configuración de modo.',
+      'Ingresá el valor en pesos por cada dólar en el campo "Cotización manual del dólar".',
+      'Hacé clic en "Guardar" para registrar la cotización y conmutar el modo.',
+      'Para volver al valor del Banco Central, hacé clic en "Automático (BCRA)".',
+    ],
+    detalles: [
+      {
+        tema: 'Impacto en nuevos registros',
+        texto: 'El cambio de modo y valor manual impacta de inmediato en las nuevas cargas de productos, ingresos y remitos en dólares.',
+      },
+      {
+        tema: 'Permiso requerido',
+        texto: 'Solo los usuarios con el permiso dedicado precios.editar_cotizacion pueden alternar el modo o modificar el tipo de cambio.',
+      },
+    ],
+  },
+  {
     id: 'precios-reglas-listado',
     titulo: 'Cómo consultar las reglas de precios',
     ruta: '/precios/reglas',

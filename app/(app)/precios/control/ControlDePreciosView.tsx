@@ -4,10 +4,12 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { useToast } from '@/components/ui/Toast'
 import type { ProductoConPrecioStatus } from '@/lib/types/precios'
 import { recalcularBatchAction, recalcularPrecioAction } from '../actions'
+import { revaluarCostosUsdAction } from '../cotizacion/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -17,8 +19,12 @@ type Filter = 'todos' | 'desactualizados' | 'sin-precio' | 'sin-regla'
 
 export function ControlDePreciosView({
   initial,
+  canRevaluar = false,
+  cantidadUsd = 0,
 }: {
   initial: ProductoConPrecioStatus[]
+  canRevaluar?: boolean
+  cantidadUsd?: number
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -27,6 +33,12 @@ export function ControlDePreciosView({
   const [filter, setFilter] = useState<Filter>('desactualizados')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
+  const [confirmRevaluarOpen, setConfirmRevaluarOpen] = useState(false)
+  const [resultadoRevaluacion, setResultadoRevaluacion] = useState<{
+    revaluados: number
+    sin_cambios: number
+    omitidos_sin_original: number
+  } | null>(null)
 
   const filtered = useMemo(() => {
     const qLower = q.trim().toLowerCase()
@@ -106,12 +118,71 @@ export function ControlDePreciosView({
     })
   }
 
+  function ejecutarRevaluacion() {
+    setConfirmRevaluarOpen(false)
+    start(async () => {
+      const res = await revaluarCostosUsdAction({})
+      if (!res.ok) {
+        return toast.error('No se pudo revaluar', mensajeDeError(res.reason))
+      }
+      setResultadoRevaluacion(res.data!)
+      toast.success(
+        'Revaluación completada',
+        `${res.data!.revaluados} productos revaluados`,
+      )
+      router.refresh()
+    })
+  }
+
   const fmt = (n: number | null) =>
     n == null ? '—' : `$ ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
   return (
     <div className="space-y-4">
-      {/* Filtros */}
+      {/* Banner de resultado de revaluación */}
+      {resultadoRevaluacion && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Resultado de la revaluación de costos USD</h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setResultadoRevaluacion(null)}
+              aria-label="Cerrar resultado"
+            >
+              ✕
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
+              <span className="text-muted">Revaluados: </span>
+              <span className="font-semibold text-success">{resultadoRevaluacion.revaluados}</span>
+            </div>
+            <div>
+              <span className="text-muted">Sin cambios: </span>
+              <span className="font-semibold">{resultadoRevaluacion.sin_cambios}</span>
+            </div>
+            <div>
+              <span className="text-muted">Omitidos: </span>
+              <span
+                className={`font-semibold ${
+                  resultadoRevaluacion.omitidos_sin_original > 0 ? 'text-alerta-ink' : ''
+                }`}
+              >
+                {resultadoRevaluacion.omitidos_sin_original}
+              </span>
+            </div>
+          </div>
+          {resultadoRevaluacion.omitidos_sin_original > 0 && (
+            <p className="text-xs text-muted">
+              Los productos omitidos corresponden a costos cargados en USD antes de este cambio y
+              que no se pueden revaluar automáticamente al no contar con su costo original registrado.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Filtros y acciones */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1">
@@ -133,7 +204,16 @@ export function ControlDePreciosView({
             <option value="sin-regla">Sin regla de margen</option>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canRevaluar && (
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmRevaluarOpen(true)}
+              disabled={pending}
+            >
+              Revaluar costos USD al dólar vigente
+            </Button>
+          )}
           <span className="text-sm text-muted">{selected.size} seleccionados</span>
           <Button
             variant="secondary"
@@ -253,6 +333,16 @@ export function ControlDePreciosView({
           </TBody>
         </DataTable>
       </TableFrame>
+
+      <ConfirmDialog
+        open={confirmRevaluarOpen}
+        title="¿Revaluar costos en USD al dólar vigente?"
+        description={`Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${cantidadUsd} producto(s) con costo en USD.`}
+        confirmLabel="Revaluar costos"
+        cancelLabel="Cancelar"
+        onConfirm={ejecutarRevaluacion}
+        onCancel={() => setConfirmRevaluarOpen(false)}
+      />
     </div>
   )
 }

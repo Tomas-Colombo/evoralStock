@@ -66,7 +66,7 @@ export default async function PreciosHome(props: {
       />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
 
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <Link
             href="/precios/reglas"
             className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
@@ -89,6 +89,16 @@ export default async function PreciosHome(props: {
               días acredita.
             </p>
           </Link>
+          <Link
+            href="/precios/cotizacion"
+            className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+          >
+            <div className="text-sm text-muted">Configurar</div>
+            <div className="mt-1 font-display text-xl">Cotización USD</div>
+            <p className="mt-2 text-sm text-muted">
+              Tipo de cambio oficial para conversión de costos: modo automático desde el BCRA o valor manual.
+            </p>
+          </Link>
         </section>
 
         <section className="space-y-3">
@@ -108,4 +118,3 @@ export default async function PreciosHome(props: {
     </>
   )
 }
-

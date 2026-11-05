@@ -44,11 +44,13 @@ export function RemitoImportPanel({
   idIngreso,
   productos,
   categorias,
+  cotizacion,
   onImported,
 }: {
   idIngreso: string
   productos: ProductoConDetalle[]
   categorias: CategoriaRow[]
+  cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
   onImported: (detalles: DetalleImportado[]) => void
 }) {
   const toast = useToast()
@@ -58,6 +60,7 @@ export function RemitoImportPanel({
   const [filas, setFilas] = useState<Fila[]>([])
   const [advertencias, setAdvertencias] = useState<string[]>([])
   const [abierto, setAbierto] = useState(false)
+  const [moneda, setMoneda] = useState<'ARS' | 'USD'>('ARS')
 
   const catInicial = categorias[0]?.id_categoria ?? ''
 
@@ -70,32 +73,35 @@ export function RemitoImportPanel({
   const tallesDeCategoria = (idCat?: string | null) =>
     categorias.find((c) => c.id_categoria === idCat)?.talles ?? []
 
-  /** Talles disponibles para una fila según su categoría (nuevos vs vinculado). */
-  function tallesDisponibles(f: Fila): string[] {
+  /** Talles que aplican a la fila: los de la categoría elegida (si es nuevo)
+   *  o los de la categoría del producto vinculado (si ya existe). */
+  const tallesDisponibles = (f: Fila): string[] => {
     if (f.esNuevo) return tallesDeCategoria(f.idCategoria)
-    const cat = productos.find((p) => p.id_producto === f.idProducto)?.categoria?.id_categoria
-    return tallesDeCategoria(cat)
+    const prod = productos.find((p) => p.id_producto === f.idProducto)
+    return tallesDeCategoria(prod?.id_categoria)
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    // Se corta acá para no subir al pedo: por encima del límite de Server
-    // Actions el request muere en el framework con un error ilegible.
     if (file.size > MAX_PDF_BYTES) {
+      toast.error('Archivo muy grande', 'El remito tiene que pesar menos de 5 MB.')
       if (fileRef.current) fileRef.current.value = ''
-      return toast.error(
-        'El PDF es muy grande',
-        `Pesa ${(file.size / 1024 / 1024).toFixed(1)} MB y el máximo es ${MAX_PDF_BYTES / 1024 / 1024} MB.`,
-      )
+      return
     }
-    const fd = new FormData()
-    fd.append('file', file)
+
     start(async () => {
+      const fd = new FormData()
+      fd.append('file', file)
       const res = await parseRemitoPdfAction(fd)
       if (fileRef.current) fileRef.current.value = ''
-      if (!res.ok) return toast.error('No se pudo leer el PDF', mensajeDeError(res.reason))
+
+      if (!res.ok) {
+        toast.error('No se pudo leer el PDF', mensajeDeError(res.reason))
+        return
+      }
       const parsed = res.data!
+
       if (parsed.lineas.length === 0) {
         toast.error('No se detectaron productos', parsed.advertencias[0] ?? 'Revisá el formato del PDF')
         return
@@ -158,6 +164,13 @@ export function RemitoImportPanel({
     setFilas((fs) => fs.filter((_, idx) => idx !== i))
   }
 
+  const totalMonto = filas.reduce(
+    (a, f) => a + Number(f.cantidad || 0) * Number(f.costoUnitario || 0),
+    0,
+  )
+  const totalEstimadoArs =
+    moneda === 'USD' && cotizacion?.valor ? Math.round(totalMonto * cotizacion.valor) : null
+
   function importar() {
     if (filas.length === 0) return
     for (const f of filas) {
@@ -175,6 +188,7 @@ export function RemitoImportPanel({
     start(async () => {
       const res = await importarRemitoAction({
         idIngreso,
+        moneda,
         lineas: filas.map((f) => ({
           esNuevo: f.esNuevo,
           idProducto: f.esNuevo ? null : f.idProducto || null,
@@ -186,8 +200,14 @@ export function RemitoImportPanel({
         })),
       })
       if (!res.ok) return toast.error('No se pudo importar', mensajeDeError(res.reason))
-      const { creados, vinculados, detalles } = res.data!
+      const { creados, vinculados, detalles, cotizacionDesactualizada } = res.data!
       toast.success('Importado', `${creados} nuevos · ${vinculados} vinculados`)
+      if (cotizacionDesactualizada) {
+        toast.info(
+          'Cotización desactualizada',
+          'La cotización oficial del BCRA no se encuentra al día; se utilizó el último valor disponible.',
+        )
+      }
       onImported(detalles)
       setFilas([])
       setAdvertencias([])
@@ -221,12 +241,43 @@ export function RemitoImportPanel({
 
       {abierto && (
         <>
+          {/* Selector de moneda del remito */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Moneda del remito:</span>
+              <Select
+                value={moneda}
+                onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
+                aria-label="Moneda del remito"
+                className="w-auto"
+                disabled={pending}
+              >
+                <option value="ARS">ARS (Pesos)</option>
+                <option value="USD">USD (Dólares)</option>
+              </Select>
+            </div>
+            {moneda === 'USD' && cotizacion?.valor && (
+              <span className="text-xs text-muted">
+                Cotización oficial: ${' '}
+                {cotizacion.valor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}{' '}
+                · Total est.: ${' '}
+                {totalEstimadoArs?.toLocaleString('es-AR')} ARS
+              </span>
+            )}
+          </div>
+
           <div className="space-y-2">
             {filas.map((f, i) => {
               const talles = tallesDisponibles(f)
               const conTalles = f.talles.length > 0
               const cantNum = Number(f.cantidad || 0)
               const match = matchDe(f)
+              const costoNum = Number(f.costoUnitario || 0)
+              const estLinea =
+                moneda === 'USD' && cotizacion?.valor && costoNum > 0
+                  ? Math.round(costoNum * cotizacion.valor)
+                  : null
+
               return (
                 <div key={i} className="rounded-lg border border-border bg-card-2 px-3 py-2.5">
                   {/* Fila única: nombre · nuevo/vincular · categoría/producto · cantidad · precio · quitar */}
@@ -314,7 +365,7 @@ export function RemitoImportPanel({
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-xs text-muted">$</span>
+                      <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
                       <NumberInput
                         thousands
                         value={f.costoUnitario}
@@ -322,6 +373,11 @@ export function RemitoImportPanel({
                         aria-label="Precio unitario"
                         className="w-24 text-right"
                       />
+                      {estLinea != null && (
+                        <span className="text-xs text-muted shrink-0">
+                          ≈ ${estLinea.toLocaleString('es-AR')} ARS
+                        </span>
+                      )}
                     </div>
 
                     <IconButton
@@ -397,21 +453,37 @@ export function RemitoImportPanel({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setFilas([])
-                setAdvertencias([])
-                setAbierto(false)
-              }}
-              disabled={pending}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={importar} disabled={pending || filas.length === 0}>
-              {pending ? 'Importando…' : `Importar ${filas.length} línea(s)`}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div className="text-xs text-muted">
+              {moneda === 'USD' ? (
+                <>
+                  Total comprobante: <b>USD {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
+                  {totalEstimadoArs != null && (
+                    <> (estimado <b>$ {totalEstimadoArs.toLocaleString('es-AR')} ARS</b>)</>
+                  )}
+                </>
+              ) : (
+                <>
+                  Total comprobante: <b>$ {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setFilas([])
+                  setAdvertencias([])
+                  setAbierto(false)
+                }}
+                disabled={pending}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={importar} disabled={pending || filas.length === 0}>
+                {pending ? 'Importando…' : `Importar ${filas.length} línea(s)`}
+              </Button>
+            </div>
           </div>
         </>
       )}

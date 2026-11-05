@@ -214,3 +214,21 @@ export async function spRevaluarCostosUsd(
     sin_cambios: res.sin_cambios ?? 0,
   }
 }
+
+/**
+ * Cuenta cuántos productos tienen costo vigente en moneda USD.
+ * Usado para confirmar el alcance de la revaluación masiva en Control de Precios.
+ */
+export async function countProductosCostoUsdVigentes(
+  client?: SupabaseClient,
+): Promise<number> {
+  const supabase = client ?? (await createServerClient())
+  const { count, error } = await supabase
+    .from('costo_producto')
+    .select('id_costo', { count: 'exact', head: true })
+    .is('vigente_hasta', null)
+    .eq('moneda', 'USD')
+
+  if (error) throw new Error(extraerSlugRpc(error))
+  return count ?? 0
+}

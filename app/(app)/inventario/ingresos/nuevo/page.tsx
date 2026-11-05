@@ -4,6 +4,7 @@ import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { getProducto, listProductosConDetalle } from '@/lib/dal/inventario/producto'
 import { getUltimoContextoIngresoProducto } from '@/lib/dal/inventario/item'
+import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { capacidades, tiposIngresoPermitidos, tiposProveedorPermitidos } from '@/lib/modulos/capacidades'
 import type { TipoIngreso } from '@/lib/types/inventario'
 import { NuevoIngresoView } from './NuevoIngresoView'
@@ -21,10 +22,11 @@ export default async function NuevoIngresoPage(props: {
   // Todo se carga en una sola pantalla: proveedores para la cabecera y
   // productos/categorías para la carga de líneas (PDF o a mano). El ingreso
   // puede ser «sin proveedor», y el proveedor se crea inline desde el form.
-  const [proveedores, productos, categorias] = await Promise.all([
+  const [proveedores, productos, categorias, cotizacion] = await Promise.all([
     listProveedoresActivos(),
     listProductosConDetalle({ soloActivos: true }),
     listCategoriasActivas(),
+    getCotizacionVigente().catch(() => null),
   ])
 
   // Modo restock: si viene ?producto=<id>, prefiliamos la línea con ese
@@ -71,6 +73,7 @@ export default async function NuevoIngresoPage(props: {
           prefill={prefill}
           tiposIngreso={tiposIngreso}
           tiposProveedor={tiposProveedor}
+          cotizacion={cotizacion}
         />
       </main>
     </>

@@ -4,15 +4,17 @@ import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
+import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { NuevoProductoForm } from './NuevoProductoForm'
 import { Card } from '@/components/ui/Card'
 
 export default async function NuevoProductoPage() {
   const session = await verifySession()
-  const [categorias, productos, proveedores] = await Promise.all([
+  const [categorias, productos, proveedores, cotizacion] = await Promise.all([
     listCategoriasActivas(),
     listProductosConDetalle(),
     listProveedoresActivos(),
+    getCotizacionVigente().catch(() => null),
   ])
   if (categorias.length === 0) {
     // Sin categorías no se puede crear producto; mandamos a categorías.
@@ -27,6 +29,7 @@ export default async function NuevoProductoPage() {
             categorias={categorias}
             productos={productos}
             proveedores={proveedores}
+            cotizacion={cotizacion}
           />
         </Card>
       </main>

@@ -43,11 +43,13 @@ export function IngresoDetalleView({
   productos,
   categorias,
   qrs = [],
+  cotizacion,
 }: {
   ingreso: Ingreso
   productos: ProductoConDetalle[]
   categorias: CategoriaRow[]
   qrs?: string[]
+  cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -260,6 +262,7 @@ export function IngresoDetalleView({
           idIngreso={ingreso.id_ingreso}
           productos={productos}
           categorias={categorias}
+          cotizacion={cotizacion}
           onImported={onImported}
         />
       )}

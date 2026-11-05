@@ -66,6 +66,7 @@ export function NuevoIngresoView({
   prefill,
   tiposIngreso,
   tiposProveedor,
+  cotizacion,
 }: {
   proveedores: ProveedorRow[]
   productos: ProductoConDetalle[]
@@ -82,6 +83,7 @@ export function NuevoIngresoView({
   } | null
   tiposIngreso: readonly TipoIngreso[]
   tiposProveedor: readonly TipoProveedor[]
+  cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -89,6 +91,7 @@ export function NuevoIngresoView({
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ─── Cabecera ──────────────────────────────────────────────────────
+  const [moneda, setMoneda] = useState<'ARS' | 'USD'>('ARS')
   const [proveedores, setProveedores] = useState(proveedoresIniciales)
   // Arranca SIEMPRE en "sin proveedor" para evitar cargar a un proveedor por
   // descuido; el usuario lo elige explícitamente. Vacío = sin proveedor.
@@ -352,6 +355,7 @@ export function NuevoIngresoView({
         tipoIngreso,
         numeroRemito: numeroRemito || null,
         observaciones: observaciones || null,
+        moneda,
         lineas: filas.map((f) => ({
           esNuevo: f.esNuevo,
           idProducto: f.esNuevo ? null : f.idProducto || null,
@@ -364,6 +368,12 @@ export function NuevoIngresoView({
       })
       if (!res.ok) return toast.error('No se pudo crear el ingreso', mensajeDeError(res.reason))
       toast.success('Ingreso confirmado', `Se generaron ${res.data!.itemsGenerados} ítems con QR único`)
+      if (res.data?.cotizacionDesactualizada) {
+        toast.info(
+          'Cotización desactualizada',
+          'La cotización oficial del BCRA no se encuentra al día; se utilizó el último valor disponible.',
+        )
+      }
       router.push(`/inventario/ingresos/${res.data!.id}`)
       router.refresh()
     })
@@ -438,6 +448,30 @@ export function NuevoIngresoView({
               </Select>
             </Field>
           )}
+
+          <Field
+            htmlFor="i-moneda"
+            label="Moneda del comprobante"
+            hint={
+              moneda === 'USD'
+                ? cotizacion?.valor
+                  ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
+                      minimumFractionDigits: 2,
+                    })}. Los valores en pesos se calculan como referencia.`
+                  : 'Cotización del dólar no disponible.'
+                : 'Comprobante en pesos argentinos (una moneda por comprobante).'
+            }
+          >
+            <Select
+              id="i-moneda"
+              value={moneda}
+              onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
+              disabled={pending}
+            >
+              <option value="ARS">ARS (Pesos)</option>
+              <option value="USD">USD (Dólares)</option>
+            </Select>
+          </Field>
 
           <Field htmlFor="i-obs" label="Observaciones">
             <Textarea
@@ -591,7 +625,7 @@ export function NuevoIngresoView({
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-xs text-muted">$</span>
+                      <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
                       <NumberInput
                         thousands
                         value={f.costoUnitario}
@@ -599,6 +633,11 @@ export function NuevoIngresoView({
                         aria-label="Precio unitario"
                         className="w-24 text-right"
                       />
+                      {moneda === 'USD' && cotizacion?.valor && Number(f.costoUnitario || 0) > 0 && (
+                        <span className="text-xs text-muted shrink-0">
+                          ≈ ${Math.round(Number(f.costoUnitario) * cotizacion.valor).toLocaleString('es-AR')} ARS
+                        </span>
+                      )}
                     </div>
 
                     <IconButton
@@ -684,8 +723,23 @@ export function NuevoIngresoView({
           {filas.length > 0 ? (
             <>
               <b>{totalUnidades}</b> ítem(s) · total{' '}
-              <b>$ {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>. Al guardar se
-              generan los ítems físicos con QR único.
+              {moneda === 'USD' ? (
+                <>
+                  <b>USD {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
+                  {cotizacion?.valor ? (
+                    <>
+                      {' '}(estimado{' '}
+                      <b>
+                        $ {Math.round(totalCosto * cotizacion.valor).toLocaleString('es-AR')} ARS
+                      </b>
+                      )
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                <b>$ {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
+              )}
+              . Al guardar se generan los ítems físicos con QR único.
             </>
           ) : (
             'Cargá al menos un producto para poder guardar.'

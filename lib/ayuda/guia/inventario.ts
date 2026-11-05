@@ -36,6 +36,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Control de nombres duplicados',
         texto: 'El sistema no permite crear un producto con el mismo nombre que otro ya existente en el catálogo.',
       },
+      {
+        tema: 'Costo en dólares y conversión oficial',
+        texto: 'Si seleccionás moneda USD para el costo inicial, el sistema muestra la cotización oficial del BCRA y un estimado en pesos. Al guardar, el costo se convierte a pesos al tipo de cambio vigente y se preserva el importe original en dólares.',
+      },
     ],
   },
   {
@@ -271,6 +275,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Número de remito único',
         texto: 'No se permite registrar dos ingresos con el mismo número de remito para un mismo proveedor.',
       },
+      {
+        tema: 'Moneda del comprobante y conversión',
+        texto: 'Podés elegir si el comprobante está expresado en ARS o USD. Con USD, se toma la cotización oficial del día de carga para registrar el costo unitario en pesos de las unidades físicas ingresadas.',
+      },
     ],
   },
   {
@@ -314,6 +322,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       {
         tema: 'Renglones no interpretados',
         texto: 'Si el lector no puede interpretar algún renglón del remito, mostrará una lista de advertencias para que puedas cargarlo a mano.',
+      },
+      {
+        tema: 'Moneda del remito y conversión',
+        texto: 'En la parte superior de las líneas importadas podés seleccionar si los costos leídos del remito están en ARS o USD. Si están en USD, el sistema calcula el equivalente en pesos según la cotización oficial del día.',
       },
     ],
   },

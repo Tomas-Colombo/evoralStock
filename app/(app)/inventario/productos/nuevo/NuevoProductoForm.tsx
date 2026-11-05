@@ -24,12 +24,14 @@ export function NuevoProductoForm({
   categorias,
   productos,
   proveedores,
+  cotizacion,
   onSuccess,
   onCancel,
 }: {
   categorias: CategoriaRow[]
   productos: Array<{ nombre: string }>
   proveedores: ProveedorRow[]
+  cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
   onSuccess?: () => void
   onCancel?: () => void
 }) {
@@ -61,6 +63,27 @@ export function NuevoProductoForm({
   // Índice nombre-normalizado → producto existente, para bloquear duplicados.
   const indexNombres = useMemo(() => indexarPorNombre(productos), [productos])
   const nombreDuplicado = buscarMatchNombre(indexNombres, nombre)
+
+  const costoNum = Number(costoInicial || 0)
+  const estimadoArs =
+    moneda === 'USD' && cotizacion?.valor && costoNum > 0
+      ? Math.round(costoNum * cotizacion.valor * 100) / 100
+      : null
+
+  const hintCosto =
+    moneda === 'USD'
+      ? cotizacion?.valor
+        ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
+            minimumFractionDigits: 2,
+          })}.${
+            estimadoArs != null
+              ? ` Estimado: $ ${estimadoArs.toLocaleString('es-AR', {
+                  minimumFractionDigits: 2,
+                })} ARS.`
+              : ''
+          }`
+        : 'Cotización del dólar no disponible.'
+      : 'Se historiza; se puede cambiar luego'
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -98,6 +121,12 @@ export function NuevoProductoForm({
       if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
       const items = res.data?.itemsCreados ?? 0
       toast.success('Producto creado', items > 0 ? `${items} ítem(s) de stock generados` : undefined)
+      if (res.data?.cotizacionDesactualizada) {
+        toast.info(
+          'Cotización desactualizada',
+          'La cotización oficial del BCRA no se encuentra al día; se utilizó el último valor disponible.',
+        )
+      }
       if (onSuccess) {
         onSuccess()
       } else {
@@ -159,7 +188,7 @@ export function NuevoProductoForm({
             onChange={(e) => setStockMinimo(e.target.value)}
           />
         </Field>
-        <Field htmlFor="prod-costo" label="Costo inicial" hint="Se historiza; se puede cambiar luego">
+        <Field htmlFor="prod-costo" label="Costo inicial" hint={hintCosto}>
           <div className="flex gap-2">
             <NumberInput
               id="prod-costo"

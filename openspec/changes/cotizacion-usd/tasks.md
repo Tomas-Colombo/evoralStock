@@ -165,16 +165,16 @@ Archivos:
 - `lib/ayuda/guia/cobertura.test.ts`
 
 Tareas:
-- [ ] Construir panel de Cotización en el módulo Precios:
+- [x] Construir panel de Cotización en el módulo Precios:
   - Toggle de modo (Automático / Manual).
   - Input numérico para cotización manual (visible en modo manual).
   - Cartel informativo: "Cotización oficial publicada por el BCRA (cierre día hábil anterior). Para operar con dólar billete o financiero, utilizá el modo manual."
   - Banner de advertencia si la cotización figura como `desactualizada` y botón para forzar reintento de sincronización.
-- [ ] En `ControlDePreciosView.tsx`:
+- [x] En `ControlDePreciosView.tsx`:
   - Botón "Revaluar costos USD al dólar vigente" visible solo con permiso `precios.editar_cotizacion` que invoca `revaluarCostosUsdAction`.
-- [ ] En `NuevoProductoForm.tsx`, `NuevoIngresoView.tsx` y `RemitoImportPanel.tsx`:
+- [x] En `NuevoProductoForm.tsx`, `NuevoIngresoView.tsx` y `RemitoImportPanel.tsx`:
   - Selectores de moneda (`ARS` / `USD`) para comprobantes de ingreso y remito.
   - Al seleccionar moneda `USD`, mostrar hint con la cotización oficial aplicada y el cálculo estimado en pesos ARS.
-- [ ] Actualizar `lib/ayuda/guia/precios.ts` con la explicación funcional del dólar oficial, modo manual, revaluación masiva y conversión de costos.
-- [ ] Verificar cobertura de ayuda con `lib/ayuda/guia/cobertura.test.ts`.
+- [x] Actualizar `lib/ayuda/guia/precios.ts` con la explicación funcional del dólar oficial, modo manual, revaluación masiva y conversión de costos.
+- [x] Verificar cobertura de ayuda con `lib/ayuda/guia/cobertura.test.ts`.
 - [ ] Verificar gate completo con `pnpm gate:full`.

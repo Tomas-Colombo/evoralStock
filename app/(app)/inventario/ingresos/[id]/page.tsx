@@ -8,6 +8,7 @@ import { getIngreso } from '@/lib/dal/inventario/ingreso'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listQrsByIngreso } from '@/lib/dal/inventario/item'
 import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { buildEtiquetasIngresoHref } from '@/lib/inventario/etiquetas'
 import { IngresoDetalleView } from './IngresoDetalleView'
 import { safeBackHref } from '@/lib/utils/safeBackHref'
@@ -22,10 +23,11 @@ export default async function IngresoDetallePage(props: {
   const ingreso = await getIngreso(id)
   if (!ingreso) notFound()
 
-  const [productos, categorias, qrs] = await Promise.all([
+  const [productos, categorias, qrs, cotizacion] = await Promise.all([
     listProductosConDetalle({ soloActivos: true }),
     listCategoriasActivas(),
     ingreso.confirmado ? listQrsByIngreso(id) : Promise.resolve([] as string[]),
+    getCotizacionVigente().catch(() => null),
   ])
 
   const imprimirHref =
@@ -60,6 +62,7 @@ export default async function IngresoDetallePage(props: {
           productos={productos}
           categorias={categorias}
           qrs={qrs}
+          cotizacion={cotizacion}
         />
       </main>
     </>
