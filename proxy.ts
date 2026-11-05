@@ -48,10 +48,16 @@ export async function proxy(request: NextRequest) {
   // Bare root / reserved subdomains keep the request untouched (REQ-TR-09/11),
   // exactly as before — the DAL is the authoritative tenant check.
   const isTenant = Boolean(sub) && !RESERVED.has(sub)
-  const nextOptions = isTenant
+  const isTrace = process.env.DAL_TRACE === '1'
+  const nextOptions = (isTenant || isTrace)
     ? (() => {
         const requestHeaders = new Headers(request.headers)
-        requestHeaders.set('x-utopia-tenant-subdomain', sub)
+        if (isTenant) {
+          requestHeaders.set('x-utopia-tenant-subdomain', sub)
+        }
+        if (isTrace) {
+          requestHeaders.set('x-dal-path', request.nextUrl.pathname)
+        }
         return { request: { headers: requestHeaders } }
       })()
     : undefined

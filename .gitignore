@@ -75,3 +75,6 @@ seed_dev.sql
 
 # Documentacion Privada
 /ingenieria/
+
+# Dal traces
+trace-*.log
