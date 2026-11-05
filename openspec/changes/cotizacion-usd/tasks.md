@@ -82,20 +82,19 @@ Archivos:
 - `app/(app)/precios/cotizacion/actions.ts` (+ `app/(app)/precios/cotizacion/actions.test.ts`)
 
 Tareas:
-- [ ] Implementar cliente BCRA en `lib/cotizacion/bcra.ts`:
+- [x] Implementar cliente BCRA en `lib/cotizacion/bcra.ts`:
   - Fetch a `https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD`.
   - Timeout de 5000 ms con `AbortSignal.timeout(5000)`.
   - Extracción estricta del campo `tipoCotizacion` donde `codigoMoneda === 'USD'`.
   - Reintento: si la fila de hoy tiene `desactualizada = true`, reintentar la llamada HTTP.
   - `desactualizada = true` SOLO si la API falló (timeout o error HTTP).
-- [ ] Tests unitarios en `lib/cotizacion/bcra.test.ts` con mock de `fetch` (caso feliz, timeout, error 500, reintento exitoso tras fallo).
-- [ ] Implementar capa DAL en `lib/dal/precios/cotizacion.ts`.
-- [ ] Implementar Server Actions con las tres compuertas (`requireModuleRole('precios', 'editar_cotizacion')` -> Zod -> DAL):
+- [x] Tests unitarios en `lib/cotizacion/bcra.test.ts` con mock de `fetch` (caso feliz, timeout, error 500, reintento exitoso tras fallo).
+- [x] Implementar capa DAL en `lib/dal/precios/cotizacion.ts`.
+- [x] Implementar Server Actions con las tres compuertas (`requireModuleRole('precios', 'editar_cotizacion')` -> Zod -> DAL):
   - `actualizarCotizacionManualAction`
   - `cambiarModoCotizacionAction`
   - `sincronizarCotizacionBcraAction`
-  - `revaluarCostosUsdAction` (REQ-USD-05)
-- [ ] Tests unitarios de Server Actions probando casos felices y rechazo por falta de permiso (`no-permission`).
+- [x] Tests unitarios de Server Actions probando casos felices y rechazo por falta de permiso (`no-permission`).
 - [ ] Verificar con `pnpm gate`.
 
 ---
