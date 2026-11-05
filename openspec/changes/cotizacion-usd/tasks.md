@@ -177,4 +177,4 @@ Tareas:
   - Al seleccionar moneda `USD`, mostrar hint con la cotización oficial aplicada y el cálculo estimado en pesos ARS.
 - [x] Actualizar `lib/ayuda/guia/precios.ts` con la explicación funcional del dólar oficial, modo manual, revaluación masiva y conversión de costos.
 - [x] Verificar cobertura de ayuda con `lib/ayuda/guia/cobertura.test.ts`.
-- [ ] Verificar gate completo con `pnpm gate:full`.
+- [x] Verificar gate completo con `pnpm gate:full`.
