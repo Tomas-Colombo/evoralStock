@@ -45,4 +45,4 @@ bloque `-- DOWN:`.
 
 ## 4. Cierre
 
-- [ ] 4.1 `pnpm gate:db` y reportar `.gate/report.txt`.
+- [x] 4.1 `pnpm gate:db` y reportar `.gate/report.txt` (con `GATE_BASE=a433f73`: down OK en 4 migraciones, 205e331).
