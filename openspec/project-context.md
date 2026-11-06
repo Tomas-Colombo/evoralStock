@@ -85,7 +85,7 @@ Examples of known breakage areas:
 - **Git Workflow**: GitHub (implied; .git present)
 - **PR Strategy**: Force-chained (stacked/chained PRs) with 400-line review budget per PR
 - **Commit Style**: Conventional commits (type: scope: message)
-- **Testing**: Strict TDD required once test framework is installed
+- **Testing**: Strict TDD active (`strict_tdd: true` in `config.yaml`; Vitest installed and gated)
 
 ## Directory Structure (Current)
 

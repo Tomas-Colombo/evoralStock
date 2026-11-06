@@ -1,5 +1,10 @@
 # SDD Initialization Result — Utopia
 
+> **Historical snapshot (2026-07-23).** This records the state at `sdd-init`,
+> before Vitest was installed. It is not current configuration: `strict_tdd`
+> is now `true`. The source of truth is `openspec/config.yaml` and
+> `openspec/testing-capabilities.md`.
+
 **Date**: 2026-07-23  
 **Project**: utopia (version 0.1.0)  
 **Mode**: Interactive + OpenSpec + Engram persistence  
