@@ -9,7 +9,7 @@
 --     D4: sp_crear_stock_directo usa D1 cuando p_costo > 0.
 --     D5: sp_set_costo_producto y sp_revaluar_costos_usd_vigentes delegan en D1 para sincronizar stock.
 --
--- DOWN: al final del archivo.
+-- NOTE: el bloque de reversión está al final del archivo.
 
 -- ─────────────────────────────────────────────────────────────────
 -- D1: sp_aplicar_ultimo_costo
@@ -648,7 +648,7 @@ $$;
 grant execute on function sp_revaluar_costos_usd_vigentes(inet) to authenticated;
 
 -- ─────────────────────────────────────────────────────────────────
--- DOWN: reversión a definiciones anteriores
+-- Reversión a definiciones anteriores
 -- ─────────────────────────────────────────────────────────────────
 
 -- DOWN:
