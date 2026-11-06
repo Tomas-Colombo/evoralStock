@@ -18,7 +18,7 @@ La base de datos debe proveer una función `auth_tiene_permiso(p_modulo text, p_
 - **N3**: Sin JWT / sesión anónima (`auth.uid() is null` o `auth_tenant_id() is null`) → retorna `false`.
 - **N4**: Usuario con rol `'Revendedora'` (`auth_revendedora_id() is not null`) → retorna `false` para permisos operativos no asignados a su rol. El helper no realiza short-circuit por `auth_revendedora_id()`; retorna `false` por carecer de la clave en `rol.permisos`, y la policy restrictiva preexistente (`00078_rls_revendedoras.sql`) ya bloquea su acceso a tablas de dominio.
 - **N5**: Módulo o acción no existente en `CATALOGO_PERMISOS` o nulo → retorna `false`.
-- **N6**: Usuario inactivo (`usuario.activo = false`) → retorna `false`.
+- **N6**: Usuario inactivo (`usuario.estado_usuario = 'inactivo'`) → retorna `false`.
 
 ---
 
@@ -228,7 +228,7 @@ Las siguientes decisiones fueron resueltas y aprobadas por la persona:
 ### DR-RLSP-03 — Opción C1 + Sem-1: Firma `(p_modulo, p_accion)` sin bypass por `rol.nombre`
 - **Decisión**:
   - Firma: `auth_tiene_permiso(p_modulo text, p_accion text) returns boolean` (`stable`, `parallel safe`).
-  - Semántica: Evalúa estrictamente `usuario.activo = true`, coincidencia de tenant (`usuario.id_tenant = auth_tenant_id()`) y pertenencia en `rol.permisos -> p_modulo ? p_accion`.
+  - Semántica: Evalúa que el usuario no esté inactivo (`usuario.estado_usuario <> 'inactivo'`), coincidencia de tenant (`usuario.id_tenant = auth_tenant_id()`) y pertenencia en `rol.permisos -> p_modulo ? p_accion`.
   - Sin bypass por nombre de rol: No existe cláusula especial `OR rol.nombre = 'Administrador'`. El Administrador pasa en todas las verificaciones porque posee el conjunto íntegro de permisos del catálogo en `rol.permisos` (garantizado por `provision-tenant.mts` y backfills de migraciones `00108`, `00127`, `00128`, `00131`).
 - **Motivo**: `lib/dal/guard.ts:40` opera exclusivamente contra `permisos`; el nombre del rol no está protegido contra renombrado o modificaciones, por lo que acoplar la seguridad en base de datos a un string de nombre vulneraría la consistencia del modelo.
 
