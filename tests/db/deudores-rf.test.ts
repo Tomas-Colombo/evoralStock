@@ -262,5 +262,29 @@ describe.skipIf(!hasTestDb)('rf_deudores_resumen vs oraculoDeudores', () => {
       desde: '2026-08-01',
       hastaInclusivo: '2026-08-10',
     })
+
+    // E) Aserción absoluta: con 'todas', la cuota incobrable no suma en adeudado
+    // y la pagada vencida no cuenta en clientesVencidos
+    const { data: todasResult, error: todasError } = await f.authenticated.rpc('rf_deudores_resumen', {
+      p_hoy: hoy,
+      p_estado: 'todas',
+    })
+    expect(todasError).toBeNull()
+
+    const todas = todasResult as {
+      rows: Array<{ id_cliente: string; adeudado: number; vencidas: number; pendientes: number }>
+      resumen: { clientesConDeuda: number; clientesVencidos: number }
+    }
+
+    const filaC = todas.rows.find((r) => r.id_cliente === cliC.id_cliente)
+    expect(filaC).toBeDefined()
+    expect(filaC?.adeudado).toBe(0)
+    expect(filaC?.pendientes).toBe(0)
+
+    const filaD = todas.rows.find((r) => r.id_cliente === cliD.id_cliente)
+    expect(filaD).toBeDefined()
+    expect(filaD?.vencidas).toBe(0)
+    expect(todas.resumen.clientesVencidos).toBe(1) // Solo Cliente A
+    expect(todas.resumen.clientesConDeuda).toBe(2)  // Solo Clientes A y B
   })
 })

@@ -27,7 +27,10 @@ export function oraculoDeudores(
   const inicio = inicioDeMes(hoy)
   const fin = finDeMes(hoy)
   const manana = sumarDias(hoy, 1)
-  const porCliente = new Map<string, DeudorRow & { _planes: Set<string>; _min_fecha: string }>()
+  const porCliente = new Map<
+    string,
+    DeudorRow & { _planes: Set<string>; _min_fecha: string; _tieneDeuda: boolean }
+  >()
 
   let aCobrar = 0
   let venceHoy = 0
@@ -35,25 +38,23 @@ export function oraculoDeudores(
   let venceEsteMes = 0
   let vencido = 0
   let incobrable = 0
-  let clientesVencidos = 0
 
   for (const c of filas) {
     const saldo = Number(c.monto) - Number(c.monto_pagado)
 
     if (c.estado === 'incobrable') {
       incobrable += saldo
-      continue
-    }
-    if (c.estado !== 'pendiente' && c.estado !== 'parcial') continue
-
-    aCobrar += saldo
-    const estaVencida = c.fecha_vencimiento < hoy
-    if (estaVencida) vencido += saldo
-    else {
-      if (c.fecha_vencimiento === hoy) venceHoy += saldo
-      else if (c.fecha_vencimiento === manana) venceManana += saldo
-      if (c.fecha_vencimiento >= inicio && c.fecha_vencimiento <= fin) {
-        venceEsteMes += saldo
+    } else if (c.estado === 'pendiente' || c.estado === 'parcial') {
+      aCobrar += saldo
+      const estaVencida = c.fecha_vencimiento < hoy
+      if (estaVencida) {
+        vencido += saldo
+      } else {
+        if (c.fecha_vencimiento === hoy) venceHoy += saldo
+        else if (c.fecha_vencimiento === manana) venceManana += saldo
+        if (c.fecha_vencimiento >= inicio && c.fecha_vencimiento <= fin) {
+          venceEsteMes += saldo
+        }
       }
     }
 
@@ -71,35 +72,50 @@ export function oraculoDeudores(
         planes: 0,
         _planes: new Set<string>(),
         _min_fecha: c.fecha_vencimiento,
+        _tieneDeuda: false,
       }
       porCliente.set(c.id_cliente, d)
     }
-    d.pendientes++
-    d.adeudado = redondear2(d.adeudado + saldo)
+
     d._planes.add(c.id_venta)
     if (c.fecha_vencimiento < d._min_fecha) {
       d._min_fecha = c.fecha_vencimiento
     }
-    if (estaVencida) {
-      d.vencidas++
-      d.vencido = redondear2(d.vencido + saldo)
-      if (d.vencida_desde === null || c.fecha_vencimiento < d.vencida_desde) {
-        d.vencida_desde = c.fecha_vencimiento
+
+    if (c.estado === 'pendiente' || c.estado === 'parcial') {
+      d._tieneDeuda = true
+      d.pendientes++
+      d.adeudado = redondear2(d.adeudado + saldo)
+
+      const estaVencida = c.fecha_vencimiento < hoy
+      if (estaVencida) {
+        d.vencidas++
+        d.vencido = redondear2(d.vencido + saldo)
+        if (d.vencida_desde === null || c.fecha_vencimiento < d.vencida_desde) {
+          d.vencida_desde = c.fecha_vencimiento
+        }
+      } else if (
+        d.proximo_vencimiento === null ||
+        c.fecha_vencimiento < d.proximo_vencimiento
+      ) {
+        d.proximo_vencimiento = c.fecha_vencimiento
       }
-    } else if (
-      d.proximo_vencimiento === null ||
-      c.fecha_vencimiento < d.proximo_vencimiento
-    ) {
-      d.proximo_vencimiento = c.fecha_vencimiento
     }
   }
 
-  for (const d of porCliente.values()) if (d.vencidas > 0) clientesVencidos++
+  let clientesConDeuda = 0
+  let clientesVencidos = 0
+  for (const d of porCliente.values()) {
+    if (d._tieneDeuda) clientesConDeuda++
+    if (d.vencidas > 0) clientesVencidos++
+  }
 
-  const rows = [...porCliente.values()].map(({ _planes, _min_fecha: _m, ...d }) => ({
-    ...d,
-    planes: _planes.size,
-  }))
+  const rows = [...porCliente.values()].map(
+    ({ _planes, _min_fecha: _m, _tieneDeuda: _t, ...d }) => ({
+      ...d,
+      planes: _planes.size,
+    }),
+  )
 
   rows.sort((a, b) => {
     if (a.vencido !== b.vencido) return b.vencido - a.vencido
@@ -120,7 +136,7 @@ export function oraculoDeudores(
       venceEsteMes: redondear2(venceEsteMes),
       vencido: redondear2(vencido),
       incobrable: redondear2(incobrable),
-      clientesConDeuda: porCliente.size,
+      clientesConDeuda,
       clientesVencidos,
       filas: filas.length,
     },
