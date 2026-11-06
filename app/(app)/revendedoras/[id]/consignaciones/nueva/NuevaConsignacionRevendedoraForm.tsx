@@ -211,13 +211,9 @@ export function NuevaConsignacionRevendedoraForm({
     try {
       let running: string[] = []
       const todosNuevos: ItemSeleccionado[] = []
-      for (const p of pedidos) {
-        const nuevos = await agregarPorProductoYTalle(idProducto, p.talle, running, p.cant)
-        if (!nuevos || nuevos.length === 0) return
-        todosNuevos.push(...nuevos)
-        running = [...running, ...nuevos.map((i) => i.id_item)]
-      }
-      if (todosNuevos.length > 0) {
+
+      function mergeNuevos() {
+        if (todosNuevos.length === 0) return
         setItems((prev) => {
           const ids = new Set(prev.map((i) => i.id_item))
           const aAgregar: ItemSeleccionado[] = []
@@ -230,6 +226,17 @@ export function NuevaConsignacionRevendedoraForm({
           return [...prev, ...aAgregar]
         })
       }
+
+      for (const p of pedidos) {
+        const nuevos = await agregarPorProductoYTalle(idProducto, p.talle, running, p.cant)
+        if (!nuevos || nuevos.length === 0) {
+          mergeNuevos()
+          return
+        }
+        todosNuevos.push(...nuevos)
+        running = [...running, ...nuevos.map((i) => i.id_item)]
+      }
+      mergeNuevos()
       setCodigoInput('')
     } catch {
       setErrorItem('Error de conexión al buscar el ítem.')
