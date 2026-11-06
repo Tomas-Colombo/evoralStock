@@ -20,17 +20,17 @@ bloque `-- DOWN:`.
 
 ## 2. SQL (una migración)
 
-- [ ] 2.1 Tests en `tests/db/costo-unico.test.ts`:
+- [x] 2.1 Tests en `tests/db/costo-unico.test.ts`:
       reestock actualiza vigente; sincroniza `disponible`/`reservado`/
       `en_revendedora` de `compra`; no toca vendidas, devueltas, bajas ni
       consignación; marca precio
       desactualizado; mismo costo = no-op sin auditoría; otro tenant 0 filas;
       `costos-distintos-mismo-producto`; consignación actualiza vigente sin
       sincronizar.
-- [ ] 2.2 `sp_aplicar_ultimo_costo` (INVOKER, sin grant a `authenticated`).
-- [ ] 2.3 `sp_confirmar_ingreso` llama a D1 por producto.
-- [ ] 2.4 `sp_importar_remito` rechaza costos distintos del mismo producto.
-- [ ] 2.5 `sp_crear_stock_directo`, `sp_set_costo_producto` y
+- [x] 2.2 `sp_aplicar_ultimo_costo` (INVOKER, sin grant a `authenticated`).
+- [x] 2.3 `sp_confirmar_ingreso` llama a D1 por producto.
+- [x] 2.4 `sp_importar_remito` rechaza costos distintos del mismo producto.
+- [x] 2.5 `sp_crear_stock_directo`, `sp_set_costo_producto` y
       `sp_revaluar_costos_usd_vigentes` usan D1.
 
 ## 3. App

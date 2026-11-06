@@ -405,7 +405,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(Number(cp!.costo)).toBe(100.0)
     })
 
-    it('item_producto.costo_ingreso de las piezas ya ingresadas NO cambia al revaluar', async () => {
+    it('item_producto.costo_ingreso de las piezas en stock se sincroniza al revaluar (costo-unico D5)', async () => {
       const t = await setupTenantWithCotizacion('stock-inmutable', 1500)
 
       const { data: prod } = await serviceRole
@@ -450,7 +450,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
         .single()
       expect(Number(cp!.costo)).toBe(180000.0)
 
-      // Pero el stock físico preexistente PERMANECE estrictamente en 150.000
+      // Con change costo-unico (D5), el stock físico preexistente se sincroniza al costo vigente (180.000)
       const { data: items } = await serviceRole
         .from('item_producto')
         .select('costo_ingreso')
@@ -458,7 +458,7 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
 
       expect(items!.length).toBe(3)
       for (const itm of items!) {
-        expect(Number(itm.costo_ingreso)).toBe(150000.0)
+        expect(Number(itm.costo_ingreso)).toBe(180000.0)
       }
     })
 
