@@ -112,6 +112,22 @@ export class NuevaVentaPage {
     await opcion.click()
   }
 
+  /**
+   * Finances the entire sale with the house in N instalments for the given client.
+   */
+  async venderEnCuotas(cliente: string, cuotas: number): Promise<void> {
+    await this.continuarAlCobro.click()
+    await expect(this.panelCobro).toBeVisible()
+    await this.panelCobro.getByRole('combobox', { name: /^Cliente/ }).fill(cliente)
+    const opcion = this.page.getByRole('option', { name: new RegExp(cliente) }).first()
+    await expect(opcion).toBeVisible()
+    await opcion.click()
+    await this.panelCobro.getByLabel('Monto del pago').fill('0')
+    await this.panelCobro.getByLabel('Plan').selectOption({ label: `${cuotas} cuotas` })
+    await expect(this.confirmar).toBeEnabled()
+    await this.confirmar.click()
+  }
+
   async cobrarYConfirmar(): Promise<void> {
     await this.continuarAlCobro.click()
     await expect(this.panelCobro).toBeVisible()

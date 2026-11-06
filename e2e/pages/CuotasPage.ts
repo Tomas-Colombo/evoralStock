@@ -32,6 +32,12 @@ export class CuotasPage {
     return this.page.getByRole('row').filter({ hasText: cliente })
   }
 
+  async buscar(q: string): Promise<void> {
+    await this.buscador.fill(q)
+    await this.page.getByRole('button', { name: 'Aplicar' }).click()
+    await this.page.waitForURL(/\/cuotas(\?|$)/)
+  }
+
   async aplicarFiltro(estado: string): Promise<void> {
     await this.filtroEstado.selectOption({ label: estado })
     await this.page.waitForURL(/\/cuotas(\?|$)/)
