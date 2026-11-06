@@ -30,11 +30,9 @@ export default function LoadingAdministracion() {
         <Card as="section" className="space-y-4">
           <div>
             <h3 className="font-display text-lg">Logo del negocio</h3>
-            <p className="mt-0.5 text-sm text-muted">
-              Se muestra en la barra lateral y en los comprobantes impresos.
-              Recomendamos una imagen con fondo transparente (PNG, SVG o WebP). La ajustamos
-              al tamaño de la barra automáticamente.
-            </p>
+            <div className="mt-1">
+              <Skeleton width="80%" height="0.875rem" />
+            </div>
           </div>
           <div className="flex h-20 w-48 items-center justify-center rounded-lg border border-border bg-sidebar-bg p-3">
             <Skeleton width="60%" height="1.5rem" />
@@ -44,10 +42,9 @@ export default function LoadingAdministracion() {
         <Card as="section" className="space-y-4">
           <div>
             <h3 className="font-display text-lg">Etiquetas QR de inventario</h3>
-            <p className="mt-0.5 text-sm text-muted">
-              Definí la medida física del lado del código QR (en milímetros) al imprimir etiquetas.
-              Como el QR es cuadrado, una sola medida aplica al ancho y al alto.
-            </p>
+            <div className="mt-1">
+              <Skeleton width="80%" height="0.875rem" />
+            </div>
           </div>
           <div className="w-48">
             <Skeleton width="100%" height="2.25rem" />
@@ -57,9 +54,9 @@ export default function LoadingAdministracion() {
         <Card as="section" className="space-y-4">
           <div>
             <h3 className="font-display text-lg">Impresora de etiquetas</h3>
-            <p className="mt-0.5 text-sm text-muted">
-              Configurá el ancho y el alto de la etiqueta para la impresión térmica.
-            </p>
+            <div className="mt-1">
+              <Skeleton width="80%" height="0.875rem" />
+            </div>
           </div>
           <div className="flex gap-3">
             <div className="w-48">
@@ -74,9 +71,9 @@ export default function LoadingAdministracion() {
         <Card as="section" className="space-y-4">
           <div>
             <h3 className="font-display text-lg">Seguridad de la cuenta</h3>
-            <p className="mt-0.5 text-sm text-muted">
-              Cambiá tu contraseña de acceso personal. La nueva contraseña debe tener al menos 8 caracteres.
-            </p>
+            <div className="mt-1">
+              <Skeleton width="80%" height="0.875rem" />
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-3xl pt-2">
             <Skeleton width="100%" height="2.25rem" />
