@@ -22,6 +22,7 @@ import {
   decidirLookupPorTalle,
   type ResultadoArmarElegirTalle,
 } from '../../inventario/codigo'
+import { evaluarCantidadDisponible } from '../../inventario/cantidades'
 import type { ItemProductoRow } from '../../types/inventario'
 import type { LineaCarrito } from '../../types/ventas'
 import { extractErrorSlug, type ReglaSlug } from './slug-error'
@@ -232,18 +233,22 @@ export async function getConsignacionRevendedoraConDetalle(
   }
 }
 
+export type ItemConsignacionLookup = {
+  id_item: string
+  id_producto: string
+  nombre_producto: string
+  codigo_barra: string | null
+  sku: string
+  talle: string | null
+  precio_actual: number
+}
+
 export type LookupItemResult =
   | {
       ok: true
-      data: {
-        id_item: string
-        id_producto: string
-        nombre_producto: string
-        codigo_barra: string | null
-        sku: string
-        talle: string | null
-        precio_actual: number
-      }
+      data: ItemConsignacionLookup
+      items?: ItemConsignacionLookup[]
+      aviso?: 'stock-parcial-disponible'
     }
   | ResultadoArmarElegirTalle
   | {
@@ -256,7 +261,7 @@ export async function lookupItemParaConsignacionRevendedora(
   qr: string | undefined,
   idRevendedora: string,
   excluir: string[] = [],
-  opts?: { idProducto?: string; talle?: string | null; sinTalle?: boolean },
+  opts?: { idProducto?: string; talle?: string | null; sinTalle?: boolean; cantidad?: number },
 ): Promise<LookupItemResult> {
   const supabase = await createServerClient()
 
@@ -356,13 +361,35 @@ export async function lookupItemParaConsignacionRevendedora(
   // primera disponible y, si estaba reservada, se rechazaba el código aunque
   // hubiera otras unidades libres del mismo producto.
   const bloqueos = await motivosDeBloqueo(candidatos.map((c) => c.id_item))
-  const item = candidatos.find((c) => !bloqueos.has(c.id_item))
-  if (!item) {
+  const libres = candidatos.filter((c) => !bloqueos.has(c.id_item))
+  if (libres.length === 0) {
     return { ok: false, reason: bloqueos.get(candidatos[0].id_item) ?? 'item-not-found' }
   }
 
-  const producto = productoResuelto ?? (await getProductoParaLookup(supabase, item.id_producto))
+  const producto = productoResuelto ?? (await getProductoParaLookup(supabase, libres[0].id_producto))
 
+  if (opts?.cantidad && opts.cantidad > 1) {
+    const evaluacion = evaluarCantidadDisponible(opts.cantidad, libres.length)
+    const elegidos = libres.slice(0, evaluacion.entregadas)
+    const items: ItemConsignacionLookup[] = elegidos.map((it) => ({
+      id_item: it.id_item,
+      id_producto: it.id_producto,
+      nombre_producto: producto?.nombre || 'Producto',
+      codigo_barra: it.qr_code,
+      sku: producto?.sku || '',
+      talle: it.talle || null,
+      precio_actual: Number(producto?.precio_venta || 0),
+    }))
+
+    return {
+      ok: true,
+      data: items[0],
+      items,
+      ...(evaluacion.aviso ? { aviso: evaluacion.aviso } : {}),
+    }
+  }
+
+  const item = libres[0]
   return {
     ok: true,
     data: {

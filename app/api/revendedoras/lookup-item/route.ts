@@ -6,6 +6,7 @@ import {
   lookupItemParaConsignacionRevendedora,
   lookupItemParaVentaRevendedora,
 } from '@/lib/dal/revendedoras'
+import { parsearCantidadLookup } from '@/lib/inventario/cantidades'
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,10 +57,18 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  const rawCantidad = req.nextUrl.searchParams.get('cantidad')
+  const esConsignacionPorTalle = Boolean(idProducto && (talle || sinTalle))
+  const cantidad =
+    esConsignacionPorTalle && rawCantidad !== null
+      ? parsearCantidadLookup(rawCantidad)
+      : undefined
+
   const result = await lookupItemParaConsignacionRevendedora(code, idRevendedora, excluir, {
     idProducto,
     talle,
     sinTalle,
+    ...(cantidad !== undefined ? { cantidad } : {}),
   })
 
   if (!result.ok) {
@@ -69,5 +78,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     item: result.data,
+    ...(result.items ? { items: result.items } : {}),
+    ...(result.aviso ? { aviso: result.aviso } : {}),
   })
 }

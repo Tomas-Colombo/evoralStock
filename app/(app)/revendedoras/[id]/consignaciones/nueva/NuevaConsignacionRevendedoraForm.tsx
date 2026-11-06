@@ -165,13 +165,15 @@ export function NuevaConsignacionRevendedoraForm({
     idProducto: string,
     talle: string | null,
     extraExcluidos: string[],
-  ): Promise<ItemSeleccionado | null> {
+    cantidad = 1,
+  ): Promise<ItemSeleccionado[] | null> {
     const qs = new URLSearchParams({
       id_producto: idProducto,
       id_revendedora: idRevendedora,
     })
     if (talle === null) qs.set('sin_talle', '1')
     else qs.set('talle', talle)
+    qs.set('cantidad', String(cantidad))
     const excluir = [...items.map((i) => i.id_item), ...extraExcluidos]
     if (excluir.length > 0) qs.set('excluir', excluir.join(','))
 
@@ -181,9 +183,17 @@ export function NuevaConsignacionRevendedoraForm({
       setErrorItem(mensajeDeError(data.reason || 'item-not-found'))
       return null
     }
-    const nuevo = data.item as ItemSeleccionado
-    setItems((prev) => (prev.some((i) => i.id_item === nuevo.id_item) ? prev : [...prev, nuevo]))
-    return nuevo
+    const nuevos: ItemSeleccionado[] =
+      Array.isArray(data.items) && data.items.length > 0
+        ? (data.items as ItemSeleccionado[])
+        : data.item
+          ? [data.item as ItemSeleccionado]
+          : []
+    if (nuevos.length === 0) return null
+    if (data.aviso) {
+      setErrorItem(mensajeDeError(data.aviso))
+    }
+    return nuevos
   }
 
   async function confirmarSelectorTalle() {
@@ -200,12 +210,25 @@ export function NuevaConsignacionRevendedoraForm({
     setErrorItem(null)
     try {
       let running: string[] = []
+      const todosNuevos: ItemSeleccionado[] = []
       for (const p of pedidos) {
-        for (let i = 0; i < p.cant; i++) {
-          const nuevo = await agregarPorProductoYTalle(idProducto, p.talle, running)
-          if (!nuevo) return
-          running = [...running, nuevo.id_item]
-        }
+        const nuevos = await agregarPorProductoYTalle(idProducto, p.talle, running, p.cant)
+        if (!nuevos || nuevos.length === 0) return
+        todosNuevos.push(...nuevos)
+        running = [...running, ...nuevos.map((i) => i.id_item)]
+      }
+      if (todosNuevos.length > 0) {
+        setItems((prev) => {
+          const ids = new Set(prev.map((i) => i.id_item))
+          const aAgregar: ItemSeleccionado[] = []
+          for (const item of todosNuevos) {
+            if (!ids.has(item.id_item)) {
+              ids.add(item.id_item)
+              aAgregar.push(item)
+            }
+          }
+          return [...prev, ...aAgregar]
+        })
       }
       setCodigoInput('')
     } catch {

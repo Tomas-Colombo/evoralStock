@@ -231,6 +231,133 @@ describe('lookupItemParaConsignacionRevendedora', () => {
       reason: 'sku-sin-stock',
     })
   })
+
+  it('con cantidad > 1 devuelve hasta N ítems disponibles no excluidos (pide 3 y hay 3)', async () => {
+    resolverCodigoMock.mockResolvedValue(null)
+    getProductoConCategoriaMock.mockResolvedValue(productoConTallesFixture)
+    listItemsDisponiblesMock.mockResolvedValue([
+      makeItem('item-1', 'UTP-001', 'M'),
+      makeItem('item-2', 'UTP-002', 'M'),
+      makeItem('item-3', 'UTP-003', 'M'),
+    ])
+
+    const { lookupItemParaConsignacionRevendedora } = await import('./consignacion')
+    const res = await lookupItemParaConsignacionRevendedora(undefined, 'rev-1', [], {
+      idProducto: 'prod-1',
+      talle: 'M',
+      cantidad: 3,
+    })
+
+    expect(res).toEqual({
+      ok: true,
+      data: {
+        id_item: 'item-1',
+        id_producto: 'prod-1',
+        nombre_producto: 'Remera Básica',
+        codigo_barra: 'UTP-001',
+        sku: 'REM-0001',
+        talle: 'M',
+        precio_actual: 15000,
+      },
+      items: [
+        {
+          id_item: 'item-1',
+          id_producto: 'prod-1',
+          nombre_producto: 'Remera Básica',
+          codigo_barra: 'UTP-001',
+          sku: 'REM-0001',
+          talle: 'M',
+          precio_actual: 15000,
+        },
+        {
+          id_item: 'item-2',
+          id_producto: 'prod-1',
+          nombre_producto: 'Remera Básica',
+          codigo_barra: 'UTP-002',
+          sku: 'REM-0001',
+          talle: 'M',
+          precio_actual: 15000,
+        },
+        {
+          id_item: 'item-3',
+          id_producto: 'prod-1',
+          nombre_producto: 'Remera Básica',
+          codigo_barra: 'UTP-003',
+          sku: 'REM-0001',
+          talle: 'M',
+          precio_actual: 15000,
+        },
+      ],
+    })
+  })
+
+  it('con cantidad > 1 emite aviso stock-parcial-disponible si hay menos de las pedidas (pide 3 y hay 1)', async () => {
+    resolverCodigoMock.mockResolvedValue(null)
+    getProductoConCategoriaMock.mockResolvedValue(productoConTallesFixture)
+    listItemsDisponiblesMock.mockResolvedValue([makeItem('item-1', 'UTP-001', 'M')])
+
+    const { lookupItemParaConsignacionRevendedora } = await import('./consignacion')
+    const res = await lookupItemParaConsignacionRevendedora(undefined, 'rev-1', [], {
+      idProducto: 'prod-1',
+      talle: 'M',
+      cantidad: 3,
+    })
+
+    expect(res).toEqual({
+      ok: true,
+      data: {
+        id_item: 'item-1',
+        id_producto: 'prod-1',
+        nombre_producto: 'Remera Básica',
+        codigo_barra: 'UTP-001',
+        sku: 'REM-0001',
+        talle: 'M',
+        precio_actual: 15000,
+      },
+      items: [
+        {
+          id_item: 'item-1',
+          id_producto: 'prod-1',
+          nombre_producto: 'Remera Básica',
+          codigo_barra: 'UTP-001',
+          sku: 'REM-0001',
+          talle: 'M',
+          precio_actual: 15000,
+        },
+      ],
+      aviso: 'stock-parcial-disponible',
+    })
+  })
+
+  it('con cantidad ausente mantiene respuesta idéntica a hoy', async () => {
+    resolverCodigoMock.mockResolvedValue(null)
+    getProductoConCategoriaMock.mockResolvedValue(productoConTallesFixture)
+    listItemsDisponiblesMock.mockResolvedValue([
+      makeItem('item-1', 'UTP-001', 'M'),
+      makeItem('item-2', 'UTP-002', 'M'),
+    ])
+
+    const { lookupItemParaConsignacionRevendedora } = await import('./consignacion')
+    const res = await lookupItemParaConsignacionRevendedora(undefined, 'rev-1', [], {
+      idProducto: 'prod-1',
+      talle: 'M',
+    })
+
+    expect(res).toEqual({
+      ok: true,
+      data: {
+        id_item: 'item-1',
+        id_producto: 'prod-1',
+        nombre_producto: 'Remera Básica',
+        codigo_barra: 'UTP-001',
+        sku: 'REM-0001',
+        talle: 'M',
+        precio_actual: 15000,
+      },
+    })
+    expect((res as { items?: unknown }).items).toBeUndefined()
+    expect((res as { aviso?: unknown }).aviso).toBeUndefined()
+  })
 })
 
 describe('lookupItemParaVentaRevendedora', () => {
