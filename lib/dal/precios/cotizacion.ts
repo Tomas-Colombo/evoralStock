@@ -35,6 +35,34 @@ function extraerSlugRpc(error: { message: string }): string {
 }
 
 /**
+ * Lectura pura de la cotización vigente para visualización en pantallas.
+ * Solo consulta sp_get_cotizacion_vigente: sin fetch al BCRA ni escrituras en base de datos.
+ * Retorna null si no existe ninguna cotización cargada previamente.
+ */
+export async function leerCotizacionVigente(
+  client?: SupabaseClient,
+): Promise<CotizacionVigente | null> {
+  const supabase = client ?? (await createServerClient())
+  const { data: raw, error } = await supabase.rpc('sp_get_cotizacion_vigente')
+  if (error) throw new Error(extraerSlugRpc(error))
+
+  const vigente = raw as SpGetCotizacionRow | null
+  if (!vigente || vigente.valor === null || Number(vigente.valor) <= 0) {
+    return null
+  }
+
+  return {
+    modo: vigente.modo,
+    valor: Number(vigente.valor),
+    fecha: vigente.fecha,
+    fechaValor: vigente.fecha_valor,
+    origen: vigente.origen ?? (vigente.modo === 'manual' ? 'manual' : 'bcra'),
+    desactualizada: Boolean(vigente.desactualizada),
+    idCotizacion: vigente.id_cotizacion,
+  }
+}
+
+/**
  * Consulta la cotización vigente para el tenant actual.
  * Utilizado por las conversiones monetarias y visualización de cotización.
  * NO exige permiso de edición: es una lectura de sistema/operativa.
@@ -215,20 +243,40 @@ export async function spRevaluarCostosUsd(
   }
 }
 
+export type ConteoProductosCostoUsd = {
+  revaluables: number
+  omitidas: number
+}
+
 /**
- * Cuenta cuántos productos tienen costo vigente en moneda USD.
+ * Cuenta cuántos productos tienen costo vigente en moneda USD revaluables
+ * (con costo_original_usd no nulo) y cuántos se omiten por no tener costo original.
  * Usado para confirmar el alcance de la revaluación masiva en Control de Precios.
  */
 export async function countProductosCostoUsdVigentes(
   client?: SupabaseClient,
-): Promise<number> {
+): Promise<ConteoProductosCostoUsd> {
   const supabase = client ?? (await createServerClient())
-  const { count, error } = await supabase
-    .from('costo_producto')
-    .select('id_costo', { count: 'exact', head: true })
-    .is('vigente_hasta', null)
-    .eq('moneda', 'USD')
+  const [resRev, resOmit] = await Promise.all([
+    supabase
+      .from('costo_producto')
+      .select('id_costo', { count: 'exact', head: true })
+      .is('vigente_hasta', null)
+      .eq('moneda', 'USD')
+      .not('costo_original_usd', 'is', null),
+    supabase
+      .from('costo_producto')
+      .select('id_costo', { count: 'exact', head: true })
+      .is('vigente_hasta', null)
+      .eq('moneda', 'USD')
+      .is('costo_original_usd', null),
+  ])
 
-  if (error) throw new Error(extraerSlugRpc(error))
-  return count ?? 0
+  if (resRev.error) throw new Error(extraerSlugRpc(resRev.error))
+  if (resOmit.error) throw new Error(extraerSlugRpc(resOmit.error))
+
+  return {
+    revaluables: resRev.count ?? 0,
+    omitidas: resOmit.count ?? 0,
+  }
 }

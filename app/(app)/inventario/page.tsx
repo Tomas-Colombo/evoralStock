@@ -12,7 +12,6 @@ import {
 import { countProveedoresActivos, listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { NuevoProductoModalButton } from './NuevoProductoModalButton'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
-import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import {
   listAlertaReposicion,
   listAlertaRotacionVencida,
@@ -46,7 +45,6 @@ export default async function InventarioHome(props: {
     alertasRot,
     tenenciaList,
     proveedores,
-    cotizacion,
   ] = await Promise.all([
     listProductosConDetallePaginado({
       search: searchParams.q,
@@ -62,7 +60,6 @@ export default async function InventarioHome(props: {
     listAlertaRotacionVencida(),
     tieneModuloRevendedoras ? obtenerStockPorTenencia() : Promise.resolve([] as StockPorTenenciaRow[]),
     listProveedoresActivos(),
-    getCotizacionVigente().catch(() => null),
   ])
 
   let tenenciaStockMap: Record<string, StockPorTenenciaRow> | null = null
@@ -94,7 +91,6 @@ export default async function InventarioHome(props: {
               categorias={categorias}
               productos={catalogoBuscador}
               proveedores={proveedores}
-              cotizacion={cotizacion}
             />
           </div>
         }

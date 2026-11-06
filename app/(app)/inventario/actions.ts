@@ -29,7 +29,11 @@ import {
   spSetCostoProducto,
   updateProducto,
 } from '@/lib/dal/inventario/producto'
-import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
+import {
+  type CotizacionVigente,
+  getCotizacionVigente,
+  leerCotizacionVigente,
+} from '@/lib/dal/precios/cotizacion'
 import { convertirUsdEnArs } from '@/lib/cotizacion/convertir'
 import {
   spAsignarTallesAProducto,
@@ -861,5 +865,22 @@ export async function crearIngresoCompletoAction(input: {
     const msg = (e as Error).message
     if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
     return { ok: false, reason: msg }
+  }
+}
+
+/**
+ * Lectura pura de la cotización vigente para visualización de formularios en inventario.
+ * Autoriza con inventario.ver, no consulta al BCRA ni escribe en base de datos.
+ */
+export async function leerCotizacionVigenteAction(): Promise<
+  ActionResult<CotizacionVigente | null>
+> {
+  const g = await guarded('ver')
+  if ('error' in g) return { ok: false, reason: g.error }
+  try {
+    const cot = await leerCotizacionVigente()
+    return { ok: true, data: cot }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
   }
 }

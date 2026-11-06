@@ -17,6 +17,8 @@ import { Select } from '@/components/ui/Select'
 
 type Filter = 'todos' | 'desactualizados' | 'sin-precio' | 'sin-regla'
 
+export type CantidadUsdProp = number | { revaluables: number; omitidas: number }
+
 export function ControlDePreciosView({
   initial,
   canRevaluar = false,
@@ -24,7 +26,7 @@ export function ControlDePreciosView({
 }: {
   initial: ProductoConPrecioStatus[]
   canRevaluar?: boolean
-  cantidadUsd?: number
+  cantidadUsd?: CantidadUsdProp
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -136,6 +138,13 @@ export function ControlDePreciosView({
 
   const fmt = (n: number | null) =>
     n == null ? '—' : `$ ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+
+  const revaluables = typeof cantidadUsd === 'number' ? cantidadUsd : (cantidadUsd?.revaluables ?? 0)
+  const omitidas = typeof cantidadUsd === 'object' ? (cantidadUsd?.omitidas ?? 0) : 0
+  const confirmDesc =
+    omitidas > 0
+      ? `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD (${omitidas} omitido(s) por no tener costo original en USD registrado).`
+      : `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD.`
 
   return (
     <div className="space-y-4">
@@ -337,7 +346,7 @@ export function ControlDePreciosView({
       <ConfirmDialog
         open={confirmRevaluarOpen}
         title="¿Revaluar costos en USD al dólar vigente?"
-        description={`Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${cantidadUsd} producto(s) con costo en USD.`}
+        description={confirmDesc}
         confirmLabel="Revaluar costos"
         cancelLabel="Cancelar"
         onConfirm={ejecutarRevaluacion}

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { NuevoProductoForm } from './productos/nuevo/NuevoProductoForm'
 import type { CategoriaRow, ProveedorRow } from '@/lib/types/inventario'
+import { leerCotizacionVigenteAction } from './actions'
 
 interface NuevoProductoModalButtonProps {
   categorias: CategoriaRow[]
@@ -22,15 +23,22 @@ interface NuevoProductoModalButtonProps {
  * de `/inventario/productos/nuevo`).
  * `Modal` desmonta el contenido al cerrarse, por lo que cada apertura inicia
  * con el formulario en blanco.
+ * La cotización se carga bajo demanda al abrir el modal para no penalizar el render de la lista.
  */
 export function NuevoProductoModalButton({
   categorias,
   productos,
   proveedores,
-  cotizacion,
+  cotizacion: cotizacionProp,
 }: NuevoProductoModalButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [cotizacionLoaded, setCotizacionLoaded] = useState<{
+    valor: number
+    fechaValor?: string | null
+    desactualizada?: boolean
+  } | null>(null)
+  const [hasRequested, setHasRequested] = useState(false)
 
   // Sin categorías no se puede crear producto; redirigimos a categorías al igual que /inventario/productos/nuevo.
   if (categorias.length === 0) {
@@ -43,9 +51,27 @@ export function NuevoProductoModalButton({
     )
   }
 
+  const cotizacionEfectiva = cotizacionProp !== undefined ? cotizacionProp : cotizacionLoaded
+
+  function handleOpen() {
+    setOpen(true)
+    if (cotizacionProp === undefined && !hasRequested) {
+      setHasRequested(true)
+      leerCotizacionVigenteAction()
+        .then((res) => {
+          if (res.ok && res.data) {
+            setCotizacionLoaded(res.data)
+          }
+        })
+        .catch(() => {
+          // No bloquea la apertura del modal
+        })
+    }
+  }
+
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="secondary" onClick={handleOpen}>
         Nuevo producto
       </Button>
 
@@ -54,7 +80,7 @@ export function NuevoProductoModalButton({
           categorias={categorias}
           productos={productos}
           proveedores={proveedores}
-          cotizacion={cotizacion}
+          cotizacion={cotizacionEfectiva}
           onSuccess={() => {
             setOpen(false)
             router.refresh()

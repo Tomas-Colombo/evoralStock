@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  countProductosCostoUsdVigentes,
   getCotizacionVigente,
+  leerCotizacionVigente,
   sincronizarCotizacionBcra,
   spSetCotizacionManual,
   spSetModoCotizacion,
@@ -309,6 +311,95 @@ describe('lib/dal/precios/cotizacion — Servicio de cotización vigente y sincr
       expect(mockSupabase.rpc).toHaveBeenCalledWith('sp_set_modo_cotizacion', {
         p_modo: 'manual',
         p_ip: null,
+      })
+    })
+  })
+
+  describe('leerCotizacionVigente (lectura pura)', () => {
+    it('llama únicamente a sp_get_cotizacion_vigente y NUNCA a fetchCotizacionBcra', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: {
+          modo: 'automatica',
+          id_cotizacion: 'cotiz-1',
+          valor: 1520.5,
+          fecha: '2026-11-05',
+          fecha_valor: '2026-11-04',
+          origen: 'bcra',
+          desactualizada: true,
+        },
+        error: null,
+      })
+
+      const res = await leerCotizacionVigente(mockSupabase as unknown as SupabaseClient)
+
+      expect(mockSupabase.rpc).toHaveBeenCalledTimes(1)
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('sp_get_cotizacion_vigente')
+      expect(bcraModule.fetchCotizacionBcra).not.toHaveBeenCalled()
+      expect(res).toEqual({
+        modo: 'automatica',
+        valor: 1520.5,
+        fecha: '2026-11-05',
+        fechaValor: '2026-11-04',
+        origen: 'bcra',
+        desactualizada: true,
+        idCotizacion: 'cotiz-1',
+      })
+    })
+
+    it('retorna null sin lanzar error si no existe cotización o el valor es nulo/cero', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: {
+          modo: 'automatica',
+          id_cotizacion: null,
+          valor: null,
+          fecha: null,
+          fecha_valor: null,
+          origen: null,
+          desactualizada: true,
+        },
+        error: null,
+      })
+
+      const res = await leerCotizacionVigente(mockSupabase as unknown as SupabaseClient)
+
+      expect(res).toBeNull()
+      expect(bcraModule.fetchCotizacionBcra).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('countProductosCostoUsdVigentes', () => {
+    it('cuenta por separado las filas revaluables y las omitidas', async () => {
+      const mockQueryBuilderRev = {
+        select: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockResolvedValue({ count: 8, error: null }),
+      }
+      const mockQueryBuilderOmit = {
+        select: vi.fn().mockReturnThis(),
+        is: vi.fn().mockImplementation((col: string, val: unknown) => {
+          if (col === 'costo_original_usd') {
+            return Promise.resolve({ count: 3, error: null })
+          }
+          return mockQueryBuilderOmit
+        }),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+      }
+
+      let callCount = 0
+      const mockClient = {
+        from: vi.fn().mockImplementation(() => {
+          callCount++
+          return callCount === 1 ? mockQueryBuilderRev : mockQueryBuilderOmit
+        }),
+      }
+
+      const res = await countProductosCostoUsdVigentes(mockClient as unknown as SupabaseClient)
+
+      expect(res).toEqual({
+        revaluables: 8,
+        omitidas: 3,
       })
     })
   })

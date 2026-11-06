@@ -4,7 +4,7 @@ import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { getProducto, listProductosConDetalle } from '@/lib/dal/inventario/producto'
 import { getUltimoContextoIngresoProducto } from '@/lib/dal/inventario/item'
-import { getCotizacionVigente } from '@/lib/dal/precios/cotizacion'
+import { leerCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { capacidades, tiposIngresoPermitidos, tiposProveedorPermitidos } from '@/lib/modulos/capacidades'
 import type { TipoIngreso } from '@/lib/types/inventario'
 import { NuevoIngresoView } from './NuevoIngresoView'
@@ -26,7 +26,7 @@ export default async function NuevoIngresoPage(props: {
     listProveedoresActivos(),
     listProductosConDetalle({ soloActivos: true }),
     listCategoriasActivas(),
-    getCotizacionVigente().catch(() => null),
+    leerCotizacionVigente().catch(() => null),
   ])
 
   // Modo restock: si viene ?producto=<id>, prefiliamos la línea con ese

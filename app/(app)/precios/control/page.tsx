@@ -10,7 +10,9 @@ export default async function ControlDePreciosPage() {
   const canRevaluar = hasPermission(session, 'precios', 'editar_cotizacion')
   const [rows, cantidadUsd] = await Promise.all([
     listControlDePrecios(),
-    canRevaluar ? countProductosCostoUsdVigentes() : Promise.resolve(0),
+    canRevaluar
+      ? countProductosCostoUsdVigentes()
+      : Promise.resolve({ revaluables: 0, omitidas: 0 }),
   ])
   return (
     <>

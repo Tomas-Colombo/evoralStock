@@ -70,12 +70,13 @@ export function NuevoProductoForm({
       ? Math.round(costoNum * cotizacion.valor * 100) / 100
       : null
 
+  const desactualizadaAviso = cotizacion?.desactualizada ? ' (desactualizada)' : ''
   const hintCosto =
     moneda === 'USD'
       ? cotizacion?.valor
         ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
             minimumFractionDigits: 2,
-          })}.${
+          })}${desactualizadaAviso}.${
             estimadoArs != null
               ? ` Estimado: $ ${estimadoArs.toLocaleString('es-AR', {
                   minimumFractionDigits: 2,

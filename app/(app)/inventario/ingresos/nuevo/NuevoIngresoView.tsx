@@ -457,7 +457,7 @@ export function NuevoIngresoView({
                 ? cotizacion?.valor
                   ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
                       minimumFractionDigits: 2,
-                    })}. Los valores en pesos se calculan como referencia.`
+                    })}${cotizacion.desactualizada ? ' (desactualizada)' : ''}. Los valores en pesos se calculan como referencia.`
                   : 'Cotización del dólar no disponible.'
                 : 'Comprobante en pesos argentinos (una moneda por comprobante).'
             }

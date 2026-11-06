@@ -70,6 +70,24 @@ describe('ControlDePreciosView — Revaluación USD', () => {
     expect(screen.getByText(/afecta a 5 producto\(s\) con costo en usd/i)).toBeInTheDocument()
   })
 
+  it('muestra las filas omitidas aparte en el diálogo de confirmación cuando existen', async () => {
+    render(
+      <ControlDePreciosView
+        initial={rows}
+        canRevaluar={true}
+        cantidadUsd={{ revaluables: 5, omitidas: 2 }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /revaluar costos usd/i }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/afecta a 5 producto\(s\) con costo en usd/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/2 omitido\(s\) por no tener costo original en usd registrado/i),
+    ).toBeInTheDocument()
+  })
+
   it('ejecuta la revaluación al confirmar y muestra el desglose del resultado con explicación de omitidos', async () => {
     render(<ControlDePreciosView initial={rows} canRevaluar={true} cantidadUsd={5} />)
 

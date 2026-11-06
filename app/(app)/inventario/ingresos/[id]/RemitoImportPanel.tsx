@@ -259,7 +259,8 @@ export function RemitoImportPanel({
             {moneda === 'USD' && cotizacion?.valor && (
               <span className="text-xs text-muted">
                 Cotización oficial: ${' '}
-                {cotizacion.valor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}{' '}
+                {cotizacion.valor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                {cotizacion.desactualizada ? ' (desactualizada)' : ''}{' '}
                 · Total est.: ${' '}
                 {totalEstimadoArs?.toLocaleString('es-AR')} ARS
               </span>
