@@ -9,12 +9,11 @@ insert into tenant (nombre_comercial, subdominio) values
   ('Boutique Alfa', 'boutique-alfa')
 on conflict (subdominio) do nothing;
 
+-- Permisos vacíos a propósito: seed_datos_prueba.sql (corre último en
+-- db:seed:local) les copia los del Administrador de utopia-local. Una lista propia acá se
+-- desincronizó del catálogo y dejó al admin demo sin `precios`.
 insert into rol (id_tenant, nombre, permisos)
-select t.id_tenant, 'Administrador', '{
-    "administracion": ["ver", "crear", "editar"],
-    "inventario": ["ver", "crear", "editar", "eliminar"],
-    "ventas": ["ver", "crear"]
-  }'::jsonb
+select t.id_tenant, 'Administrador', '{}'::jsonb
 from tenant t
 where t.subdominio in ('utopia-demo', 'boutique-alfa')
   and not exists (

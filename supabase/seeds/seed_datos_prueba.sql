@@ -35,6 +35,23 @@
 
 begin;
 
+-- seed_demo_tenants.sql crea el Administrador de los tenants demo vacío (una
+-- lista propia se desincronizó del catálogo y lo dejó sin `precios`). Acá se
+-- copia la del admin de utopia-local, que seed_dev.sql ya dejó completa. Va
+-- fuera del bloque de abajo para que corra aunque el marcador lo saltee.
+update rol r
+   set permisos = src.permisos
+  from tenant t,
+       (select ro.permisos
+          from rol ro
+          join tenant ts on ts.id_tenant = ro.id_tenant
+         where ts.subdominio = 'utopia-local'
+           and ro.nombre = 'Administrador') src
+ where t.id_tenant = r.id_tenant
+   and t.subdominio in ('utopia-demo', 'boutique-alfa')
+   and r.nombre = 'Administrador'
+   and r.permisos is distinct from src.permisos;
+
 do $$
 declare
   v_tenant  uuid;
