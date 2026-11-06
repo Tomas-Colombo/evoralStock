@@ -60,6 +60,11 @@ tenant (un `AND`), sin tocar las policies existentes.
   (revocar el SELECT de las columnas, mover los costos a una tabla aparte, o
   leer costos solo vía `rf_*`) se deciden con el inventario en la mano, en un
   cambio `costos-por-columna`.
+- **Tablas con datos de costo (`costo_producto` e `item_producto`)**: Tras el
+  cambio `costo-unico`, `sp_aplicar_ultimo_costo` es llamable por RPC al ser
+  `SECURITY INVOKER` (y `00056` da `grant execute` a `authenticated` por defecto).
+  Tanto `costo_producto` como `item_producto` necesitan policy RLS por permiso
+  para evitar lectura o mutación directa de costos por usuarios no autorizados.
 - Cambiar el modelo de permisos (`CATALOGO_PERMISOS`, `rol.permisos`).
 - Habilitación de módulos por tenant en RLS (`tenant_modulo`): hoy la resuelve
   la guarda; se evalúa en Fase 2.

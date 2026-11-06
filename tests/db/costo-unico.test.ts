@@ -428,13 +428,23 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const itemReservado = items![0].id_item
 
-    // Transicionar el ítem a reservado
-    const { error: errTrans } = await t.authAdmin.rpc('sp_transicion_item_producto', {
-      p_id_item: itemReservado,
-      p_estado_hasta: 'reservado',
-      p_tipo_movimiento: 'reserva',
+    // Crear cliente para la reserva
+    const { data: cliente, error: errCli } = await serviceRole
+      .from('cliente')
+      .insert({ id_tenant: t.tenantId, nombre: 'Cliente', apellido: 'Reserva' })
+      .select('id_cliente')
+      .single()
+    expect(errCli).toBeNull()
+
+    // Reservar el ítem con sp_crear_reserva
+    const fechaVencimiento = new Date(Date.now() + 86400000 * 7).toISOString()
+    const { data: idReserva, error: errReserva } = await t.authAdmin.rpc('sp_crear_reserva', {
+      p_id_cliente: cliente!.id_cliente,
+      p_items: [itemReservado],
+      p_fecha_vencimiento: fechaVencimiento,
     })
-    expect(errTrans).toBeNull()
+    expect(errReserva).toBeNull()
+    expect(idReserva).toBeTruthy()
 
     // Confirmar reestock a 1.300
     await confirmarIngresoCompra(t.authAdmin, t.tenantId, t.idProducto, 5, 1300)
@@ -444,8 +454,17 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
       .select('costo_ingreso, estado_item')
       .eq('id_item', itemReservado)
       .single()
-    expect(itemVerif?.estado_item).toBe('reservado')
     expect(Number(itemVerif?.costo_ingreso)).toBe(1300)
+
+    // La reserva sigue activa en detalle_reserva
+    const { data: detReserva } = await serviceRole
+      .from('detalle_reserva')
+      .select('estado')
+      .eq('id_reserva', idReserva)
+      .eq('id_item', itemReservado)
+      .single()
+    expect(detReserva?.estado).toBe('activa')
+
   })
 
   it('N5: unidad de E1 en baja o devuelto_cliente antes de E3 conserva 1.000', async () => {

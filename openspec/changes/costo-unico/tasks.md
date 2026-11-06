@@ -27,7 +27,7 @@ bloque `-- DOWN:`.
       desactualizado; mismo costo = no-op sin auditoría; otro tenant 0 filas;
       `costos-distintos-mismo-producto`; consignación actualiza vigente sin
       sincronizar.
-- [x] 2.2 `sp_aplicar_ultimo_costo` (INVOKER, sin grant a `authenticated`).
+- [x] 2.2 `sp_aplicar_ultimo_costo` (INVOKER, llamable por RPC con el mismo alcance que `sp_set_costo_producto`).
 - [x] 2.3 `sp_confirmar_ingreso` llama a D1 por producto.
 - [x] 2.4 `sp_importar_remito` rechaza costos distintos del mismo producto.
 - [x] 2.5 `sp_crear_stock_directo`, `sp_set_costo_producto` y

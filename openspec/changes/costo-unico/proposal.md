@@ -50,12 +50,15 @@ Regla resultante:
 
 ## 4. Diseño
 
-- **D1 — Función interna única.** `sp_aplicar_ultimo_costo(id_producto, costo,
+- **D1 — Función única de costo.** `sp_aplicar_ultimo_costo(id_producto, costo,
   moneda, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor,
-  motivo, ip)`: si el costo difiere del vigente, cierra el vigente, inserta el
-  nuevo, sincroniza las unidades propias sin vender, marca el precio
-  desactualizado (`sp_marcar_precio_desactualizado_by_producto`) y audita. Si es
-  igual, no hace nada (idempotente). Toda escritura de costo pasa por acá.
+  motivo, ip)`: llamable por RPC con el mismo alcance que `sp_set_costo_producto`
+  (`00056` da `grant execute` a `authenticated` por defecto e INVOKER no restringe
+  llamadas directas; su protección dependerá de RLS por permiso). Si el costo
+  difiere del vigente, cierra el vigente, inserta el nuevo, sincroniza las
+  unidades propias sin vender, marca el precio desactualizado
+  (`sp_marcar_precio_desactualizado_by_producto`) y audita. Si es igual, no hace
+  nada (idempotente). Toda escritura de costo pasa por acá.
 - **D2 — `sp_confirmar_ingreso`.** Después de generar las unidades, llama a D1
   una vez por producto del ingreso. En un ingreso `consignacion` actualiza el
   vigente (fija el precio) pero no sincroniza unidades (§3).
