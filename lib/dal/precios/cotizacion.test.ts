@@ -377,7 +377,7 @@ describe('lib/dal/precios/cotizacion — Servicio de cotización vigente y sincr
       }
       const mockQueryBuilderOmit = {
         select: vi.fn().mockReturnThis(),
-        is: vi.fn().mockImplementation((col: string, val: unknown) => {
+        is: vi.fn().mockImplementation((col: string) => {
           if (col === 'costo_original_usd') {
             return Promise.resolve({ count: 3, error: null })
           }
