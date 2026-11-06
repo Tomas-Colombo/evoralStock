@@ -6,6 +6,7 @@ import {
   unwrapFixture,
 } from './_helpers'
 import { venderFinanciado, ventaFixture } from './_fixtures-ventas'
+import { getHoyBuenosAires } from '../fechas'
 
 /**
  * Financiación propia (00059) + costo de cobro (00057) + incobrable en
@@ -597,6 +598,7 @@ describe.skipIf(!hasTestDb)('sp_calcular_costo_cobro — 00057', () => {
           arancel_pct: 6.29,
           iva_arancel_pct: 21,
           dias_acreditacion: 18,
+          vigente_desde: getHoyBuenosAires(),
         })
         .select('id_arancel_cobro')
         .single(),

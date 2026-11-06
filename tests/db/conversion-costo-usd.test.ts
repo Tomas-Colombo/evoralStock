@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, hasTestDb, runPsql, signInAs, withScopedTenant } from './_helpers'
-
-function getHoyBuenosAires(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
-}
+import { getHoyBuenosAires } from '../fechas'
 
 describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingresos, remitos y revaluación', () => {
   const serviceRole = createServiceRoleTestClient()

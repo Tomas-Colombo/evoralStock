@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'vitest'
 import { ventaFixture, venderContado, venderFinanciado, PRECIO, COSTO, habilitarPaqueteConsignacion } from './_fixtures-ventas'
 import { createTenantWithUser, signInAs } from './_helpers'
+import { getHoyBuenosAires, getRangoMesBuenosAires } from '../fechas'
 
 describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
   test('Escenario A: ventas mixtas, anulacion, devolucion, gasto', async () => {
@@ -78,9 +79,10 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     expect(errG1).toBeNull()
 
     // Ahora evaluar escenario A (todo pasa en el mismo mes, M)
+    const mes = getRangoMesBuenosAires()
     const { data: res, error: errRes } = await f.authenticated.rpc('rf_finanzas_resultados', {
-      p_desde: new Date().toISOString().slice(0, 8) + '01', // primer día del mes actual
-      p_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10), // último día del mes
+      p_desde: mes.desde, // primer día del mes actual
+      p_hasta: mes.hasta, // último día del mes
     }).single()
     expect(errRes).toBeNull()
     
@@ -123,6 +125,7 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
   })
 
   test('Escenario B: Escenario A + venta con tarjeta de credito (S5)', async () => {
+    const mes = getRangoMesBuenosAires()
     // Como todo afecta al mismo tenant y necesitamos replicar A,
     // crearemos todo en el mismo test.
     const f = await ventaFixture('EscB', 1, { tipoIngreso: 'compra' })
@@ -196,7 +199,8 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
       cuotas: 3,
       arancel_pct: 3,
       iva_arancel_pct: 21,
-      dias_acreditacion: 18
+      dias_acreditacion: 18,
+      vigente_desde: getHoyBuenosAires(),
     })
     expect(errTar).toBeNull()
 
@@ -210,8 +214,8 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     expect(err5).toBeNull()
 
     const { data: res } = await f.authenticated.rpc('rf_finanzas_resultados', {
-      p_desde: new Date().toISOString().slice(0, 8) + '01',
-      p_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+      p_desde: mes.desde,
+      p_hasta: mes.hasta,
     }).single()
     
     expect(res.ventas_netas).toBe(120000)
@@ -222,8 +226,8 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     expect(res.ganancia_final).toBe(72822)
 
     const { data: flujo } = await f.authenticated.rpc('rf_finanzas_flujo', {
-      p_desde: new Date().toISOString().slice(0, 8) + '01',
-      p_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+      p_desde: mes.desde,
+      p_hasta: mes.hasta,
     }).single()
 
     expect(flujo.cobrado).toBe(240000)
@@ -295,22 +299,23 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
   })
 
   test('venta_cuotas_propias', async () => {
+    const mes = getRangoMesBuenosAires()
     const f = await ventaFixture('vCuot', 1)
     await venderFinanciado(f, {
       cuotas: 2,
-      primerVencimiento: new Date().toISOString().slice(0, 10),
+      primerVencimiento: getHoyBuenosAires(),
     })
     
     const { data: res } = await f.authenticated.rpc('rf_finanzas_resultados', {
-      p_desde: new Date().toISOString().slice(0, 8) + '01',
-      p_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+      p_desde: mes.desde,
+      p_hasta: mes.hasta,
     }).single()
     // Venta de cuotas computa neta completa
     expect(res.ventas_netas).toBe(PRECIO)
 
     const { data: flujo } = await f.authenticated.rpc('rf_finanzas_flujo', {
-      p_desde: new Date().toISOString().slice(0, 8) + '01',
-      p_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+      p_desde: mes.desde,
+      p_hasta: mes.hasta,
     }).single()
     // Pero en cobrado es 0 (no hemos cobrado ninguna cuota)
     expect(flujo.cobrado).toBe(0)
@@ -320,7 +325,7 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     const f = await ventaFixture('incob', 1)
     await venderFinanciado(f, {
       cuotas: 1,
-      primerVencimiento: new Date().toISOString().slice(0, 10),
+      primerVencimiento: getHoyBuenosAires(),
     })
     const { data: cuotas } = await f.serviceRole.from('cuota_financiada')
       .select('id_cuota_financiada')
@@ -473,7 +478,7 @@ describe('rf_finanzas_posicion y rf_finanzas_serie_mensual', () => {
   test('rf_finanzas_serie_mensual: un solo escaneo agrupado', async () => {
     const f = await ventaFixture('Serie', 1)
     const { data: explain, error } = await f.authenticated.rpc('rf_finanzas_serie_mensual', {
-      p_hasta: new Date().toISOString().slice(0, 10),
+      p_hasta: getHoyBuenosAires(),
       p_meses: 12
     })
     expect(error).toBeNull()

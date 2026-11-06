@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { hasTestDb } from './_helpers'
 import { ventaFixture, venderContado, PRECIO, COSTO } from './_fixtures-ventas'
+import { getHoyBuenosAires } from '../fechas'
 
 describe.skipIf(!hasTestDb)('Slice 8 — Cambios de Producto en Local (REQ-RV-DB-07, DR-5, DR-7)', () => {
   test('1. cambio con diferencia 0 en local: stock original vuelve a disponible, nuevo a vendido, línea original excluida_liquidacion = true, comisión invariante', async () => {
@@ -150,7 +151,7 @@ describe.skipIf(!hasTestDb)('Slice 8 — Cambios de Producto en Local (REQ-RV-DB
     expect(pagoDif!.id_cuenta_destino).toBe(f.idCuenta)
 
     // Verificar flujo financiero: la diferencia entra a cobrado
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = getHoyBuenosAires()
     const { data: flujo } = await f.authenticated.rpc('rf_finanzas_flujo', {
       p_desde: hoy,
       p_hasta: hoy,

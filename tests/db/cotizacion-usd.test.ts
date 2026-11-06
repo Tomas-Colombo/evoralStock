@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { createTenantWithUser, createUserWithoutTenant, hasTestDb, runPsql, signInAs, withScopedTenant } from './_helpers'
-
-function getHoyBuenosAires(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
-}
+import { getHoyBuenosAires } from '../fechas'
 
 describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y SPs)', () => {
   const serviceRole = createServiceRoleTestClient()

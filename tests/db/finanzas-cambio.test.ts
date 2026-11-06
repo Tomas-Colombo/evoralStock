@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import { hasTestDb } from './_helpers'
 import { ventaFixture, venderContado, PRECIO, COSTO } from './_fixtures-ventas'
+import { getHoyBuenosAires } from '../fechas'
 
 async function habilitarModuloRevendedoras(tenantId: string) {
   const sr = createServiceRoleTestClient()
@@ -73,7 +74,7 @@ describe.skipIf(!hasTestDb)('Slice 10 / Parte A — Finanzas del Cambio (00110)'
     })
     expect(errCambio).toBeNull()
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = getHoyBuenosAires()
 
     // 3. Verificar rf_finanzas_resultados
     const { data: res } = await f.authenticated.rpc('rf_finanzas_resultados', {
@@ -168,7 +169,7 @@ describe.skipIf(!hasTestDb)('Slice 10 / Parte A — Finanzas del Cambio (00110)'
     expect(Number(resAnul.total_reintegrado)).toBe(PRECIO + 2000)
 
     // En resultados financieros: anulaciones debe reflejar 62.000 (60.000 total venta + 2.000 diferencia cambio)
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = getHoyBuenosAires()
     const { data: resFin } = await f.authenticated.rpc('rf_finanzas_resultados', {
       p_desde: hoy,
       p_hasta: hoy,
@@ -270,7 +271,7 @@ describe.skipIf(!hasTestDb)('Slice 10 / Parte A — Finanzas del Cambio (00110)'
     })
     expect(errCambio).toBeNull()
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = getHoyBuenosAires()
 
     // 1. En flujo financiero: cobrado debe ser 0 (cuenta_revendedora excluida de fondos de caja)
     const { data: flujo } = await f.authenticated.rpc('rf_finanzas_flujo', {
