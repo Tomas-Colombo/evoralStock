@@ -46,6 +46,9 @@ type Fila = {
   nombre: string
   cantidad: string
   costoUnitario: string
+  // El costo vino precargado del producto (siempre en ARS): en un comprobante
+  // USD se mandaba como dólares y se convertía otra vez, dando costos millonarios.
+  costoPrecargado?: boolean
   esNuevo: boolean
   idProducto: string // producto vinculado cuando esNuevo=false
   idCategoria: string // categoría del producto nuevo (por línea)
@@ -135,6 +138,7 @@ export function NuevoIngresoView({
             : prod.costo_vigente != null
               ? String(prod.costo_vigente)
               : '',
+        costoPrecargado: true,
         esNuevo: false,
         idProducto: prod.id_producto,
         idCategoria: '',
@@ -241,6 +245,18 @@ export function NuevoIngresoView({
     setFilas((fs) => fs.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
   }
 
+  // Pasar a USD vacía los costos precargados en ARS; los tipeados se respetan.
+  function cambiarMoneda(m: 'ARS' | 'USD') {
+    setMoneda(m)
+    if (m === 'USD') {
+      setFilas((fs) =>
+        fs.map((f) =>
+          f.costoPrecargado ? { ...f, costoUnitario: '', costoPrecargado: false } : f,
+        ),
+      )
+    }
+  }
+
   // Al editar el nombre: si pasa a coincidir con un producto existente,
   // destildamos "es nuevo" y lo vinculamos automáticamente. Si es nuevo,
   // resugerimos la categoría según el nombre (anillo → anillos, etc.); sin
@@ -263,9 +279,12 @@ export function NuevoIngresoView({
 
   // En modo «Vincular» el producto elegido manda: el nombre lo aporta el
   // producto (no hay input de texto) y el costo arranca en el costo vigente
-  // —el de la última compra— como valor por defecto editable.
+  // —el de la última compra— como valor por defecto editable. Solo en ARS:
+  // costo_vigente está en pesos y en USD el usuario carga el costo en dólares.
   function vincularProducto(i: number, idProducto: string) {
     const prod = productos.find((p) => p.id_producto === idProducto)
+    const costoArs =
+      moneda === 'ARS' && prod?.costo_vigente != null ? String(prod.costo_vigente) : null
     setFilas((fs) =>
       fs.map((f, idx) =>
         idx === i
@@ -274,8 +293,8 @@ export function NuevoIngresoView({
               esNuevo: false,
               idProducto,
               nombre: prod?.nombre ?? '',
-              costoUnitario:
-                prod?.costo_vigente != null ? String(prod.costo_vigente) : f.costoUnitario,
+              costoUnitario: costoArs ?? f.costoUnitario,
+              costoPrecargado: costoArs != null || f.costoPrecargado,
               talles: [],
               tallesAbierto: false,
             }
@@ -465,7 +484,7 @@ export function NuevoIngresoView({
             <Select
               id="i-moneda"
               value={moneda}
-              onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
+              onChange={(e) => cambiarMoneda(e.target.value as 'ARS' | 'USD')}
               disabled={pending}
             >
               <option value="ARS">ARS (Pesos)</option>
@@ -629,7 +648,9 @@ export function NuevoIngresoView({
                       <NumberInput
                         thousands
                         value={f.costoUnitario}
-                        onChange={(e) => actualizar(i, { costoUnitario: e.target.value })}
+                        onChange={(e) =>
+                          actualizar(i, { costoUnitario: e.target.value, costoPrecargado: false })
+                        }
                         aria-label="Precio unitario"
                         className="w-24 text-right"
                       />
