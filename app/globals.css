@@ -417,6 +417,13 @@
     --muted-2: var(--band-muted);
     --dim: var(--band-muted);
     --line-2: rgb(255 255 255 / 0.28);
+    /* --border-2 and --card-* resolve on :root, so remapping --line-2/--panel-2
+       here does not reach them: a Badge in the band kept the light card behind
+       band-ink text and «Confirmado» was unreadable. */
+    --border-2: var(--line-2);
+    --card-2: rgb(255 255 255 / 0.08);
+    --card-3: rgb(255 255 255 / 0.06);
+    --card-4: rgb(255 255 255 / 0.12);
     --hover: rgb(255 255 255 / 0.08);
     --control: rgb(255 255 255 / 0.06);
     --control-line: rgb(255 255 255 / 0.24);
