@@ -396,21 +396,25 @@ export function NuevaVentaView({
     if (lineas.length === 0) return
     let cancelled = false
     ;(async () => {
-      const porQr = new Map<string, LineaCarrito>()
-      for (const l of lineas) {
-        try {
+      const resultados = await Promise.allSettled(
+        lineas.map(async l => {
           const qs = new URLSearchParams({ qr: l.qr_code, forma_pago: formaPago })
           aplicarFinanciador(qs)
           if (idReserva) qs.set('id_reserva', idReserva)
           if (descuentosKey) qs.set('descuentos', descuentosKey)
           const r = await fetch(`/api/ventas/lookup-item?${qs.toString()}`)
           const data = await r.json()
-          if (data.ok) porQr.set(l.qr_code, data.linea as LineaCarrito)
-        } catch {
-          /* si falla el lookup, se preserva la línea existente */
+          return { qr: l.qr_code, linea: data.ok ? (data.linea as LineaCarrito) : null }
+        }),
+      )
+      if (cancelled) return
+      const porQr = new Map<string, LineaCarrito>()
+      for (const res of resultados) {
+        if (res.status === 'fulfilled' && res.value?.linea) {
+          porQr.set(res.value.qr, res.value.linea)
         }
       }
-      if (!cancelled) setLineas(ls => ls.map(l => porQr.get(l.qr_code) ?? l))
+      setLineas(ls => ls.map(l => porQr.get(l.qr_code) ?? l))
     })()
     return () => {
       cancelled = true
