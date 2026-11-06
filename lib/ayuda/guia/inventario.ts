@@ -244,6 +244,14 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Artículos imprimibles',
         texto: 'Solo se generan etiquetas para unidades en estado disponible o reservado.',
       },
+      {
+        tema: 'Medida de página',
+        texto: 'Si en Administración se configuró la impresora de etiquetas, el PDF sale con ese ancho y alto, con las etiquetas una al lado de la otra.',
+      },
+      {
+        tema: 'Contenido de la etiqueta',
+        texto: 'Cada etiqueta lleva el QR, el nombre del producto (hasta 10 caracteres) y el talle. Con un QR de menos de 2 cm solo se imprime el talle.',
+      },
     ],
   },
   {

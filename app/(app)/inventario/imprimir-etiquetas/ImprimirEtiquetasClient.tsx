@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { generarQrDataUrl } from '@/components/inventario/QrDisplay'
-import { QR_LADO_MM_DEFAULT } from '@/lib/inventario/limites'
+import {
+  IMPRESORA_MARGEN_MM,
+  IMPRESORA_SEPARACION_MM,
+  QR_LADO_MM_DEFAULT,
+} from '@/lib/inventario/limites'
 import type { ItemParaEtiqueta } from '@/lib/dal/inventario/item'
 
 export interface PaginacionTandaClient {
@@ -30,22 +34,30 @@ export interface PaginacionTandaClient {
  * hermanos. Oculta todo, vuelve a mostrar la hoja, y la saca del offset que le
  * impone el sidebar.
  */
-const CSS_IMPRESION = `
+const cssImpresion = (page: string) => `
 @media print {
   body * { visibility: hidden; }
   [data-hoja-etiquetas], [data-hoja-etiquetas] * { visibility: visible; }
   [data-hoja-etiquetas] { position: absolute; left: 0; top: 0; width: 100%; }
-  @page { margin: 1cm; }
+  @page { ${page} }
 }
 `
+
+// Sin medida de impresora la dimensión que falte es la de una hoja A4.
+const A4_ANCHO_MM = 210
+const A4_ALTO_MM = 297
+const PADDING_ETIQUETA_MM = 1
 
 export function ImprimirEtiquetasClient({
   items,
   noEncontrados,
   recortadoEn,
   ladoMm = QR_LADO_MM_DEFAULT,
+  impresora = null,
   paginacion = null,
 }: {
+  /** Medida de página de la impresora (mm); null en ambas = hoja A4 con margen de 1 cm. */
+  impresora?: { anchoMm: number | null; altoMm: number | null } | null
   items: ItemParaEtiqueta[]
   /** QR pedidos que no resolvieron a ningún ítem. */
   noEncontrados: string[]
@@ -59,7 +71,22 @@ export function ImprimirEtiquetasClient({
   // Generamos el PNG con al menos ~4 px por milímetro (~100 DPI mínimo, o 140 px
   // de piso) para que la imagen conserve bordes nítidos al escalarse a `ladoMm` mm.
   const ladoPx = Math.max(140, Math.round(ladoMm * 4))
-  const anchoTextoMm = Math.max(ladoMm, 25)
+  // Con medida de impresora la etiqueta mide exacto (QR + padding) y se arma
+  // una grilla con las columnas que entran en el ancho útil de la página.
+  const conImpresora = impresora?.anchoMm != null || impresora?.altoMm != null
+  const anchoPaginaMm = impresora?.anchoMm ?? A4_ANCHO_MM
+  const altoPaginaMm = impresora?.altoMm ?? A4_ALTO_MM
+  const anchoEtiquetaMm = ladoMm + 2 * PADDING_ETIQUETA_MM
+  const columnas = Math.max(
+    1,
+    Math.floor(
+      (anchoPaginaMm - 2 * IMPRESORA_MARGEN_MM + IMPRESORA_SEPARACION_MM) /
+        (anchoEtiquetaMm + IMPRESORA_SEPARACION_MM),
+    ),
+  )
+  const anchoTextoMm = conImpresora ? ladoMm : Math.max(ladoMm, 25)
+  const MAX_CARACTERES_NOMBRE = 10
+  const LADO_MIN_CON_NOMBRE_MM = 20
 
   // Los QR se generan todos acá, en un solo efecto, en vez de dejar que cada
   // etiqueta resuelva el suyo. El motivo no es la performance: es poder saber
@@ -185,7 +212,17 @@ export function ImprimirEtiquetasClient({
 
         <div
           data-hoja-etiquetas
-          className="flex flex-wrap items-start gap-4 print:gap-2 print:p-0"
+          className={
+            conImpresora ? 'grid items-start print:p-0' : 'flex flex-wrap items-start gap-4 print:gap-2 print:p-0'
+          }
+          style={
+            conImpresora
+              ? {
+                  gridTemplateColumns: `repeat(${columnas}, ${anchoEtiquetaMm}mm)`,
+                  gap: `${IMPRESORA_SEPARACION_MM}mm`,
+                }
+              : undefined
+          }
         >
           {items
             // Una etiqueta sin QR no sirve para nada: no se imprime en blanco,
@@ -194,7 +231,10 @@ export function ImprimirEtiquetasClient({
             .map((item) => (
               <div
                 key={item.qr_code}
-                className="flex break-inside-avoid flex-col items-center border border-gray-300 p-2 text-center"
+                className={`flex break-inside-avoid flex-col items-center text-center ${
+                  conImpresora ? '' : 'border border-gray-300 p-2'
+                }`}
+                style={conImpresora ? { padding: `${PADDING_ETIQUETA_MM}mm` } : undefined}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -205,31 +245,34 @@ export function ImprimirEtiquetasClient({
                   style={{ width: `${ladoMm}mm`, height: `${ladoMm}mm` }}
                   className="block"
                 />
-                <div
-                  style={{ maxWidth: `${anchoTextoMm}mm` }}
-                  className="mt-2 line-clamp-2 text-xs font-semibold leading-tight"
-                >
-                  {item.nombre}
-                </div>
-                {item.descripcion?.trim() && (
+                {/* Etiqueta mínima: el QR ya identifica la unidad, así que el
+                    código, el SKU y la descripción solo ocupaban lugar. Por
+                    debajo de 2 cm no entra ni el nombre: queda el talle. */}
+                {ladoMm >= LADO_MIN_CON_NOMBRE_MM && (
                   <div
                     style={{ maxWidth: `${anchoTextoMm}mm` }}
-                    className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-gray-600"
+                    className="mt-2 truncate text-xs font-semibold leading-tight"
                   >
-                    {item.descripcion.trim()}
+                    {item.nombre.trim().slice(0, MAX_CARACTERES_NOMBRE)}
                   </div>
                 )}
-                {item.sku && <div className="font-mono text-[10px] text-gray-500">{item.sku}</div>}
                 {item.talle && (
-                  <div className="mt-1 font-mono text-[10px] font-bold">Talle: {item.talle}</div>
+                  <div className="mt-1 font-mono text-[10px] font-bold">{item.talle}</div>
                 )}
-                <div className="mt-1 font-mono text-[10px] text-black">{item.qr_code}</div>
               </div>
             ))}
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: CSS_IMPRESION }} />
+      <style
+        dangerouslySetInnerHTML={{
+          __html: cssImpresion(
+            conImpresora
+              ? `size: ${anchoPaginaMm}mm ${altoPaginaMm}mm; margin: ${IMPRESORA_MARGEN_MM}mm;`
+              : 'margin: 1cm;',
+          ),
+        }}
+      />
     </main>
   )
 }

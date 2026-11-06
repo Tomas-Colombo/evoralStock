@@ -31,7 +31,7 @@ const SLUGS_DE_LA_APP = [
   'modulo-desconocido', 'accion-invalida', 'acciones-duplicadas', 'id-rol-invalido',
   'id-venta-invalido', 'id-detalle-invalido', 'nombre-largo', 'motivo-largo', 'motivo-invalido',
   'item-invalido', 'descuento-invalido', 'cuenta-invalida', 'forma-pago-invalida',
-  'cliente-invalido', 'reserva-invalida', 'observaciones-largas', 'qr-lado-mm-invalido',
+  'cliente-invalido', 'reserva-invalida', 'observaciones-largas', 'qr-lado-mm-invalido', 'impresora-medida-invalida',
   'logo-invalido', 'logo-muy-grande', 'proveedor-invalido', 'tipo-ingreso-invalido', 'tipo-proveedor-invalido',
   // Stored procedures
   'cantidad-invalida', 'categoria-not-found', 'categoria-sin-talles',

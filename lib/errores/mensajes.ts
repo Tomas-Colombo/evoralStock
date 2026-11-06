@@ -76,6 +76,7 @@ const MENSAJES: Record<string, string> = {
   'usuario-sin-rol': 'Tu usuario todavía no tiene un rol asignado. Pedile a un administrador que configure tu acceso.',
   'zona-horaria-invalida': 'La zona horaria elegida no es válida.',
   'qr-lado-mm-invalido': 'El tamaño del QR debe estar entre 15 y 100 mm.',
+  'impresora-medida-invalida': 'El ancho y el alto de la impresora deben estar entre 2 y 30 cm.',
   'logo-invalido': 'Elegí una imagen para el logo.',
   'logo-muy-grande': 'La imagen del logo es demasiado pesada. Probá con una más simple o de menor resolución.',
   'logo-formato-invalido': 'El logo tiene que ser una imagen PNG, JPG, WebP o SVG.',

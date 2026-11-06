@@ -1,5 +1,8 @@
 import { Topbar } from '@/components/shell/Topbar'
-import { getConfiguracionQrLadoMm } from '@/lib/dal/administracion/administracion'
+import {
+  getConfiguracionImpresora,
+  getConfiguracionQrLadoMm,
+} from '@/lib/dal/administracion/administracion'
 import { verifySession } from '@/lib/dal/session'
 import {
   ETIQUETAS_MAX,
@@ -70,9 +73,10 @@ export default async function ImprimirEtiquetasPage(props: {
   }
 
   if (origen.tipo === 'qrs') {
-    const [items, ladoMm] = await Promise.all([
+    const [items, ladoMm, impresora] = await Promise.all([
       listItemsParaEtiquetas(origen.aBuscar),
       getConfiguracionQrLadoMm(),
+    getConfiguracionImpresora(),
     ])
 
     const encontrados = new Set(items.map((i) => i.qr_code))
@@ -86,15 +90,17 @@ export default async function ImprimirEtiquetasPage(props: {
           noEncontrados={noEncontrados}
           recortadoEn={origen.recortado ? ETIQUETAS_MAX : null}
           ladoMm={ladoMm}
+        impresora={impresora}
         />
       </>
     )
   }
 
   // Origen por ingreso o producto con paginación de tanda
-  const [{ items, total }, ladoMm] = await Promise.all([
+  const [{ items, total }, ladoMm, impresora] = await Promise.all([
     listItemsParaEtiquetasPorOrigen(origen),
     getConfiguracionQrLadoMm(),
+    getConfiguracionImpresora(),
   ])
 
   const paginacion = calcularPaginacionTanda(total, origen.tanda)
@@ -134,6 +140,7 @@ export default async function ImprimirEtiquetasPage(props: {
         noEncontrados={[]}
         recortadoEn={null}
         ladoMm={ladoMm}
+        impresora={impresora}
         paginacion={{
           tandaActual: paginacion.tandaActual,
           totalTandas: paginacion.totalTandas,

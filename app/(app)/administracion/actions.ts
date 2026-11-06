@@ -11,6 +11,7 @@ import {
   spAsignarRol,
   spCreateRol,
   spDeleteRol,
+  spSetConfiguracionImpresora,
   spSetConfiguracionQrLadoMm,
   quitarLogoTenant,
   spToggleUsuarioActivo,
@@ -22,6 +23,7 @@ import {
   createRolSchema,
   deleteRolSchema,
   primerReason,
+  updateConfiguracionImpresoraSchema,
   updateConfiguracionQrSchema,
   updateRolSchema,
   updateTenantLogoSchema,
@@ -206,6 +208,23 @@ export async function updateConfiguracionQrAction(
     revalidatePath('/administracion')
     revalidatePath('/inventario/imprimir-etiquetas')
     return { ok: true, data: { ladoMm } }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function updateConfiguracionImpresoraAction(raw: unknown): Promise<ActionResult> {
+  const g = await guarded('editar')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  const parsed = updateConfiguracionImpresoraSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
+
+  try {
+    await spSetConfiguracionImpresora(parsed.data)
+    revalidatePath('/administracion')
+    revalidatePath('/inventario/imprimir-etiquetas')
+    return { ok: true }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }

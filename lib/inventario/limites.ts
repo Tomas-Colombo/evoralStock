@@ -26,6 +26,14 @@ export const QR_LADO_MM_MAX = 100
 /** Lado por defecto (en mm) del código QR impreso en etiquetas (~132 px a 96 DPI). */
 export const QR_LADO_MM_DEFAULT = 35
 
+/** Rango (en mm) aceptado para el ancho y el alto de página de la impresora de etiquetas. */
+export const IMPRESORA_MM_MIN = 20
+export const IMPRESORA_MM_MAX = 300
+
+/** Margen de página y separación entre etiquetas (en mm) al imprimir con medida de impresora. */
+export const IMPRESORA_MARGEN_MM = 2
+export const IMPRESORA_SEPARACION_MM = 2
+
 /**
  * Estados de `item_producto` que admiten impresión o reimpresión de etiqueta QR.
  * Los ítems vendidos, dados de baja, devueltos o en poder de revendedora nunca

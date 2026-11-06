@@ -104,9 +104,31 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     permisos: ['administracion.ver', 'administracion.editar'],
     pasos: [
       'En Administración, localizá la sección "Etiquetas QR de inventario".',
-      'Ingresá la medida en milímetros para el lado del código QR (entre 15 y 45 mm).',
+      'Ingresá la medida en milímetros para el lado del código QR (entre 15 y 100 mm).',
       'Hacé clic en "Guardar tamaño" para asentar la nueva medida.',
       'La dimensión configurada se aplicará automáticamente al imprimir etiquetas de inventario.',
+    ],
+  },
+  {
+    id: 'administracion-impresora-configurar',
+    titulo: 'Cómo configurar la medida de la impresora de etiquetas',
+    ruta: '/administracion',
+    permisos: ['administracion.ver', 'administracion.editar'],
+    pasos: [
+      'En Administración, localizá la sección "Impresora de etiquetas".',
+      'Ingresá el ancho de la cinta o papel de tu impresora en centímetros (entre 2 y 30 cm); debajo ves la equivalencia en milímetros.',
+      'Si tu impresora usa etiquetas de alto fijo, ingresá también el alto; si no, dejalo vacío.',
+      'Hacé clic en "Guardar medida". Al imprimir, el PDF sale con esa medida de página.',
+    ],
+    detalles: [
+      {
+        tema: 'Etiquetas por fila',
+        texto: 'Entran tantas etiquetas una al lado de la otra como permita el ancho, dejando 2 mm de margen y 2 mm entre etiquetas. Por ejemplo, con QR de 1,5 cm y ancho de 4 cm salen 2 por fila.',
+      },
+      {
+        tema: 'Campos vacíos',
+        texto: 'La medida que quede vacía toma la de una hoja A4 (21 × 29,7 cm). Con los dos vacíos se imprime en A4 como siempre.',
+      },
     ],
   },
   {

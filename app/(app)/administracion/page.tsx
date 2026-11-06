@@ -4,6 +4,7 @@ import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { capacidades, modulosDePermisoVisibles } from '@/lib/modulos/capacidades'
 import {
+  getConfiguracionImpresora,
   getConfiguracionQrLadoMm,
   listAuditoria,
   listRoles,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/dal/administracion/administracion'
 import { CambiarPasswordCard } from './CambiarPasswordCard'
 import { ConfiguracionLogoCard } from './ConfiguracionLogoCard'
+import { ConfiguracionImpresoraCard } from './ConfiguracionImpresoraCard'
 import { ConfiguracionQrCard } from './ConfiguracionQrCard'
 import { RolesModal } from './RolesModal'
 import { Card } from '@/components/ui/Card'
@@ -32,11 +34,12 @@ export default async function AdministracionHome() {
   const session = await verifySession()
   const cap = capacidades(session.modulosHabilitados)
   const modulosVisibles = modulosDePermisoVisibles(cap)
-  const [usuarios, roles, ultimasAcciones, ladoMm] = await Promise.all([
+  const [usuarios, roles, ultimasAcciones, ladoMm, impresora] = await Promise.all([
     listUsuarios(),
     listRoles(),
     listAuditoria({ limit: 15 }),
     getConfiguracionQrLadoMm(),
+    getConfiguracionImpresora(),
   ])
   const canEdit = hasModuleAccess(session, 'administracion', 'editar')
 
@@ -63,6 +66,7 @@ export default async function AdministracionHome() {
 
         <ConfiguracionLogoCard logoActual={session.marca.logoUrl} canEdit={canEdit} />
         <ConfiguracionQrCard ladoMmInicial={ladoMm} canEdit={canEdit} />
+        <ConfiguracionImpresoraCard inicial={impresora} canEdit={canEdit} />
         <CambiarPasswordCard />
 
         <Card as="section" padding="none" className="overflow-x-auto">
