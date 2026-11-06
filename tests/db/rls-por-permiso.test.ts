@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
+import type { FinanzasFlujoRow } from '@/lib/types/reportes'
 import {
   anonClient,
   createTenantWithUser,
@@ -547,11 +548,10 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-02 - gasto_negocio', () => {
         p_desde: '2020-01-01',
         p_hasta: '2030-12-31',
       })
-      .single()
+      .single<FinanzasFlujoRow>()
 
     expect(errFlujo).toBeNull()
-    expect(Number(flujo.gastos)).toBe(25000)
-    expect(Number(flujo.gastos)).toBeGreaterThan(0)
+    expect(Number(flujo?.gastos)).toBe(25000)
   })
 
   it('N1..N5: sin permiso SELECT da 0 filas; INSERT da 42501; UPDATE bloqueado (false); DELETE 0 filas; otro tenant y revendedora 0 filas', async () => {
