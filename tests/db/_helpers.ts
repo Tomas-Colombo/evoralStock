@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { createAnonTestClient, createServiceRoleTestClient } from '@/lib/dal/supabase-test'
+import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 
 /**
  * True only when all three `_TEST` Supabase env vars are present. Every
@@ -75,6 +76,16 @@ export interface TenantFixture {
  * with NO claim — and every RLS policy then silently matches zero rows, which
  * reads exactly like "isolation works" while proving nothing.
  */
+// Permisos completos del catálogo (menos ver_propio/declarar de revendedoras) para que RLS restrictivas por permiso no bloqueen al admin del fixture (igual que provision-tenant).
+const PERMISOS_ADMIN_FIXTURE: Record<string, string[]> = Object.fromEntries(
+  Object.entries(CATALOGO_PERMISOS).map(([modulo, acciones]) => [
+    modulo,
+    modulo === 'revendedoras'
+      ? acciones.filter((a) => a !== 'ver_propio' && a !== 'declarar')
+      : [...acciones],
+  ]),
+)
+
 export async function createTenantWithUser(prefix: string): Promise<TenantFixture> {
   const serviceRole = createServiceRoleTestClient()
 
@@ -91,7 +102,7 @@ export async function createTenantWithUser(prefix: string): Promise<TenantFixtur
     'rol insert',
     await serviceRole
       .from('rol')
-      .insert({ id_tenant: tenant.id_tenant, nombre: 'Administrador', permisos: {} })
+      .insert({ id_tenant: tenant.id_tenant, nombre: 'Administrador', permisos: PERMISOS_ADMIN_FIXTURE })
       .select('id_rol')
       .single(),
   )
