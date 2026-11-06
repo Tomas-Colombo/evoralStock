@@ -227,7 +227,7 @@ Las siguientes decisiones fueron resueltas y aprobadas por la persona:
 
 ### DR-RLSP-03 — Opción C1 + Sem-1: Firma `(p_modulo, p_accion)` sin bypass por `rol.nombre`
 - **Decisión**:
-  - Firma: `auth_tiene_permiso(p_modulo text, p_accion text) returns boolean` (`stable`, `parallel safe`).
+  - Firma: `auth_tiene_permiso(p_modulo text, p_accion text) returns boolean` (`stable`).
   - Semántica: Evalúa que el usuario no esté inactivo (`usuario.estado_usuario <> 'inactivo'`), coincidencia de tenant (`usuario.id_tenant = auth_tenant_id()`) y pertenencia en `rol.permisos -> p_modulo ? p_accion`.
   - Sin bypass por nombre de rol: No existe cláusula especial `OR rol.nombre = 'Administrador'`. El Administrador pasa en todas las verificaciones porque posee el conjunto íntegro de permisos del catálogo en `rol.permisos` (garantizado por `provision-tenant.mts` y backfills de migraciones `00108`, `00127`, `00128`, `00131`).
 - **Motivo**: `lib/dal/guard.ts:40` opera exclusivamente contra `permisos`; el nombre del rol no está protegido contra renombrado o modificaciones, por lo que acoplar la seguridad en base de datos a un string de nombre vulneraría la consistencia del modelo.

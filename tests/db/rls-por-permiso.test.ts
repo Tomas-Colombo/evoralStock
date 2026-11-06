@@ -10,13 +10,16 @@ import {
   signInAs,
 } from './_helpers'
 
+const ultima = (s: string) => s.split(/\r?\n/).at(-1)?.trim()
+
 describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
   it('REQ-RLSP-01 Feliz: rol con el permiso retorna true', async () => {
     const fixture = await createTenantWithUser('rlsp_feliz')
-    await fixture.serviceRole
+    const { error: errRol } = await fixture.serviceRole
       .from('rol')
       .update({ permisos: { gastos: ['ver'] } })
       .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
 
     const client = await signInAs(fixture)
     const { data, error } = await client.rpc('auth_tiene_permiso', {
@@ -35,15 +38,17 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
     const permisosAdmin = Object.fromEntries(
       Object.entries(CATALOGO_PERMISOS).map(([mod, accs]) => [mod, [...accs]]),
     )
-    await fixture.serviceRole
+    const { error: errRol } = await fixture.serviceRole
       .from('rol')
       .update({ permisos: permisosAdmin })
       .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
 
-    await fixture.serviceRole
+    const { error: errUsr } = await fixture.serviceRole
       .from('usuario')
       .update({ estado_usuario: 'invitado' })
       .eq('id_usuario', fixture.userId)
+    expect(errUsr).toBeNull()
 
     const client = await signInAs(fixture)
 
@@ -60,10 +65,11 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
 
   it('REQ-RLSP-01 N1: sin el permiso retorna false; revocado con service client sobre rol.permisos retorna false con el mismo token', async () => {
     const fixture = await createTenantWithUser('rlsp_n1')
-    await fixture.serviceRole
+    const { error: errRol } = await fixture.serviceRole
       .from('rol')
       .update({ permisos: { gastos: ['ver'] } })
       .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
 
     const client = await signInAs(fixture)
 
@@ -108,10 +114,11 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
 
   it('REQ-RLSP-01 N2: JWT con sub de A y tenant_id de B (runPsql con set local role authenticated + request.jwt.claims) retorna false', async () => {
     const tA = await createTenantWithUser('rlsp_n2_a')
-    await tA.serviceRole
+    const { error: errRolA } = await tA.serviceRole
       .from('rol')
       .update({ permisos: { gastos: ['ver'] } })
       .eq('id_rol', tA.rolId)
+    expect(errRolA).toBeNull()
 
     const tB = await createTenantWithUser('rlsp_n2_b')
 
@@ -122,7 +129,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       "SELECT auth_tiene_permiso('gastos', 'ver')",
     ].join('; '))
 
-    expect(outCrossTenant).toContain('f')
+    expect(ultima(outCrossTenant)).toBe('f')
 
     // Verificación de sanidad: con sub de A y tenant_id de A debe retornar true
     const outSameTenant = runPsql([
@@ -131,7 +138,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       "SELECT auth_tiene_permiso('gastos', 'ver')",
     ].join('; '))
 
-    expect(outSameTenant).toContain('t')
+    expect(ultima(outSameTenant)).toBe('t')
   })
 
   it('REQ-RLSP-01 N3: anon / sin tenant_id retorna false', async () => {
@@ -161,23 +168,26 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       "SELECT auth_tiene_permiso('gastos', 'ver')",
     ].join('; '))
 
-    expect(outSinTenantPsql).toContain('f')
+    expect(ultima(outSinTenantPsql)).toBe('f')
   })
 
   it('REQ-RLSP-01 N4: revendedora retorna false (oculta por RLS restrictiva 00078)', async () => {
     const fixture = await createTenantWithUser('rlsp_n4')
 
     // Habilitar módulo revendedoras
-    const { data: modRev } = await fixture.serviceRole
+    const { data: modRev, error: errModRev } = await fixture.serviceRole
       .from('modulo')
       .select('id_modulo')
       .eq('codigo', 'revendedoras')
       .single()
-    await fixture.serviceRole
+    expect(errModRev).toBeNull()
+
+    const { error: errTM } = await fixture.serviceRole
       .from('tenant_modulo')
       .insert({ id_tenant: fixture.tenantId, id_modulo: modRev!.id_modulo, habilitado: true })
+    expect(errTM).toBeNull()
 
-    const { data: rolRev } = await fixture.serviceRole
+    const { data: rolRev, error: errRolRev } = await fixture.serviceRole
       .from('rol')
       .insert({
         id_tenant: fixture.tenantId,
@@ -186,14 +196,16 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       })
       .select('id_rol')
       .single()
+    expect(errRolRev).toBeNull()
     if (!rolRev) throw new Error('fixture rol creation returned no rol')
 
     const adminClient = await signInAs(fixture)
-    const { data: idRev } = await adminClient.rpc('sp_crear_revendedora', {
+    const { data: idRev, error: errIdRev } = await adminClient.rpc('sp_crear_revendedora', {
       p_nombre: 'Reven',
       p_apellido: 'Dedora',
       p_email: 'rev_rlsp_n4@test.com',
     })
+    expect(errIdRev).toBeNull()
 
     const emailRev = `rev_rlsp_${randomUUID()}@example.com`
     const passwordRev = 'Fixture-Password-1!'
@@ -204,7 +216,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
     })
     if (!authUser?.user) throw new Error('fixture auth user creation returned no user')
 
-    await fixture.serviceRole.rpc('sp_enlazar_revendedora_usuario', {
+    const { error: errEnlazar } = await fixture.serviceRole.rpc('sp_enlazar_revendedora_usuario', {
       p_id_revendedora: idRev,
       p_id_usuario: authUser.user.id,
       p_id_tenant: fixture.tenantId,
@@ -212,6 +224,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       p_nombre: 'Reven Dedora',
       p_id_rol: rolRev.id_rol,
     })
+    expect(errEnlazar).toBeNull()
 
     const revClient = await signInAs({ email: emailRev, password: passwordRev })
 
@@ -237,15 +250,16 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       `SELECT set_config('request.jwt.claims', json_build_object('sub', '${authUser.user.id}', 'tenant_id', '${fixture.tenantId}', 'id_revendedora', '${idRev}')::text, false)`,
       "SELECT auth_tiene_permiso('gastos', 'ver')",
     ].join('; '))
-    expect(outRevPsql).toContain('f')
+    expect(ultima(outRevPsql)).toBe('f')
   })
 
   it('REQ-RLSP-01 N5: modulo o accion inexistente o null retorna false', async () => {
     const fixture = await createTenantWithUser('rlsp_n5')
-    await fixture.serviceRole
+    const { error: errRol } = await fixture.serviceRole
       .from('rol')
       .update({ permisos: { gastos: ['ver'] } })
       .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
 
     const client = await signInAs(fixture)
 
@@ -287,10 +301,11 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
 
   it("REQ-RLSP-01 N6: estado_usuario inactivo retorna false; 'invitado' y 'activo' retornan true", async () => {
     const fixture = await createTenantWithUser('rlsp_n6')
-    await fixture.serviceRole
+    const { error: errRol } = await fixture.serviceRole
       .from('rol')
       .update({ permisos: { gastos: ['ver'] } })
       .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
 
     const client = await signInAs(fixture)
 
@@ -302,10 +317,11 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
     expect(resInvitado).toBe(true)
 
     // Cambiar a 'inactivo' -> false
-    await fixture.serviceRole
+    const { error: errInactivo } = await fixture.serviceRole
       .from('usuario')
       .update({ estado_usuario: 'inactivo' })
       .eq('id_usuario', fixture.userId)
+    expect(errInactivo).toBeNull()
 
     const { data: resInactivo } = await client.rpc('auth_tiene_permiso', {
       p_modulo: 'gastos',
@@ -314,10 +330,11 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
     expect(resInactivo).toBe(false)
 
     // Cambiar a 'activo' -> true
-    await fixture.serviceRole
+    const { error: errActivo } = await fixture.serviceRole
       .from('usuario')
       .update({ estado_usuario: 'activo' })
       .eq('id_usuario', fixture.userId)
+    expect(errActivo).toBeNull()
 
     const { data: resActivo } = await client.rpc('auth_tiene_permiso', {
       p_modulo: 'gastos',
