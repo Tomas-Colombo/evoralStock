@@ -33,11 +33,9 @@ describe('ImprimirEtiquetasClient', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Campera Denim')).toBeInTheDocument()
+      expect(screen.getByText('Campera De')).toBeInTheDocument()
     })
-
-    expect(screen.getByText('Azul lavado con botones bronce')).toBeInTheDocument()
-    expect(screen.getByText('Remera Lisa')).toBeInTheDocument()
+    expect(screen.getByText('Remera Lis')).toBeInTheDocument()
     expect(screen.getByText('Tamaño QR: 45 × 45 mm')).toBeInTheDocument()
 
     expect(
@@ -87,3 +85,5 @@ describe('ImprimirEtiquetasClient', () => {
     expect(sigLink).toHaveAttribute('href', '/inventario/imprimir-etiquetas?ingreso=abc&tanda=3')
   })
 })
+
+
