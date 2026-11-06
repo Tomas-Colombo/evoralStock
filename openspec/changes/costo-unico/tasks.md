@@ -35,12 +35,12 @@ bloque `-- DOWN:`.
 
 ## 3. App
 
-- [ ] 3.1 Slug `costos-distintos-mismo-producto` en `lib/errores/mensajes.ts`
+- [x] 3.1 Slug `costos-distintos-mismo-producto` en `lib/errores/mensajes.ts`
       y en el inventario de `mensajes.test.ts`.
-- [ ] 3.2 `rg setCostoProducto`: si no hay llamadores, borrar la action y la
+- [x] 3.2 `rg setCostoProducto`: si no hay llamadores, borrar la action y la
       función del DAL.
-- [ ] 3.3 Corregir el comentario de `NuevoIngresoView.tsx` sobre el costo vigente.
-- [ ] 3.4 `lib/ayuda/guia/inventario.ts`: entrada sobre qué pasa con el costo y
+- [x] 3.3 Corregir el comentario de `NuevoIngresoView.tsx` sobre el costo vigente.
+- [x] 3.4 `lib/ayuda/guia/inventario.ts`: entrada sobre qué pasa con el costo y
       el precio al reestockear.
 
 ## 4. Cierre

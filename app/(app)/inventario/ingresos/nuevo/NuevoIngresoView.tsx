@@ -279,7 +279,7 @@ export function NuevoIngresoView({
 
   // En modo «Vincular» el producto elegido manda: el nombre lo aporta el
   // producto (no hay input de texto) y el costo arranca en el costo vigente
-  // —el de la última compra— como valor por defecto editable. Solo en ARS:
+  // (sincronizado con la última compra por change costo-unico) como valor por defecto editable. Solo en ARS:
   // costo_vigente está en pesos y en USD el usuario carga el costo en dólares.
   function vincularProducto(i: number, idProducto: string) {
     const prod = productos.find((p) => p.id_producto === idProducto)

@@ -110,6 +110,33 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Proveedor habitual fijado',
         texto: 'En el modo restock el proveedor queda bloqueado porque cada producto en el sistema está vinculado a un único proveedor.',
       },
+      {
+        tema: 'Actualización de costo y precio',
+        texto: 'Al confirmar el ingreso, el costo del producto y de todas las unidades propias en stock se actualiza al nuevo valor de compra, y el precio de venta se marca como desactualizado para su revisión.',
+      },
+    ],
+  },
+  {
+    id: 'inventario-costo-precio-restock',
+    titulo: 'Qué pasa con el costo y el precio al reestockear',
+    ruta: '/inventario',
+    permisos: ['inventario.ver'],
+    pasos: [
+      'Al confirmar un nuevo ingreso de mercadería, el costo vigente del producto pasa a ser el costo de esa última compra.',
+      'Todas las unidades propias en stock (disponibles, reservadas o en revendedora) se sincronizan automáticamente al nuevo costo de reposición.',
+      'Las unidades ya vendidas, dadas de baja o devueltas conservan su costo histórico para preservar la ganancia real registrada.',
+      'Si el nuevo costo difiere del anterior, el precio de venta del producto se marca como desactualizado para su revisión.',
+      'Ingresá a Precios > Control de precios para recalcular el precio de venta con la regla de margen correspondiente.',
+    ],
+    detalles: [
+      {
+        tema: 'Ingresos en consignación',
+        texto: 'En mercadería en consignación, el costo vigente del producto se actualiza para fijar el precio de venta, pero las unidades en stock no modifican su costo de ingreso porque representan la deuda acordada con el proveedor.',
+      },
+      {
+        tema: 'Control de precios',
+        texto: 'El sistema nunca cambia el precio de venta al público en forma automática; el operador lo resuelve explícitamente en Control de precios.',
+      },
     ],
   },
   {

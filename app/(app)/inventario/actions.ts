@@ -468,28 +468,6 @@ export async function asignarTallesProductoAction(input: {
   }
 }
 
-export async function setCostoProductoAction(input: {
-  idProducto: string
-  costo: number
-  moneda?: string
-  motivo?: string | null
-}): Promise<ActionResult> {
-  const g = await guarded('editar')
-  if ('error' in g) return { ok: false, reason: g.error }
-  try {
-    await spSetCostoProducto({
-      idProducto: input.idProducto,
-      costo: input.costo,
-      moneda: input.moneda ?? 'ARS',
-      motivo: input.motivo ?? null,
-    })
-    revalidatePath('/inventario')
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, reason: (e as Error).message }
-  }
-}
-
 // ─── Items ───────────────────────────────────────────────────────────
 
 export async function transicionItemAction(input: {

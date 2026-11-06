@@ -174,6 +174,8 @@ const MENSAJES: Record<string, string> = {
   'item-ya-marcado': 'Esa pieza ya está marcada.',
 
   // ─── Inventario: productos, categorías, talles ─────────────────────
+  'costos-distintos-mismo-producto':
+    'Un producto no puede tener costos distintos dentro del mismo ingreso.',
   'producto-not-found': 'Ese producto ya no existe. Recargá la página.',
   'falta-producto': 'Elegí un producto.',
   'falta-categoria': 'Elegí una categoría.',

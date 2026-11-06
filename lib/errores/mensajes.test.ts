@@ -35,6 +35,7 @@ const SLUGS_DE_LA_APP = [
   'logo-invalido', 'logo-muy-grande', 'proveedor-invalido', 'tipo-ingreso-invalido', 'tipo-proveedor-invalido',
   // Stored procedures
   'cantidad-invalida', 'categoria-not-found', 'categoria-sin-talles',
+  'costos-distintos-mismo-producto',
   'consignacion-no-activa', 'consignacion-not-found', 'cuenta-destino-invalida',
   'revendedora-requerida', 'revendedora-inactiva', 'item-no-entregable', 'item-ya-en-consignacion-revendedora',
   'consignacion-ya-confirmada', 'consignacion-no-confirmada', 'consignacion-confirmada', 'consignacion-con-items-en-poder',
