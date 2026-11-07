@@ -156,7 +156,7 @@ export async function getVentaConDetalle(id: string): Promise<VentaConDetalle | 
   return (data ?? null) as unknown as VentaConDetalle | null
 }
 
-function extraerSlugRpc(error: { message: string }): string {
+export function extraerSlugRpc(error: { message: string }): string {
   if (error.message.includes('modulo-revendedoras-deshabilitado')) {
     return 'modulo-revendedoras-deshabilitado'
   }

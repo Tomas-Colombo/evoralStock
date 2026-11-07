@@ -1405,3 +1405,174 @@ describe.skipIf(!hasTestDb)('Aislamiento transversal revendedora y otro tenant e
     expect(b4).toEqual([])
   })
 })
+
+describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas, Cuotas y Reservas', () => {
+  it('un rol con solo ventas.ver recibe no-permission en los 10 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m1_ver')
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { ventas: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_registrar_venta',
+        params: {
+          p_lineas: [{ id_item: randomUUID() }],
+        },
+      },
+      {
+        sp: 'sp_anular_venta',
+        params: {
+          p_id_venta: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_registrar_devolucion_cliente',
+        params: {
+          p_id_detalle_venta: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_registrar_cambio',
+        params: {
+          p_id_detalle_original: randomUUID(),
+          p_id_item_entregado: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_emitir_comprobante',
+        params: {
+          p_id_venta: randomUUID(),
+          p_tipo: 'factura_b',
+          p_numero: '0001-00000001',
+        },
+      },
+      {
+        sp: 'sp_cobrar_cuota',
+        params: {
+          p_id_cuota: randomUUID(),
+          p_monto: 100,
+          p_medio: 'efectivo',
+          p_id_cuenta_destino: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_marcar_cuota_incobrable',
+        params: {
+          p_id_cuota: randomUUID(),
+          p_motivo: 'motivo prueba',
+        },
+      },
+      {
+        sp: 'sp_crear_reserva',
+        params: {
+          p_id_cliente: null,
+          p_items: [randomUUID()],
+          p_fecha_vencimiento: new Date(Date.now() + 86400000).toISOString(),
+        },
+      },
+      {
+        sp: 'sp_cancelar_reserva',
+        params: {
+          p_id_reserva: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_vencer_reservas',
+        params: {},
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('un rol con ventas.crear registra una venta', async () => {
+    const f = await ventaFixture('rlsp_m1_crear', 1, { tipoIngreso: 'compra' })
+    const { error: errRol } = await f.serviceRole
+      .from('rol')
+      .update({ permisos: { ventas: ['crear', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', f.rolId)
+    expect(errRol).toBeNull()
+
+    const { data: idVenta, error } = await venderContado(f)
+    expect(error).toBeNull()
+    expect(idVenta).toBeDefined()
+  })
+
+  it('un rol con revendedoras.crear SIN ventas.crear sigue confirmando una declaración', async () => {
+    const fA = await ventaFixture('rlsp_m1_rev', 1, { tipoIngreso: 'compra' })
+
+    // Habilitar módulo revendedoras
+    const { data: mod } = await fA.serviceRole
+      .from('modulo')
+      .select('id_modulo')
+      .eq('codigo', 'revendedoras')
+      .single()
+    await fA.serviceRole
+      .from('tenant_modulo')
+      .insert({ id_tenant: fA.tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+
+    // Crear revendedora
+    const { data: idRev } = await fA.authenticated.rpc('sp_crear_revendedora', {
+      p_nombre: 'Rocío',
+      p_apellido: 'Rev',
+      p_email: 'rocio_rev@test.com',
+    })
+
+    // Entregar 1 ítem a la revendedora
+    const hoy = new Date().toISOString().slice(0, 10)
+    const { data: idCons, error: errCons } = await fA.authenticated.rpc('sp_crear_consignacion_revendedora_con_items', {
+      p_id_revendedora: idRev,
+      p_items: [fA.items[0]],
+      p_periodo_desde: hoy,
+    })
+    expect(errCons).toBeNull()
+    const { error: errConf } = await fA.authenticated.rpc('sp_confirmar_consignacion_revendedora', {
+      p_id_consignacion_revendedora: idCons,
+    })
+    expect(errConf).toBeNull()
+
+    // Crear declaración de venta
+    const { data: dec, error: errDec } = await fA.serviceRole
+      .from('declaracion_venta_revendedora')
+      .insert({
+        id_tenant: fA.tenantId,
+        id_revendedora: idRev,
+        id_item: fA.items[0],
+        estado: 'pendiente',
+        fecha: hoy,
+      })
+      .select('id_declaracion')
+      .single()
+    expect(errDec).toBeNull()
+
+    // Operador con revendedoras.crear y revendedoras.editar SIN ventas.crear
+    const { error: errRol } = await fA.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['crear', 'editar', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fA.rolId)
+    expect(errRol).toBeNull()
+
+    const { data: idVenta, error: errConfDec } = await fA.authenticated.rpc('sp_confirmar_declaracion_venta', {
+      p_id_declaracion: dec!.id_declaracion,
+    })
+    expect(errConfDec).toBeNull()
+    expect(idVenta).toBeDefined()
+  })
+
+  it('el admin fixture no se rompe al registrar venta', async () => {
+    const fAdmin = await ventaFixture('rlsp_m1_adm', 1, { tipoIngreso: 'compra' })
+    const { data: idVenta, error } = await venderContado(fAdmin)
+    expect(error).toBeNull()
+    expect(idVenta).toBeDefined()
+  })
+})

@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { extraerSlugRpc } from '@/lib/dal/ventas/venta'
 import { hoyISO } from '@/lib/utils/hoy'
 import type {
   CuotaFinanciadaRow,
@@ -203,7 +204,7 @@ export async function spCobrarCuota(input: {
     p_id_cuenta_destino: input.idCuentaDestino,
     p_referencia: input.referencia ?? null,
   })
-  if (error) throw new Error(`sp_cobrar_cuota: ${error.message}`)
+  if (error) throw new Error(extraerSlugRpc(error))
   return data as string
 }
 
@@ -224,7 +225,7 @@ export async function spMarcarCuotaIncobrable(
     p_id_cuota: idCuota,
     p_motivo: motivo,
   })
-  if (error) throw new Error(`sp_marcar_cuota_incobrable: ${error.message}`)
+  if (error) throw new Error(extraerSlugRpc(error))
   return data as unknown as ResultadoIncobrable
 }
 
