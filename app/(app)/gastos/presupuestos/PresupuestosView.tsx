@@ -13,11 +13,11 @@ import {
   reactivarCategoriaGastoAction,
   renameCategoriaGastoAction,
   setPresupuestoAction,
-} from '../../rendiciones/actions'
+} from '../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Checkbox } from '@/components/ui/Checkbox'
-import { NuevaCategoriaGastoInline } from '@/components/gastos/NuevaCategoriaGastoInline'
+import { NuevaCategoriaGastoInline } from '../NuevaCategoriaGastoInline'
 
 interface Cat {
   id: string

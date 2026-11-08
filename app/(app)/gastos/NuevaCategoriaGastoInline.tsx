@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
-import { createCategoriaGastoAction } from '@/app/(app)/rendiciones/actions'
+import { createCategoriaGastoAction } from './actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 
 export interface NuevaCategoriaGastoInlineProps {
