@@ -385,7 +385,7 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 
 ---
 
-### 7.2. Tabla de correspondencia: SP de escritura × Permiso requerido (82 sp_*)
+### 7.2. Tabla de correspondencia: SP de escritura × Permiso requerido (83 sp_*)
 
 | sp | Server Action(s) que lo llaman | Permiso de su requireModuleRole / guarded* (módulo.acción, citado archivo:línea) | Definición vigente (pnpm sp:last) | ¿Lo llaman otros sp por dentro? (cuáles) |
 | --- | --- | --- | --- | --- |
@@ -395,14 +395,14 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_anular_venta` | anularVentaAction | ventas.editar (app/(app)/ventas/actions.ts:120) | `supabase/migrations/00110_finanzas_cambio_diferencia.sql:418` | Ninguno |
 | `sp_asignar_talles_a_producto` | asignarTallesProductoAction | inventario.editar (app/(app)/inventario/actions.ts:459) | `supabase/migrations/00045_fix_asignar_talles_referencia_id.sql:11` | Ninguno |
 | `sp_baja_regla_precio` | bajaReglaAction | precios.eliminar (app/(app)/precios/actions.ts:97) | `supabase/migrations/00019_precios_functions.sql:463` | Ninguno |
-| `sp_baja_revendedora` | bajaRevendedoraAction<br>crearRevendedoraUnificadaAction (en rollback) | revendedoras.eliminar OR revendedoras.editar (app/(app)/revendedoras/actions.ts:150, :47) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:47` | Ninguno |
+| `sp_baja_revendedora` | bajaRevendedoraAction<br>crearRevendedoraUnificadaAction (en rollback) | revendedoras.eliminar OR revendedoras.crear (app/(app)/revendedoras/actions.ts:150, :16) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:47` | Ninguno |
 | `sp_calificar_consulta_ayuda` | calificarConsultaAyudaAction | ayuda.consultar (app/(app)/ayuda/actions.ts:123) | `supabase/migrations/00127_ayuda.sql:160` | Ninguno |
 | `sp_cambiar_estado_tenant` | cambiarEstadoTenantAction | Superadmin plataforma: requireSuperAdmin() (app/(plataforma)/plataforma/actions.ts:159) | `supabase/migrations/00120_alta_baja_tenant.sql:263` | Ninguno |
 | `sp_cancelar_ingreso` | cancelarIngresoAction | inventario.eliminar (app/(app)/inventario/actions.ts:365) | `supabase/migrations/00039_cancelar_ingreso_borra_stock.sql:18` | Ninguno |
 | `sp_cancelar_item_consignacion` | cancelarItemConsignacionAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:145) | `supabase/migrations/00124_consignacion_modulo_grupo_a.sql:310` | Ninguno |
 | `sp_cancelar_reserva` | cancelarReservaAction | ventas.editar (app/(app)/ventas/actions.ts:254) | `supabase/migrations/00023_ventas_reservas_functions.sql:107` | Ninguno |
 | `sp_cerrar_consignacion` | cerrarConsignacionAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:185) | `supabase/migrations/00124_consignacion_modulo_grupo_a.sql:407` | `sp_confirmar_consignacion` |
-| `sp_cerrar_consignacion_revendedora` | cerrarConsignacionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:314) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:483` | Ninguno |
+| `sp_cerrar_consignacion_revendedora` | cerrarConsignacionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/[id]/consignaciones/actions.ts:114) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:546` | Ninguno |
 | `sp_change_password_user` | cambiarMiPasswordAction<br>changePasswordAction<br>restablecerClaveAction | auth.uid() = p_id_usuario OR administracion.editar (app/(auth)/settings/password-actions.ts:50, app/(app)/administracion/actions.ts:270, app/(app)/administracion/usuarios/actions.ts:11) | `supabase/migrations/00009_seed_setup_functions.sql:36` | Ninguno |
 | `sp_cobrar_cuota` | cobrarCuotaAction | ventas.editar (app/(app)/ventas/actions.ts:367) | `supabase/migrations/00069_incobrables_sin_gasto.sql:11` | Ninguno |
 | `sp_confirmar_consignacion` | confirmarConsignacionAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:85) | `supabase/migrations/00125_consignacion_modulo_grupo_b.sql:345` | Ninguno |
@@ -411,33 +411,34 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_confirmar_ingreso` | confirmarIngresoAction | inventario.crear (app/(app)/inventario/actions.ts:340) | `supabase/migrations/00143_costo_unico.sql:117` | Ninguno |
 | `sp_confirmar_salida_item` | confirmarSalidaItemAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:165) | `supabase/migrations/00124_consignacion_modulo_grupo_a.sql:358` | `sp_confirmar_consignacion` |
 | `sp_crear_consignacion_con_items` | crearConsignacionAction | consignaciones.crear (app/(app)/consignaciones/actions.ts:45) | `supabase/migrations/00125_consignacion_modulo_grupo_b.sql:224` | Ninguno |
-| `sp_crear_regla_comision` | crearReglaComisionAction | revendedoras.crear (app/(app)/revendedoras/actions.ts:174) | `supabase/migrations/00081_reglas_comision_schema.sql:116` | Ninguno |
+| `sp_crear_consignacion_revendedora_con_items` | crearConsignacionRevendedoraAction<br>entregarConsignacionRevendedoraAction | revendedoras.crear (app/(app)/revendedoras/[id]/consignaciones/actions.ts:16) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:103` | `sp_entregar_consignacion_revendedora` |
+| `sp_crear_regla_comision` | crearReglaGeneralAction<br>guardarComisionPropiaAction | revendedoras.editar (app/(app)/revendedoras/comisiones/actions.ts:21, :47) | `supabase/migrations/00087_comisiones_functions.sql:8` | Ninguno |
 | `sp_crear_reserva` | crearReservaAction | ventas.crear (app/(app)/ventas/actions.ts:233) | `supabase/migrations/00023_ventas_reservas_functions.sql:29` | Ninguno |
-| `sp_crear_revendedora` | crearRevendedoraAction<br>crearRevendedoraUnificadaAction | revendedoras.crear (app/(app)/revendedoras/actions.ts:16)<br>administracion.crear (app/(app)/revendedoras/actions.ts:35) | `supabase/migrations/00084_revendedora_soft_delete.sql:16` | Ninguno |
+| `sp_crear_revendedora` | crearRevendedoraAction<br>crearRevendedoraUnificadaAction | revendedoras.crear (app/(app)/revendedoras/actions.ts:16)<br>administracion.crear (app/(app)/revendedoras/actions.ts:35) | `supabase/migrations/00097_panel_revendedoras.sql:488` | Ninguno |
 | `sp_crear_stock_directo` | crearStockDirectoAction | inventario.crear (app/(app)/inventario/actions.ts:153) | `supabase/migrations/00143_costo_unico.sql:430` | Ninguno |
 | `sp_create_producto` | createProductoAction | inventario.crear (app/(app)/inventario/actions.ts:96) | `supabase/migrations/00036_sku_autogen.sql:106` | Ninguno |
 | `sp_create_regla_precio` | createReglaAction | precios.crear (app/(app)/precios/actions.ts:76) | `supabase/migrations/00046_descuentos_seleccionables.sql:217` | Ninguno |
 | `sp_create_rol` | createRolAction | administracion.crear (app/(app)/administracion/actions.ts:104) | `supabase/migrations/00029_administracion_functions.sql:19` | Ninguno |
 | `sp_declarar_venta_revendedora` | declararVentaRevendedoraAction | Portal revendedora: auth_revendedora_id() is not null (app/(portal)/mi-cuenta/actions.ts:20) | `supabase/migrations/00104_declaracion_venta_functions.sql:11` | Ninguno |
 | `sp_delete_rol` | deleteRolAction | administracion.eliminar (app/(app)/administracion/actions.ts:146) | `supabase/migrations/00029_administracion_functions.sql:80` | Ninguno |
-| `sp_devolver_items_revendedora` | devolverItemsRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:294) | `supabase/migrations/00115_entrega_y_devolucion_revendedora.sql:47` | Ninguno |
+| `sp_devolver_items_revendedora` | devolverItemsRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/[id]/devolucion/actions.ts:12) | `supabase/migrations/00115_entrega_y_devolucion_revendedora.sql:47` | Ninguno |
 | `sp_editar_consignacion` | editarConsignacionAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:70) | `supabase/migrations/00125_consignacion_modulo_grupo_b.sql:280` | Ninguno |
-| `sp_editar_consignacion_revendedora` | editarConsignacionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:234) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:247` | Ninguno |
-| `sp_editar_revendedora` | editarRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:126) | `supabase/migrations/00077_revendedoras_modulo.sql:145` | Ninguno |
+| `sp_editar_consignacion_revendedora` | editarConsignacionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/[id]/consignaciones/actions.ts:43) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:250` | Ninguno |
+| `sp_editar_revendedora` | editarRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:125) | `supabase/migrations/00076_revendedora.sql:75` | Ninguno |
 | `sp_eliminar_consignacion` | eliminarConsignacionAction | consignaciones.eliminar (app/(app)/consignaciones/actions.ts:105) | `supabase/migrations/00125_consignacion_modulo_grupo_b.sql:404` | Ninguno |
-| `sp_eliminar_consignacion_revendedora` | eliminarConsignacionRevendedoraAction | revendedoras.eliminar (app/(app)/revendedoras/actions.ts:334) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:518` | Ninguno |
+| `sp_eliminar_consignacion_revendedora` | eliminarConsignacionRevendedoraAction | revendedoras.eliminar (app/(app)/revendedoras/[id]/consignaciones/actions.ts:141) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:609` | Ninguno |
 | `sp_eliminar_gasto` | eliminarGastoAction | gastos.editar (app/(app)/rendiciones/actions.ts:147) | `supabase/migrations/00053_gasto_descripcion_opcional_y_delete.sql:79` | Ninguno |
 | `sp_emitir_comprobante` | emitirComprobanteAction | ventas.crear (app/(app)/ventas/actions.ts:210) | `supabase/migrations/00023_ventas_reservas_functions.sql:463` | Ninguno |
 | `sp_enlazar_revendedora_usuario` | crearRevendedoraUnificadaAction | Fuera de chequeo DB: createServiceClient() (lib/dal/revendedoras/index.ts:149) | `supabase/migrations/00080_link_revendedora_auth_user.sql:12` | Ninguno |
 | `sp_entregar_consignacion_revendedora` | entregarConsignacionRevendedoraAction | revendedoras.crear (app/(app)/revendedoras/actions.ts:214) | `supabase/migrations/00115_entrega_y_devolucion_revendedora.sql:27` | Ninguno |
-| `sp_excluir_detalle_liquidacion` | excluirDetalleLiquidacionAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:414) | `supabase/migrations/00087_liquidacion_revendedora_functions.sql:154` | Ninguno |
+| `sp_excluir_detalle_liquidacion` | excluirDetalleLiquidacionAction | revendedoras.liquidar (app/(app)/revendedoras/[id]/liquidaciones/actions.ts:57) | `supabase/migrations/00095_liquidacion_functions.sql:424` | Ninguno |
 | `sp_excluir_detalle_rendicion` | excluirDetalleAction | rendiciones.editar (app/(app)/rendiciones/actions.ts:52) | `supabase/migrations/00126_rendicion_modulo.sql:373` | Ninguno |
 | `sp_extender_vigencia_regla` | extenderVigenciaReglaAction | precios.editar (app/(app)/precios/actions.ts:117) | `supabase/migrations/00019_precios_functions.sql:495` | Ninguno |
-| `sp_generar_liquidacion` | generarLiquidacionAction | revendedoras.crear (app/(app)/revendedoras/actions.ts:394) | `supabase/migrations/00087_liquidacion_revendedora_functions.sql:63` | Ninguno |
+| `sp_generar_liquidacion` | generarLiquidacionAction | revendedoras.liquidar (app/(app)/revendedoras/[id]/liquidaciones/actions.ts:33) | `supabase/migrations/00095_liquidacion_functions.sql:266` | Ninguno |
 | `sp_generar_rendicion` | generarRendicionAction | rendiciones.crear (app/(app)/rendiciones/actions.ts:81) | `supabase/migrations/00138_fix_sp_generar_rendicion_update.sql:99` | Ninguno |
 | `sp_importar_remito` | importarRemitoAction | inventario.crear (app/(app)/inventario/actions.ts:316) | `supabase/migrations/00143_costo_unico.sql:245` | Ninguno |
 | `sp_marcar_cuota_incobrable` | marcarCuotaIncobrableAction | ventas.eliminar (app/(app)/ventas/actions.ts:403) | `supabase/migrations/00069_incobrables_sin_gasto.sql:111` | Ninguno |
-| `sp_marcar_liquidacion_pagada` | marcarLiquidacionPagadaAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:454) | `supabase/migrations/00087_liquidacion_revendedora_functions.sql:239` | Ninguno |
+| `sp_marcar_liquidacion_pagada` | marcarLiquidacionPagadaAction | revendedoras.liquidar (app/(app)/revendedoras/[id]/liquidaciones/actions.ts:93) | `supabase/migrations/00095_liquidacion_functions.sql:551` | Ninguno |
 | `sp_marcar_rendicion_pagada` | marcarRendicionPagadaAction | rendiciones.editar (app/(app)/rendiciones/actions.ts:100) | `supabase/migrations/00126_rendicion_modulo.sql:457` | Ninguno |
 | `sp_reactivar_acceso_revendedora` | crearRevendedoraAction (vía fallback 422) | Fuera de chequeo DB: createServiceClient() (lib/dal/revendedoras/index.ts:198) | `supabase/migrations/00084_revendedora_soft_delete.sql:85` | Ninguno |
 | `sp_recalcular_precio_venta` | recalcularPrecioAction | precios.editar (app/(app)/precios/actions.ts:137) | `supabase/migrations/00019_precios_functions.sql:149` | `sp_recalcular_precios_batch` |
@@ -449,11 +450,11 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_registrar_consulta_ayuda` | consultarAyudaAction | ayuda.consultar (app/(app)/ayuda/actions.ts:41) | `supabase/migrations/00127_ayuda.sql:110` | Ninguno |
 | `sp_registrar_cotizacion_bcra` | sincronizarCotizacionBcraAction<br>resolverConversionCarga | inventario.crear OR precios.editar_cotizacion (app/(app)/inventario/actions.ts:90, app/(app)/precios/cotizacion/actions.ts:103) | `supabase/migrations/00133_sp_registrar_cotizacion_bcra_hoy.sql:68` | Ninguno |
 | `sp_registrar_devolucion_cliente` | registrarDevolucionAction | ventas.editar (app/(app)/ventas/actions.ts:147) | `supabase/migrations/00110_finanzas_cambio_diferencia.sql:263` | Ninguno |
-| `sp_registrar_devolucion_revendedora` | registrarDevolucionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:274) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:419` | `sp_devolver_items_revendedora` |
+| `sp_registrar_devolucion_revendedora` | registrarDevolucionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/[id]/consignaciones/actions.ts:89) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:419` | `sp_devolver_items_revendedora` |
 | `sp_registrar_gasto` | registrarGastoAction | gastos.crear (app/(app)/rendiciones/actions.ts:127) | `supabase/migrations/00053_gasto_descripcion_opcional_y_delete.sql:31` | Ninguno |
 | `sp_registrar_pago_tenant` | registrarPagoTenantAction | Superadmin plataforma: requireSuperAdmin() (app/(plataforma)/plataforma/actions.ts:60) | `supabase/migrations/00119_super_admin_plataforma.sql:214` | Ninguno |
 | `sp_registrar_venta` | registrarVentaAction<br>confirmarDeclaracionAction | ventas.crear OR revendedoras.crear (app/(app)/ventas/actions.ts:63, app/(app)/revendedoras/declaraciones/actions.ts:19) | `supabase/migrations/00093_venta_revendedora_pago.sql:66` | `sp_confirmar_declaracion_venta` |
-| `sp_reincluir_detalle_liquidacion` | reincluirDetalleLiquidacionAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:434) | `supabase/migrations/00087_liquidacion_revendedora_functions.sql:198` | Ninguno |
+| `sp_reincluir_detalle_liquidacion` | reincluirDetalleLiquidacionAction | revendedoras.liquidar (app/(app)/revendedoras/[id]/liquidaciones/actions.ts:75) | `supabase/migrations/00095_liquidacion_functions.sql:488` | Ninguno |
 | `sp_reincluir_detalle_rendicion` | reincluirDetalleAction | rendiciones.editar (app/(app)/rendiciones/actions.ts:66) | `supabase/migrations/00126_rendicion_modulo.sql:416` | Ninguno |
 | `sp_retirar_declaracion` | retirarDeclaracionAction | Portal revendedora: auth_revendedora_id() is not null (app/(portal)/mi-cuenta/actions.ts:45) | `supabase/migrations/00104_declaracion_venta_functions.sql:130` | Ninguno |
 | `sp_revaluar_costos_usd_vigentes` | revaluarCostosUsdAction | precios.editar_cotizacion (app/(app)/precios/cotizacion/actions.ts:139) | `supabase/migrations/00143_costo_unico.sql:561` | Ninguno |
@@ -464,7 +465,7 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_set_modo_cotizacion` | cambiarModoCotizacionAction | precios.editar_cotizacion (app/(app)/precios/cotizacion/actions.ts:69) | `supabase/migrations/00130_cotizacion_usd.sql:281` | Ninguno |
 | `sp_set_presupuesto_categoria_gasto` | setPresupuestoCategoriaGastoAction | gastos.editar (app/(app)/rendiciones/actions.ts:167) | `supabase/migrations/00027_rendicion_gasto_functions.sql:304` | Ninguno |
 | `sp_set_tenant_logo` | subirLogoAction<br>quitarLogoAction | administracion.editar (app/(app)/administracion/actions.ts:233, :255) | `supabase/migrations/00071_logo_comercio.sql:11` | Ninguno |
-| `sp_terminar_regla_comision` | terminarReglaComisionAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:194) | `supabase/migrations/00081_reglas_comision_schema.sql:165` | Ninguno |
+| `sp_terminar_regla_comision` | terminarReglaAction | revendedoras.editar (app/(app)/revendedoras/comisiones/actions.ts:68) | `supabase/migrations/00087_comisiones_functions.sql:111` | Ninguno |
 | `sp_toggle_tenant_modulo_admin` | togglePaqueteTenantAction | Superadmin plataforma: requireSuperAdmin() (app/(plataforma)/plataforma/actions.ts:93) | `supabase/migrations/00119_super_admin_plataforma.sql:24` | Ninguno |
 | `sp_toggle_usuario_activo` | toggleUsuarioActivoAction | administracion.editar (app/(app)/administracion/actions.ts:62) | `supabase/migrations/00029_administracion_functions.sql:134` | Ninguno |
 | `sp_transicion_item_producto` | transicionarItemAction | inventario.editar (app/(app)/inventario/actions.ts:394) | `supabase/migrations/00016_inventario_functions.sql:126` | `sp_anular_venta`, `sp_confirmar_consignacion_revendedora`, `sp_confirmar_salida_item`, `sp_eliminar_consignacion`, `sp_registrar_ajuste_inventario`, `sp_registrar_cambio`, `sp_registrar_devolucion_cliente`, `sp_registrar_devolucion_revendedora`, `sp_registrar_venta` |
@@ -575,7 +576,7 @@ Los siguientes 10 procedimientos quedan formalmente excluidos de la comprobació
 
 ### 7.4. Propuesta de partición de migraciones por módulo (Orden y Tamaño)
 
-Excluyendo los 10 procedimientos documentados en §7.3.bis, el alcance efectivo de implementación de la Fase 5 comprende **72 procedimientos de escritura**, distribuidos en **7 migraciones independientes** ordenadas por criticidad y riesgo de negocio:
+Excluyendo los 10 procedimientos documentados en §7.3.bis, el alcance efectivo de implementación de la Fase 5 comprende **76 procedimientos de escritura**, distribuidos en **7 migraciones independientes** ordenadas por criticidad y riesgo de negocio:
 
 1. **Migración 1 — Módulo Ventas, Cuotas y Reservas (10 SPs · Riesgo Crítico / Máximo)**:
    - SPs: `sp_registrar_venta`, `sp_anular_venta`, `sp_registrar_devolucion_cliente`, `sp_registrar_cambio`, `sp_emitir_comprobante`, `sp_cobrar_cuota`, `sp_marcar_cuota_incobrable`, `sp_crear_reserva`, `sp_cancelar_reserva`, `sp_vencer_reservas`.
