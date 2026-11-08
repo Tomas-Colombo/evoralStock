@@ -66,7 +66,7 @@ supabase/      migrations + stored procedures  — business invariants live here
   `components/**` and `lib/**` do not import from `app/**`, and one route group
   or module under `app/` does not import from another. Used by one module → it
   lives in that module's folder; `components/` only when two modules share it.
-  A Server Action shared across route groups lives in `lib/<domain>/actions.ts`.
+  A Server Action shared across route groups or modules lives in `lib/<domain>/actions.ts`.
   Enforced by `tests/arquitectura-imports.test.ts`; its debt list only shrinks.
 
 ## Every mutation is a Server Action with three gates

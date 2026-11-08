@@ -9,7 +9,7 @@ import { NumberInput } from '@/components/ui/NumberInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
 import type { ProveedorRow, TipoProveedor } from '@/lib/types/inventario'
-import { createProveedorAction } from '@/app/(app)/inventario/actions'
+import { createProveedorAction } from '@/lib/proveedores/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Select } from '@/components/ui/Select'
 

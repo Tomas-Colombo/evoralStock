@@ -9,7 +9,6 @@ import { verifySession, type Session } from '@/lib/dal/session'
 import { capacidades, tiposIngresoPermitidos, tiposProveedorPermitidos } from '@/lib/modulos/capacidades'
 import {
   crearIngresoCompletoSchema,
-  proveedorSchema,
   proveedorPatchSchema,
   extraerReasonZod,
 } from '@/lib/validation/inventario'
@@ -19,7 +18,6 @@ import {
   updateCategoria,
 } from '@/lib/dal/inventario/categoria'
 import {
-  createProveedor,
   getProveedor,
   updateProveedor,
 } from '@/lib/dal/inventario/proveedor'
@@ -222,46 +220,6 @@ export async function toggleCategoriaActivaAction(input: {
 }
 
 // ─── Proveedores ─────────────────────────────────────────────────────
-
-export async function createProveedorAction(input: {
-  nombre: string
-  tipo: TipoProveedor
-  telefono?: string | null
-  email?: string | null
-  cuit?: string | null
-  dias_rotacion?: number | null
-  notas?: string | null
-}): Promise<ActionResult<{ id: string }>> {
-  const g = await guarded('crear')
-  if ('error' in g) return { ok: false, reason: g.error }
-
-  const cap = capacidades(g.session.modulosHabilitados)
-  const tipos = tiposProveedorPermitidos(cap)
-  const schema = proveedorSchema(tipos)
-  const parsed = schema.safeParse(input)
-  if (!parsed.success) {
-    return { ok: false, reason: extraerReasonZod(parsed.error) }
-  }
-
-  try {
-    const row = await createProveedor({
-      id_tenant: g.tenantId,
-      nombre: parsed.data.nombre.trim(),
-      tipo: parsed.data.tipo,
-      telefono: parsed.data.telefono?.trim() || null,
-      email: parsed.data.email?.trim() || null,
-      cuit: parsed.data.cuit?.trim() || null,
-      dias_rotacion: parsed.data.dias_rotacion ?? null,
-      notas: parsed.data.notas?.trim() || null,
-    })
-    revalidatePath('/proveedores')
-    return { ok: true, data: { id: row.id_proveedor } }
-  } catch (e) {
-    const msg = (e as Error).message
-    if (msg.includes('module-disabled')) return { ok: false, reason: 'module-disabled' }
-    return { ok: false, reason: msg }
-  }
-}
 
 export async function updateProveedorAction(
   id: string,
