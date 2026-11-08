@@ -26,6 +26,17 @@ function escapar(texto: string): string {
 }
 
 /**
+ * Blanks out `/* ... *\/` blocks, keeping length and newlines so offsets and
+ * line numbers still point into the original file. 00069 keeps its DOWN as an
+ * uncommented `create or replace` inside a block comment, and this script used
+ * to report that copy as the live definition: copying it would have reverted
+ * the `venta-anulada` guard and brought back the expense insert.
+ */
+function sinComentariosDeBloque(texto: string): string {
+  return texto.replace(/\/\*[\s\S]*?\*\//g, (bloque) => bloque.replace(/[^\n]/g, ' '))
+}
+
+/**
  * From `create ... function` to the `;` after the closing dollar quote. Falls
  * back to the next top-level statement for bodies without dollar quoting
  * (`begin atomic ... end;`).
@@ -68,11 +79,12 @@ const contenidos = new Map<string, string>()
 for (const archivo of archivos) {
   const contenido = readFileSync(archivo, 'utf8')
   contenidos.set(archivo, contenido)
-  for (const m of contenido.matchAll(definicion)) {
+  const visible = sinComentariosDeBloque(contenido)
+  for (const m of visible.matchAll(definicion)) {
     const indice = m.index ?? 0
-    definiciones.push({ archivo, linea: contenido.slice(0, indice).split('\n').length, inicio: indice })
+    definiciones.push({ archivo, linea: visible.slice(0, indice).split('\n').length, inicio: indice })
   }
-  if (borrado.test(contenido)) borrados.push(archivo)
+  if (borrado.test(visible)) borrados.push(archivo)
   borrado.lastIndex = 0
 }
 
