@@ -62,6 +62,11 @@ supabase/      migrations + stored procedures  — business invariants live here
 - Allowed SQL outside `lib/dal`: auth (`app/(auth)/login/actions.ts`,
   `logoutAction`) and `proxy.ts`. **Known debt, do not add to it**:
   `components/theming/persistThemePreference.ts`.
+- **Dependency direction**: `app/**` → `components/**` → `lib/**`, never backwards.
+  `components/**` and `lib/**` do not import from `app/**`, and one route group
+  or module under `app/` does not import from another. Used by one module → it
+  lives in that module's folder; `components/` only when two modules share it.
+  Enforced by `tests/arquitectura-imports.test.ts`; its debt list only shrinks.
 
 ## Every mutation is a Server Action with three gates
 
