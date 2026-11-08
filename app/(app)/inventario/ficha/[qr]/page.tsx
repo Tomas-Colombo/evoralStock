@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
-import { AjusteInventarioAction } from '@/components/inventario/AjusteInventarioAction'
+import { AjusteInventarioAction } from './AjusteInventarioAction'
 import { QrDisplay } from '@/components/inventario/QrDisplay'
 import { verifySession } from '@/lib/dal/session'
 import { findItemByQr, getItemConDetalle } from '@/lib/dal/inventario/item'

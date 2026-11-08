@@ -37,6 +37,7 @@ import {
   spAsignarTallesAProducto,
   spTransicionItem,
 } from '@/lib/dal/inventario/item'
+import { spRegistrarAjusteInventario } from '@/lib/dal/consignaciones/consignacion'
 import {
   addIngresoDetalle,
   createIngresoBorrador,
@@ -816,6 +817,39 @@ export async function leerCotizacionVigenteAction(): Promise<
   try {
     const cot = await leerCotizacionVigente()
     return { ok: true, data: cot }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+// ─── Ajuste de inventario (Etapa 6, §L86) ───────────────────────────
+
+export async function registrarAjusteInventarioAction(input: {
+  idItem: string
+  cantidadSistema: number
+  cantidadContada: number
+  observaciones: string
+  darDeBaja?: boolean
+}): Promise<ActionResult<{ idMovimiento: string }>> {
+  try {
+    const session = await verifySession()
+    await requireModuleRole(session, 'inventario', 'editar')
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, reason: e.reason }
+    throw e
+  }
+  if (!input.observaciones?.trim()) return { ok: false, reason: 'observaciones-requeridas' }
+  try {
+    const id = await spRegistrarAjusteInventario({
+      idItem: input.idItem,
+      cantidadSistema: input.cantidadSistema,
+      cantidadContada: input.cantidadContada,
+      observaciones: input.observaciones.trim(),
+      darDeBaja: input.darDeBaja ?? false,
+    })
+    revalidatePath('/inventario/productos')
+    revalidatePath('/inventario')
+    return { ok: true, data: { idMovimiento: id } }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }

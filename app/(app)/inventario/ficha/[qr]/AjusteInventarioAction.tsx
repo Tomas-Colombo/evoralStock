@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { NumberInput } from '@/components/ui/NumberInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/components/ui/Toast'
-import { registrarAjusteInventarioAction } from '@/app/(app)/consignaciones/actions'
+import { registrarAjusteInventarioAction } from '../../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Checkbox } from '@/components/ui/Checkbox'
 
