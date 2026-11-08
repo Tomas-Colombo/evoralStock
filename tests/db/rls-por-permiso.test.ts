@@ -3433,3 +3433,83 @@ describe.skipIf(!hasTestDb)('Fase 5b-M6 - Chequeo de permisos en sp_* de Gastos 
     expect(errOtro?.code).toBe('42501')
   })
 })
+
+describe.skipIf(!hasTestDb)('Fase 5b-M7 - Chequeo de permisos en sp_* de Ayuda', () => {
+  it('un rol sin ayuda.consultar recibe no-permission en los 2 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m7_sin_permiso')
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { ventas: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_registrar_consulta_ayuda',
+        params: {
+          p_id_conversacion: randomUUID(),
+          p_pregunta: '¿Cómo cargo una venta?',
+          p_respuesta: 'Respuesta',
+          p_entrada_id: 'ventas-nueva',
+          p_resultado: 'respondida',
+        },
+      },
+      {
+        sp: 'sp_calificar_consulta_ayuda',
+        params: {
+          p_id: randomUUID(),
+          p_util: true,
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('un rol con solo ayuda.consultar pasa en los 2 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m7_con_permiso')
+
+    const { data: mod } = await fixture.serviceRole
+      .from('modulo')
+      .select('id_modulo')
+      .eq('codigo', 'ayuda')
+      .single()
+    expect(mod?.id_modulo).toBeDefined()
+
+    const { error: errMod } = await fixture.serviceRole
+      .from('tenant_modulo')
+      .upsert({ id_tenant: fixture.tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+    expect(errMod).toBeNull()
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { ayuda: ['consultar'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { data: idConsulta, error: errReg } = await client.rpc('sp_registrar_consulta_ayuda', {
+      p_id_conversacion: randomUUID(),
+      p_pregunta: '¿Cómo cargo una venta?',
+      p_respuesta: 'Hacé clic en...',
+      p_entrada_id: 'ventas-nueva',
+      p_resultado: 'respondida',
+    })
+    expect(errReg).toBeNull()
+    expect(idConsulta).toBeDefined()
+
+    const { error: errCalif } = await client.rpc('sp_calificar_consulta_ayuda', {
+      p_id: idConsulta,
+      p_util: true,
+    })
+    expect(errCalif).toBeNull()
+  })
+})
