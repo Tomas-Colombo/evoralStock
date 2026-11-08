@@ -27,7 +27,7 @@ export function EditarRevendedoraForm({ revendedora }: { revendedora: Revendedor
   async function darAcceso() {
     if (!revendedora.email) return
     setLoading(true)
-    const { darAccesoRevendedoraAction } = await import('../actions')
+    const { darAccesoRevendedoraAction } = await import('@/lib/revendedoras/actions')
     const res = await darAccesoRevendedoraAction({
       idRevendedora: revendedora.id_revendedora,
       email: revendedora.email,

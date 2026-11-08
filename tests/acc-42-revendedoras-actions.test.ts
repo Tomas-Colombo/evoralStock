@@ -56,9 +56,9 @@ import {
   crearRevendedoraUnificadaAction,
   editarRevendedoraAction,
   bajaRevendedoraAction,
-  darAccesoRevendedoraAction,
   revocarAccesoRevendedoraAction,
 } from '@/app/(app)/revendedoras/actions'
+import { darAccesoRevendedoraAction } from '@/lib/revendedoras/actions'
 
 import {
   crearReglaGeneralAction,

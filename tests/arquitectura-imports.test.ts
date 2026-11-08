@@ -93,7 +93,6 @@ function analizar(): Set<string> {
 const DEUDA_CONOCIDA = new Set<string>([
   // Fase 4: actions en el módulo equivocado y cruces entre módulos
   'components/gastos/NuevaCategoriaGastoInline.tsx -> app/(app)/rendiciones/actions',
-  'app/(app)/administracion/usuarios/nuevo/InvitarUsuarioForm.tsx -> app/(app)/revendedoras/actions',
   'app/(app)/clientes/ClientesTable.tsx -> app/(app)/ventas/actions',
   'app/(app)/clientes/EditarClienteModal.tsx -> app/(app)/ventas/actions',
   'app/(app)/clientes/nuevo/NuevoClienteForm.tsx -> app/(app)/ventas/actions',

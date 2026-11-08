@@ -57,7 +57,7 @@ export function InvitarUsuarioForm({
       let res
       if (isRevendedoraRole) {
         if (!idRevendedora) return setErr('Debe elegir una revendedora sin acceso')
-        const { darAccesoRevendedoraAction } = await import('@/app/(app)/revendedoras/actions')
+        const { darAccesoRevendedoraAction } = await import('@/lib/revendedoras/actions')
         res = await darAccesoRevendedoraAction({
           idRevendedora,
           email,
