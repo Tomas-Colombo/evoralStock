@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { PanelAyuda } from '@/components/ayuda/PanelAyuda'
+import { PanelAyuda } from './ayuda/PanelAyuda'
 import { Sidebar } from '@/components/shell/Sidebar'
 import { ayudaDisponible } from '@/lib/ayuda/config'
 import { hasModuleAccess } from '@/lib/dal/guard'

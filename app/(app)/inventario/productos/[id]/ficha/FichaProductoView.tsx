@@ -16,7 +16,7 @@ import type {
   ProductoRow,
 } from '@/lib/types/inventario'
 import { AsignarTallesModal } from '../../AsignarTallesModal'
-import { EditarProductoModal } from '@/components/inventario/EditarProductoModal'
+import { EditarProductoModal } from '../../../EditarProductoModal'
 import { DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
 

@@ -20,7 +20,7 @@ import { hasModuleAccess } from '@/lib/dal/guard'
 import { obtenerStockPorTenencia } from '@/lib/dal/revendedoras'
 import type { StockPorTenenciaRow } from '@/lib/types/revendedoras'
 import { AlertasReposicion } from './AlertasReposicion'
-import { ProductosTableClient } from '@/components/inventario/ProductosTableClient'
+import { ProductosTableClient } from './ProductosTableClient'
 
 /**
  * Home del módulo Inventario. Muestra el listado de productos directamente

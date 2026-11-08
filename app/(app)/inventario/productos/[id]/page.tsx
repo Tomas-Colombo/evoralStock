@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { getProducto } from '@/lib/dal/inventario/producto'
-import { EditarProductoForm } from '@/components/inventario/EditarProductoForm'
+import { EditarProductoForm } from '../../EditarProductoForm'
 import { Card } from '@/components/ui/Card'
 import { safeBackHref } from '@/lib/utils/safeBackHref'
 
