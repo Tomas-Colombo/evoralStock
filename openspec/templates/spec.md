@@ -61,3 +61,17 @@ menos filas para ella. Por cada función, decir cómo se resuelve:
 - Un `sp_*` existente se modifica partiendo de `pnpm sp:last <nombre>`.
 - Cada migración lleva `-- DOWN:` ejecutable (prosa con `-- NOTE:`), verificado por `pnpm gate:db`.
 - Nunca editar una migración que ya está en main: se corrige con una nueva.
+
+## 6. Ubicación del código
+
+Una fila por cada archivo nuevo o movido, salvo las migraciones. La dirección de
+dependencias está en `AGENTS.md` y la hace cumplir `tests/arquitectura-imports.test.ts`.
+
+| Archivo | Quién lo consume | Por qué va ahí |
+| --- | --- | --- |
+| `app/(app)/<modulo>/<Archivo>.tsx` | <rutas que lo importan> | Un solo módulo: el ancestro común dentro de `app/`. |
+| `components/<area>/<Archivo>.tsx` | <dos módulos o más> | Compartido y sin importar nada de `app/`. |
+| `lib/<dominio>/actions.ts` | <dos módulos o grupos de rutas> | Server Action compartida. |
+
+Una Server Action vive en el módulo que la consume, no en el que se le parece
+por afinidad ni en el que comparte su permiso.
