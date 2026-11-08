@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { logoutAction } from '@/app/(app)/actions'
+import { logoutAction } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { isAuthorizationReason } from '@/lib/dal/errors'

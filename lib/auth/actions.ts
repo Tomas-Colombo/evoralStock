@@ -8,8 +8,7 @@ import { createServerClient } from '@/lib/dal/supabase'
  * through the SSR cookie adapter, then we redirect to the login screen.
  *
  * Shell-level action: available to EVERY authenticated user regardless of
- * role, because it lives in the app-shell sidebar (not behind any module
- * guard). No `requireModuleRole` here — logging out is never privileged.
+ * role, because every shell (app, plataforma, revendedora) offers it, outside any module guard. No `requireModuleRole` here — logging out is never privileged.
  */
 export async function logoutAction(): Promise<void> {
   const supabase = await createServerClient()

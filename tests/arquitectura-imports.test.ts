@@ -91,10 +91,6 @@ function analizar(): Set<string> {
 }
 
 const DEUDA_CONOCIDA = new Set<string>([
-  // Fase 1: logout compartido
-  'components/shell/SidebarClient.tsx -> app/(app)/actions',
-  'app/(plataforma)/layout.tsx -> app/(app)/actions',
-  'app/(revendedora)/mi-cuenta/layout.tsx -> app/(app)/actions',
   // Fase 2: componentes que pertenecen a un solo módulo
   'components/precios/NuevaReglaForm.tsx -> app/(app)/precios/actions',
   'components/inventario/CategoriaForm.tsx -> app/(app)/inventario/actions',

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
-import { logoutAction } from '@/app/(app)/actions'
+import { logoutAction } from '@/lib/auth/actions'
 import { ThemeToggle } from '@/components/theming/ThemeToggle'
 import { Logo } from './Logo'
 

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { requireSuperAdmin, type SuperAdminIdentity } from '@/lib/dal/plataforma/guard'
-import { logoutAction } from '@/app/(app)/actions'
+import { logoutAction } from '@/lib/auth/actions'
 import { ToastProvider } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 

@@ -5,7 +5,7 @@ import { requireModuleRole } from '@/lib/dal/guard'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ThemeToggle } from '@/components/theming/ThemeToggle'
-import { logoutAction } from '@/app/(app)/actions'
+import { logoutAction } from '@/lib/auth/actions'
 import { PortalNav } from './PortalNav'
 import { Button } from '@/components/ui/Button'
 

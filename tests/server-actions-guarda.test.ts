@@ -26,7 +26,7 @@ const DIRECTORIOS = ['app', 'lib']
  * achicarse: el test falla también si una entrada ya no corresponde a ninguna action.
  */
 const SIN_GUARDA: Record<string, string> = {
-  'app/(app)/actions.ts#logoutAction': 'cierra la sesión: no hay módulo que autorizar',
+  'lib/auth/actions.ts#logoutAction': 'cierra la sesión: no hay módulo que autorizar',
   'app/(auth)/login/actions.ts#loginAction': 'todavía no hay sesión',
   'app/(auth)/settings/password-actions.ts#changePasswordAction': 'cambia la contraseña propia: solo exige sesión',
 }
