@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
-import { crearClienteAction } from '@/app/(app)/ventas/actions'
+import { crearClienteAction } from '@/lib/clientes/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 
 /** Lo que el selector de cliente necesita para listar y preseleccionar al nuevo. */

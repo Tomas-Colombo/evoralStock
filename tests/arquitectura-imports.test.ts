@@ -90,13 +90,7 @@ function analizar(): Set<string> {
   return violaciones
 }
 
-const DEUDA_CONOCIDA = new Set<string>([
-  // Fase 4: actions en el módulo equivocado y cruces entre módulos
-  'app/(app)/clientes/ClientesTable.tsx -> app/(app)/ventas/actions',
-  'app/(app)/clientes/EditarClienteModal.tsx -> app/(app)/ventas/actions',
-  'app/(app)/clientes/nuevo/NuevoClienteForm.tsx -> app/(app)/ventas/actions',
-  'app/(app)/clientes/[id]/CuotasClienteView.tsx -> app/(app)/ventas/actions',
-])
+const DEUDA_CONOCIDA = new Set<string>([])
 
 describe('Arquitectura de dependencias', () => {
   const encontradas = analizar()

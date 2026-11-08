@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
-import { crearClienteAction } from '../../ventas/actions'
+import { crearClienteAction } from '@/lib/clientes/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import {
   CLIENTE_VACIO,

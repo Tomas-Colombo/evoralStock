@@ -16,7 +16,7 @@ import {
   type ClienteRow,
   type OrdenClientes,
 } from '@/lib/types/ventas'
-import { toggleClienteActivoAction } from '../ventas/actions'
+import { toggleClienteActivoAction } from './actions'
 import { EditarClienteModal } from './EditarClienteModal'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame } from '@/components/ui/TableParts'

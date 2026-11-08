@@ -25,7 +25,7 @@ import {
   type FiltroEstadoCuotas,
   type MedioPago,
 } from '@/lib/types/ventas'
-import { cobrarCuotaAction, marcarCuotaIncobrableAction } from '../../ventas/actions'
+import { cobrarCuotaAction, marcarCuotaIncobrableAction } from '../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Card } from '@/components/ui/Card'
 import { TableFrame } from '@/components/ui/TableParts'

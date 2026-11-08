@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import type { ClienteRow } from '@/lib/types/ventas'
-import { updateClienteAction } from '../ventas/actions'
+import { updateClienteAction } from './actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import {
   ClienteFields,
