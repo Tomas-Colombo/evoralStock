@@ -23,7 +23,7 @@ import {
 import type { ProductoConDetalle } from '@/lib/types/inventario'
 import type { LineaCarrito } from '@/lib/types/ventas'
 import { crearReservaAction } from '../../actions'
-import { ClienteQuickCreate, type ClienteCreado } from '@/components/ventas/ClienteQuickCreate'
+import { ClienteQuickCreate, type ClienteCreado } from '../../ClienteQuickCreate'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Select } from '@/components/ui/Select'

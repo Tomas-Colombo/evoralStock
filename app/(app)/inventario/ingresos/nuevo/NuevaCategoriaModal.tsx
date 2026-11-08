@@ -1,7 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import { CategoriaForm } from '@/components/inventario/CategoriaForm'
+import { CategoriaForm } from '../../CategoriaForm'
 import type { CategoriaRow } from '@/lib/types/inventario'
 
 /**

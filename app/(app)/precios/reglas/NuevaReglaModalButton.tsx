@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { GuiaReglas } from '@/components/precios/GuiaReglas'
-import { NuevaReglaForm, type Ref } from '@/components/precios/NuevaReglaForm'
+import { NuevaReglaForm, type Ref } from './NuevaReglaForm'
 
 /**
  * Alta de regla sin salir del listado: el formulario se abre en un modal y,

@@ -91,10 +91,6 @@ function analizar(): Set<string> {
 }
 
 const DEUDA_CONOCIDA = new Set<string>([
-  // Fase 2: componentes que pertenecen a un solo módulo
-  'components/precios/NuevaReglaForm.tsx -> app/(app)/precios/actions',
-  'components/inventario/CategoriaForm.tsx -> app/(app)/inventario/actions',
-  'components/ventas/ClienteQuickCreate.tsx -> app/(app)/ventas/actions',
   // Fase 3: componentes detrás de modales y panel global
   'components/inventario/EditarProductoForm.tsx -> app/(app)/inventario/actions',
   'components/inventario/NuevoProveedorForm.tsx -> app/(app)/inventario/actions',

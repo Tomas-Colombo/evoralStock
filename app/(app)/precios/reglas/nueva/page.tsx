@@ -4,7 +4,7 @@ import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
-import { NuevaReglaForm } from '@/components/precios/NuevaReglaForm'
+import { NuevaReglaForm } from '../NuevaReglaForm'
 import { Card } from '@/components/ui/Card'
 
 export default async function NuevaReglaPage() {

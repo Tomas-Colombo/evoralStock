@@ -49,7 +49,7 @@ import {
 } from './CobranzaPanel'
 import { generarPlanCuotas } from '@/lib/cuotas/generar-plan'
 import { registrarVentaAction } from '../actions'
-import { ClienteQuickCreate, type ClienteCreado } from '@/components/ventas/ClienteQuickCreate'
+import { ClienteQuickCreate, type ClienteCreado } from '../ClienteQuickCreate'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import type { ReglaComisionConEscalas } from '@/lib/types/comisiones'
 import { estimarComision, resolverComision } from '@/lib/comisiones/resolver-comision'
