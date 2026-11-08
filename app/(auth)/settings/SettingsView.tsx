@@ -1,6 +1,6 @@
 'use client'
 
-import { PasswordChangeForm } from './PasswordChangeForm'
+import { PasswordChangeForm } from '../PasswordChangeForm'
 
 export interface SettingsViewProps {
   email: string

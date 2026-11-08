@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useState, type FormEvent } from 'react'
-import { changePasswordAction, type ChangePasswordActionState } from './password-actions'
+import { changePasswordAction, type ChangePasswordActionState } from './settings/password-actions'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 

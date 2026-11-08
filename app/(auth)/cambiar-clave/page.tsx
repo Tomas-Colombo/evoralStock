@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { debeCambiarClave, verifySession } from '@/lib/dal/session'
-import { PasswordChangeForm } from '../settings/PasswordChangeForm'
+import { PasswordChangeForm } from '../PasswordChangeForm'
 
 export const metadata = {
   title: 'Creá tu contraseña | Utopía',

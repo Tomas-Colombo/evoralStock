@@ -101,7 +101,6 @@ const DEUDA_CONOCIDA = new Set<string>([
   'app/(app)/gastos/GastosTableClient.tsx -> app/(app)/rendiciones/actions',
   'app/(app)/gastos/nuevo/NuevoGastoForm.tsx -> app/(app)/rendiciones/actions',
   'app/(app)/gastos/presupuestos/PresupuestosView.tsx -> app/(app)/rendiciones/actions',
-  'app/(auth)/cambiar-clave/page.tsx -> app/(auth)/settings/PasswordChangeForm',
 ])
 
 describe('Arquitectura de dependencias', () => {
