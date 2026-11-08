@@ -2742,3 +2742,448 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
     expect(errPago).toBeNull()
   })
 })
+
+async function habilitarPaqueteRevendedoras(tenantId: string, sr: TenantFixture['serviceRole']) {
+  const { data: mod, error: modErr } = await sr
+    .from('modulo')
+    .select('id_modulo')
+    .eq('codigo', 'revendedoras')
+    .single()
+  expect(modErr).toBeNull()
+  const { error } = await sr
+    .from('tenant_modulo')
+    .upsert({ id_tenant: tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+  expect(error).toBeNull()
+}
+
+describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revendedoras (Gestión)', () => {
+  it('un rol con solo revendedoras.ver recibe no-permission en los 19 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m5_ver')
+    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_crear_revendedora',
+        params: {
+          p_nombre: 'Test',
+          p_apellido: 'Rev',
+        },
+      },
+      {
+        sp: 'sp_crear_consignacion_revendedora_con_items',
+        params: {
+          p_id_revendedora: randomUUID(),
+          p_items: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_entregar_consignacion_revendedora',
+        params: {
+          p_id_revendedora: randomUUID(),
+          p_items: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_confirmar_consignacion_revendedora',
+        params: {
+          p_id_consignacion_revendedora: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_confirmar_declaracion_venta',
+        params: {
+          p_id_declaracion: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_rechazar_declaracion_venta',
+        params: {
+          p_id_declaracion: randomUUID(),
+          p_motivo: 'rechazo test',
+        },
+      },
+      {
+        sp: 'sp_editar_revendedora',
+        params: {
+          p_id: randomUUID(),
+          p_nombre: 'Test',
+          p_apellido: 'Rev',
+        },
+      },
+      {
+        sp: 'sp_crear_regla_comision',
+        params: {
+          p_ambito: 'general',
+          p_nombre: 'Regla test',
+          p_escalas: [{ objetivo_desde: 0, porcentaje: 10 }],
+        },
+      },
+      {
+        sp: 'sp_terminar_regla_comision',
+        params: {
+          p_id_regla: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_editar_consignacion_revendedora',
+        params: {
+          p_id_consignacion_revendedora: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_registrar_devolucion_revendedora',
+        params: {
+          p_id_consignacion_revendedora: randomUUID(),
+          p_items: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_devolver_items_revendedora',
+        params: {
+          p_id_revendedora: randomUUID(),
+          p_items: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_cerrar_consignacion_revendedora',
+        params: {
+          p_id_consignacion_revendedora: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_eliminar_consignacion_revendedora',
+        params: {
+          p_id_consignacion_revendedora: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_baja_revendedora',
+        params: {
+          p_id: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_generar_liquidacion',
+        params: {
+          p_id_revendedora: randomUUID(),
+          p_desde: '2026-01-01',
+          p_hasta: '2026-01-31',
+        },
+      },
+      {
+        sp: 'sp_excluir_detalle_liquidacion',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_reincluir_detalle_liquidacion',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_marcar_liquidacion_pagada',
+        params: {
+          p_id_liquidacion: randomUUID(),
+          p_id_cuenta: randomUUID(),
+          p_monto: 100,
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('sp_baja_revendedora: pasa con solo eliminar, pasa con solo crear, falla sin ninguno', async () => {
+    const fixture = await createTenantWithUser('rlsp_m5_baja')
+    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
+
+    // Crear 2 revendedoras activas vía serviceRole
+    const { data: rev1 } = await fixture.serviceRole
+      .from('revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'RevBaja1',
+        apellido: 'Test',
+        activo: true,
+      })
+      .select('id_revendedora')
+      .single()
+    expect(rev1?.id_revendedora).toBeDefined()
+
+    const { data: rev2 } = await fixture.serviceRole
+      .from('revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'RevBaja2',
+        apellido: 'Test',
+        activo: true,
+      })
+      .select('id_revendedora')
+      .single()
+    expect(rev2?.id_revendedora).toBeDefined()
+
+    const client = await signInAs(fixture)
+
+    // 1. Falla sin ninguno (solo revendedoras.ver)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errSinPermiso } = await client.rpc('sp_baja_revendedora', {
+      p_id: rev1!.id_revendedora,
+    })
+    expect(errSinPermiso?.message).toContain('no-permission')
+    expect(errSinPermiso?.code).toBe('42501')
+
+    // 2. Pasa con solo revendedoras.eliminar
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['eliminar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errEliminar } = await client.rpc('sp_baja_revendedora', {
+      p_id: rev1!.id_revendedora,
+    })
+    expect(errEliminar).toBeNull()
+
+    // 3. Pasa con solo revendedoras.crear
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errCrear } = await client.rpc('sp_baja_revendedora', {
+      p_id: rev2!.id_revendedora,
+    })
+    expect(errCrear).toBeNull()
+  })
+
+  it('sp_entregar_consignacion_revendedora: pasa con solo revendedoras.crear (cubre sp_crear_consignacion_revendedora_con_items y sp_confirmar_consignacion_revendedora)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m5_entregar')
+    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
+
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatEntregar'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdEntregar') })
+      .select('id_producto')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        estado_item: 'disponible',
+        tipo_ingreso: 'compra',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: rev } = await fixture.serviceRole
+      .from('revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'RevEntregar',
+        apellido: 'Test',
+        activo: true,
+      })
+      .select('id_revendedora')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // Solo revendedoras.crear (sin revendedoras.editar ni revendedoras.eliminar)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['crear', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: consId, error: errEntregar } = await client.rpc('sp_entregar_consignacion_revendedora', {
+      p_id_revendedora: rev!.id_revendedora,
+      p_items: [item!.id_item],
+    })
+    expect(errEntregar).toBeNull()
+    expect(consId).toBeDefined()
+  })
+
+  it('sp_devolver_items_revendedora: pasa con solo revendedoras.editar (cubre sp_registrar_devolucion_revendedora)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m5_devolver')
+    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
+
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatDevolver'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdDevolver') })
+      .select('id_producto')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        estado_item: 'en_revendedora',
+        tipo_ingreso: 'compra',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: rev } = await fixture.serviceRole
+      .from('revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'RevDevolver',
+        apellido: 'Test',
+        activo: true,
+      })
+      .select('id_revendedora')
+      .single()
+
+    const { data: cons } = await fixture.serviceRole
+      .from('consignacion_revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_revendedora: rev!.id_revendedora,
+        id_usuario_alta: fixture.userId,
+        estado: 'abierta',
+        confirmada: true,
+      })
+      .select('id_consignacion_revendedora')
+      .single()
+
+    await fixture.serviceRole
+      .from('consignacion_revendedora_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion_revendedora: cons!.id_consignacion_revendedora,
+        id_item: item!.id_item,
+        id_producto: prod!.id_producto,
+        estado_detalle: 'en_poder',
+      })
+
+    const client = await signInAs(fixture)
+
+    // Solo revendedoras.editar (sin revendedoras.crear ni revendedoras.eliminar)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['editar', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: devueltos, error: errDev } = await client.rpc('sp_devolver_items_revendedora', {
+      p_id_revendedora: rev!.id_revendedora,
+      p_items: [item!.id_item],
+      p_estado_destino: 'disponible',
+    })
+    expect(errDev).toBeNull()
+    expect(devueltos).toBe(1)
+  })
+
+  it('sp_confirmar_declaracion_venta: pasa con solo revendedoras.crear (cubre llamada interna a sp_registrar_venta)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m5_conf_dec')
+    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
+
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatDec'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdDec') })
+      .select('id_producto')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        estado_item: 'en_revendedora',
+        tipo_ingreso: 'compra',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: rev } = await fixture.serviceRole
+      .from('revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'RevDec',
+        apellido: 'Test',
+        activo: true,
+      })
+      .select('id_revendedora')
+      .single()
+
+    const { data: cons } = await fixture.serviceRole
+      .from('consignacion_revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_revendedora: rev!.id_revendedora,
+        id_usuario_alta: fixture.userId,
+        estado: 'abierta',
+        confirmada: true,
+      })
+      .select('id_consignacion_revendedora')
+      .single()
+
+    await fixture.serviceRole
+      .from('consignacion_revendedora_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion_revendedora: cons!.id_consignacion_revendedora,
+        id_item: item!.id_item,
+        id_producto: prod!.id_producto,
+        estado_detalle: 'en_poder',
+      })
+
+    const { data: dec } = await fixture.serviceRole
+      .from('declaracion_venta_revendedora')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_revendedora: rev!.id_revendedora,
+        id_item: item!.id_item,
+        estado: 'pendiente',
+      })
+      .select('id_declaracion')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // Solo revendedoras.crear (sin ventas.crear)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { revendedoras: ['crear', 'ver'], ventas: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: idVenta, error: errConfDec } = await client.rpc('sp_confirmar_declaracion_venta', {
+      p_id_declaracion: dec!.id_declaracion,
+    })
+    expect(errConfDec).toBeNull()
+    expect(idVenta).toBeDefined()
+  })
+})

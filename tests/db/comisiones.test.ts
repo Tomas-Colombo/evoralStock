@@ -429,7 +429,7 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
       })
 
       expect(errCrear).not.toBeNull()
-      expect(errCrear?.message).toMatch(/modulo-revendedoras-deshabilitado|violates row-level security policy|permission denied/i)
+      expect(errCrear?.message).toMatch(/modulo-revendedoras-deshabilitado|violates row-level security policy|permission denied|no-permission/i)
 
       // Verificar que no se creó la regla en la tabla
       const { data: reglas } = await serviceRole
@@ -445,7 +445,7 @@ describe.skipIf(!hasTestDb)('DB: Motor de comisiones (REQ-RV-DB-04 / DR-16)', ()
       })
 
       expect(errTerminar).not.toBeNull()
-      expect(errTerminar?.message).toMatch(/modulo-revendedoras-deshabilitado|violates row-level security policy|permission denied/i)
+      expect(errTerminar?.message).toMatch(/modulo-revendedoras-deshabilitado|violates row-level security policy|permission denied|no-permission/i)
 
       // Verificar que no se modificó la fecha de la regla existente
       const { data: reglaOriginal } = await serviceRole
