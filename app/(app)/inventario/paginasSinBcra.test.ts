@@ -3,6 +3,7 @@ import InventarioHome from './page'
 import NuevoProductoPage from './productos/nuevo/page'
 import NuevoIngresoPage from './ingresos/nuevo/page'
 import IngresoDetallePage from './ingresos/[id]/page'
+import PreciosCotizacionPage from '@/app/(app)/precios/cotizacion/page'
 
 const mockFetchCotizacionBcra = vi.fn()
 
@@ -135,6 +136,11 @@ describe('Renderizado de pantallas de inventario — Sin llamadas a la API del B
       params: Promise.resolve({ id: 'ing-123' }),
       searchParams: Promise.resolve({}),
     })
+    expect(mockFetchCotizacionBcra).not.toHaveBeenCalled()
+  })
+
+  it('renderizar /precios/cotizacion no llama a fetchCotizacionBcra', async () => {
+    await PreciosCotizacionPage()
     expect(mockFetchCotizacionBcra).not.toHaveBeenCalled()
   })
 })

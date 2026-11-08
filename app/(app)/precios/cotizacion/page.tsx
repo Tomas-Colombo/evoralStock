@@ -1,7 +1,7 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
 import { hasPermission } from '@/lib/dal/guard'
-import { getCotizacionVigente, type CotizacionVigente } from '@/lib/dal/precios/cotizacion'
+import { leerCotizacionVigente, type CotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { CotizacionView } from './CotizacionView'
 
 export default async function PreciosCotizacionPage() {
@@ -10,7 +10,7 @@ export default async function PreciosCotizacionPage() {
 
   let cotizacion: CotizacionVigente | null = null
   try {
-    cotizacion = await getCotizacionVigente()
+    cotizacion = await leerCotizacionVigente()
   } catch {
     cotizacion = null
   }

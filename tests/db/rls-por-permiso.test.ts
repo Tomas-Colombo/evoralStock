@@ -1895,3 +1895,274 @@ describe.skipIf(!hasTestDb)('Fase 5b-M2 - Chequeo de permisos en sp_* de Inventa
     expect(errDesc).toBeNull()
   })
 })
+
+describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios', () => {
+  it('un rol con solo precios.ver recibe no-permission en los 10 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m3_ver')
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_create_regla_precio',
+        params: {
+          p_nombre: 'Regla M3 Test',
+          p_tipo_regla: 'margen',
+          p_tipo_valor: 'porcentaje',
+          p_valor: 0.2,
+          p_alcance: 'global',
+        },
+      },
+      {
+        sp: 'sp_baja_regla_precio',
+        params: {
+          p_id_regla: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_extender_vigencia_regla',
+        params: {
+          p_id_regla: randomUUID(),
+          p_fecha_hasta: new Date().toISOString(),
+        },
+      },
+      {
+        sp: 'sp_recalcular_precio_venta',
+        params: {
+          p_id_producto: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_recalcular_precios_batch',
+        params: {
+          p_ids: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_set_cotizacion_manual',
+        params: {
+          p_valor: 1000,
+          p_ip: '127.0.0.1',
+        },
+      },
+      {
+        sp: 'sp_set_modo_cotizacion',
+        params: {
+          p_modo: 'manual',
+          p_ip: '127.0.0.1',
+        },
+      },
+      {
+        sp: 'sp_registrar_cotizacion_bcra',
+        params: {
+          p_valor: 1000,
+          p_fecha_valor: '2026-11-08',
+          p_desactualizada: false,
+        },
+      },
+      {
+        sp: 'sp_revaluar_costos_usd_vigentes',
+        params: {},
+      },
+      {
+        sp: 'sp_marcar_precio_desactualizado_by_regla',
+        params: {
+          p_id_regla: randomUUID(),
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('sp_marcar_precio_desactualizado_by_regla: pasa con precios.crear y con precios.eliminar por separado', async () => {
+    const fixture = await createTenantWithUser('rlsp_m3_desact')
+    const { data: regla } = await fixture.serviceRole
+      .from('regla_precio')
+      .insert({
+        id_tenant: fixture.tenantId,
+        nombre: 'Regla Desact Test',
+        tipo_regla: 'margen',
+        tipo_valor: 'porcentaje',
+        valor: 0.3,
+        alcance: 'global',
+      })
+      .select('id_regla')
+      .single()
+    expect(regla?.id_regla).toBeDefined()
+
+    const client = await signInAs(fixture)
+
+    // 1. Con precios.crear pasa
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errCrear } = await client.rpc('sp_marcar_precio_desactualizado_by_regla', {
+      p_id_regla: regla!.id_regla,
+    })
+    expect(errCrear).toBeNull()
+
+    // 2. Con precios.eliminar pasa
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['eliminar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errEliminar } = await client.rpc('sp_marcar_precio_desactualizado_by_regla', {
+      p_id_regla: regla!.id_regla,
+    })
+    expect(errEliminar).toBeNull()
+  })
+
+  it('sp_registrar_cotizacion_bcra: pasa con inventario.crear y con precios.editar_cotizacion por separado; rechazo con solo precios.ver', async () => {
+    const fixture = await createTenantWithUser('rlsp_m3_bcra')
+    const client = await signInAs(fixture)
+
+    // 1. Rechazo con solo precios.ver
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errVer } = await client.rpc('sp_registrar_cotizacion_bcra', {
+      p_valor: 1100,
+      p_fecha_valor: '2026-11-08',
+      p_desactualizada: false,
+    })
+    expect(errVer?.message).toContain('no-permission')
+    expect(errVer?.code).toBe('42501')
+
+    // 2. Aceptación con inventario.crear
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['crear', 'ver'], precios: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errInv } = await client.rpc('sp_registrar_cotizacion_bcra', {
+      p_valor: 1150,
+      p_fecha_valor: '2026-11-08',
+      p_desactualizada: false,
+    })
+    expect(errInv).toBeNull()
+
+    // 3. Aceptación con precios.editar_cotizacion
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['editar_cotizacion', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errCot } = await client.rpc('sp_registrar_cotizacion_bcra', {
+      p_valor: 1200,
+      p_fecha_valor: '2026-11-08',
+      p_desactualizada: false,
+    })
+    expect(errCot).toBeNull()
+  })
+
+  it('roles con permiso ejecutan exitosamente los sp de precios', async () => {
+    const fixture = await createTenantWithUser('rlsp_m3_permisos')
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatPreciosOk'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdPreciosOk') })
+      .select('id_producto')
+      .single()
+    await fixture.serviceRole
+      .from('costo_producto')
+      .insert({ id_tenant: fixture.tenantId, id_producto: prod!.id_producto, costo: 1000, moneda: 'ARS' })
+
+    const client = await signInAs(fixture)
+
+    // 1. precios.crear -> sp_create_regla_precio
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: idRegla, error: errCreate } = await client.rpc('sp_create_regla_precio', {
+      p_nombre: 'Margen Global 50%',
+      p_tipo_regla: 'margen',
+      p_tipo_valor: 'porcentaje',
+      p_valor: 0.5,
+      p_alcance: 'global',
+    })
+    expect(errCreate).toBeNull()
+    expect(idRegla).toBeDefined()
+
+    // 2. precios.editar -> sp_extender_vigencia_regla, sp_recalcular_precio_venta, sp_recalcular_precios_batch
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const nuevaFecha = new Date(Date.now() + 86400000).toISOString()
+    const { error: errExtender } = await client.rpc('sp_extender_vigencia_regla', {
+      p_id_regla: idRegla,
+      p_fecha_hasta: nuevaFecha,
+    })
+    expect(errExtender).toBeNull()
+
+    const { data: precioVenta, error: errRecalc } = await client.rpc('sp_recalcular_precio_venta', {
+      p_id_producto: prod!.id_producto,
+    })
+    expect(errRecalc).toBeNull()
+    expect(precioVenta).toBe(1500)
+
+    const { data: batchResult, error: errBatch } = await client.rpc('sp_recalcular_precios_batch', {
+      p_ids: [prod!.id_producto],
+    })
+    expect(errBatch).toBeNull()
+    expect(batchResult).toHaveLength(1)
+
+    // 3. precios.editar_cotizacion -> sp_set_cotizacion_manual, sp_set_modo_cotizacion, sp_revaluar_costos_usd_vigentes
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errManual } = await client.rpc('sp_set_cotizacion_manual', {
+      p_valor: 1400,
+      p_ip: '127.0.0.1',
+    })
+    expect(errManual).toBeNull()
+
+    const { error: errModo } = await client.rpc('sp_set_modo_cotizacion', {
+      p_modo: 'manual',
+      p_ip: '127.0.0.1',
+    })
+    expect(errModo).toBeNull()
+
+    const { data: revalResult, error: errReval } = await client.rpc('sp_revaluar_costos_usd_vigentes', {
+      p_ip: '127.0.0.1',
+    })
+    expect(errReval).toBeNull()
+    expect(revalResult).toBeDefined()
+
+    // 4. precios.eliminar -> sp_baja_regla_precio
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['eliminar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errBaja } = await client.rpc('sp_baja_regla_precio', {
+      p_id_regla: idRegla,
+    })
+    expect(errBaja).toBeNull()
+  })
+})

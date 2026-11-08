@@ -1,4 +1,5 @@
 import 'server-only'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { createServerClient } from '@/lib/dal/supabase'
 import type {
   AlcanceRegla,
@@ -66,7 +67,7 @@ export async function spCreateReglaPrecio(input: ReglaPrecioInsert): Promise<str
     p_fecha_hasta: input.fecha_hasta ?? null,
     p_acumulable: input.acumulable ?? false,
   })
-  if (error) throw new Error(`sp_create_regla_precio: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_create_regla_precio', error))
   return data as string
 }
 
@@ -75,7 +76,7 @@ export async function spBajaReglaPrecio(idRegla: string): Promise<void> {
   const { error } = await supabase.rpc('sp_baja_regla_precio', {
     p_id_regla: idRegla,
   })
-  if (error) throw new Error(`sp_baja_regla_precio: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_baja_regla_precio', error))
 }
 
 export async function spExtenderVigenciaRegla(
@@ -87,7 +88,7 @@ export async function spExtenderVigenciaRegla(
     p_id_regla: idRegla,
     p_fecha_hasta: fechaHasta,
   })
-  if (error) throw new Error(`sp_extender_vigencia_regla: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_extender_vigencia_regla', error))
 }
 
 export function reglaAplicaAhora(r: ReglaPrecioRow, now = new Date()): boolean {

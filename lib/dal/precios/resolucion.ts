@@ -1,4 +1,5 @@
 import 'server-only'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { createServerClient } from '@/lib/dal/supabase'
 import type {
   MedioPagoRecargo,
@@ -78,7 +79,7 @@ export async function spRecalcularPrecioVenta(idProducto: string): Promise<numbe
   const { data, error } = await supabase.rpc('sp_recalcular_precio_venta', {
     p_id_producto: idProducto,
   })
-  if (error) throw new Error(`sp_recalcular_precio_venta: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_recalcular_precio_venta', error))
   return data === null ? null : Number(data)
 }
 
@@ -99,7 +100,7 @@ export async function spRecalcularBatch(ids: string[]): Promise<Record<string, n
   const { data, error } = await supabase.rpc('sp_recalcular_precios_batch', {
     p_ids: ids,
   })
-  if (error) throw new Error(`sp_recalcular_precios_batch: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_recalcular_precios_batch', error))
 
   const out: Record<string, number | null> = {}
   for (const row of (data ?? []) as Array<{ id_producto: string; precio: number | null }>) {
