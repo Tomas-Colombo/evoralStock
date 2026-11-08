@@ -2,8 +2,8 @@
  * Regla de dirección de dependencias y control de deuda de arquitectura.
  *
  * La dirección de dependencias nunca estuvo controlada y el commit fbf809e
- * convirtió una excepción en patrón; las entradas de la deuda conocida solo
- * se borran, y agregar una es volver a abrir esa deuda.
+ * convirtió una excepción en patrón. La deuda que dejó ya se saldó: este test
+ * no admite excepciones, y un cruce necesario se resuelve moviendo el código.
  *
  * Fronteras permitidas: app/** -> components/** -> lib/** (nunca en sentido inverso).
  * Ningún módulo o grupo de rutas en app/ puede importar de otro módulo de app/.
@@ -90,18 +90,8 @@ function analizar(): Set<string> {
   return violaciones
 }
 
-const DEUDA_CONOCIDA = new Set<string>([])
-
 describe('Arquitectura de dependencias', () => {
-  const encontradas = analizar()
-
-  it('ningún import cruza una frontera fuera de la deuda conocida', () => {
-    const inesperadas = [...encontradas].filter((v) => !DEUDA_CONOCIDA.has(v))
-    expect(inesperadas).toEqual([])
-  })
-
-  it('la deuda conocida solo se achica', () => {
-    const obsoletas = [...DEUDA_CONOCIDA].filter((v) => !encontradas.has(v))
-    expect(obsoletas).toEqual([])
+  it('ningún import cruza una frontera', () => {
+    expect([...analizar()]).toEqual([])
   })
 })
