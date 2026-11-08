@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { errorDeRpc } from '@/lib/dal/errors'
 import type {
   ProductoConDetalle,
   ProductoRow,
@@ -214,7 +215,7 @@ export async function spCreateProducto(input: {
     p_stock_minimo: input.stockMinimo ?? 0,
     p_descripcion: input.descripcion ?? null,
   })
-  if (error) throw new Error(`sp_create_producto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_create_producto', error))
   return data as string
 }
 
@@ -235,7 +236,7 @@ export async function spCrearStockDirecto(input: {
     p_tipo_ingreso: input.tipoIngreso ?? 'compra',
     p_items: input.items,
   })
-  if (error) throw new Error(`sp_crear_stock_directo: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_crear_stock_directo', error))
   return data as number
 }
 
@@ -264,7 +265,7 @@ export async function spSetCostoProducto(input: {
     p_cotizacion_aplicada: input.cotizacionAplicada ?? null,
     p_cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
   })
-  if (error) throw new Error(`sp_set_costo_producto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_set_costo_producto', error))
   return data as string
 }
 

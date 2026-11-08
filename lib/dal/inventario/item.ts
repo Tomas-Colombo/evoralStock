@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { ESTADOS_IMPRIMIBLES, ETIQUETAS_MAX } from '@/lib/inventario/limites'
 import type {
   EstadoItem,
@@ -137,7 +138,7 @@ export async function spAsignarTallesAProducto(input: {
     p_id_producto: input.idProducto,
     p_distribucion: input.distribucion,
   })
-  if (error) throw new Error(`sp_asignar_talles_a_producto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_asignar_talles_a_producto', error))
   return { actualizados: Number(data ?? 0) }
 }
 
@@ -429,5 +430,5 @@ export async function spTransicionItem(input: {
     p_referencia_id: input.referenciaId ?? null,
     p_referencia_tipo: input.referenciaTipo ?? null,
   })
-  if (error) throw new Error(`sp_transicion_item_producto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_transicion_item_producto', error))
 }

@@ -1555,10 +1555,10 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
       .single()
     expect(errDec).toBeNull()
 
-    // Operador con revendedoras.crear y revendedoras.editar SIN ventas.crear
+    // Operador con revendedoras.crear SIN ventas.crear ni revendedoras.editar
     const { error: errRol } = await fA.serviceRole
       .from('rol')
-      .update({ permisos: { revendedoras: ['crear', 'editar', 'ver'], inventario: ['ver'] } })
+      .update({ permisos: { revendedoras: ['crear', 'ver'], inventario: ['ver'] } })
       .eq('id_rol', fA.rolId)
     expect(errRol).toBeNull()
 
@@ -1574,5 +1574,324 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
     const { data: idVenta, error } = await venderContado(fAdmin)
     expect(error).toBeNull()
     expect(idVenta).toBeDefined()
+  })
+})
+
+describe.skipIf(!hasTestDb)('Fase 5b-M2 - Chequeo de permisos en sp_* de Inventario', () => {
+  it('un rol con solo inventario.ver recibe no-permission en los 10 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m2_ver')
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_create_producto',
+        params: {
+          p_id_categoria: randomUUID(),
+          p_nombre: 'Producto Test',
+        },
+      },
+      {
+        sp: 'sp_crear_stock_directo',
+        params: {
+          p_id_producto: randomUUID(),
+          p_costo: 100,
+        },
+      },
+      {
+        sp: 'sp_set_costo_producto',
+        params: {
+          p_id_producto: randomUUID(),
+          p_costo: 100,
+        },
+      },
+      {
+        sp: 'sp_importar_remito',
+        params: {
+          p_id_ingreso: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_confirmar_ingreso',
+        params: {
+          p_id_ingreso: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_asignar_talles_a_producto',
+        params: {
+          p_id_producto: randomUUID(),
+          p_distribucion: [],
+        },
+      },
+      {
+        sp: 'sp_cancelar_ingreso',
+        params: {
+          p_id_ingreso: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_aplicar_ultimo_costo',
+        params: {
+          p_id_producto: randomUUID(),
+          p_costo: 100,
+        },
+      },
+      {
+        sp: 'sp_marcar_precio_desactualizado_by_producto',
+        params: {
+          p_id_producto: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_transicion_item_producto',
+        params: {
+          p_id_item: randomUUID(),
+          p_estado_hasta: 'baja',
+          p_tipo_movimiento: 'baja',
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('sp_transicion_item_producto: rechazo con solo inventario.ver y aceptacion individual con cada uno de los 7 permisos', async () => {
+    const fixture = await createTenantWithUser('rlsp_m2_trans')
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatTrans'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdTrans') })
+      .select('id_producto')
+      .single()
+
+    // Crear 8 items en estado 'disponible'
+    const items: string[] = []
+    for (let i = 0; i < 8; i++) {
+      const { data: item } = await fixture.serviceRole
+        .from('item_producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_producto: prod!.id_producto,
+          qr_code: `qr_trans_${i}_${randomUUID().replace(/-/g, '').slice(0, 10)}`,
+          estado_item: 'disponible',
+          costo_ingreso: 100,
+          tipo_ingreso: 'compra',
+          talle: 'U',
+        })
+        .select('id_item')
+        .single()
+      items.push(item!.id_item)
+    }
+
+    const client = await signInAs(fixture)
+
+    // 0. Solo inventario.ver -> rechazo con no-permission
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errVer } = await client.rpc('sp_transicion_item_producto', {
+      p_id_item: items[0],
+      p_estado_hasta: 'baja',
+      p_tipo_movimiento: 'baja',
+    })
+    expect(errVer?.message).toContain('no-permission')
+    expect(errVer?.code).toBe('42501')
+
+    // Los 7 permisos en el orden especificado
+    const permisosValidos: Array<{ nombre: string; permisos: Record<string, string[]> }> = [
+      { nombre: 'ventas.crear', permisos: { ventas: ['crear', 'ver'], inventario: ['ver'] } },
+      { nombre: 'ventas.editar', permisos: { ventas: ['editar', 'ver'], inventario: ['ver'] } },
+      { nombre: 'inventario.editar', permisos: { inventario: ['editar', 'ver'] } },
+      { nombre: 'consignaciones.editar', permisos: { consignaciones: ['editar', 'ver'], inventario: ['ver'] } },
+      { nombre: 'consignaciones.eliminar', permisos: { consignaciones: ['eliminar', 'ver'], inventario: ['ver'] } },
+      { nombre: 'revendedoras.crear', permisos: { revendedoras: ['crear', 'ver'], inventario: ['ver'] } },
+      { nombre: 'revendedoras.editar', permisos: { revendedoras: ['editar', 'ver'], inventario: ['ver'] } },
+    ]
+
+    for (let i = 0; i < permisosValidos.length; i++) {
+      const { nombre, permisos } = permisosValidos[i]
+      await fixture.serviceRole
+        .from('rol')
+        .update({ permisos })
+        .eq('id_rol', fixture.rolId)
+
+      const { error } = await client.rpc('sp_transicion_item_producto', {
+        p_id_item: items[i + 1],
+        p_estado_hasta: 'baja',
+        p_tipo_movimiento: 'baja',
+      })
+      expect(error, `sp_transicion_item_producto debio pasar con ${nombre}`).toBeNull()
+    }
+  })
+
+  it('sp_cancelar_ingreso con rol que tiene solo inventario.crear pasa, y con inventario.eliminar pasa', async () => {
+    const fixture = await createTenantWithUser('rlsp_m2_canc')
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: 'Prov Canc' })
+      .select('id_proveedor')
+      .single()
+
+    const { data: ing1 } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: fixture.tenantId, id_proveedor: prov!.id_proveedor, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const { data: ing2 } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: fixture.tenantId, id_proveedor: prov!.id_proveedor, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // Caso A: rol con SOLO inventario.crear (rollback de crearIngresoCompletoAction)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: res1, error: err1 } = await client.rpc('sp_cancelar_ingreso', {
+      p_id_ingreso: ing1!.id_ingreso,
+      p_motivo: 'rollback creacion',
+    })
+    expect(err1).toBeNull()
+    expect(res1).toBeDefined()
+
+    // Caso B: rol con inventario.eliminar
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['eliminar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: res2, error: err2 } = await client.rpc('sp_cancelar_ingreso', {
+      p_id_ingreso: ing2!.id_ingreso,
+      p_motivo: 'baja normal',
+    })
+    expect(err2).toBeNull()
+    expect(res2).toBeDefined()
+  })
+
+  it('roles con permiso ejecutan exitosamente los sp de inventario', async () => {
+    const fixture = await createTenantWithUser('rlsp_m2_permisos')
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatInvOk'), talles: ['S', 'M'] })
+      .select('id_categoria')
+      .single()
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: 'Prov InvOk' })
+      .select('id_proveedor')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // 1. inventario.crear -> sp_create_producto
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: idProd, error: errProd } = await client.rpc('sp_create_producto', {
+      p_id_categoria: cat!.id_categoria,
+      p_nombre: withScopedTenant('ProdInvOk'),
+    })
+    expect(errProd).toBeNull()
+    expect(idProd).toBeDefined()
+
+    // 2. inventario.crear -> sp_set_costo_producto
+    const { data: idCosto, error: errCosto } = await client.rpc('sp_set_costo_producto', {
+      p_id_producto: idProd,
+      p_costo: 1200,
+    })
+    expect(errCosto).toBeNull()
+    expect(idCosto).toBeDefined()
+
+    // 3. inventario.crear -> sp_crear_stock_directo
+    const { data: cantDirecto, error: errDirecto } = await client.rpc('sp_crear_stock_directo', {
+      p_id_producto: idProd,
+      p_costo: 1200,
+      p_items: [{ talle: null, cantidad: 2 }],
+    })
+    expect(errDirecto).toBeNull()
+    expect(cantDirecto).toBe(2)
+
+    // 4. inventario.crear -> sp_importar_remito y sp_confirmar_ingreso
+    const { data: ing } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: fixture.tenantId, id_proveedor: prov!.id_proveedor, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const { data: resRemito, error: errRemito } = await client.rpc('sp_importar_remito', {
+      p_id_ingreso: ing!.id_ingreso,
+      p_lineas: [
+        {
+          esNuevo: false,
+          idProducto: idProd,
+          nombre: 'ProdInvOk',
+          costoUnitario: 1200,
+          partes: [{ talle: 'M', cantidad: 1 }],
+        },
+      ],
+    })
+    expect(errRemito).toBeNull()
+    expect(resRemito).toBeDefined()
+
+    const { data: cantConf, error: errConf } = await client.rpc('sp_confirmar_ingreso', {
+      p_id_ingreso: ing!.id_ingreso,
+    })
+    expect(errConf).toBeNull()
+    expect(cantConf).toBe(1)
+
+    // 5. inventario.editar -> sp_asignar_talles_a_producto
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: cantTalles, error: errTalles } = await client.rpc('sp_asignar_talles_a_producto', {
+      p_id_producto: idProd,
+      p_distribucion: [{ talle: 'S', cantidad: 1 }],
+    })
+    expect(errTalles).toBeNull()
+    expect(cantTalles).toBe(1)
+
+    // 6. precios.editar_cotizacion -> sp_aplicar_ultimo_costo y sp_marcar_precio_desactualizado_by_producto
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: idCostoCot, error: errCostoCot } = await client.rpc('sp_aplicar_ultimo_costo', {
+      p_id_producto: idProd,
+      p_costo: 1300,
+    })
+    expect(errCostoCot).toBeNull()
+    expect(idCostoCot).toBeDefined()
+
+    const { error: errDesc } = await client.rpc('sp_marcar_precio_desactualizado_by_producto', {
+      p_id_producto: idProd,
+    })
+    expect(errDesc).toBeNull()
   })
 })

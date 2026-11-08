@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { errorDeRpc } from '@/lib/dal/errors'
 import type {
   IngresoConResumen,
   IngresoMercaderiaDetalleRow,
@@ -265,7 +266,7 @@ export async function spImportarRemito(input: {
     p_cotizacion_aplicada: input.cotizacionAplicada ?? null,
     p_cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
   })
-  if (error) throw new Error(`sp_importar_remito: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_importar_remito', error))
   const r = (data ?? {}) as {
     creados?: number
     vinculados?: number
@@ -293,7 +294,7 @@ export async function spCancelarIngreso(input: {
     p_id_ingreso: input.idIngreso,
     p_motivo: input.motivo ?? null,
   })
-  if (error) throw new Error(`sp_cancelar_ingreso: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_cancelar_ingreso', error))
   const r = (data ?? {}) as {
     modo?: 'borrador' | 'confirmado'
     items_baja?: number
@@ -337,6 +338,6 @@ export async function spConfirmarIngreso(idIngreso: string): Promise<number> {
   const { data, error } = await supabase.rpc('sp_confirmar_ingreso', {
     p_id_ingreso: idIngreso,
   })
-  if (error) throw new Error(`sp_confirmar_ingreso: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_confirmar_ingreso', error))
   return Number(data ?? 0)
 }
