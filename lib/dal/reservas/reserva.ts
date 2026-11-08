@@ -1,6 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
-import { extraerSlugRpc } from '@/lib/dal/ventas/venta'
+import { errorDeRpc } from '@/lib/dal/errors'
 import type {
   EstadoReserva,
   ReservaConDetalle,
@@ -132,7 +132,7 @@ export async function spCrearReserva(input: {
     p_fecha_vencimiento: input.fechaVencimiento,
     p_observaciones: input.observaciones ?? null,
   })
-  if (error) throw new Error(extraerSlugRpc(error))
+  if (error) throw new Error(errorDeRpc('sp_crear_reserva', error))
   return data as string
 }
 
@@ -142,13 +142,13 @@ export async function spCancelarReserva(idReserva: string, motivo?: string): Pro
     p_id_reserva: idReserva,
     p_motivo: motivo ?? null,
   })
-  if (error) throw new Error(extraerSlugRpc(error))
+  if (error) throw new Error(errorDeRpc('sp_cancelar_reserva', error))
 }
 
 export async function spVencerReservas(): Promise<number> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_vencer_reservas')
-  if (error) throw new Error(extraerSlugRpc(error))
+  if (error) throw new Error(errorDeRpc('sp_vencer_reservas', error))
   return Number(data ?? 0)
 }
 

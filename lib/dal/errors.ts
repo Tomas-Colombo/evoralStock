@@ -25,3 +25,16 @@ export class AuthorizationError extends Error {
     this.reason = reason
   }
 }
+
+/**
+ * Normaliza los errores devueltos por un RPC de Supabase.
+ * Si el error es 'no-permission' (raise 42501 desde el SP), devuelve el slug limpio
+ * para que las Server Actions puedan mapearlo a la razón de autorización correspondiente.
+ * Para cualquier otro error, conserva el prefijo del SP y el mensaje completo original.
+ */
+export function errorDeRpc(sp: string, error: { message: string }): string {
+  if (error.message === 'no-permission') {
+    return 'no-permission'
+  }
+  return `${sp}: ${error.message}`
+}

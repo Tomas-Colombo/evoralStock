@@ -1,7 +1,7 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
 import type { TipoComprobante } from '@/lib/types/ventas'
-import { extraerSlugRpc } from '@/lib/dal/ventas/venta'
+import { errorDeRpc } from '@/lib/dal/errors'
 
 export async function spEmitirComprobante(input: {
   idVenta: string
@@ -14,6 +14,6 @@ export async function spEmitirComprobante(input: {
     p_tipo: input.tipo,
     p_numero: input.numero,
   })
-  if (error) throw new Error(extraerSlugRpc(error))
+  if (error) throw new Error(errorDeRpc('sp_emitir_comprobante', error))
   return data as string
 }
