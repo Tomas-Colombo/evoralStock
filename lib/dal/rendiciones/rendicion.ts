@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { nombreCliente } from '@/lib/types/ventas'
 import type {
   EstadoRendicion,
@@ -118,7 +119,7 @@ export async function spGenerarRendicion(input: {
     p_id_proveedor: input.idProveedor,
     p_observaciones: input.observaciones ?? null,
   })
-  if (error) throw new Error(`sp_generar_rendicion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_generar_rendicion', error))
   return data as string
 }
 
@@ -131,7 +132,7 @@ export async function spMarcarRendicionPagada(input: {
     p_id_rendicion: input.idRendicion,
     p_fecha_pago: input.fechaPago ?? null,
   })
-  if (error) throw new Error(`sp_marcar_rendicion_pagada: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_marcar_rendicion_pagada', error))
 }
 
 export async function spExcluirDetalleRendicion(input: {
@@ -143,7 +144,7 @@ export async function spExcluirDetalleRendicion(input: {
     p_id_detalle: input.idDetalle,
     p_motivo: input.motivo ?? null,
   })
-  if (error) throw new Error(`sp_excluir_detalle_rendicion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_excluir_detalle_rendicion', error))
 }
 
 export async function spReincluirDetalleRendicion(idDetalle: string): Promise<void> {
@@ -151,5 +152,5 @@ export async function spReincluirDetalleRendicion(idDetalle: string): Promise<vo
   const { error } = await supabase.rpc('sp_reincluir_detalle_rendicion', {
     p_id_detalle: idDetalle,
   })
-  if (error) throw new Error(`sp_reincluir_detalle_rendicion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_reincluir_detalle_rendicion', error))
 }

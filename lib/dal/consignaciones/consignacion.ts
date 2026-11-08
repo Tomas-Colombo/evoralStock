@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@/lib/dal/supabase'
+import { errorDeRpc } from '@/lib/dal/errors'
 import type {
   ConsignacionConDetalle,
   ConsignacionConResumen,
@@ -171,7 +172,7 @@ export async function spCrearConsignacionConItems(input: {
     p_items: input.items,
     p_motivo: input.motivo ?? null,
   })
-  if (error) throw new Error(`sp_crear_consignacion_con_items: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_crear_consignacion_con_items', error))
   return data as string
 }
 
@@ -186,7 +187,7 @@ export async function spEditarConsignacion(input: {
     p_observaciones: input.observaciones ?? null,
     p_id_proveedor: input.idProveedor ?? null,
   })
-  if (error) throw new Error(`sp_editar_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_editar_consignacion', error))
 }
 
 /** Confirma la salida de todos los pendientes y cierra el lote. */
@@ -195,7 +196,7 @@ export async function spConfirmarConsignacion(idConsignacion: string): Promise<n
   const { data, error } = await supabase.rpc('sp_confirmar_consignacion', {
     p_id_consignacion: idConsignacion,
   })
-  if (error) throw new Error(`sp_confirmar_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_confirmar_consignacion', error))
   return (data as number) ?? 0
 }
 
@@ -207,7 +208,7 @@ export async function spEliminarConsignacion(
   const { data, error } = await supabase.rpc('sp_eliminar_consignacion', {
     p_id_consignacion: idConsignacion,
   })
-  if (error) throw new Error(`sp_eliminar_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_eliminar_consignacion', error))
   return data as { items_reestockeados: number; detalles_borrados: number }
 }
 
@@ -222,7 +223,7 @@ export async function spAgregarItemConsignacion(input: {
     p_id_item: input.idItem,
     p_motivo: input.motivo ?? null,
   })
-  if (error) throw new Error(`sp_agregar_item_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_agregar_item_consignacion', error))
   return data as string
 }
 
@@ -235,7 +236,7 @@ export async function spCancelarItemConsignacion(
     p_id_detalle: idDetalle,
     p_motivo: motivo ?? null,
   })
-  if (error) throw new Error(`sp_cancelar_item_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_cancelar_item_consignacion', error))
 }
 
 export async function spConfirmarSalidaItem(idDetalle: string): Promise<void> {
@@ -243,7 +244,7 @@ export async function spConfirmarSalidaItem(idDetalle: string): Promise<void> {
   const { error } = await supabase.rpc('sp_confirmar_salida_item', {
     p_id_detalle: idDetalle,
   })
-  if (error) throw new Error(`sp_confirmar_salida_item: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_confirmar_salida_item', error))
 }
 
 export async function spCerrarConsignacion(idConsignacion: string): Promise<void> {
@@ -251,7 +252,7 @@ export async function spCerrarConsignacion(idConsignacion: string): Promise<void
   const { error } = await supabase.rpc('sp_cerrar_consignacion', {
     p_id_consignacion: idConsignacion,
   })
-  if (error) throw new Error(`sp_cerrar_consignacion: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_cerrar_consignacion', error))
 }
 
 export async function spRegistrarAjusteInventario(input: {
@@ -269,6 +270,6 @@ export async function spRegistrarAjusteInventario(input: {
     p_observaciones: input.observaciones,
     p_dar_de_baja: input.darDeBaja ?? false,
   })
-  if (error) throw new Error(`sp_registrar_ajuste_inventario: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_registrar_ajuste_inventario', error))
   return data as string
 }

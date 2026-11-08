@@ -2166,3 +2166,579 @@ describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios
     expect(errBaja).toBeNull()
   })
 })
+
+describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consignaciones y Rendiciones', () => {
+  it('un rol con solo consignaciones.ver y rendiciones.ver recibe no-permission en los 13 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_ver')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['ver'], rendiciones: ['ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_crear_consignacion_con_items',
+        params: {
+          p_id_proveedor: randomUUID(),
+          p_items: [randomUUID()],
+        },
+      },
+      {
+        sp: 'sp_agregar_item_consignacion',
+        params: {
+          p_id_consignacion: randomUUID(),
+          p_id_item: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_editar_consignacion',
+        params: {
+          p_id_consignacion: randomUUID(),
+          p_observaciones: 'edit test',
+        },
+      },
+      {
+        sp: 'sp_confirmar_consignacion',
+        params: {
+          p_id_consignacion: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_cancelar_item_consignacion',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_confirmar_salida_item',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_cerrar_consignacion',
+        params: {
+          p_id_consignacion: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_eliminar_consignacion',
+        params: {
+          p_id_consignacion: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_registrar_ajuste_inventario',
+        params: {
+          p_id_item: randomUUID(),
+          p_cantidad_sistema: 1,
+          p_cantidad_contada: 1,
+          p_observaciones: 'ajuste test',
+        },
+      },
+      {
+        sp: 'sp_generar_rendicion',
+        params: {
+          p_id_proveedor: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_marcar_rendicion_pagada',
+        params: {
+          p_id_rendicion: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_excluir_detalle_rendicion',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_reincluir_detalle_rendicion',
+        params: {
+          p_id_detalle: randomUUID(),
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('sp_registrar_ajuste_inventario: rechazo con solo consignaciones.editar; pasa con inventario.editar', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_ajuste')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatAjuste'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdAjuste') })
+      .select('id_producto')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        estado_item: 'disponible',
+        tipo_ingreso: 'compra',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+    expect(item?.id_item).toBeDefined()
+
+    const client = await signInAs(fixture)
+
+    // 1. Rechazo con solo consignaciones.editar
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['editar', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errCons } = await client.rpc('sp_registrar_ajuste_inventario', {
+      p_id_item: item!.id_item,
+      p_cantidad_sistema: 1,
+      p_cantidad_contada: 1,
+      p_observaciones: 'ajuste test rechazo',
+    })
+    expect(errCons?.message).toContain('no-permission')
+    expect(errCons?.code).toBe('42501')
+
+    // 2. Aceptación con inventario.editar
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { inventario: ['editar', 'ver'], consignaciones: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: movId, error: errInv } = await client.rpc('sp_registrar_ajuste_inventario', {
+      p_id_item: item!.id_item,
+      p_cantidad_sistema: 1,
+      p_cantidad_contada: 1,
+      p_observaciones: 'ajuste test ok',
+    })
+    expect(errInv).toBeNull()
+    expect(movId).toBeDefined()
+  })
+
+  it('sp_confirmar_consignacion: pasa con solo consignaciones.editar (cubre sp_confirmar_salida_item y sp_cerrar_consignacion)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_conf_cons')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('ProvConf') })
+      .select('id_proveedor')
+      .single()
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatConf'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdConf') })
+      .select('id_producto')
+      .single()
+    const { data: ing } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        tipo_ingreso: 'consignacion',
+        confirmado: true,
+      })
+      .select('id_ingreso')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        id_ingreso: ing!.id_ingreso,
+        estado_item: 'disponible',
+        tipo_ingreso: 'consignacion',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: cons } = await fixture.serviceRole
+      .from('consignacion')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        id_usuario_alta: fixture.userId,
+        estado: 'activa',
+      })
+      .select('id_consignacion')
+      .single()
+
+    await fixture.serviceRole
+      .from('consignacion_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion: cons!.id_consignacion,
+        id_item: item!.id_item,
+        id_producto: prod!.id_producto,
+        estado: 'pendiente',
+      })
+
+    const client = await signInAs(fixture)
+
+    // Solo consignaciones.editar (sin consignaciones.crear, consignaciones.eliminar ni inventario.editar)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['editar', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: confirmados, error: errConf } = await client.rpc('sp_confirmar_consignacion', {
+      p_id_consignacion: cons!.id_consignacion,
+    })
+    expect(errConf).toBeNull()
+    expect(confirmados).toBe(1)
+  })
+
+  it('sp_crear_consignacion_con_items: pasa con solo consignaciones.crear (cubre sp_agregar_item_consignacion)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_crear_cons')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('ProvCons') })
+      .select('id_proveedor')
+      .single()
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatCons'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdCons') })
+      .select('id_producto')
+      .single()
+    const { data: ing } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        tipo_ingreso: 'consignacion',
+        confirmado: true,
+      })
+      .select('id_ingreso')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        id_ingreso: ing!.id_ingreso,
+        estado_item: 'disponible',
+        tipo_ingreso: 'consignacion',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // Solo consignaciones.crear (sin consignaciones.editar ni inventario.editar)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['crear', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: consId, error: errCrear } = await client.rpc('sp_crear_consignacion_con_items', {
+      p_id_proveedor: prov!.id_proveedor,
+      p_observaciones: 'Lote test crear',
+      p_items: [item!.id_item],
+    })
+    expect(errCrear).toBeNull()
+    expect(consId).toBeDefined()
+  })
+
+  it('sp_eliminar_consignacion: pasa con solo consignaciones.eliminar (cubre sp_transicion_item_producto)', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_elim_cons')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('ProvElim') })
+      .select('id_proveedor')
+      .single()
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatElim'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdElim') })
+      .select('id_producto')
+      .single()
+    const { data: ing } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        tipo_ingreso: 'consignacion',
+        confirmado: true,
+      })
+      .select('id_ingreso')
+      .single()
+    const { data: item } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        id_ingreso: ing!.id_ingreso,
+        estado_item: 'devuelto',
+        tipo_ingreso: 'consignacion',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: cons } = await fixture.serviceRole
+      .from('consignacion')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        id_usuario_alta: fixture.userId,
+        estado: 'cerrada',
+      })
+      .select('id_consignacion')
+      .single()
+
+    await fixture.serviceRole
+      .from('consignacion_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion: cons!.id_consignacion,
+        id_item: item!.id_item,
+        id_producto: prod!.id_producto,
+        estado: 'devuelto',
+        fecha_devolucion: new Date().toISOString(),
+      })
+
+    const client = await signInAs(fixture)
+
+    // Solo consignaciones.eliminar (sin inventario.editar ni consignaciones.editar)
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['eliminar', 'ver'], inventario: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: resElim, error: errElim } = await client.rpc('sp_eliminar_consignacion', {
+      p_id_consignacion: cons!.id_consignacion,
+    })
+    expect(errElim).toBeNull()
+    expect(resElim).toEqual({
+      items_reestockeados: 1,
+      detalles_borrados: 1,
+    })
+  })
+
+  it('roles con permiso ejecutan exitosamente los sp de consignaciones y rendiciones', async () => {
+    const fixture = await createTenantWithUser('rlsp_m4_permisos')
+    await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
+    const { data: prov } = await fixture.serviceRole
+      .from('proveedor')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('ProvM4') })
+      .select('id_proveedor')
+      .single()
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatM4'), talles: ['U'] })
+      .select('id_categoria')
+      .single()
+    const { data: prod } = await fixture.serviceRole
+      .from('producto')
+      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdM4') })
+      .select('id_producto')
+      .single()
+    const { data: ing } = await fixture.serviceRole
+      .from('ingreso_mercaderia')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        tipo_ingreso: 'consignacion',
+        confirmado: true,
+      })
+      .select('id_ingreso')
+      .single()
+    const { data: item1 } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        id_ingreso: ing!.id_ingreso,
+        estado_item: 'disponible',
+        tipo_ingreso: 'consignacion',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+    const { data: item2 } = await fixture.serviceRole
+      .from('item_producto')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_producto: prod!.id_producto,
+        id_ingreso: ing!.id_ingreso,
+        estado_item: 'disponible',
+        tipo_ingreso: 'consignacion',
+        qr_code: randomUUID(),
+      })
+      .select('id_item')
+      .single()
+
+    const { data: cons } = await fixture.serviceRole
+      .from('consignacion')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_proveedor: prov!.id_proveedor,
+        id_usuario_alta: fixture.userId,
+        estado: 'activa',
+      })
+      .select('id_consignacion')
+      .single()
+
+    const { data: det1 } = await fixture.serviceRole
+      .from('consignacion_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion: cons!.id_consignacion,
+        id_item: item1!.id_item,
+        id_producto: prod!.id_producto,
+        estado: 'pendiente',
+      })
+      .select('id_consignacion_detalle')
+      .single()
+
+    const { data: det2 } = await fixture.serviceRole
+      .from('consignacion_detalle')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_consignacion: cons!.id_consignacion,
+        id_item: item2!.id_item,
+        id_producto: prod!.id_producto,
+        estado: 'pendiente',
+      })
+      .select('id_consignacion_detalle')
+      .single()
+
+    const client = await signInAs(fixture)
+
+    // 1. consignaciones.editar -> sp_cancelar_item_consignacion, sp_confirmar_salida_item, sp_editar_consignacion, sp_cerrar_consignacion
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { consignaciones: ['editar', 'ver'], rendiciones: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errCanc } = await client.rpc('sp_cancelar_item_consignacion', {
+      p_id_detalle: det1!.id_consignacion_detalle,
+      p_motivo: 'cancelar test',
+    })
+    expect(errCanc).toBeNull()
+
+    const { error: errSalida } = await client.rpc('sp_confirmar_salida_item', {
+      p_id_detalle: det2!.id_consignacion_detalle,
+    })
+    expect(errSalida).toBeNull()
+
+    const { error: errEdit } = await client.rpc('sp_editar_consignacion', {
+      p_id_consignacion: cons!.id_consignacion,
+      p_observaciones: 'observaciones actualizadas',
+    })
+    expect(errEdit).toBeNull()
+
+    const { error: errCerrar } = await client.rpc('sp_cerrar_consignacion', {
+      p_id_consignacion: cons!.id_consignacion,
+    })
+    expect(errCerrar).toBeNull()
+
+    // 2. Rendiciones: sp_excluir_detalle_rendicion, sp_reincluir_detalle_rendicion, sp_generar_rendicion, sp_marcar_rendicion_pagada
+    const { data: vta } = await fixture.serviceRole
+      .from('venta')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_usuario: fixture.userId,
+        estado_venta: 'registrada',
+        fecha: new Date().toISOString(),
+        total_venta: 1000,
+        subtotal: 1000,
+        descuento: 0,
+        recargo: 0,
+        monto_cobrado: 1000,
+      })
+      .select('id_venta')
+      .single()
+
+    const { data: detVta } = await fixture.serviceRole
+      .from('detalle_venta')
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_venta: vta!.id_venta,
+        id_producto: prod!.id_producto,
+        id_proveedor: prov!.id_proveedor,
+        cantidad: 1,
+        precio_unitario: 1000,
+        costo_snapshot: 600,
+        monto_proveedor: 600,
+        excluida_rendicion: false,
+      })
+      .select('id_detalle_venta')
+      .single()
+
+    // rendiciones.editar -> sp_excluir_detalle_rendicion y sp_reincluir_detalle_rendicion
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { rendiciones: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errExcl } = await client.rpc('sp_excluir_detalle_rendicion', {
+      p_id_detalle: detVta!.id_detalle_venta,
+      p_motivo: 'test excluir',
+    })
+    expect(errExcl).toBeNull()
+
+    const { error: errReinc } = await client.rpc('sp_reincluir_detalle_rendicion', {
+      p_id_detalle: detVta!.id_detalle_venta,
+    })
+    expect(errReinc).toBeNull()
+
+    // rendiciones.crear -> sp_generar_rendicion
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { rendiciones: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { data: idRend, error: errGen } = await client.rpc('sp_generar_rendicion', {
+      p_id_proveedor: prov!.id_proveedor,
+      p_observaciones: 'Rendicion test',
+    })
+    expect(errGen).toBeNull()
+    expect(idRend).toBeDefined()
+
+    // rendiciones.editar -> sp_marcar_rendicion_pagada
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { rendiciones: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    const { error: errPago } = await client.rpc('sp_marcar_rendicion_pagada', {
+      p_id_rendicion: idRend,
+    })
+    expect(errPago).toBeNull()
+  })
+})
