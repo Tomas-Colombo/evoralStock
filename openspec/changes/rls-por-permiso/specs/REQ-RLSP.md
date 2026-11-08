@@ -406,7 +406,7 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_change_password_user` | cambiarMiPasswordAction<br>changePasswordAction<br>restablecerClaveAction | auth.uid() = p_id_usuario OR administracion.editar (app/(auth)/settings/password-actions.ts:50, app/(app)/administracion/actions.ts:270, app/(app)/administracion/usuarios/actions.ts:11) | `supabase/migrations/00009_seed_setup_functions.sql:36` | Ninguno |
 | `sp_cobrar_cuota` | cobrarCuotaAction | ventas.editar (app/(app)/ventas/actions.ts:367) | `supabase/migrations/00069_incobrables_sin_gasto.sql:11` | Ninguno |
 | `sp_confirmar_consignacion` | confirmarConsignacionAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:85) | `supabase/migrations/00125_consignacion_modulo_grupo_b.sql:345` | Ninguno |
-| `sp_confirmar_consignacion_revendedora` | confirmarConsignacionRevendedoraAction<br>entregarConsignacionRevendedoraAction | revendedoras.editar OR revendedoras.crear (app/(app)/revendedoras/actions.ts:254, :214) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:322` | `sp_entregar_consignacion_revendedora` |
+| `sp_confirmar_consignacion_revendedora` | confirmarConsignacionRevendedoraAction<br>entregarConsignacionRevendedoraAction | revendedoras.crear (app/(app)/revendedoras/[id]/consignaciones/actions.ts:67, app/(app)/revendedoras/actions.ts:214) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:322` | `sp_entregar_consignacion_revendedora` |
 | `sp_confirmar_declaracion_venta` | confirmarDeclaracionAction | revendedoras.crear (app/(app)/revendedoras/declaraciones/actions.ts:19) | `supabase/migrations/00104_declaracion_venta_functions.sql:170` | Ninguno |
 | `sp_confirmar_ingreso` | confirmarIngresoAction | inventario.crear (app/(app)/inventario/actions.ts:340) | `supabase/migrations/00143_costo_unico.sql:117` | Ninguno |
 | `sp_confirmar_salida_item` | confirmarSalidaItemAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:165) | `supabase/migrations/00124_consignacion_modulo_grupo_a.sql:358` | `sp_confirmar_consignacion` |
@@ -443,7 +443,7 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_recalcular_precio_venta` | recalcularPrecioAction | precios.editar (app/(app)/precios/actions.ts:137) | `supabase/migrations/00019_precios_functions.sql:149` | `sp_recalcular_precios_batch` |
 | `sp_recalcular_precios_batch` | recalcularPreciosBatchAction | precios.editar (app/(app)/precios/actions.ts:157) | `supabase/migrations/00040_precios_batch.sql:130` | Ninguno |
 | `sp_rechazar_declaracion_venta` | rechazarDeclaracionAction | revendedoras.crear (app/(app)/revendedoras/declaraciones/actions.ts:47) | `supabase/migrations/00104_declaracion_venta_functions.sql:244` | Ninguno |
-| `sp_registrar_ajuste_inventario` | registrarAjusteInventarioAction | consignaciones.editar (app/(app)/consignaciones/actions.ts:205) | `supabase/migrations/00025_consignacion_functions.sql:281` | Ninguno |
+| `sp_registrar_ajuste_inventario` | registrarAjusteInventarioAction | inventario.editar (app/(app)/consignaciones/actions.ts:201) | `supabase/migrations/00025_consignacion_functions.sql:281` | Ninguno |
 | `sp_registrar_cambio` | registrarCambioAction | ventas.crear (app/(app)/ventas/actions.ts:170) | `supabase/migrations/00099_sp_registrar_cambio.sql:7` | Ninguno |
 | `sp_registrar_cargo_tenant` | registrarCargoTenantAction | Superadmin plataforma: requireSuperAdmin() (app/(plataforma)/plataforma/actions.ts:32) | `supabase/migrations/00119_super_admin_plataforma.sql:130` | Ninguno |
 | `sp_registrar_consulta_ayuda` | consultarAyudaAction | ayuda.consultar (app/(app)/ayuda/actions.ts:41) | `supabase/migrations/00127_ayuda.sql:110` | Ninguno |
@@ -480,12 +480,12 @@ Revisando mecánicamente la columna "¿Lo llaman otros sp por dentro?" contra la
 
 #### 7.3.1. Aristas cruzadas encontradas en definiciones vigentes:
 
-1. **`sp_entregar_consignacion_revendedora` (`revendedoras.crear`) → `sp_confirmar_consignacion_revendedora` (`revendedoras.editar`)**
+1. **`sp_entregar_consignacion_revendedora` (`revendedoras.crear`) → `sp_confirmar_consignacion_revendedora` (`revendedoras.crear`)**
    - *Definición vigente llamador*: `supabase/migrations/00115_entrega_y_devolucion_revendedora.sql:43`.
-   - *Conflicto*: La acción `entregarConsignacionRevendedoraAction` requiere `revendedoras.crear`. En la línea 43 ejecuta `perform sp_confirmar_consignacion_revendedora(v_id, p_ip)`. Si `sp_confirmar_consignacion_revendedora` valida únicamente `revendedoras.editar`, la entrega falla con `no-permission`.
-   - *Resolución requerida*: La compuerta de `sp_confirmar_consignacion_revendedora` debe admitir disyunción explícita:
+   - *Punto de entrada*: Tanto `entregarConsignacionRevendedoraAction` (`app/(app)/revendedoras/actions.ts:214`) como `confirmarConsignacionRevendedoraAction` (`app/(app)/revendedoras/[id]/consignaciones/actions.ts:67`) requieren `revendedoras.crear`. En la línea 43 ejecuta `perform sp_confirmar_consignacion_revendedora(v_id, p_ip)`.
+   - *Resolución*: `sp_confirmar_consignacion_revendedora` valida `revendedoras.crear`:
      ```sql
-     if not (auth_tiene_permiso('revendedoras', 'editar') or auth_tiene_permiso('revendedoras', 'crear')) then
+     if not auth_tiene_permiso('revendedoras', 'crear') then
        raise exception 'no-permission' using errcode = '42501';
      end if;
      ```
@@ -510,9 +510,9 @@ Revisando mecánicamente la columna "¿Lo llaman otros sp por dentro?" contra la
      - `sp_registrar_devolucion_cliente` (`ventas.editar`, `00110:283`)
      - `sp_registrar_cambio` (`ventas.editar`, `00099:53, 58`)
      - `sp_confirmar_salida_item` (`consignaciones.editar`, `00124:384`)
-     - `sp_registrar_ajuste_inventario` (`consignaciones.editar`, `00025:317`)
+     - `sp_registrar_ajuste_inventario` (`inventario.editar`, `00025:317`)
      - `sp_eliminar_consignacion` (`consignaciones.eliminar`, `00125:433`)
-     - `sp_confirmar_consignacion_revendedora` (`revendedoras.editar`, `00085:370`)
+     - `sp_confirmar_consignacion_revendedora` (`revendedoras.crear`, `00085:370`)
      - `sp_registrar_devolucion_revendedora` (`revendedoras.editar`, `00085:475`)
    - *Conflicto*: Ninguno de los llamadores operativos requiere el rol `inventario.editar` en sus Server Actions.
    - *Alternativas arquitectónicas (DR-RLSP-04)*:
@@ -527,17 +527,22 @@ Revisando mecánicamente la columna "¿Lo llaman otros sp por dentro?" contra la
    - `sp_recalcular_precios_batch` (`precios.editar`) → `sp_recalcular_precio_venta` (`precios.editar`, `00040:144`).
 
 #### 7.3.2. Helpers internos en SQL (sin RPC): Clasificación unificada
-Los siguientes procedimientos almacenados son helpers internos en PostgreSQL que **no son llamados por RPC desde `lib/dal` ni `app`**:
-- `sp_calcular_costo_cobro` (llamado por `sp_registrar_venta` y `sp_cobrar_cuota`)
-- `sp_gen_sku` (llamado por `sp_create_producto` y `sp_importar_remito`)
-- `sp_aplicar_ultimo_costo` (llamado por `sp_confirmar_ingreso`, `sp_crear_stock_directo`, `sp_importar_remito`, `sp_set_costo_producto`, `sp_revaluar_costos_usd_vigentes`)
-- `sp_marcar_precio_desactualizado_by_producto` (llamado por `sp_aplicar_ultimo_costo`)
-- `sp_marcar_precio_desactualizado_by_regla` (llamado por `sp_create_regla_precio` y `sp_baja_regla_precio`)
-- `sp_crear_consignacion_revendedora_con_items` (llamado por `sp_entregar_consignacion_revendedora`)
+Los siguientes procedimientos almacenados son helpers internos en PostgreSQL que **no son llamados por RPC directa desde `lib/dal` ni `app`**:
+- `sp_calcular_costo_cobro` (llamado por `sp_registrar_venta` y `sp_cobrar_cuota` — solo lectura/cálculo puro)
+- `sp_gen_sku` (llamado por `sp_create_producto` y `sp_importar_remito` — cálculo puro)
+- `sp_aplicar_ultimo_costo` (llamado por `sp_confirmar_ingreso`, `sp_crear_stock_directo`, `sp_importar_remito`, `sp_set_costo_producto`, `sp_revaluar_costos_usd_vigentes` — muta datos)
+- `sp_marcar_precio_desactualizado_by_producto` (llamado por `sp_aplicar_ultimo_costo` — muta datos)
+- `sp_marcar_precio_desactualizado_by_regla` (llamado por `sp_create_regla_precio` y `sp_baja_regla_precio` — muta datos)
+- `sp_crear_consignacion_revendedora_con_items` (llamado por `sp_entregar_consignacion_revendedora` — muta datos)
 
 > [!IMPORTANT]
-> **Clasificación**: **Helper interno: sin chequeo, se deja el grant**.
-> *Motivo*: Los procedimientos almacenados que los invocan son `SECURITY INVOKER` (`sp_registrar_venta`, `sp_cobrar_cuota`, `sp_create_producto`, `sp_importar_remito`, etc.), de modo que el privilegio `EXECUTE` se comprueba en tiempo de ejecución contra el rol del usuario autenticado (`authenticated`). Ejecutar un `REVOKE EXECUTE` rompería la ejecución de estos flujos operativos en cascada. Además, la migración preexistente `00056` otorga `grant all on all routines in schema public to anon, authenticated`. Al no tener punto de entrada en el cliente DAL, quedan confinados a su uso interno sin agregar chequeos redundantes.
+> **Alineación con DR-RLSP-04 (Modelo OR)**:
+> - **Helpers sin escritura (`sp_gen_sku`, `sp_calcular_costo_cobro`)**: Quedan **sin chequeo**, preservando el grant a `authenticated`.
+> - **Helpers con escritura**: Según DR-RLSP-04, todo `sp_*` de escritura valida el `OR` de los permisos de todos sus puntos de entrada. Por ende, no quedan sin chequeo sino que se distribuyen en las migraciones de sus respectivos módulos:
+>   - `sp_aplicar_ultimo_costo` (Fase 5b-M2 Inventario): `inventario.crear OR precios.editar_cotizacion`
+>   - `sp_marcar_precio_desactualizado_by_producto` (Fase 5b-M2 Inventario): `inventario.crear OR precios.editar_cotizacion`
+>   - `sp_marcar_precio_desactualizado_by_regla` (Fase 5b-M3 Precios): `precios.crear OR precios.eliminar`
+>   - `sp_crear_consignacion_revendedora_con_items` (Fase 5b-M5 Revendedoras): `revendedoras.crear`
 
 *(Nota sobre `sp_registrar_gasto`: En `00069_incobrables_sin_gasto.sql:111` [UP vigente] se desvinculó de `sp_marcar_cuota_incobrable`. Al no tener llamadores internos vigentes entre módulos, no posee aristas cruzadas y lleva chequeo unívoco de `gastos.crear`)*.
 
@@ -575,18 +580,19 @@ Excluyendo los 10 procedimientos documentados en §7.3.bis, el alcance efectivo 
 1. **Migración 1 — Módulo Ventas, Cuotas y Reservas (10 SPs · Riesgo Crítico / Máximo)**:
    - SPs: `sp_registrar_venta`, `sp_anular_venta`, `sp_registrar_devolucion_cliente`, `sp_registrar_cambio`, `sp_emitir_comprobante`, `sp_cobrar_cuota`, `sp_marcar_cuota_incobrable`, `sp_crear_reserva`, `sp_cancelar_reserva`, `sp_vencer_reservas`.
    - *Justificación*: Protege las entradas y salidas de dinero de la caja, devengamiento de intereses, cobranzas y la integridad de los comprobantes fiscales/comerciales.
-2. **Migración 2 — Módulo Inventario (8 SPs · Riesgo Alto)**:
-   - SPs: `sp_create_producto`, `sp_crear_stock_directo`, `sp_set_costo_producto`, `sp_asignar_talles_a_producto`, `sp_transicion_item_producto`, `sp_importar_remito`, `sp_confirmar_ingreso`, `sp_cancelar_ingreso`.
-   - *Justificación*: Protege el stock físico del comercio, la valuación de existencias y las altas de mercadería.
-3. **Migración 3 — Módulo Precios (9 SPs · Riesgo Medio-Alto)**:
-   - SPs: `sp_create_regla_precio`, `sp_baja_regla_precio`, `sp_extender_vigencia_regla`, `sp_recalcular_precio_venta`, `sp_recalcular_precios_batch`, `sp_set_cotizacion_manual`, `sp_set_modo_cotizacion`, `sp_registrar_cotizacion_bcra`, `sp_revaluar_costos_usd_vigentes`.
+2. **Migración 2 — Módulo Inventario (10 SPs · Riesgo Alto)**:
+   - SPs: `sp_create_producto`, `sp_crear_stock_directo`, `sp_set_costo_producto`, `sp_importar_remito`, `sp_confirmar_ingreso`, `sp_asignar_talles_a_producto`, `sp_cancelar_ingreso`, `sp_aplicar_ultimo_costo`, `sp_marcar_precio_desactualizado_by_producto`, `sp_transicion_item_producto`.
+   - *Justificación*: Protege el stock físico del comercio, la valuación de existencias, las altas de mercadería y los costos vigentes.
+3. **Migración 3 — Módulo Precios (10 SPs · Riesgo Medio-Alto)**:
+   - SPs: `sp_create_regla_precio`, `sp_baja_regla_precio`, `sp_extender_vigencia_regla`, `sp_recalcular_precio_venta`, `sp_recalcular_precios_batch`, `sp_set_cotizacion_manual`, `sp_set_modo_cotizacion`, `sp_registrar_cotizacion_bcra`, `sp_revaluar_costos_usd_vigentes`, `sp_marcar_precio_desactualizado_by_regla`.
+   - *Nota*: `sp_registrar_cotizacion_bcra` también se alcanza por `resolverConversionCarga` (`inventario.crear`) y por la página de cotización (`precios.ver`).
    - *Justificación*: Protege los márgenes comerciales, reglas de descuento/recargo masivas y cotizaciones de moneda extranjera.
 4. **Migración 4 — Módulos Consignaciones y Rendiciones de Proveedores (13 SPs · Riesgo Medio-Alto)**:
    - SPs Consignaciones (9): `sp_crear_consignacion_con_items`, `sp_editar_consignacion`, `sp_confirmar_consignacion`, `sp_eliminar_consignacion`, `sp_agregar_item_consignacion`, `sp_cancelar_item_consignacion`, `sp_confirmar_salida_item`, `sp_cerrar_consignacion`, `sp_registrar_ajuste_inventario`.
    - SPs Rendiciones (4): `sp_generar_rendicion`, `sp_marcar_rendicion_pagada`, `sp_excluir_detalle_rendicion`, `sp_reincluir_detalle_rendicion`.
    - *Justificación*: Protege la cuenta corriente con proveedores consignatarios y los pagos de liquidación.
-5. **Migración 5 — Módulo Revendedoras — Gestión (18 SPs · Riesgo Medio)**:
-   - SPs: `sp_crear_revendedora`, `sp_editar_revendedora`, `sp_baja_revendedora`, `sp_crear_regla_comision`, `sp_terminar_regla_comision`, `sp_entregar_consignacion_revendedora`, `sp_editar_consignacion_revendedora`, `sp_confirmar_consignacion_revendedora`, `sp_registrar_devolucion_revendedora`, `sp_devolver_items_revendedora`, `sp_cerrar_consignacion_revendedora`, `sp_eliminar_consignacion_revendedora`, `sp_confirmar_declaracion_venta`, `sp_rechazar_declaracion_venta`, `sp_generar_liquidacion`, `sp_excluir_detalle_liquidacion`, `sp_reincluir_detalle_liquidacion`, `sp_marcar_liquidacion_pagada`.
+5. **Migración 5 — Módulo Revendedoras — Gestión (19 SPs · Riesgo Medio)**:
+   - SPs: `sp_crear_revendedora`, `sp_editar_revendedora`, `sp_baja_revendedora`, `sp_crear_regla_comision`, `sp_terminar_regla_comision`, `sp_crear_consignacion_revendedora_con_items`, `sp_entregar_consignacion_revendedora`, `sp_editar_consignacion_revendedora`, `sp_confirmar_consignacion_revendedora`, `sp_registrar_devolucion_revendedora`, `sp_devolver_items_revendedora`, `sp_cerrar_consignacion_revendedora`, `sp_eliminar_consignacion_revendedora`, `sp_confirmar_declaracion_venta`, `sp_rechazar_declaracion_venta`, `sp_generar_liquidacion`, `sp_excluir_detalle_liquidacion`, `sp_reincluir_detalle_liquidacion`, `sp_marcar_liquidacion_pagada`.
    - *Justificación*: Circuito de stock en poder de revendedoras y rendición de comisiones comerciales (excluye funciones service-role y portal).
 6. **Migración 6 — Módulos Gastos y Administración (12 SPs · Riesgo Operativo)**:
    - SPs Gastos (3): `sp_registrar_gasto`, `sp_eliminar_gasto`, `sp_set_presupuesto_categoria_gasto`.
