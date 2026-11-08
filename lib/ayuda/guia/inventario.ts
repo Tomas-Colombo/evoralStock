@@ -451,6 +451,25 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     ],
   },
   {
+    id: 'proveedores-editar',
+    titulo: 'Cómo editar los datos de un proveedor',
+    ruta: '/proveedores',
+    permisos: ['inventario.ver', 'inventario.editar'],
+    pasos: [
+      'Entrá a Proveedores desde el menú de navegación.',
+      'Hacé clic en "Ver" en la fila del proveedor a consultar.',
+      'Hacé clic en "Editar" en la cabecera del perfil.',
+      'Modificá los datos en el formulario.',
+      'Hacé clic en "Guardar cambios" para actualizar el proveedor.',
+    ],
+    detalles: [
+      {
+        tema: 'Tipo de proveedor',
+        texto: 'El tipo de proveedor no se puede cambiar desde esta pantalla.',
+      },
+    ],
+  },
+  {
     id: 'proveedores-consignatario',
     titulo: 'Cómo registrar un proveedor de tipo consignatario',
     ruta: '/proveedores/nuevo',

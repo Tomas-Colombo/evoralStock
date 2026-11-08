@@ -4,6 +4,7 @@ import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { Kpi } from '@/components/ui/Kpi'
 import { verifySession } from '@/lib/dal/session'
+import { hasPermission } from '@/lib/dal/guard'
 import { capacidades } from '@/lib/modulos/capacidades'
 import {
   getPerfilProveedorPorId,
@@ -16,6 +17,7 @@ import { waMeLink } from '@/lib/utils/waMeLink'
 import { ESTADO_CONSIGNACION_LABEL } from '@/lib/types/consignaciones'
 import { ESTADO_RENDICION_LABEL } from '@/lib/types/rendiciones'
 import { BajaProveedorButton } from './BajaProveedorButton'
+import { EditarProveedorButton } from './EditarProveedorButton'
 import { PerfilPeriodoForm } from './PerfilPeriodoForm'
 import { PerfilPaginacion } from './PerfilPaginacion'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
@@ -34,6 +36,7 @@ export default async function ProveedorPerfilPage(props: {
   }>
 }) {
   const session = await verifySession()
+  const puedeEditar = hasPermission(session, 'inventario', 'editar')
   const cap = capacidades(session.modulosHabilitados)
   const { id } = await props.params
   const sp = await props.searchParams
@@ -106,11 +109,14 @@ export default async function ProveedorPerfilPage(props: {
                 <span className="font-mono text-xs uppercase text-muted">{proveedor.tipo}</span>
               </div>
             </div>
-            <BajaProveedorButton
-              id={proveedor.id_proveedor}
-              activo={proveedor.activo}
-              tieneDeudaPendiente={Boolean(perfil && perfil.monto_pendiente_rendicion > 0)}
-            />
+            <div className="flex shrink-0 items-start gap-2">
+              {puedeEditar && <EditarProveedorButton proveedor={proveedor} />}
+              <BajaProveedorButton
+                id={proveedor.id_proveedor}
+                activo={proveedor.activo}
+                tieneDeudaPendiente={Boolean(perfil && perfil.monto_pendiente_rendicion > 0)}
+              />
+            </div>
           </header>
 
           <dl className="grid grid-cols-1 gap-y-3 gap-x-8 px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
