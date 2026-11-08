@@ -447,7 +447,7 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_registrar_cambio` | registrarCambioAction | ventas.crear (app/(app)/ventas/actions.ts:170) | `supabase/migrations/00099_sp_registrar_cambio.sql:7` | Ninguno |
 | `sp_registrar_cargo_tenant` | registrarCargoTenantAction | Superadmin plataforma: requireSuperAdmin() (app/(plataforma)/plataforma/actions.ts:32) | `supabase/migrations/00119_super_admin_plataforma.sql:130` | Ninguno |
 | `sp_registrar_consulta_ayuda` | consultarAyudaAction | ayuda.consultar (app/(app)/ayuda/actions.ts:41) | `supabase/migrations/00127_ayuda.sql:110` | Ninguno |
-| `sp_registrar_cotizacion_bcra` | sincronizarCotizacionBcraAction | precios.editar (app/(app)/precios/actions.ts:220) | `supabase/migrations/00133_sp_registrar_cotizacion_bcra_hoy.sql:68` | Ninguno |
+| `sp_registrar_cotizacion_bcra` | sincronizarCotizacionBcraAction<br>resolverConversionCarga | inventario.crear OR precios.editar_cotizacion (app/(app)/inventario/actions.ts:90, app/(app)/precios/cotizacion/actions.ts:103) | `supabase/migrations/00133_sp_registrar_cotizacion_bcra_hoy.sql:68` | Ninguno |
 | `sp_registrar_devolucion_cliente` | registrarDevolucionAction | ventas.editar (app/(app)/ventas/actions.ts:147) | `supabase/migrations/00110_finanzas_cambio_diferencia.sql:263` | Ninguno |
 | `sp_registrar_devolucion_revendedora` | registrarDevolucionRevendedoraAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:274) | `supabase/migrations/00085_consignacion_revendedora_functions.sql:419` | `sp_devolver_items_revendedora` |
 | `sp_registrar_gasto` | registrarGastoAction | gastos.crear (app/(app)/rendiciones/actions.ts:127) | `supabase/migrations/00053_gasto_descripcion_opcional_y_delete.sql:31` | Ninguno |
@@ -456,12 +456,12 @@ Se excluyen expresamente de esta fase las siguientes 10 funciones de solo lectur
 | `sp_reincluir_detalle_liquidacion` | reincluirDetalleLiquidacionAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:434) | `supabase/migrations/00087_liquidacion_revendedora_functions.sql:198` | Ninguno |
 | `sp_reincluir_detalle_rendicion` | reincluirDetalleRendicionAction | rendiciones.editar (app/(app)/rendiciones/actions.ts:107) | `supabase/migrations/00126_rendicion_modulo.sql:416` | Ninguno |
 | `sp_retirar_declaracion` | retirarDeclaracionAction | Portal revendedora: auth_revendedora_id() is not null (app/(portal)/mi-cuenta/actions.ts:45) | `supabase/migrations/00104_declaracion_venta_functions.sql:130` | Ninguno |
-| `sp_revaluar_costos_usd_vigentes` | revaluarCostosUsdVigentesAction | precios.editar (app/(app)/precios/actions.ts:241) | `supabase/migrations/00143_costo_unico.sql:561` | Ninguno |
+| `sp_revaluar_costos_usd_vigentes` | revaluarCostosUsdAction | precios.editar_cotizacion (app/(app)/precios/cotizacion/actions.ts:139) | `supabase/migrations/00143_costo_unico.sql:561` | Ninguno |
 | `sp_set_configuracion_impresora` | setConfiguracionImpresoraAction | administracion.editar (app/(app)/administracion/actions.ts:188) | `supabase/migrations/00139_configuracion_impresora_etiquetas.sql:10` | Ninguno |
 | `sp_set_configuracion_qr_lado_mm` | setConfiguracionQrLadoMmAction | administracion.editar (app/(app)/administracion/actions.ts:167) | `supabase/migrations/00065_qr_tamano_mm.sql:16` | Ninguno |
 | `sp_set_costo_producto` | setCostoAction | inventario.editar (app/(app)/inventario/actions.ts:192) | `supabase/migrations/00143_costo_unico.sql:520` | Ninguno |
-| `sp_set_cotizacion_manual` | setCotizacionManualAction | precios.editar (app/(app)/precios/actions.ts:178) | `supabase/migrations/00130_cotizacion_usd.sql:195` | Ninguno |
-| `sp_set_modo_cotizacion` | setModoCotizacionAction | precios.editar (app/(app)/precios/actions.ts:199) | `supabase/migrations/00130_cotizacion_usd.sql:281` | Ninguno |
+| `sp_set_cotizacion_manual` | actualizarCotizacionManualAction | precios.editar_cotizacion (app/(app)/precios/cotizacion/actions.ts:35) | `supabase/migrations/00130_cotizacion_usd.sql:195` | Ninguno |
+| `sp_set_modo_cotizacion` | cambiarModoCotizacionAction | precios.editar_cotizacion (app/(app)/precios/cotizacion/actions.ts:69) | `supabase/migrations/00130_cotizacion_usd.sql:281` | Ninguno |
 | `sp_set_presupuesto_categoria_gasto` | setPresupuestoCategoriaGastoAction | gastos.editar (app/(app)/rendiciones/actions.ts:167) | `supabase/migrations/00027_rendicion_gasto_functions.sql:304` | Ninguno |
 | `sp_set_tenant_logo` | subirLogoAction<br>quitarLogoAction | administracion.editar (app/(app)/administracion/actions.ts:233, :255) | `supabase/migrations/00071_logo_comercio.sql:11` | Ninguno |
 | `sp_terminar_regla_comision` | terminarReglaComisionAction | revendedoras.editar (app/(app)/revendedoras/actions.ts:194) | `supabase/migrations/00081_reglas_comision_schema.sql:165` | Ninguno |
@@ -585,7 +585,7 @@ Excluyendo los 10 procedimientos documentados en §7.3.bis, el alcance efectivo 
    - *Justificación*: Protege el stock físico del comercio, la valuación de existencias, las altas de mercadería y los costos vigentes.
 3. **Migración 3 — Módulo Precios (10 SPs · Riesgo Medio-Alto)**:
    - SPs: `sp_create_regla_precio`, `sp_baja_regla_precio`, `sp_extender_vigencia_regla`, `sp_recalcular_precio_venta`, `sp_recalcular_precios_batch`, `sp_set_cotizacion_manual`, `sp_set_modo_cotizacion`, `sp_registrar_cotizacion_bcra`, `sp_revaluar_costos_usd_vigentes`, `sp_marcar_precio_desactualizado_by_regla`.
-   - *Nota*: `sp_registrar_cotizacion_bcra` también se alcanza por `resolverConversionCarga` (`inventario.crear`) y por la página de cotización (`precios.ver`).
+   - *Nota*: La página de cotización ya no llega a `sp_registrar_cotizacion_bcra` (usa `leerCotizacionVigente`); el SP se alcanza por `resolverConversionCarga` (`inventario.crear`) y `sincronizarCotizacionBcraAction` (`precios.editar_cotizacion`). Su permiso es `inventario.crear OR precios.editar_cotizacion`.
    - *Justificación*: Protege los márgenes comerciales, reglas de descuento/recargo masivas y cotizaciones de moneda extranjera.
 4. **Migración 4 — Módulos Consignaciones y Rendiciones de Proveedores (13 SPs · Riesgo Medio-Alto)**:
    - SPs Consignaciones (9): `sp_crear_consignacion_con_items`, `sp_editar_consignacion`, `sp_confirmar_consignacion`, `sp_eliminar_consignacion`, `sp_agregar_item_consignacion`, `sp_cancelar_item_consignacion`, `sp_confirmar_salida_item`, `sp_cerrar_consignacion`, `sp_registrar_ajuste_inventario`.
