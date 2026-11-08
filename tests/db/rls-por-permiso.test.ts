@@ -3187,3 +3187,249 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
     expect(idVenta).toBeDefined()
   })
 })
+
+describe.skipIf(!hasTestDb)('Fase 5b-M6 - Chequeo de permisos en sp_* de Gastos y Administración', () => {
+  it('un rol con solo permisos de lectura recibe no-permission en los 11 sp', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_ver')
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { gastos: ['ver'], administracion: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const llamadas: Array<{ sp: string; params: Record<string, unknown> }> = [
+      {
+        sp: 'sp_registrar_gasto',
+        params: {
+          p_id_categoria_gasto: randomUUID(),
+          p_monto: 100,
+          p_descripcion: 'test',
+        },
+      },
+      {
+        sp: 'sp_eliminar_gasto',
+        params: {
+          p_id_gasto: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_set_presupuesto_categoria_gasto',
+        params: {
+          p_id_categoria: randomUUID(),
+          p_presupuesto: 500,
+        },
+      },
+      {
+        sp: 'sp_create_rol',
+        params: {
+          p_nombre: 'Rol Test',
+          p_permisos: {},
+        },
+      },
+      {
+        sp: 'sp_toggle_usuario_activo',
+        params: {
+          p_id_usuario: randomUUID(),
+          p_estado: 'activo',
+        },
+      },
+      {
+        sp: 'sp_update_usuario',
+        params: {
+          p_id_usuario: randomUUID(),
+          p_nombre_completo: 'Test',
+          p_id_rol: randomUUID(),
+        },
+      },
+      {
+        sp: 'sp_update_rol_permisos',
+        params: {
+          p_id_rol: randomUUID(),
+          p_nombre: 'Rol Test',
+          p_permisos: {},
+        },
+      },
+      {
+        sp: 'sp_set_configuracion_qr_lado_mm',
+        params: {
+          p_lado_mm: 35,
+        },
+      },
+      {
+        sp: 'sp_set_configuracion_impresora',
+        params: {
+          p_ancho_mm: 50,
+          p_alto_mm: 30,
+        },
+      },
+      {
+        sp: 'sp_set_tenant_logo',
+        params: {
+          p_logo_url: null,
+        },
+      },
+      {
+        sp: 'sp_delete_rol',
+        params: {
+          p_id_rol: randomUUID(),
+        },
+      },
+    ]
+
+    for (const { sp, params } of llamadas) {
+      const { error } = await client.rpc(sp, params)
+      expect(error, `SP ${sp} debio fallar con no-permission`).not.toBeNull()
+      expect(error?.message, `SP ${sp} mensaje`).toContain('no-permission')
+      expect(error?.code, `SP ${sp} code`).toBe('42501')
+    }
+  })
+
+  it('gastos.crear: sp_registrar_gasto pasa con rol que solo tiene gastos.crear', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_g_crear')
+
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria_gasto')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatGastoCrear') })
+      .select('id_categoria_gasto')
+      .single()
+    expect(cat?.id_categoria_gasto).toBeDefined()
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { gastos: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { data: idGasto, error } = await client.rpc('sp_registrar_gasto', {
+      p_id_categoria_gasto: cat!.id_categoria_gasto,
+      p_monto: 250,
+      p_descripcion: 'Gasto test',
+    })
+    expect(error).toBeNull()
+    expect(idGasto).toBeDefined()
+  })
+
+  it('gastos.editar: sp_set_presupuesto_categoria_gasto pasa con rol que solo tiene gastos.editar', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_g_editar')
+
+    const { data: cat } = await fixture.serviceRole
+      .from('categoria_gasto')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatGastoEditar') })
+      .select('id_categoria_gasto')
+      .single()
+    expect(cat?.id_categoria_gasto).toBeDefined()
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { gastos: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { error } = await client.rpc('sp_set_presupuesto_categoria_gasto', {
+      p_id_categoria: cat!.id_categoria_gasto,
+      p_presupuesto: 1500,
+    })
+    expect(error).toBeNull()
+  })
+
+  it('administracion.crear: sp_create_rol pasa con rol que solo tiene administracion.crear', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_a_crear')
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { administracion: ['crear', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { data: idRol, error } = await client.rpc('sp_create_rol', {
+      p_nombre: withScopedTenant('RolCrear'),
+      p_permisos: {},
+    })
+    expect(error).toBeNull()
+    expect(idRol).toBeDefined()
+  })
+
+  it('administracion.editar: sp_set_configuracion_qr_lado_mm pasa con rol que solo tiene administracion.editar', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_a_editar')
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { administracion: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { data, error } = await client.rpc('sp_set_configuracion_qr_lado_mm', {
+      p_lado_mm: 45,
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(45)
+  })
+
+  it('administracion.eliminar: sp_delete_rol pasa con rol que solo tiene administracion.eliminar', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_a_eliminar')
+
+    const { data: rol } = await fixture.serviceRole
+      .from('rol')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('RolEliminar') })
+      .select('id_rol')
+      .single()
+    expect(rol?.id_rol).toBeDefined()
+
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { administracion: ['eliminar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    const { error } = await client.rpc('sp_delete_rol', {
+      p_id_rol: rol!.id_rol,
+    })
+    expect(error).toBeNull()
+  })
+
+  it('sp_change_password_user: pasa sobre el propio id sin permisos de administracion; falla sobre otro id aun con administracion.editar', async () => {
+    const fixture = await createTenantWithUser('rlsp_m6_pwd')
+
+    // 1. Rol con solo administracion.ver (sin permisos de administracion de escritura)
+    const { error: errRol } = await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { administracion: ['ver'] } })
+      .eq('id_rol', fixture.rolId)
+    expect(errRol).toBeNull()
+
+    const client = await signInAs(fixture)
+
+    // Pasa sobre su propio id
+    const { error: errPropio } = await client.rpc('sp_change_password_user', {
+      p_id_usuario: fixture.userId,
+    })
+    expect(errPropio).toBeNull()
+
+    // 2. Rol con administracion.editar
+    await fixture.serviceRole
+      .from('rol')
+      .update({ permisos: { administracion: ['editar', 'ver'] } })
+      .eq('id_rol', fixture.rolId)
+
+    // Falla con no-permission sobre el id de otro usuario
+    const otroUsuarioId = randomUUID()
+    const { error: errOtro } = await client.rpc('sp_change_password_user', {
+      p_id_usuario: otroUsuarioId,
+    })
+    expect(errOtro).not.toBeNull()
+    expect(errOtro?.message).toContain('no-permission')
+    expect(errOtro?.code).toBe('42501')
+  })
+})

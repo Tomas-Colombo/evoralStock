@@ -1,4 +1,5 @@
 import 'server-only'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { createServerClient } from '@/lib/dal/supabase'
 import type {
   CategoriaGastoRow,
@@ -242,7 +243,7 @@ export async function spRegistrarGasto(input: {
     p_fecha: input.fecha ?? null,
     p_comprobante_ref: input.comprobanteRef ?? null,
   })
-  if (error) throw new Error(`sp_registrar_gasto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_registrar_gasto', error))
   return data as string
 }
 
@@ -256,7 +257,7 @@ export async function spEliminarGasto(idGasto: string): Promise<void> {
   const { error } = await supabase.rpc('sp_eliminar_gasto', {
     p_id_gasto: idGasto,
   })
-  if (error) throw new Error(`sp_eliminar_gasto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_eliminar_gasto', error))
 }
 
 export async function spSetPresupuesto(input: {
@@ -268,5 +269,5 @@ export async function spSetPresupuesto(input: {
     p_id_categoria: input.idCategoria,
     p_presupuesto: input.presupuesto,
   })
-  if (error) throw new Error(`sp_set_presupuesto_categoria_gasto: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_set_presupuesto_categoria_gasto', error))
 }

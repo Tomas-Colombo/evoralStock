@@ -1,4 +1,5 @@
 import 'server-only'
+import { errorDeRpc } from '@/lib/dal/errors'
 import { randomUUID } from 'node:crypto'
 import { createServerClient, createServiceClient } from '@/lib/dal/supabase'
 import { detectarFormatoImagen, EXTENSION_LOGO, LOGO_BUCKET } from '@/lib/tenant/logo'
@@ -42,7 +43,7 @@ export async function spToggleUsuarioActivo(
     p_id_usuario: idUsuario,
     p_estado: estado,
   })
-  if (error) throw new Error(`sp_toggle_usuario_activo: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_toggle_usuario_activo', error))
 }
 
 export async function spAsignarRol(idUsuario: string, idRol: string, nombreCompleto?: string): Promise<void> {
@@ -53,7 +54,7 @@ export async function spAsignarRol(idUsuario: string, idRol: string, nombreCompl
     p_nombre_completo: nombreCompleto ?? '',
     p_id_rol: idRol,
   })
-  if (error) throw new Error(`sp_update_usuario: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_update_usuario', error))
 }
 
 /**
@@ -139,7 +140,7 @@ export async function spCreateRol(input: {
     p_nombre: input.nombre,
     p_permisos: input.permisos,
   })
-  if (error) throw new Error(`sp_create_rol: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_create_rol', error))
   return data as string
 }
 
@@ -154,13 +155,13 @@ export async function spUpdateRol(input: {
     p_nombre: input.nombre,
     p_permisos: input.permisos,
   })
-  if (error) throw new Error(`sp_update_rol_permisos: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_update_rol_permisos', error))
 }
 
 export async function spDeleteRol(idRol: string): Promise<void> {
   const supabase = await createServerClient()
   const { error } = await supabase.rpc('sp_delete_rol', { p_id_rol: idRol })
-  if (error) throw new Error(`sp_delete_rol: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_delete_rol', error))
 }
 
 // ─── Configuración de etiquetas QR ───────────────────────────────────
@@ -195,7 +196,7 @@ export async function spSetConfiguracionQrLadoMm(
     p_lado_mm: ladoMm,
     p_ip: ip ?? null,
   })
-  if (error) throw new Error(`sp_set_configuracion_qr_lado_mm: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_set_configuracion_qr_lado_mm', error))
   return Number(data ?? ladoMm)
 }
 
@@ -208,7 +209,7 @@ export async function spSetTenantLogo(
     p_logo_url: logoUrl,
     p_ip: ip ?? null,
   })
-  if (error) throw new Error(`sp_set_tenant_logo: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_set_tenant_logo', error))
   return (data as string | null) ?? null
 }
 
@@ -377,5 +378,5 @@ export async function spSetConfiguracionImpresora(
     p_alto_mm: params.altoMm,
     p_ip: ip ?? null,
   })
-  if (error) throw new Error(`sp_set_configuracion_impresora: ${error.message}`)
+  if (error) throw new Error(errorDeRpc('sp_set_configuracion_impresora', error))
 }
