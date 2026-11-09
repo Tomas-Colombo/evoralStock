@@ -2294,6 +2294,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_producto: prod!.id_producto,
         estado_item: 'disponible',
         tipo_ingreso: 'compra',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2369,6 +2370,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2446,6 +2448,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2504,6 +2507,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'devuelto',
         tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2585,6 +2589,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2597,6 +2602,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2820,7 +2826,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
       {
         sp: 'sp_crear_regla_comision',
         params: {
-          p_ambito: 'general',
+          p_ambito: 'local',
           p_nombre: 'Regla test',
           p_escalas: [{ objetivo_desde: 0, porcentaje: 10 }],
         },
@@ -2994,6 +3000,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
         id_producto: prod!.id_producto,
         estado_item: 'disponible',
         tipo_ingreso: 'compra',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -3047,6 +3054,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
         id_producto: prod!.id_producto,
         estado_item: 'en_revendedora',
         tipo_ingreso: 'compra',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -3123,6 +3131,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
         id_producto: prod!.id_producto,
         estado_item: 'en_revendedora',
         tipo_ingreso: 'compra',
+        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')

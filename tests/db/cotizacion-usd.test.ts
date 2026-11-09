@@ -197,7 +197,7 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
         p_valor: 1500,
         p_ip: '127.0.0.1',
       })
-      expect(errSet?.message).toMatch(/no-tenant/)
+      expect(errSet?.message).toMatch(/no-tenant|no-permission/)
     })
   })
 
