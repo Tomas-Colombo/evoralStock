@@ -2551,10 +2551,17 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       items_reestockeados: 1,
       detalles_borrados: 1,
     })
+
+    const { data: itemPost } = await fixture.serviceRole
+      .from('item_producto')
+      .select('estado_item')
+      .eq('id_item', item!.id_item)
+      .single()
+    expect(itemPost?.estado_item).toBe('disponible')
   })
 
   it('roles con permiso ejecutan exitosamente los sp de consignaciones y rendiciones', async () => {
-    const fixture = await createTenantWithUser('rlsp_m4_permisos')
+    const fixture = await ventaFixture('rlsp_m4_permisos', 1, { tipoIngreso: 'consignacion' })
     await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
     const { data: prov } = await fixture.serviceRole
       .from('proveedor')
@@ -2645,6 +2652,24 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
 
     const client = await signInAs(fixture)
 
+    await fixture.serviceRole
+      .from('item_producto')
+      .update({
+        id_ingreso: ing!.id_ingreso,
+        tipo_ingreso: 'consignacion',
+        costo_ingreso: 1000,
+      })
+      .eq('id_item', fixture.items[0])
+
+    const { data: idVenta, error: errVenta } = await venderContado(fixture)
+    expect(errVenta).toBeNull()
+
+    const { data: detVta } = await fixture.serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta')
+      .eq('id_venta', idVenta)
+      .single()
+
     // 1. consignaciones.editar -> sp_cancelar_item_consignacion, sp_confirmar_salida_item, sp_editar_consignacion, sp_cerrar_consignacion
     await fixture.serviceRole
       .from('rol')
@@ -2674,38 +2699,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
     expect(errCerrar).toBeNull()
 
     // 2. Rendiciones: sp_excluir_detalle_rendicion, sp_reincluir_detalle_rendicion, sp_generar_rendicion, sp_marcar_rendicion_pagada
-    const { data: vta } = await fixture.serviceRole
-      .from('venta')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_usuario: fixture.userId,
-        estado_venta: 'registrada',
-        fecha: new Date().toISOString(),
-        total_venta: 1000,
-        subtotal: 1000,
-        descuento: 0,
-        recargo: 0,
-        monto_cobrado: 1000,
-      })
-      .select('id_venta')
-      .single()
-
-    const { data: detVta } = await fixture.serviceRole
-      .from('detalle_venta')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_venta: vta!.id_venta,
-        id_producto: prod!.id_producto,
-        id_proveedor: prov!.id_proveedor,
-        cantidad: 1,
-        precio_unitario: 1000,
-        costo_snapshot: 600,
-        monto_proveedor: 600,
-        excluida_rendicion: false,
-      })
-      .select('id_detalle_venta')
-      .single()
-
     // rendiciones.editar -> sp_excluir_detalle_rendicion y sp_reincluir_detalle_rendicion
     await fixture.serviceRole
       .from('rol')
@@ -3121,7 +3114,12 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
       .single()
     const { data: prod } = await fixture.serviceRole
       .from('producto')
-      .insert({ id_tenant: fixture.tenantId, id_categoria: cat!.id_categoria, nombre: withScopedTenant('ProdDec') })
+      .insert({
+        id_tenant: fixture.tenantId,
+        id_categoria: cat!.id_categoria,
+        nombre: withScopedTenant('ProdDec'),
+        precio_venta: 5000,
+      })
       .select('id_producto')
       .single()
     const { data: item } = await fixture.serviceRole

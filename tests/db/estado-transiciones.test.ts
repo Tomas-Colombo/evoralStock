@@ -20,7 +20,7 @@ describe('EstadoItem transiciones — DB-02', () => {
       'vendido': ['disponible', 'devuelto_cliente', 'devuelto', 'baja', 'en_revendedora'],
       'devuelto_cliente': ['disponible', 'baja'],
       'en_revendedora': ['disponible', 'vendido', 'devuelto', 'baja'],
-      'devuelto': [],
+      'devuelto': ['disponible', 'baja'],
       'baja': []
     }
 
