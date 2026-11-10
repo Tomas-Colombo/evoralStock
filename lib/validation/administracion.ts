@@ -46,6 +46,14 @@ export function createPermisosSchema(modulosVisibles: readonly string[]) {
         // Duplicados no rompen nada al leer, pero el JSON se guarda tal cual
         // viene y queda sucio para siempre. Se rechazan en la puerta.
         .refine((as) => new Set(as).size === as.length, 'acciones-duplicadas')
+        // D-CPC-05: cargar_costos implica ver_costos.
+        .refine(
+          (as) =>
+            modulo !== 'inventario' ||
+            !as.includes('cargar_costos') ||
+            as.includes('ver_costos'),
+          'cargar-costos-requiere-ver-costos',
+        )
         .optional(),
     ]),
   )

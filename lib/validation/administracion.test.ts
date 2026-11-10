@@ -248,6 +248,7 @@ describe('reasons estables', () => {
     ['acción inexistente', { reportes: ['eliminar'] }, 'accion-invalida'],
     ['valor no array', { inventario: 'ver' }, 'permisos-no-array'],
     ['duplicados', { inventario: ['ver', 'ver'] }, 'acciones-duplicadas'],
+    ['cargar_costos sin ver_costos', { inventario: ['cargar_costos'] }, 'cargar-costos-requiere-ver-costos'],
     ['no es objeto', null, 'permisos-no-objeto'],
   ]
 
@@ -301,6 +302,52 @@ describe('REQ-MODOP-09: schemas de rol con módulos visibles', () => {
     expect(res.success).toBe(false)
     if (!res.success) {
       expect(primerReason(res.error)).toBe('modulo-desconocido (permisos)')
+    }
+  })
+})
+
+describe('D-CPC-05: cargar_costos implica ver_costos', () => {
+  const permisosSchema = createPermisosSchema(MODULOS_TODOS)
+
+  it('acepta rol con ver_costos y cargar_costos en inventario', () => {
+    const r = permisosSchema.safeParse({
+      inventario: ['ver', 'ver_costos', 'cargar_costos'],
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('acepta rol con ver_costos sin cargar_costos en inventario', () => {
+    const r = permisosSchema.safeParse({
+      inventario: ['ver', 'ver_costos'],
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('acepta rol con ver_margenes en precios', () => {
+    const r = permisosSchema.safeParse({
+      precios: ['ver', 'ver_margenes'],
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('rechaza rol con cargar_costos sin ver_costos en inventario', () => {
+    const r = permisosSchema.safeParse({
+      inventario: ['ver', 'cargar_costos'],
+    })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(primerReason(r.error)).toBe('cargar-costos-requiere-ver-costos (inventario)')
+    }
+  })
+
+  it('createRolSchema rechaza cargar_costos sin ver_costos', () => {
+    const r = createRolSchema(MODULOS_TODOS).safeParse({
+      nombre: 'Encargado depósito',
+      permisos: { inventario: ['cargar_costos'] },
+    })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(primerReason(r.error)).toBe('cargar-costos-requiere-ver-costos (permisos.inventario)')
     }
   })
 })

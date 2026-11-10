@@ -59,8 +59,8 @@ export interface AuditoriaConActor extends AuditoriaRow {
  * con lo que cada guard/action valida.
  */
 const _CATALOGO = {
-  inventario: ['ver', 'crear', 'editar', 'eliminar'],
-  precios: ['ver', 'crear', 'editar', 'eliminar', 'editar_cotizacion'],
+  inventario: ['ver', 'crear', 'editar', 'eliminar', 'ver_costos', 'cargar_costos'],
+  precios: ['ver', 'crear', 'editar', 'eliminar', 'editar_cotizacion', 'ver_margenes'],
   // `eliminar` = marcar una cuota como incobrable. Faltaba desde el primer
   // commit: la action lo exigía y ningún rol podía tenerlo, ni el admin.
   ventas: ['ver', 'crear', 'editar', 'eliminar'],
@@ -102,4 +102,31 @@ export const MODULO_NOMBRE: Record<string, string> = {
   administracion: 'Administración',
   revendedoras: 'Revendedoras',
   ayuda: 'Ayuda',
+}
+
+export const ACCION_LABEL: Record<string, string> = {
+  ver: 'Ver',
+  crear: 'Crear',
+  editar: 'Editar',
+  eliminar: 'Eliminar',
+  ver_costos: 'Ver costos',
+  cargar_costos: 'Cargar costos',
+  ver_margenes: 'Ver márgenes',
+  editar_cotizacion: 'Editar cotización',
+  liquidar: 'Liquidar',
+  ver_propio: 'Ver propio',
+  declarar: 'Declarar',
+  consultar: 'Consultar',
+}
+
+export const ACCION_AYUDA: Record<string, string> = {
+  ver_costos: 'Permite ver los costos de compra en el catálogo, fichas y remitos.',
+  cargar_costos:
+    'Permite ingresar costos en altas y remitos. Requiere que también tengas permiso para ver costos.',
+  ver_margenes:
+    'Permite ver márgenes comerciales y reglas de precio en listados y reportes.',
+  editar_cotizacion:
+    'Permite modificar la cotización del dólar y alternar entre modo automático o manual.',
+  liquidar: 'Permite generar liquidaciones de comisiones para revendedoras.',
+  consultar: 'Permite consultar al asistente de ayuda.',
 }

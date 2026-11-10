@@ -36,12 +36,17 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
       'Hacé clic en el botón "Nuevo rol".',
       'Ingresá el nombre descriptivo para el rol.',
       'Marcá las casillas de las acciones habilitadas (ver, crear, editar o eliminar) en cada módulo.',
+      'En la sección de permisos específicos podés habilitar acciones puntuales como costos o márgenes; tené en cuenta que cargar costos requiere ver costos.',
       'Hacé clic en "Crear rol" para guardar el nuevo perfil de permisos.',
     ],
     detalles: [
       {
         tema: 'Módulos visibles',
         texto: 'El formulario solo muestra los módulos que el negocio tiene contratados y habilitados.',
+      },
+      {
+        tema: 'Permisos específicos',
+        texto: 'En la sección de permisos específicos podés configurar acciones puntuales como ver o cargar costos y ver márgenes. Tené en cuenta que cargar costos requiere ver costos.',
       },
     ],
   },

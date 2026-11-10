@@ -105,6 +105,8 @@ const MENSAJES: Record<string, string> = {
   'accion-invalida':
     'Uno de los permisos no corresponde a ninguna acción de ese módulo. Recargá la página.',
   'acciones-duplicadas': 'Hay un permiso repetido. Recargá la página y probá de nuevo.',
+  'cargar-costos-requiere-ver-costos':
+    'Para cargar costos tenés que habilitar también ver costos.',
   'id-rol-invalido': 'No se pudo identificar el rol. Recargá la página y probá de nuevo.',
   'id-venta-invalido': 'No se pudo identificar la venta. Recargá la página y probá de nuevo.',
   'id-detalle-invalido': 'No se pudo identificar la línea de la venta. Recargá la página y probá de nuevo.',

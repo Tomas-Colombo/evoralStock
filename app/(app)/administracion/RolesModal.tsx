@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { PermisosEditor } from '@/components/administracion/PermisosEditor'
 import {
+  ACCION_LABEL,
   CATALOGO_PERMISOS,
   MODULO_NOMBRE,
   type RolRow,
@@ -225,7 +226,7 @@ function ListaRoles({
                     {acciones.length === 0 ? (
                       <span className="text-muted">—</span>
                     ) : (
-                      acciones.join(', ')
+                      acciones.map((a) => ACCION_LABEL[a] ?? a).join(', ')
                     )}
                   </span>
                 </div>
