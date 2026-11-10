@@ -33,7 +33,7 @@ import {
   type PlanCuotasRow,
   type RecargoCuotasRow,
 } from '@/lib/types/precios'
-import type { ProductoConDetalle } from '@/lib/types/inventario'
+import type { ProductoSinCosto } from '@/lib/types/inventario'
 import type {
   ArancelCobroRow,
   CuentaDestinoRow,
@@ -137,7 +137,7 @@ export function NuevaVentaView({
 }: {
   clientes: ClienteOption[]
   reservasActivas: ReservaOption[]
-  productos: ProductoConDetalle[]
+  productos: ProductoSinCosto[]
   /** Reservas activas que bloquean unidades, indexadas por id_producto. */
   reservasPorProducto: Record<string, ReservaDeProducto[]>
   cuentas: CuentaDestinoRow[]
@@ -720,7 +720,7 @@ export function NuevaVentaView({
   }
 
   // Selección directa desde el desplegable de sugerencias.
-  function elegirSugerencia(p: ProductoConDetalle) {
+  function elegirSugerencia(p: ProductoSinCosto) {
     setSugerenciasOpen(false)
     setQrInput(p.nombre)
     void agregarPorProducto(p.id_producto)

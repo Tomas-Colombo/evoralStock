@@ -4,11 +4,14 @@ import { errorDeRpc } from '@/lib/dal/errors'
 import type {
   ProductoConDetalle,
   ProductoRow,
+  ProductoSinCosto,
   TipoIngreso,
 } from '@/lib/types/inventario'
 
 /** Default page size for the paginated product listing. */
 export const PRODUCTOS_PAGE_SIZE = 50
+
+export type { ProductoSinCosto } from '@/lib/types/inventario'
 
 export type ProductoRowConCategoria = ProductoRow & {
   categoria: { id_categoria: string; nombre: string; talles: string[] } | null
@@ -100,6 +103,50 @@ export async function listProductosConDetallePaginado(opts: {
   pageSize: number
 }): Promise<{ rows: ProductoConDetalle[]; total: number }> {
   return queryProductos(opts)
+}
+
+/**
+ * Proyección pura que elimina las claves de costo y margen de un producto.
+ */
+export function omitirCostoProducto(
+  producto: ProductoConDetalle,
+): ProductoSinCosto {
+  const {
+    costo_vigente: _costo,
+    moneda_vigente: _moneda,
+    id_regla_margen_aplicada: _regla,
+    ...sinCosto
+  } = producto
+  return sinCosto
+}
+
+/**
+ * Variante del listado maestro sin costo vigente ni margen.
+ * Para Server Components cuyas vistas cliente no muestran ni consumen costo.
+ */
+export async function listProductosSinCosto(
+  opts?: Omit<ListProductosOpts, 'page' | 'pageSize'>,
+): Promise<ProductoSinCosto[]> {
+  const { rows } = await queryProductos(opts)
+  return rows.map(omitirCostoProducto)
+}
+
+/**
+ * Variante paginada sin costo ni margen para la tabla de inventario cuando
+ * no se deben exponer costos al cliente.
+ */
+export async function listProductosSinCostoPaginado(opts: {
+  search?: string
+  idCategoria?: string
+  soloActivos?: boolean
+  page: number
+  pageSize: number
+}): Promise<{ rows: ProductoSinCosto[]; total: number }> {
+  const { rows, total } = await queryProductos(opts)
+  return {
+    rows: rows.map(omitirCostoProducto),
+    total,
+  }
 }
 
 /**

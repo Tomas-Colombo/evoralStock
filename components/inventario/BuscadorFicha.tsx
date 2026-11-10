@@ -10,7 +10,7 @@ import {
   indexarPorNombre,
   normalizar,
 } from '@/lib/inventario/producto-match'
-import type { ProductoConDetalle } from '@/lib/types/inventario'
+import type { ProductoSinCosto } from '@/lib/types/inventario'
 
 import { QrScanner } from '@/components/inventario/QrScanner'
 
@@ -21,7 +21,7 @@ import { QrScanner } from '@/components/inventario/QrScanner'
  * sugerencias, el texto se resuelve como código vía
  * `/inventario/buscar/{codigo}` (QR o SKU).
  */
-export function BuscadorFicha({ productos }: { productos: ProductoConDetalle[] }) {
+export function BuscadorFicha({ productos }: { productos: ProductoSinCosto[] }) {
   const router = useRouter()
   const [qr, setQr] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +39,7 @@ export function BuscadorFicha({ productos }: { productos: ProductoConDetalle[] }
   // Al elegir un producto por nombre navegamos por su SKU (el usuario nunca lo
   // tipea, así que no hay riesgo de equivocación). Sin SKU, caemos a su ficha
   // de producto por id.
-  function irAProducto(p: ProductoConDetalle) {
+  function irAProducto(p: ProductoSinCosto) {
     if (p.sku) router.push(`/inventario/buscar/${encodeURIComponent(p.sku)}`)
     else router.push(`/inventario/productos/${p.id_producto}`)
   }

@@ -509,16 +509,20 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 
 ## 11. Partición en fases de implementación (Cada fase con sus tests en `tests/db`)
 
-### Fase 3A — Saneamiento temprano de Props en Server Components, API routes y Layouts (Next.js)
-*Objetivo*: Eliminar las fugas verificadas en props RSC y respuestas API sin tocar base de datos.
+### Fase 3A — Saneamiento temprano de Props y respuestas sin uso de costo (Next.js)
+*Objetivo*: Eliminar las claves sensibles de costo y margen (`costo_vigente`, `moneda_vigente`, `id_regla_margen_aplicada`) de las props pasadas a componentes cliente que las reciben pero no las consumen, sin necesidad de permisos (pre-3B).
 - Archivos:
-  - `app/(app)/ventas/nueva/page.tsx`
-  - `app/(app)/ventas/reservas/nueva/page.tsx`
-  - `app/(app)/inventario/page.tsx`
-  - `app/(app)/inventario/ficha/[qr]/page.tsx`
-  - `app/(app)/consignaciones/[id]/page.tsx`
-  - `app/api/consignaciones/lookup-item/route.ts`
-- Tests: `tests/unit/props-sanitization.test.ts` (test unitario que verifica que las props serializadas hacia los Client Components no contengan campos sensibles).
+  - `lib/types/inventario.ts` (`ProductoSinCosto`)
+  - `lib/dal/inventario/producto.ts` (`omitirCostoProducto`, `listProductosSinCosto`, `listProductosSinCostoPaginado`)
+  - `app/(app)/ventas/nueva/page.tsx` y `NuevaVentaView.tsx`
+  - `app/(app)/ventas/reservas/nueva/page.tsx` y `NuevaReservaView.tsx`
+  - `app/(app)/inventario/page.tsx` y `ProductosTableClient.tsx`
+  - `app/(app)/inventario/ficha/page.tsx` y `components/inventario/BuscadorFicha.tsx`
+  - `app/(app)/inventario/productos/nuevo/page.tsx`
+  - `app/(app)/precios/reglas/nueva/page.tsx`
+  - `app/(app)/precios/reglas/page.tsx`
+  - `app/(app)/revendedoras/[id]/consignaciones/nueva/page.tsx`
+- Tests: `lib/dal/inventario/producto.test.ts` (test colocado de comportamiento: omisión de claves sensibles de costo y margen).
 
 ### Fase 3B — Catálogo de permisos y migración de roles
 *Objetivo*: Extender `CATALOGO_PERMISOS` y aprovisionar a los roles Administrador existentes sin alterar roles limitados.
@@ -526,6 +530,15 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
   - `lib/types/administracion.ts`
   - `supabase/migrations/<next>_cpc_roles_seed.sql`
 - Tests: `tests/unit/catalogo-permisos.test.ts` y `tests/db/cpc-roles.test.ts` (verifica la presencia de permisos en el catálogo TS y la migración de JSON en la tabla `rol`).
+
+### Fase 3B.2 — Compuerta en pantallas y endpoints que muestran costo (Next.js con permiso)
+*Objetivo*: Condicionar la visualización y envío de costo en pantallas y endpoints que de verdad muestran o consumen costo, requiriendo el permiso `inventario.ver_costos` introducido en la Fase 3B. (Aranceles, retenciones y CobranzaPanel quedan fuera por D-CPC-04).
+- Archivos:
+  - `app/(app)/inventario/ficha/[qr]/page.tsx` (ocultar bloque de costo sin permiso)
+  - `app/(app)/consignaciones/[id]/page.tsx` y `ConsignacionDetalleView.tsx` (ocultar columna de costo sin permiso)
+  - `app/api/consignaciones/lookup-item/route.ts` (condicionar `costo_ingreso` al permiso de ver costos de la sesión)
+  - `app/(app)/inventario/ingresos/page.tsx`, `app/(app)/inventario/ingresos/[id]/page.tsx` (`IngresoDetalleView.tsx`, `RemitoImportPanel.tsx`) y `app/(app)/inventario/ingresos/nuevo/page.tsx` (`NuevoIngresoView.tsx`)
+  - `app/(app)/precios/control/page.tsx` (`ControlDePreciosView.tsx`) y `app/(app)/precios/page.tsx` (`GananciaProyectadaClient.tsx`)
 
 ### Fase 3C — Costo pendiente en ingresos y prevención de duplicación de vigencias
 *Objetivo*: Adaptar constraints `NOT NULL`, lógica de `sp_confirmar_ingreso`, estado de valorización de ítems y blindaje de `sp_aplicar_ultimo_costo` según DP-CPC-01 y DP-CPC-04.

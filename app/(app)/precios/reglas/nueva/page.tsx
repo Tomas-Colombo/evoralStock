@@ -3,7 +3,7 @@ import { GuiaReglas } from '@/components/precios/GuiaReglas'
 import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
-import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { NuevaReglaForm } from '../NuevaReglaForm'
 import { Card } from '@/components/ui/Card'
 
@@ -12,7 +12,7 @@ export default async function NuevaReglaPage() {
   const [categorias, proveedores, productos] = await Promise.all([
     listCategoriasActivas(),
     listProveedoresActivos(),
-    listProductosConDetalle({ soloActivos: true }),
+    listProductosSinCosto({ soloActivos: true }),
   ])
   return (
     <>

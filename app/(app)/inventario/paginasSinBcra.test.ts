@@ -69,6 +69,7 @@ vi.mock('@/lib/dal/inventario/categoria', () => ({
 
 vi.mock('@/lib/dal/inventario/producto', () => ({
   listProductosConDetallePaginado: vi.fn().mockResolvedValue({ rows: [], total: 0 }),
+  listProductosSinCostoPaginado: vi.fn().mockResolvedValue({ rows: [], total: 0 }),
   listProductosParaBuscador: vi.fn().mockResolvedValue([]),
   getInventarioResumen: vi.fn().mockResolvedValue({
     productosActivos: 10,
@@ -76,6 +77,7 @@ vi.mock('@/lib/dal/inventario/producto', () => ({
     productosBajoMinimo: 0,
   }),
   listProductosConDetalle: vi.fn().mockResolvedValue([]),
+  listProductosSinCosto: vi.fn().mockResolvedValue([]),
   PRODUCTOS_PAGE_SIZE: 50,
 }))
 

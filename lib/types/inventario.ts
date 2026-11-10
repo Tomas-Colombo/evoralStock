@@ -238,6 +238,12 @@ export interface ProductoConDetalle extends ProductoRow {
   stock_total: number
 }
 
+/** Producto con detalle omitiendo claves sensibles de costo y margen. */
+export type ProductoSinCosto = Omit<
+  ProductoConDetalle,
+  'costo_vigente' | 'moneda_vigente' | 'id_regla_margen_aplicada'
+>
+
 /** Item + producto + categoría — vista para la ficha /inventario/ficha/[qr]. */
 export interface ItemConProducto extends ItemProductoRow {
   producto: Pick<ProductoRow, 'id_producto' | 'nombre' | 'sku'> & {

@@ -20,7 +20,7 @@ import {
   indexarPorNombre,
   normalizar,
 } from '@/lib/inventario/producto-match'
-import type { ProductoConDetalle } from '@/lib/types/inventario'
+import type { ProductoSinCosto } from '@/lib/types/inventario'
 import type { LineaCarrito } from '@/lib/types/ventas'
 import { crearReservaAction } from '../../actions'
 import { ClienteQuickCreate, type ClienteCreado } from '../../ClienteQuickCreate'
@@ -45,7 +45,7 @@ export function NuevaReservaView({
   productos,
 }: {
   clientes: Cliente[]
-  productos: ProductoConDetalle[]
+  productos: ProductoSinCosto[]
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -155,7 +155,7 @@ export function NuevaReservaView({
     }
   }
 
-  function elegirSugerencia(p: ProductoConDetalle) {
+  function elegirSugerencia(p: ProductoSinCosto) {
     setSugerenciasOpen(false)
     setQrInput(p.nombre)
     void agregarPorProducto(p.id_producto)

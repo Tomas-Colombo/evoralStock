@@ -3,7 +3,7 @@ import { Topbar } from '@/components/shell/Topbar'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { obtenerRevendedora } from '@/lib/dal/revendedoras'
-import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { NuevaConsignacionRevendedoraForm } from './NuevaConsignacionRevendedoraForm'
 import { Card } from '@/components/ui/Card'
 
@@ -16,7 +16,7 @@ export default async function NuevaConsignacionRevendedoraPage(props: {
   const { id } = await props.params
   const [revendedora, productos] = await Promise.all([
     obtenerRevendedora(session, id),
-    listProductosConDetalle({ soloActivos: true }),
+    listProductosSinCosto({ soloActivos: true }),
   ])
   if (!revendedora) notFound()
 

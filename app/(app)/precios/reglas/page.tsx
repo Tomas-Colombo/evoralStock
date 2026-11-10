@@ -4,7 +4,7 @@ import { listReglasPrecio } from '@/lib/dal/precios/regla'
 import { listPlanesCuotas } from '@/lib/dal/precios/cuotas'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
-import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { ReglasView } from './ReglasView'
 import { NuevaReglaModalButton } from './NuevaReglaModalButton'
 
@@ -15,7 +15,7 @@ export default async function ReglasPage() {
     listPlanesCuotas(),
     listCategoriasActivas(),
     listProveedoresActivos(),
-    listProductosConDetalle({ soloActivos: true }),
+    listProductosSinCosto({ soloActivos: true }),
   ])
 
   return (

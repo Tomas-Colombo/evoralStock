@@ -6,7 +6,7 @@ import {
   listReservas,
   listReservasActivasPorProducto,
 } from '@/lib/dal/reservas/reserva'
-import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { listCuentasDestino } from '@/lib/dal/ventas/cuenta-destino'
 import { listArancelesCobro } from '@/lib/dal/ventas/arancel'
 import { hasModuleAccess } from '@/lib/dal/guard'
@@ -39,7 +39,7 @@ export default async function NuevaVentaPage(props: {
   ] = await Promise.all([
     listClientes({ soloActivos: true }),
     listReservas({ estado: 'activa' }),
-    listProductosConDetalle({ soloActivos: true }),
+    listProductosSinCosto({ soloActivos: true }),
     listCuentasDestino({ soloActivas: true }),
     listReservasActivasPorProducto(),
     listPlanesCuotas({ soloActivos: true }),

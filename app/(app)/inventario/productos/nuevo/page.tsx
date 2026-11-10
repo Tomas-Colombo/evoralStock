@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
-import { listProductosConDetalle } from '@/lib/dal/inventario/producto'
+import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { leerCotizacionVigente } from '@/lib/dal/precios/cotizacion'
 import { NuevoProductoForm } from './NuevoProductoForm'
@@ -12,7 +12,7 @@ export default async function NuevoProductoPage() {
   const session = await verifySession()
   const [categorias, productos, proveedores, cotizacion] = await Promise.all([
     listCategoriasActivas(),
-    listProductosConDetalle(),
+    listProductosSinCosto(),
     listProveedoresActivos(),
     leerCotizacionVigente().catch(() => null),
   ])

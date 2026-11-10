@@ -11,7 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Table, type Column } from '@/components/ui/Table'
 import { normalizar } from '@/lib/inventario/producto-match'
 import type { ProductoBuscadorItem } from '@/lib/dal/inventario/producto'
-import type { CategoriaRow, ProductoConDetalle } from '@/lib/types/inventario'
+import type { CategoriaRow, ProductoSinCosto } from '@/lib/types/inventario'
 import type { StockPorTenenciaRow } from '@/lib/types/revendedoras'
 import { EditarProductoModal } from './EditarProductoModal'
 import { Select } from '@/components/ui/Select'
@@ -30,7 +30,7 @@ export function ProductosTableClient({
   tenenciaStock,
   initialTenencia,
 }: {
-  rows: ProductoConDetalle[]
+  rows: ProductoSinCosto[]
   /** Catálogo liviano (id/nombre/sku) que alimenta las sugerencias en vivo. */
   catalogo: ProductoBuscadorItem[]
   categorias: CategoriaRow[]
@@ -53,7 +53,7 @@ export function ProductosTableClient({
   const [cat, setCat] = useState(initialCategoria)
   const [tenencia, setTenencia] = useState(initialTenencia ?? '')
   const [pending, startTransition] = useTransition()
-  const [editing, setEditing] = useState<ProductoConDetalle | null>(null)
+  const [editing, setEditing] = useState<ProductoSinCosto | null>(null)
 
   // Sugerencias por nombre o SKU (mismo criterio normalizado que ventas).
   const sugerencias = useMemo<SugerenciaProducto[]>(() => {
@@ -106,7 +106,7 @@ export function ProductosTableClient({
     navigate(params)
   }
 
-  const columns: Column<ProductoConDetalle>[] = [
+  const columns: Column<ProductoSinCosto>[] = [
     { key: 'nombre', label: 'Producto', render: (r) => <span className="font-semibold text-ink">{r.nombre}</span> },
     {
       key: 'sku',
@@ -160,7 +160,7 @@ export function ProductosTableClient({
             key: 'tenencia',
             label: 'Tenencia',
             align: 'right' as const,
-            render: (r: ProductoConDetalle) => {
+            render: (r: ProductoSinCosto) => {
               const t = tenenciaStock[r.id_producto]
               const enRev = t ? t.en_revendedoras : 0
               return (

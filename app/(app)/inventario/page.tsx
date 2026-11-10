@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { verifySession } from '@/lib/dal/session'
 import {
   getInventarioResumen,
-  listProductosConDetallePaginado,
+  listProductosSinCostoPaginado,
   listProductosParaBuscador,
   PRODUCTOS_PAGE_SIZE,
 } from '@/lib/dal/inventario/producto'
@@ -46,7 +46,7 @@ export default async function InventarioHome(props: {
     tenenciaList,
     proveedores,
   ] = await Promise.all([
-    listProductosConDetallePaginado({
+    listProductosSinCostoPaginado({
       search: searchParams.q,
       idCategoria: searchParams.cat,
       page,
