@@ -85,6 +85,41 @@ Consecuencias que la Fase 2 resuelve (no se deciden acá):
 - Cómo se migran los roles existentes: quién recibe el permiso nuevo al
   desplegar (Administrador sí; los roles limitados, según cómo trabajen hoy).
 
+**D-CPC-02 — Enfoque B con selladores (DP-CPC-02 de `specs/REQ-CPC.md`).**
+Los costos pasan a tablas satélite con RLS por permiso; la RLS sigue siendo
+la frontera y las lecturas siguen INVOKER. Las operaciones que necesitan el
+costo sin que quien opera lo vea lo escriben con selladores DEFINER chicos
+que no devuelven nada (`REQ-CPC.md §6`). Se descartó el Enfoque A porque el
+revoke de columnas a `authenticated` también se las quita al Administrador
+y obligaba a unas 16 funciones DEFINER.
+
+**D-CPC-03 — Ingreso sin costo: hereda el vigente (DP-CPC-01, opción 1.B).**
+Un ingreso cargado sin costo toma el costo vigente del producto y conserva su
+precio. Un producto sin costo previo entra con costo `null` en estado
+`pendiente_costeo` y no se vende hasta que alguien con permiso cargue costo y
+precio. Nunca se usa 0 como costo provisional. Si el costo real del remito
+difiere, las ventas ya hechas conservan su snapshot (inmutable).
+
+**D-CPC-04 — Aranceles y retenciones quedan fuera (DP-CPC-03, opción 3.B).**
+"Costos" en este cambio es costo de mercadería y márgenes. `arancel_cobro`,
+`cuenta_destino.ret_*`, `pago_venta.costo_cobro` y `desglose_costo` siguen
+como configuración operativa de ventas: el mostrador los usa para calcular el
+recargo. Si hiciera falta ocultarlos, es un cambio aparte (mover ese cálculo
+al servidor).
+
+**D-CPC-05 — Cargar costos implica verlos (DP-CPC-04, opción 4.A).**
+`inventario.cargar_costos` exige `inventario.ver_costos`: el editor de roles
+tilda el segundo al tildar el primero y el schema zod rechaza uno sin el otro.
+Evita que `sp_aplicar_ultimo_costo` actualice 0 filas bajo RLS y deje dos
+costos vigentes. Sin sellador para la carga.
+
+**D-CPC-06 — Recalcular precios exige ver costos (DP-CPC-05, opción 5.A).**
+`sp_recalcular_precio_venta` sigue INVOKER y exige `precios.editar` e
+`inventario.ver_costos`; sin el segundo aborta con `no-permission` y no toca
+el precio. Sin DEFINER. Como las reglas de margen quedan ocultas por fila sin
+`precios.ver_margenes` (`REQ-CPC.md §4.1 #34`), el recálculo exige también ese
+permiso: sin él no encontraría la regla y calcularía un precio equivocado.
+
 ## 8. Riesgos
 
 | Riesgo | Mitigación |
