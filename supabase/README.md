@@ -89,3 +89,13 @@ and `00080_hook_seguridad_revendedora.sql` to inject the `id_revendedora` claim 
 `Revendedora` role linked to a revendedora entity. After applying these migrations or provisioning a new
 environment, verify that `public.custom_access_token_hook` is active in **Auth → Hooks**.
 
+## Permission checks in sp_*
+
+At the top of each `sp_*` body, check permissions via:
+`if not (select auth_tiene_permiso('m', 'a')) then raise exception 'no-permission' using errcode = '42501'; end if;`
+- **OR rule**: check the OR of all entry points (RPC Actions and calling SPs transitively). Always inspect real action guards, never a spec table.
+- **New Actions**: any new Action hitting an existing `sp_*` must widen that OR via a new migration starting from `pnpm sp:last <name>`.
+- **Identity comparisons**: use `is distinct from auth.uid()`, because `<>` fails silently on `null`.
+- **DAL errors**: parse RPC errors with `errorDeRpc` (`lib/dal/errors.ts`), never with `extraerSlugRpc` which drops details.
+- **Restrictive policies (00142)**: cross-module reads return 0 rows without error.
+- **Unchecked SPs**: every live `sp_*` without a check must be listed with an explicit reason in `SP_SIN_CHEQUEO` (`tests/arquitectura-sp-permisos.test.ts`).

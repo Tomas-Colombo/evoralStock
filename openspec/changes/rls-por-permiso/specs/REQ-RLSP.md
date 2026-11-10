@@ -616,8 +616,8 @@ Para garantizar que un rechazo de autorización en base de datos se traduzca de 
      raise exception 'no-permission' using errcode = '42501';
    end if;
    ```
-2. **Propagación en la capa DAL (`extraerSlugRpc`)**:
-   En el DAL, los clientes ejecutan `supabase.rpc('sp_*', ...)`. Ante un error devuelto por PostgreSQL con código `42501`, funciones como `extraerSlugRpc` (`lib/dal/ventas/venta.ts:159`, `lib/dal/precios/cotizacion.ts:31`) y `extraerSlugError` (`lib/dal/plataforma/index.ts:36`) limpian el prefijo del procedimiento (e.g. `sp_registrar_venta: no-permission` → `'no-permission'`).
+2. **Propagación en la capa DAL (`errorDeRpc`)**:
+   En el DAL, los clientes ejecutan `supabase.rpc('sp_*', ...)`. Ante un error devuelto por PostgreSQL, se utiliza `errorDeRpc` (`lib/dal/errors.ts`), que devuelve el slug limpio `'no-permission'` ante errores de autorización (código `42501`) y preserva el prefijo y mensaje original para cualquier otro error, en lugar de `extraerSlugRpc` que pierde el detalle.
 3. **Traducción en UI (`lib/errores/mensajes.ts`)**:
    El catálogo centralizado de errores ya posee registrado el slug:
    - `lib/errores/mensajes.ts:66`:
