@@ -65,7 +65,27 @@ excepción a AGENTS.md y necesita el OK de la persona.
 - El portal de revendedoras: ya lee por `rvp_*` DEFINER con lista blanca de columnas.
 - Cambiar el modelo de permisos más allá de lo que decida la Fase 2 (si hace falta una acción nueva, va en la spec con su migración de roles).
 
-## 7. Riesgos
+## 7. Decisiones de la persona
+
+**D-CPC-01 — Ver y cargar costos es un permiso que el dueño otorga por rol.**
+Las dos formas de trabajar son válidas y conviven: un rol con ese permiso
+carga ingresos con costo y lo ve (como hoy); un rol sin él puede cargar
+ingresos sin ver ni escribir costos. Caso real que lo origina: el rol
+"Vendedora-Local" de un tenant en producción tiene `inventario.crear` y
+`inventario.editar`.
+
+Consecuencias que la Fase 2 resuelve (no se deciden acá):
+- Si es una acción nueva en `CATALOGO_PERMISOS` o más de una (ver costos, cargar costos, ver ganancia y márgenes).
+- Qué hace un ingreso cargado sin costo: hoy `item_producto.costo_ingreso` e
+  `ingreso_mercaderia_detalle.costo_unitario` son `not null check (>= 0)`, y un
+  0 falsearía márgenes y rendiciones. Hace falta un estado "costo pendiente" y
+  quién lo completa.
+- Qué pasa con el precio de venta: `sp_recalcular_precio_venta` lo calcula desde
+  el costo vigente. Un producto sin costo no tiene precio y no se puede vender.
+- Cómo se migran los roles existentes: quién recibe el permiso nuevo al
+  desplegar (Administrador sí; los roles limitados, según cómo trabajen hoy).
+
+## 8. Riesgos
 
 | Riesgo | Mitigación |
 | --- | --- |
