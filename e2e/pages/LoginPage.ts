@@ -24,7 +24,7 @@ export class LoginPage {
 
   async abrir(): Promise<void> {
     await this.page.goto('/login')
-    await expect(this.page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    await expect(this.page.getByRole('heading', { name: 'EvoralStock' })).toBeVisible()
   }
 
   async ingresar(email: string, password: string): Promise<void> {

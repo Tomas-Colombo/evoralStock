@@ -12,7 +12,7 @@ test.describe('Autenticación', () => {
     await page.goto('/ventas')
 
     await expect(page).toHaveURL(/\/login/)
-    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'EvoralStock' })).toBeVisible()
   })
 
   test('ingresa con credenciales válidas y aterriza en Ventas', async ({
@@ -65,7 +65,7 @@ test.describe('Cierre de sesión', () => {
     await page.waitForURL('**/ventas')
 
     await shell.cerrarSesion()
-    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'EvoralStock' })).toBeVisible()
 
     await page.goto('/ventas')
     await expect(page).toHaveURL(/\/login/)

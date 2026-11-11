@@ -24,7 +24,7 @@ export default function LoginPage() {
 
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">
-          <h1 className="font-display text-2xl text-text">Iniciar sesión</h1>
+          <h1 className="font-display text-2xl text-text">EvoralStock</h1>
           <p className="text-sm text-muted">
             Ingresa tus credenciales para acceder a tu cuenta.
           </p>
