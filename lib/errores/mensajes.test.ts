@@ -35,7 +35,7 @@ const SLUGS_DE_LA_APP = [
   'logo-invalido', 'logo-muy-grande', 'proveedor-invalido', 'tipo-ingreso-invalido', 'tipo-proveedor-invalido',
   // Stored procedures
   'cantidad-invalida', 'categoria-not-found', 'categoria-sin-talles',
-  'costos-distintos-mismo-producto',
+  'costos-distintos-mismo-producto', 'costo-invalido',
   'consignacion-no-activa', 'consignacion-not-found', 'cuenta-destino-invalida',
   'revendedora-requerida', 'revendedora-inactiva', 'item-no-entregable', 'item-ya-en-consignacion-revendedora',
   'consignacion-ya-confirmada', 'consignacion-no-confirmada', 'consignacion-confirmada', 'consignacion-con-items-en-poder',
@@ -47,7 +47,7 @@ const SLUGS_DE_LA_APP = [
   'excede-disponibles', 'falta-categoria', 'falta-producto',
   'financiacion-cuotas-invalidas', 'financiacion-sin-saldo',
   'financiacion-sin-vencimiento', 'gasto-inexistente', 'ingreso-con-items-movidos', 'ingreso-confirmado',
-  'ingreso-not-found', 'ingreso-ya-cancelado', 'item-en-otra-reserva',
+  'ingreso-not-found', 'ingreso-no-confirmado', 'ingreso-ya-cancelado', 'item-costo-pendiente', 'item-en-otra-reserva',
   'item-en-reserva', 'item-no-esta-vendido', 'item-not-found', 'item-otro-proveedor',
   'item-ya-en-consignacion-pendiente', 'item-ya-reservado', 'linea-sin-id-item',
   'linea-sin-nombre', 'monto-excede-saldo', 'no-se-pudo-generar-sku',

@@ -563,6 +563,10 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 
 ### Fase 3E — Segregación técnica en Postgres, Selladores DEFINER chicos y Cierre de Fugas RPC
 *Objetivo*: Crear tablas satélites con RLS (`item_costo`, `detalle_venta_costo`, `ingreso_detalle_costo`, `devolucion_venta_costo`), implementar los selladores chicos `fn_sellar_*`, cerrar las fugas de permisos en `preview_rendicion`, `sp_perdida_incobrable_venta` y funciones `rf_*`, resolver `sp_recalcular_precio_venta` según DP-CPC-05 y actualizar las guardias de seguridad.
+
+> [!NOTE]
+> **Sellador de herencia en 3E**: `fn_costo_vigente_producto` (creada en 3C.1 como INVOKER) devuelve el valor numérico del costo, por lo que NO puede pasar a `SECURITY DEFINER` tal como está porque se filtraría por RPC hacia roles sin permiso de ver costos. La Fase 3E debe sellar la herencia de costo dentro de un sellador `fn_sellar_*` que no devuelva nada (retorne `void`).
+
 - Archivos:
   - `supabase/migrations/<next>_cpc_segregacion_costos.sql`
   - `tests/db/cpc-segregacion.test.ts` (prueba integral con rol Administrador y rol Vendedora-Local ejecutando ventas, recálculos y consultas directas)

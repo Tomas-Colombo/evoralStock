@@ -174,6 +174,8 @@ const MENSAJES: Record<string, string> = {
   'linea-sin-nombre': 'Una de las líneas quedó sin nombre de producto.',
   'qr-vacio': 'Escaneá o escribí un código.',
   'item-ya-marcado': 'Esa pieza ya está marcada.',
+  'item-costo-pendiente':
+    'Esta prenda todavía no tiene costo cargado. Pedile a quien administra que lo complete.',
 
   // ─── Inventario: productos, categorías, talles ─────────────────────
   'costos-distintos-mismo-producto':
@@ -194,7 +196,9 @@ const MENSAJES: Record<string, string> = {
 
   // ─── Inventario: ingresos ──────────────────────────────────────────
   'ingreso-not-found': 'Ese ingreso ya no existe. Recargá la página.',
+  'ingreso-no-confirmado': 'El ingreso todavía no fue confirmado. Confirmalo primero.',
   'ingreso-ya-cancelado': 'Este ingreso ya estaba cancelado.',
+  'costo-invalido': 'El costo ingresado no es válido: debe ser mayor a cero.',
   'detalle-not-found': 'Esa línea del ingreso ya no existe. Recargá la página.',
   'no-es-pdf': 'El archivo tiene que ser un PDF.',
   'archivo-invalido': 'No se pudo leer el archivo. Revisá que no esté dañado.',

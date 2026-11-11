@@ -1056,7 +1056,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
     expect(dataRV?.some((d) => d.id_detalle === detIni!.id_detalle)).toBe(true)
 
     // 3. INSERT con inventario.crear
-    const clientInvCrear = await createClientWithPermisos(fixture, 'InvCrearDet', { inventario: ['crear'] })
+    const clientInvCrear = await createClientWithPermisos(fixture, 'InvCrearDet', { inventario: ['crear', 'ver_costos', 'cargar_costos'] })
     const { error: insErr } = await clientInvCrear.from('ingreso_mercaderia_detalle').insert({
       id_tenant: fixture.tenantId,
       id_ingreso: ing!.id_ingreso,
@@ -1108,9 +1108,10 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
       .eq('id_detalle', det2!.id_detalle)
     expect(checkDelElim?.length).toBe(0)
 
-    // 6. SP real: sp_importar_remito con inventario.crear (+ inventario.ver por el RETURNING del detalle)
+    // 6. SP real: sp_importar_remito con inventario.crear (+ inventario.ver por el RETURNING del detalle).
+    // La línea trae costo: desde 00153 eso exige cargar_costos (que implica ver_costos, D-CPC-05).
     const clientInvVerCrear = await createClientWithPermisos(fixture, 'InvVerCrear', {
-      inventario: ['ver', 'crear'],
+      inventario: ['ver', 'crear', 'ver_costos', 'cargar_costos'],
     })
     const { data: remitoRes, error: remitoErr } = await clientInvVerCrear.rpc('sp_importar_remito', {
       p_id_ingreso: ing!.id_ingreso,
@@ -1182,7 +1183,9 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 7,
-        costo_unitario: 500,
+        // Sin costo: con costo y sin cargar_costos, la policy de insert de 00153
+        // corta antes que la de select que este caso documenta.
+        costo_unitario: null,
         talle: 'U',
       })
       .select()
@@ -1203,7 +1206,9 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 7,
-        costo_unitario: 500,
+        // Sin costo: con costo y sin cargar_costos, la policy de insert de 00153
+        // corta antes que la de select que este caso documenta.
+        costo_unitario: null,
         talle: 'U',
       })
     expect(errPuro).toBeNull()
@@ -1272,7 +1277,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
     expect(errIns).not.toBeNull()
     expect(errIns?.code).toBe('42501')
 
-    // N2: UPDATE siempre bloqueado (policy update false): incluso con inventario.editar afecta 0 filas
+    // N2: UPDATE directo bloqueado: incluso con inventario.editar no cambia nada (desde 00153, por privilegio de columna)
     const clientInvEditar = await createClientWithPermisos(fixture, 'InvEditOnly', {
       inventario: ['ver', 'editar'],
     })
@@ -1280,8 +1285,10 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
       .from('ingreso_mercaderia_detalle')
       .update({ cantidad: 999 }, { count: 'exact' })
       .eq('id_detalle', det!.id_detalle)
-    expect(errUpd).toBeNull()
-    expect(countUpd).toBe(0)
+    // Desde 00153 authenticated solo tiene UPDATE sobre costo_unitario: tocar
+    // cantidad es error de privilegio, ya no 0 filas por la policy.
+    expect(errUpd?.code).toBe('42501')
+    expect(countUpd ?? 0).toBe(0)
 
     const { data: detInalterado } = await fixture.serviceRole
       .from('ingreso_mercaderia_detalle')
@@ -1808,7 +1815,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M2 - Chequeo de permisos en sp_* de Inventa
     // 1. inventario.crear -> sp_create_producto
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { inventario: ['crear', 'ver'] } })
+      .update({ permisos: { inventario: ['crear', 'ver', 'ver_costos', 'cargar_costos'] } })
       .eq('id_rol', fixture.rolId)
 
     const { data: idProd, error: errProd } = await client.rpc('sp_create_producto', {
