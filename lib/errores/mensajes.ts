@@ -198,6 +198,8 @@ const MENSAJES: Record<string, string> = {
   'ingreso-not-found': 'Ese ingreso ya no existe. Recargá la página.',
   'ingreso-no-confirmado': 'El ingreso todavía no fue confirmado. Confirmalo primero.',
   'ingreso-ya-cancelado': 'Este ingreso ya estaba cancelado.',
+  'sin-permiso-cargar-costos':
+    'Tu rol no te permite cargar costos en el inventario.',
   'costo-invalido': 'El costo ingresado no es válido: debe ser mayor a cero.',
   'detalle-not-found': 'Esa línea del ingreso ya no existe. Recargá la página.',
   'no-es-pdf': 'El archivo tiene que ser un PDF.',

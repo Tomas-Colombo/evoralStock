@@ -81,6 +81,7 @@ export function proyectarIngresosConResumen(
   return rows.map((r) => ({
     ...r,
     total_costo: null,
+    costo_pendiente: false,
   }))
 }
 

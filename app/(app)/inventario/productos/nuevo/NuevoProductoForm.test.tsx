@@ -54,6 +54,7 @@ describe('NuevoProductoForm — Moneda USD y cotización', () => {
         productos={productos}
         proveedores={proveedores}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -74,6 +75,7 @@ describe('NuevoProductoForm — Moneda USD y cotización', () => {
         productos={productos}
         proveedores={proveedores}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -107,6 +109,7 @@ describe('NuevoProductoForm — Moneda USD y cotización', () => {
         productos={productos}
         proveedores={proveedores}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -121,6 +124,34 @@ describe('NuevoProductoForm — Moneda USD y cotización', () => {
       expect(mockInfo).toHaveBeenCalledWith(
         'Cotización desactualizada',
         expect.stringContaining('La cotización oficial del BCRA no se encuentra al día'),
+      )
+    })
+  })
+
+  it('sin cargar_costos: no renderiza inputs de costo ni envía costo a la Action', async () => {
+    render(
+      <NuevoProductoForm
+        categorias={categorias}
+        productos={productos}
+        proveedores={proveedores}
+        cotizacion={cotizacion}
+        puedeCargarCostos={false}
+      />,
+    )
+
+    expect(screen.queryByLabelText(/costo inicial/i)).toBeNull()
+    expect(screen.queryByLabelText(/moneda/i)).toBeNull()
+
+    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: 'Remera Sin Costo' } })
+    const form = screen.getByRole('button', { name: /crear producto/i }).closest('form')!
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(mockCreateProductoAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nombre: 'Remera Sin Costo',
+          costoInicial: null,
+        }),
       )
     })
   })

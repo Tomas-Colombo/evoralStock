@@ -73,6 +73,7 @@ describe('NuevoIngresoView — Selector de moneda y cotización USD', () => {
         tiposIngreso={['compra']}
         tiposProveedor={['mayorista']}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -92,6 +93,7 @@ describe('NuevoIngresoView — Selector de moneda y cotización USD', () => {
         tiposIngreso={['compra']}
         tiposProveedor={['mayorista']}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -128,6 +130,7 @@ describe('NuevoIngresoView — Selector de moneda y cotización USD', () => {
         tiposIngreso={['compra']}
         tiposProveedor={['mayorista']}
         cotizacion={cotizacion}
+        puedeCargarCostos={true}
       />,
     )
 
@@ -166,6 +169,51 @@ describe('NuevoIngresoView — Selector de moneda y cotización USD', () => {
       expect(mockInfo).toHaveBeenCalledWith(
         'Cotización desactualizada',
         expect.stringContaining('La cotización oficial del BCRA no se encuentra al día'),
+      )
+    })
+  })
+
+  it('sin cargar_costos: no muestra moneda ni input de precio, y envía costoUnitario null', async () => {
+    render(
+      <NuevoIngresoView
+        proveedores={proveedores}
+        productos={productos}
+        categorias={categorias}
+        tiposIngreso={['compra']}
+        tiposProveedor={['mayorista']}
+        cotizacion={cotizacion}
+        puedeCargarCostos={false}
+      />,
+    )
+
+    expect(screen.queryByLabelText(/moneda del comprobante/i)).toBeNull()
+
+    const btnAgregar = screen.getByRole('button', { name: /\+ agregar producto/i })
+    fireEvent.click(btnAgregar)
+
+    expect(screen.queryByLabelText(/precio unitario/i)).toBeNull()
+
+    fireEvent.change(screen.getByPlaceholderText('Producto'), {
+      target: { value: 'Pantalón Cargo' },
+    })
+
+    const btnGuardar = screen.getByRole('button', { name: 'Guardar' })
+    fireEvent.click(btnGuardar)
+
+    const btnConfirmar = screen.getByRole('button', { name: 'Confirmar' })
+    fireEvent.click(btnConfirmar)
+
+    await waitFor(() => {
+      expect(mockCrearIngresoCompletoAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          moneda: undefined,
+          lineas: [
+            expect.objectContaining({
+              nombre: 'Pantalón Cargo',
+              costoUnitario: null,
+            }),
+          ],
+        }),
       )
     })
   })

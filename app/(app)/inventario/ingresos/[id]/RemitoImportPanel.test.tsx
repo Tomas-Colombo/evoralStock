@@ -56,7 +56,7 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
     })
   })
 
-  async function abrirPanelConPdf() {
+  async function abrirPanelConPdf(puedeCargarCostos = true) {
     render(
       <RemitoImportPanel
         idIngreso="ing-1"
@@ -64,6 +64,7 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
         categorias={categorias}
         cotizacion={cotizacion}
         onImported={mockOnImported}
+        puedeCargarCostos={puedeCargarCostos}
       />,
     )
 
@@ -77,7 +78,7 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
   }
 
   it('permite seleccionar moneda USD y muestra cotización oficial y total estimado en pesos', async () => {
-    await abrirPanelConPdf()
+    await abrirPanelConPdf(true)
 
     const selectMoneda = screen.getByLabelText(/moneda del remito/i)
     fireEvent.change(selectMoneda, { target: { value: 'USD' } })
@@ -98,7 +99,7 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
       },
     })
 
-    await abrirPanelConPdf()
+    await abrirPanelConPdf(true)
 
     const selectMoneda = screen.getByLabelText(/moneda del remito/i)
     fireEvent.change(selectMoneda, { target: { value: 'USD' } })
@@ -126,6 +127,32 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
       expect(mockInfo).toHaveBeenCalledWith(
         'Cotización desactualizada',
         expect.stringContaining('La cotización oficial del BCRA no se encuentra al día'),
+      )
+    })
+  })
+
+  it('sin cargar_costos: no renderiza selector de moneda ni inputs de costo, y envía costoUnitario null', async () => {
+    await abrirPanelConPdf(false)
+
+    expect(screen.queryByLabelText(/moneda del remito/i)).toBeNull()
+    expect(screen.queryByLabelText(/precio unitario/i)).toBeNull()
+
+    const btnImportar = screen.getByRole('button', { name: /importar 1 línea\(s\)/i })
+    fireEvent.click(btnImportar)
+
+    await waitFor(() => {
+      expect(mockImportarRemitoAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          idIngreso: 'ing-1',
+          moneda: undefined,
+          lineas: [
+            expect.objectContaining({
+              nombre: 'Buzo Canguro',
+              cantidad: 10,
+              costoUnitario: null,
+            }),
+          ],
+        }),
       )
     })
   })

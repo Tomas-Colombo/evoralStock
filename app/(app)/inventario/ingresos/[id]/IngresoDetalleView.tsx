@@ -19,6 +19,7 @@ import type {
   ProveedorRow,
 } from '@/lib/types/inventario'
 import {
+  completarCostoIngresoAction,
   confirmarIngresoAction,
   importarRemitoAction,
   removeIngresoDetalleAction,
@@ -46,6 +47,7 @@ export function IngresoDetalleView({
   qrs = [],
   cotizacion,
   puedeVerCostos,
+  puedeCargarCostos,
 }: {
   ingreso: Ingreso
   productos: (ProductoConDetalle | ProductoSinCosto)[]
@@ -53,6 +55,7 @@ export function IngresoDetalleView({
   qrs?: string[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
   puedeVerCostos: boolean
+  puedeCargarCostos: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -75,6 +78,7 @@ export function IngresoDetalleView({
   const [costoUnitario, setCostoUnitario] = useState('')
   const [talleAdd, setTalleAdd] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [costosPendientes, setCostosPendientes] = useState<Record<string, string>>({})
 
   const index = useMemo(() => indexarPorNombre(productos), [productos])
   // Match vivo del nombre escrito: sirve para el aviso "ya existe" y para
@@ -93,7 +97,10 @@ export function IngresoDetalleView({
   const readonly = ingreso.confirmado
   const mostrarCostos = !readonly || puedeVerCostos
   const totalCantidad = detalles.reduce((a, d) => a + d.cantidad, 0)
-  const totalCosto = mostrarCostos ? detalles.reduce((a, d) => a + d.cantidad * (d.costo_unitario ?? 0), 0) : null
+  const hayCostoPendiente = detalles.some((d) => d.costo_unitario == null)
+  const totalCosto = mostrarCostos && !hayCostoPendiente
+    ? detalles.reduce((a, d) => a + d.cantidad * (d.costo_unitario ?? 0), 0)
+    : null
 
   function addLinea(e: React.FormEvent) {
     e.preventDefault()
@@ -108,9 +115,9 @@ export function IngresoDetalleView({
       return toast.error('Elegí un producto del inventario', 'O marcá "es nuevo" si no existe')
     }
     const cant = Number(cantidad || 0)
-    const costo = Number(costoUnitario || 0)
+    const costo = puedeCargarCostos && costoUnitario.trim() ? Number(costoUnitario) : null
     if (cant <= 0) return toast.error('Cantidad inválida')
-    if (costo < 0) return toast.error('Costo inválido')
+    if (costo != null && costo < 0) return toast.error('Costo inválido')
 
     start(async () => {
       const res = await importarRemitoAction({
@@ -154,6 +161,33 @@ export function IngresoDetalleView({
       const res = await confirmarIngresoAction({ idIngreso: ingreso.id_ingreso })
       if (!res.ok) return toast.error('No se pudo confirmar', mensajeDeError(res.reason))
       toast.success(`Ingreso confirmado`, `Se generaron ${res.data?.itemsGenerados ?? 0} ítems con QR único`)
+      router.refresh()
+    })
+  }
+
+  function guardarCostoPendiente(idDetalle: string) {
+    const costoStr = costosPendientes[idDetalle]
+    const costo = Number(costoStr || 0)
+    if (costo <= 0) {
+      return toast.error('Costo inválido', 'El costo debe ser mayor a cero.')
+    }
+    start(async () => {
+      const res = await completarCostoIngresoAction({
+        idIngreso: ingreso.id_ingreso,
+        lineas: [{ idDetalle, costoUnitario: costo }],
+      })
+      if (!res.ok) {
+        return toast.error('No se pudo guardar el costo', mensajeDeError(res.reason))
+      }
+      toast.success('Costo guardado', `Se actualizaron ${res.data?.itemsActualizados ?? 0} ítems.`)
+      setDetalles((prev) =>
+        prev.map((x) => (x.id_detalle === idDetalle ? { ...x, costo_unitario: costo } : x)),
+      )
+      setCostosPendientes((prev) => {
+        const next = { ...prev }
+        delete next[idDetalle]
+        return next
+      })
       router.refresh()
     })
   }
@@ -231,16 +265,50 @@ export function IngresoDetalleView({
                   <Td align="right" className="font-mono">{d.cantidad}</Td>
                   {mostrarCostos && (
                     <Td align="right" className="font-mono">
-                      {d.costo_unitario != null
-                        ? `$ ${Number(d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
-                        : '—'}
+                      {d.costo_unitario != null ? (
+                        `$ ${Number(d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                      ) : readonly && puedeCargarCostos ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault()
+                            guardarCostoPendiente(d.id_detalle)
+                          }}
+                          className="flex items-center justify-end gap-1.5"
+                        >
+                          <NumberInput
+                            thousands
+                            placeholder="Costo"
+                            aria-label={`Completar costo para ${productoNombre(d.id_producto)}`}
+                            value={costosPendientes[d.id_detalle] ?? ''}
+                            onChange={(e) =>
+                              setCostosPendientes((prev) => ({
+                                ...prev,
+                                [d.id_detalle]: e.target.value,
+                              }))
+                            }
+                            className="w-24 text-right"
+                            disabled={pending}
+                          />
+                          <Button
+                            size="sm"
+                            type="submit"
+                            disabled={pending || !costosPendientes[d.id_detalle]}
+                          >
+                            Guardar
+                          </Button>
+                        </form>
+                      ) : (
+                        <span className="text-muted">Pendiente</span>
+                      )}
                     </Td>
                   )}
                   {mostrarCostos && (
                     <Td align="right" className="font-mono">
-                      {d.costo_unitario != null
-                        ? `$ ${(d.cantidad * d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
-                        : '—'}
+                      {d.costo_unitario != null ? (
+                        `$ ${(d.cantidad * d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
                     </Td>
                   )}
                   {!readonly && (
@@ -261,7 +329,9 @@ export function IngresoDetalleView({
               {mostrarCostos && <Td></Td>}
               {mostrarCostos && (
                 <Td align="right" className="font-mono font-semibold">
-                  $ {totalCosto?.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                  {hayCostoPendiente
+                    ? 'Pendiente'
+                    : `$ ${totalCosto?.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`}
                 </Td>
               )}
               {!readonly && <Td></Td>}
@@ -278,6 +348,7 @@ export function IngresoDetalleView({
           categorias={categorias}
           cotizacion={cotizacion}
           onImported={onImported}
+          puedeCargarCostos={puedeCargarCostos}
         />
       )}
 
@@ -321,7 +392,7 @@ export function IngresoDetalleView({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-6 md:items-end">
+          <div className={`grid grid-cols-1 gap-3 ${puedeCargarCostos ? 'md:grid-cols-6' : 'md:grid-cols-5'} md:items-end`}>
             <div className="md:col-span-2">
               <Field htmlFor="l-prod" label="Producto">
                 <ProductoNombreCombobox
@@ -380,14 +451,18 @@ export function IngresoDetalleView({
                 onChange={(e) => setCantidad(clampUnidades(e.target.value))}
               />
             </Field>
-            <Field htmlFor="l-costo" label="Costo unitario">
-              <NumberInput
-                id="l-costo"
-                thousands
-                value={costoUnitario}
-                onChange={(e) => setCostoUnitario(e.target.value)}
-              />
-            </Field>
+
+            {puedeCargarCostos && (
+              <Field htmlFor="l-costo" label="Costo unitario">
+                <NumberInput
+                  id="l-costo"
+                  thousands
+                  value={costoUnitario}
+                  onChange={(e) => setCostoUnitario(e.target.value)}
+                />
+              </Field>
+            )}
+
             <Button type="submit" disabled={pending}>
               {pending ? 'Agregando…' : 'Agregar línea'}
             </Button>

@@ -260,14 +260,14 @@ export async function spCreateProducto(input: {
  */
 export async function spCrearStockDirecto(input: {
   idProducto: string
-  costo?: number
+  costo?: number | null
   tipoIngreso?: TipoIngreso
   items: Array<{ talle: string | null; cantidad: number }>
 }): Promise<number> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_crear_stock_directo', {
     p_id_producto: input.idProducto,
-    p_costo: input.costo ?? 0,
+    p_costo: input.costo ?? null,
     p_tipo_ingreso: input.tipoIngreso ?? 'compra',
     p_items: input.items,
   })

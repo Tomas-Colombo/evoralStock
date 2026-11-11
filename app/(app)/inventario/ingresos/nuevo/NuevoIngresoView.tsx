@@ -18,6 +18,7 @@ import {
 import type {
   CategoriaRow,
   ProductoConDetalle,
+  ProductoSinCosto,
   ProveedorRow,
   TipoIngreso,
   TipoProveedor,
@@ -70,9 +71,10 @@ export function NuevoIngresoView({
   tiposIngreso,
   tiposProveedor,
   cotizacion,
+  puedeCargarCostos,
 }: {
   proveedores: ProveedorRow[]
-  productos: ProductoConDetalle[]
+  productos: (ProductoConDetalle | ProductoSinCosto)[]
   categorias: CategoriaRow[]
   /** Modo restock: llega desde /inventario/ingresos/nuevo?producto=<id> y
    *  bloquea el proveedor + agrega una línea vinculada al producto. */
@@ -87,6 +89,7 @@ export function NuevoIngresoView({
   tiposIngreso: readonly TipoIngreso[]
   tiposProveedor: readonly TipoProveedor[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
+  puedeCargarCostos: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -126,19 +129,19 @@ export function NuevoIngresoView({
     if (!prefill?.idProducto) return []
     const prod = productos.find((p) => p.id_producto === prefill.idProducto)
     if (!prod) return []
+    const prodConCosto = 'costo_vigente' in prod ? (prod as ProductoConDetalle) : null
     return [
       {
         nombre: prod.nombre,
         cantidad: '1',
-        // Prefill del costo: el del último ingreso si viene en el prefill del
-        // restock; si no, el costo vigente del producto. Editable siempre.
+        // Prefill del costo: solo si puedeCargarCostos
         costoUnitario:
-          prefill.costoUnitario != null
+          puedeCargarCostos && prefill.costoUnitario != null
             ? String(prefill.costoUnitario)
-            : prod.costo_vigente != null
-              ? String(prod.costo_vigente)
+            : puedeCargarCostos && prodConCosto?.costo_vigente != null
+              ? String(prodConCosto.costo_vigente)
               : '',
-        costoPrecargado: true,
+        costoPrecargado: puedeCargarCostos,
         esNuevo: false,
         idProducto: prod.id_producto,
         idCategoria: '',
@@ -227,7 +230,7 @@ export function NuevoIngresoView({
           return {
             nombre: l.nombre,
             cantidad: String(l.cantidad),
-            costoUnitario: String(l.costoUnitario),
+            costoUnitario: puedeCargarCostos ? String(l.costoUnitario) : '',
             esNuevo: !match,
             idProducto: match?.id_producto ?? '',
             // Producto nuevo: sugerimos categoría por el nombre; vinculado: da igual.
@@ -279,12 +282,14 @@ export function NuevoIngresoView({
 
   // En modo «Vincular» el producto elegido manda: el nombre lo aporta el
   // producto (no hay input de texto) y el costo arranca en el costo vigente
-  // (sincronizado con la última compra por change costo-unico) como valor por defecto editable. Solo en ARS:
-  // costo_vigente está en pesos y en USD el usuario carga el costo en dólares.
+  // si puedeCargarCostos como valor por defecto editable. Solo en ARS.
   function vincularProducto(i: number, idProducto: string) {
     const prod = productos.find((p) => p.id_producto === idProducto)
+    const prodConCosto = prod && 'costo_vigente' in prod ? (prod as ProductoConDetalle) : null
     const costoArs =
-      moneda === 'ARS' && prod?.costo_vigente != null ? String(prod.costo_vigente) : null
+      puedeCargarCostos && moneda === 'ARS' && prodConCosto?.costo_vigente != null
+        ? String(prodConCosto.costo_vigente)
+        : null
     setFilas((fs) =>
       fs.map((f, idx) =>
         idx === i
@@ -374,14 +379,14 @@ export function NuevoIngresoView({
         tipoIngreso,
         numeroRemito: numeroRemito || null,
         observaciones: observaciones || null,
-        moneda,
+        moneda: puedeCargarCostos ? moneda : undefined,
         lineas: filas.map((f) => ({
           esNuevo: f.esNuevo,
           idProducto: f.esNuevo ? null : f.idProducto || null,
           idCategoria: f.esNuevo ? f.idCategoria || null : null,
           nombre: f.nombre.trim(),
           cantidad: Number(f.cantidad || 0),
-          costoUnitario: Number(f.costoUnitario || 0),
+          costoUnitario: puedeCargarCostos && f.costoUnitario ? Number(f.costoUnitario) : null,
           talles: f.talles.length > 0 ? f.talles : undefined,
         })),
       })
@@ -468,29 +473,31 @@ export function NuevoIngresoView({
             </Field>
           )}
 
-          <Field
-            htmlFor="i-moneda"
-            label="Moneda del comprobante"
-            hint={
-              moneda === 'USD'
-                ? cotizacion?.valor
-                  ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
-                      minimumFractionDigits: 2,
-                    })}${cotizacion.desactualizada ? ' (desactualizada)' : ''}. Los valores en pesos se calculan como referencia.`
-                  : 'Cotización del dólar no disponible.'
-                : 'Comprobante en pesos argentinos (una moneda por comprobante).'
-            }
-          >
-            <Select
-              id="i-moneda"
-              value={moneda}
-              onChange={(e) => cambiarMoneda(e.target.value as 'ARS' | 'USD')}
-              disabled={pending}
+          {puedeCargarCostos && (
+            <Field
+              htmlFor="i-moneda"
+              label="Moneda del comprobante"
+              hint={
+                moneda === 'USD'
+                  ? cotizacion?.valor
+                    ? `Cotización oficial: $ ${cotizacion.valor.toLocaleString('es-AR', {
+                        minimumFractionDigits: 2,
+                      })}${cotizacion.desactualizada ? ' (desactualizada)' : ''}. Los valores en pesos se calculan como referencia.`
+                    : 'Cotización del dólar no disponible.'
+                  : 'Comprobante en pesos argentinos (una moneda por comprobante).'
+              }
             >
-              <option value="ARS">ARS (Pesos)</option>
-              <option value="USD">USD (Dólares)</option>
-            </Select>
-          </Field>
+              <Select
+                id="i-moneda"
+                value={moneda}
+                onChange={(e) => cambiarMoneda(e.target.value as 'ARS' | 'USD')}
+                disabled={pending}
+              >
+                <option value="ARS">ARS (Pesos)</option>
+                <option value="USD">USD (Dólares)</option>
+              </Select>
+            </Field>
+          )}
 
           <Field htmlFor="i-obs" label="Observaciones">
             <Textarea
@@ -643,23 +650,25 @@ export function NuevoIngresoView({
                       />
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
-                      <NumberInput
-                        thousands
-                        value={f.costoUnitario}
-                        onChange={(e) =>
-                          actualizar(i, { costoUnitario: e.target.value, costoPrecargado: false })
-                        }
-                        aria-label="Precio unitario"
-                        className="w-24 text-right"
-                      />
-                      {moneda === 'USD' && cotizacion?.valor && Number(f.costoUnitario || 0) > 0 && (
-                        <span className="text-xs text-muted shrink-0">
-                          ≈ ${Math.round(Number(f.costoUnitario) * cotizacion.valor).toLocaleString('es-AR')} ARS
-                        </span>
-                      )}
-                    </div>
+                    {puedeCargarCostos && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
+                        <NumberInput
+                          thousands
+                          value={f.costoUnitario}
+                          onChange={(e) =>
+                            actualizar(i, { costoUnitario: e.target.value, costoPrecargado: false })
+                          }
+                          aria-label="Precio unitario"
+                          className="w-24 text-right"
+                        />
+                        {moneda === 'USD' && cotizacion?.valor && Number(f.costoUnitario || 0) > 0 && (
+                          <span className="text-xs text-muted shrink-0">
+                            ≈ ${Math.round(Number(f.costoUnitario) * cotizacion.valor).toLocaleString('es-AR')} ARS
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <IconButton
                       type="button"
@@ -743,22 +752,27 @@ export function NuevoIngresoView({
         <div className="text-sm text-muted">
           {filas.length > 0 ? (
             <>
-              <b>{totalUnidades}</b> ítem(s) · total{' '}
-              {moneda === 'USD' ? (
+              <b>{totalUnidades}</b> ítem(s)
+              {puedeCargarCostos && (
                 <>
-                  <b>USD {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
-                  {cotizacion?.valor ? (
+                  {' '}· total{' '}
+                  {moneda === 'USD' ? (
                     <>
-                      {' '}(estimado{' '}
-                      <b>
-                        $ {Math.round(totalCosto * cotizacion.valor).toLocaleString('es-AR')} ARS
-                      </b>
-                      )
+                      <b>USD {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
+                      {cotizacion?.valor ? (
+                        <>
+                          {' '}(estimado{' '}
+                          <b>
+                            $ {Math.round(totalCosto * cotizacion.valor).toLocaleString('es-AR')} ARS
+                          </b>
+                          )
+                        </>
+                      ) : null}
                     </>
-                  ) : null}
+                  ) : (
+                    <b>$ {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
+                  )}
                 </>
-              ) : (
-                <b>$ {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
               )}
               . Al guardar se generan los ítems físicos con QR único.
             </>

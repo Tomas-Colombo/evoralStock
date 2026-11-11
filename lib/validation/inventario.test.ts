@@ -4,6 +4,10 @@ import {
   proveedorSchema,
   proveedorPatchSchema,
   extraerReasonZod,
+  createProductoSchema,
+  confirmarIngresoSchema,
+  importarRemitoSchema,
+  completarCostoIngresoSchema,
 } from './inventario'
 
 describe('Validación de inventario: ingresos — REQ-MODOP-05', () => {
@@ -119,5 +123,73 @@ describe('Validación de inventario: proveedores — REQ-MODOP-06', () => {
     if (!resPatch.success) {
       expect(extraerReasonZod(resPatch.error)).toBe('campo-desconocido')
     }
+  })
+})
+
+describe('Validación de inventario: costos-por-columna (Fase 3C.2)', () => {
+  const VALID_UUID = '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+  const VALID_UUID_2 = '4f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+
+  it('createProductoSchema acepta costoInicial opcional o null', () => {
+    expect(createProductoSchema.safeParse({ nombre: 'Remera', idCategoria: VALID_UUID }).success).toBe(true)
+    expect(createProductoSchema.safeParse({ nombre: 'Remera', idCategoria: VALID_UUID, costoInicial: null }).success).toBe(true)
+    expect(createProductoSchema.safeParse({ nombre: 'Remera', idCategoria: VALID_UUID, costoInicial: 1500 }).success).toBe(true)
+    expect(createProductoSchema.safeParse({ nombre: 'Remera', idCategoria: VALID_UUID, costoInicial: -5 }).success).toBe(false)
+  })
+
+  it('confirmarIngresoSchema valida UUID y costo opcional', () => {
+    expect(confirmarIngresoSchema.safeParse({ idIngreso: VALID_UUID }).success).toBe(true)
+    expect(confirmarIngresoSchema.safeParse({ idIngreso: VALID_UUID, costo: 2500 }).success).toBe(true)
+    expect(confirmarIngresoSchema.safeParse({ idIngreso: '' }).success).toBe(false)
+  })
+
+  it('importarRemitoSchema valida idIngreso y costoUnitario opcional o null por línea', () => {
+    const resValido = importarRemitoSchema.safeParse({
+      idIngreso: VALID_UUID,
+      lineas: [
+        { nombre: 'Item 1', cantidad: 3, costoUnitario: null, esNuevo: true, idProducto: null, idCategoria: VALID_UUID },
+        { nombre: 'Item 2', cantidad: 1, costoUnitario: 200, esNuevo: false, idProducto: VALID_UUID_2, idCategoria: null },
+      ],
+    })
+    expect(resValido.success).toBe(true)
+  })
+
+  describe('completarCostoIngresoSchema', () => {
+    it('acepta lote de líneas con costoUnitario > 0 y rechaza negativos o ceros', () => {
+      const resValido = completarCostoIngresoSchema.safeParse({
+        idIngreso: VALID_UUID,
+        lineas: [{ idDetalle: VALID_UUID_2, costoUnitario: 3500 }],
+      })
+      expect(resValido.success).toBe(true)
+
+      const resCero = completarCostoIngresoSchema.safeParse({
+        idIngreso: VALID_UUID,
+        lineas: [{ idDetalle: VALID_UUID_2, costoUnitario: 0 }],
+      })
+      expect(resCero.success).toBe(false)
+      if (!resCero.success) {
+        expect(extraerReasonZod(resCero.error)).toBe('costo-invalido')
+      }
+
+      const resNegativo = completarCostoIngresoSchema.safeParse({
+        idIngreso: VALID_UUID,
+        lineas: [{ idDetalle: VALID_UUID_2, costoUnitario: -100 }],
+      })
+      expect(resNegativo.success).toBe(false)
+      if (!resNegativo.success) {
+        expect(extraerReasonZod(resNegativo.error)).toBe('costo-invalido')
+      }
+    })
+
+    it('rechaza líneas vacías con detalle-requerido', () => {
+      const resVacio = completarCostoIngresoSchema.safeParse({
+        idIngreso: VALID_UUID,
+        lineas: [],
+      })
+      expect(resVacio.success).toBe(false)
+      if (!resVacio.success) {
+        expect(extraerReasonZod(resVacio.error)).toBe('sin-lineas')
+      }
+    })
   })
 })

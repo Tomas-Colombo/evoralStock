@@ -114,9 +114,13 @@ export function IngresosTable({
                 <Td align="right" className="font-mono">{r.total_cantidad}</Td>
                 {puedeVerCostos && (
                   <Td align="right" className="font-mono">
-                    {r.total_costo != null
-                      ? `$ ${r.total_costo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
-                      : '—'}
+                    {r.costo_pendiente ? (
+                      <span className="text-xs text-muted">Costo pendiente</span>
+                    ) : r.total_costo != null ? (
+                      `$ ${r.total_costo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                    ) : (
+                      '—'
+                    )}
                   </Td>
                 )}
                 <Td>

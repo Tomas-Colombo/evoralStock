@@ -78,6 +78,9 @@ export interface PerfilProveedorDetalle {
    */
   valor_stock_consignacion: number
   items_en_stock_consignacion: number
+  // Ítems con costo pendiente (null): no suman al valor, así que el total
+  // queda por debajo; la UI lo avisa en vez de contarlos como 0.
+  items_costo_pendiente_consignacion: number
   /**
    * Deuda total con el proveedor = pendiente de rendir (ya vendido)
    * + valor a costo del stock de consignación aún en tu poder. Representa
@@ -147,7 +150,7 @@ export async function getPerfilProveedorPorId(
   const monto_rendido_historico = ((rendHist.data ?? []) as Array<{ monto_total: number | string }>)
     .reduce((acc, r) => acc + Number(r.monto_total ?? 0), 0)
 
-  const stockRows = (stockConsign.data ?? []) as Array<{ costo_ingreso: number | string }>
+  const stockRows = (stockConsign.data ?? []) as Array<{ costo_ingreso: number | string | null }>
   const valor_stock_consignacion = stockRows.reduce(
     (acc, r) => acc + Number(r.costo_ingreso ?? 0),
     0,
@@ -162,6 +165,7 @@ export async function getPerfilProveedorPorId(
     rendiciones_pendientes_pago: rendPend.count ?? 0,
     valor_stock_consignacion,
     items_en_stock_consignacion: stockRows.length,
+    items_costo_pendiente_consignacion: stockRows.filter((r) => r.costo_ingreso == null).length,
     deuda_total_consignacion: valor_stock_consignacion + monto_pendiente_rendicion,
   }
 }

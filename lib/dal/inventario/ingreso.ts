@@ -50,15 +50,18 @@ export async function listIngresosConResumen(opts?: {
   const rows = ((data ?? []) as Array<
     IngresoMercaderiaRow & {
       proveedor: Pick<ProveedorRow, 'id_proveedor' | 'nombre'> | null
-      detalle: Array<{ cantidad: number; costo_unitario: number }>
+      detalle: Array<{ cantidad: number; costo_unitario: number | null }>
     }
   >).map((row) => {
     const detalle = row.detalle ?? []
     const total_cantidad = detalle.reduce((acc, d) => acc + Number(d.cantidad), 0)
-    const total_costo = detalle.reduce(
-      (acc, d) => acc + Number(d.cantidad) * Number(d.costo_unitario),
-      0,
-    )
+    const costo_pendiente = detalle.some((d) => d.costo_unitario == null)
+    const total_costo = costo_pendiente
+      ? null
+      : detalle.reduce(
+          (acc, d) => acc + Number(d.cantidad) * Number(d.costo_unitario),
+          0,
+        )
     const { detalle: _drop, ...rest } = row
     void _drop
     return {
@@ -66,6 +69,7 @@ export async function listIngresosConResumen(opts?: {
       total_lineas: detalle.length,
       total_cantidad,
       total_costo,
+      costo_pendiente,
     }
   })
 
@@ -99,15 +103,18 @@ export async function listIngresosDeProveedor(
   return ((data ?? []) as Array<
     IngresoMercaderiaRow & {
       proveedor: Pick<ProveedorRow, 'id_proveedor' | 'nombre'> | null
-      detalle: Array<{ cantidad: number; costo_unitario: number }>
+      detalle: Array<{ cantidad: number; costo_unitario: number | null }>
     }
   >).map((row) => {
     const detalle = row.detalle ?? []
     const total_cantidad = detalle.reduce((acc, d) => acc + Number(d.cantidad), 0)
-    const total_costo = detalle.reduce(
-      (acc, d) => acc + Number(d.cantidad) * Number(d.costo_unitario),
-      0,
-    )
+    const costo_pendiente = detalle.some((d) => d.costo_unitario == null)
+    const total_costo = costo_pendiente
+      ? null
+      : detalle.reduce(
+          (acc, d) => acc + Number(d.cantidad) * Number(d.costo_unitario),
+          0,
+        )
     const { detalle: _drop, ...rest } = row
     void _drop
     return {
@@ -115,6 +122,7 @@ export async function listIngresosDeProveedor(
       total_lineas: detalle.length,
       total_cantidad,
       total_costo,
+      costo_pendiente,
     }
   })
 }
@@ -201,7 +209,7 @@ export async function addIngresoDetalle(input: {
   idIngreso: string
   idProducto: string
   cantidad: number
-  costoUnitario: number
+  costoUnitario?: number | null
   talle?: string | null
   costoOriginalUsd?: number | null
   cotizacionAplicada?: number | null
@@ -215,7 +223,7 @@ export async function addIngresoDetalle(input: {
       id_ingreso: input.idIngreso,
       id_producto: input.idProducto,
       cantidad: input.cantidad,
-      costo_unitario: input.costoUnitario,
+      costo_unitario: input.costoUnitario ?? null,
       talle: input.talle ?? null,
       costo_original_usd: input.costoOriginalUsd ?? null,
       cotizacion_aplicada: input.cotizacionAplicada ?? null,
@@ -232,7 +240,7 @@ export type DetalleImportado = {
   id_producto: string
   nombre: string
   cantidad: number
-  costo_unitario: number
+  costo_unitario: number | null
   talle: string | null
 }
 
@@ -252,7 +260,7 @@ export async function spImportarRemito(input: {
     idProducto: string | null
     idCategoria: string | null
     nombre: string
-    costoUnitario: number
+    costoUnitario?: number | null
     costoOriginalUsd?: number | null
     partes: Array<{ talle: string | null; cantidad: number }>
   }>
@@ -277,6 +285,28 @@ export async function spImportarRemito(input: {
     vinculados: r.vinculados ?? 0,
     detalles: r.detalles ?? [],
   }
+}
+
+/**
+ * Completa costos de líneas pendientes (costo_unitario null) en ingresos confirmados.
+ */
+export async function spCompletarCostoIngreso(input: {
+  idIngreso: string
+  lineas: Array<{ idDetalle: string; costoUnitario: number }>
+  ip?: string | null
+}): Promise<number> {
+  const supabase = await createServerClient()
+  const payloadLineas = input.lineas.map((l) => ({
+    id_detalle: l.idDetalle,
+    costo_unitario: l.costoUnitario,
+  }))
+  const { data, error } = await supabase.rpc('sp_completar_costo_ingreso', {
+    p_id_ingreso: input.idIngreso,
+    p_lineas: payloadLineas,
+    p_ip: input.ip ?? null,
+  })
+  if (error) throw new Error(errorDeRpc('sp_completar_costo_ingreso', error))
+  return Number(data ?? 0)
 }
 
 /**

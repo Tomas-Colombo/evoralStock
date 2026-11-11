@@ -302,6 +302,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Permiso de costos',
         texto: 'La columna de costo total aparece si tu rol tiene permiso para ver costos.',
       },
+      {
+        tema: 'Costo pendiente',
+        texto: 'Si un ingreso confirmado tiene renglones sin costo asignado, se indica como "Costo pendiente" en la columna de costo total. Una prenda con costo pendiente no se puede vender hasta que se complete su valor.',
+      },
     ],
   },
   {
@@ -396,6 +400,28 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       {
         tema: 'Confirmación irreversible',
         texto: 'Una vez confirmado el ingreso se generan los ítems físicos en stock y no se pueden agregar nuevas líneas al comprobante.',
+      },
+    ],
+  },
+  {
+    id: 'inventario-ingresos-completar-costo',
+    titulo: 'Cómo completar el costo pendiente de un ingreso',
+    ruta: '/inventario/ingresos',
+    permisos: ['inventario.ver', 'inventario.cargar_costos'],
+    pasos: [
+      'Desde el listado de Ingresos de mercadería, hacé clic en "Abrir" sobre un ingreso confirmado que tenga costo pendiente.',
+      'En la tabla de productos, localizá la línea con costo pendiente.',
+      'Ingresá el costo unitario correspondiente en el campo de texto.',
+      'Hacé clic en "Guardar" para asentar el costo en el ingreso y actualizar las prendas físicas asociadas.',
+    ],
+    detalles: [
+      {
+        tema: 'Prendas con costo pendiente',
+        texto: 'Si un ingreso se confirmó sin costo o con costo incompleto, las prendas generadas quedan bloqueadas y no se pueden vender hasta que cargues su costo.',
+      },
+      {
+        tema: 'Permiso requerido',
+        texto: 'Solo los usuarios que tienen asignado el permiso de cargar costos pueden ver el formulario y completar los costos pendientes.',
       },
     ],
   },

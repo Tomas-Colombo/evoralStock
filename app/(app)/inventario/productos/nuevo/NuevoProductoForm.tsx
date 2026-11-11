@@ -25,6 +25,7 @@ export function NuevoProductoForm({
   productos,
   proveedores,
   cotizacion,
+  puedeCargarCostos,
   onSuccess,
   onCancel,
 }: {
@@ -32,6 +33,7 @@ export function NuevoProductoForm({
   productos: Array<{ nombre: string }>
   proveedores: ProveedorRow[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
+  puedeCargarCostos: boolean
   onSuccess?: () => void
   onCancel?: () => void
 }) {
@@ -114,8 +116,8 @@ export function NuevoProductoForm({
         sku: null, // el SKU se autogenera en la DB (sp_gen_sku)
         stockMinimo: Number(stockMinimo || 0),
         descripcion: descripcion || null,
-        costoInicial: costoInicial ? Number(costoInicial) : null,
-        moneda,
+        costoInicial: puedeCargarCostos && costoInicial ? Number(costoInicial) : null,
+        moneda: puedeCargarCostos ? moneda : undefined,
         idProveedor: idProveedor || null,
         stock: stockFinal,
       })
@@ -189,26 +191,28 @@ export function NuevoProductoForm({
             onChange={(e) => setStockMinimo(e.target.value)}
           />
         </Field>
-        <Field htmlFor="prod-costo" label="Costo inicial" hint={hintCosto}>
-          <div className="flex gap-2">
-            <NumberInput
-              id="prod-costo"
-              thousands
-              value={costoInicial}
-              onChange={(e) => setCostoInicial(e.target.value)}
-              className="flex-1"
-            />
-            <Select
-              value={moneda}
-              onChange={(e) => setMoneda(e.target.value)}
-              aria-label="Moneda"
-              className="w-auto"
-            >
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
-            </Select>
-          </div>
-        </Field>
+        {puedeCargarCostos && (
+          <Field htmlFor="prod-costo" label="Costo inicial" hint={hintCosto}>
+            <div className="flex gap-2">
+              <NumberInput
+                id="prod-costo"
+                thousands
+                value={costoInicial}
+                onChange={(e) => setCostoInicial(e.target.value)}
+                className="flex-1"
+              />
+              <Select
+                value={moneda}
+                onChange={(e) => setMoneda(e.target.value)}
+                aria-label="Moneda"
+                className="w-auto"
+              >
+                <option value="ARS">ARS</option>
+                <option value="USD">USD</option>
+              </Select>
+            </div>
+          </Field>
+        )}
       </div>
 
       {proveedores.length > 0 && (

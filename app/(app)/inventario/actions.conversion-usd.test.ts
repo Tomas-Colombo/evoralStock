@@ -15,6 +15,7 @@ vi.mock('@/lib/dal/session', () => ({
 
 vi.mock('@/lib/dal/guard', () => ({
   requireModuleRole: vi.fn(),
+  hasModuleAccess: vi.fn(() => true),
 }))
 
 vi.mock('@/lib/dal/precios/cotizacion', () => ({

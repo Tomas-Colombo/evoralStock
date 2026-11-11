@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
@@ -10,6 +11,7 @@ import { Card } from '@/components/ui/Card'
 
 export default async function NuevoProductoPage() {
   const session = await verifySession()
+  const puedeCargarCostos = hasModuleAccess(session, 'inventario', 'cargar_costos')
   const [categorias, productos, proveedores, cotizacion] = await Promise.all([
     listCategoriasActivas(),
     listProductosSinCosto(),
@@ -30,6 +32,7 @@ export default async function NuevoProductoPage() {
             productos={productos}
             proveedores={proveedores}
             cotizacion={cotizacion}
+            puedeCargarCostos={puedeCargarCostos}
           />
         </Card>
       </main>

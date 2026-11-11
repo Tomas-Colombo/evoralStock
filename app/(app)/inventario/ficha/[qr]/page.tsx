@@ -99,11 +99,15 @@ export default async function FichaItemPage(props: {
                   <div className="text-xs uppercase font-mono text-muted">Tipo ingreso</div>
                   <div className="capitalize">{detalle.tipo_ingreso}</div>
                 </div>
-                {puedeVerCostos && detalle.costo_ingreso != null && (
+                {puedeVerCostos && (
                   <div>
                     <div className="text-xs uppercase font-mono text-muted">Costo ingreso</div>
                     <div className="font-mono">
-                      $ {Number(detalle.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      {detalle.costo_ingreso != null ? (
+                        `$ ${Number(detalle.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                      ) : (
+                        <span className="text-muted">Costo pendiente</span>
+                      )}
                     </div>
                   </div>
                 )}

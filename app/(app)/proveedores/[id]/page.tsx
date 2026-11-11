@@ -172,7 +172,7 @@ export default async function ProveedorPerfilPage(props: {
             <Kpi
               label="Valor stock consig."
               value={fmtMoney(perfil.valor_stock_consignacion)}
-              sub={`${perfil.items_en_stock_consignacion} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo`}
+              sub={`${perfil.items_en_stock_consignacion} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo${perfil.items_costo_pendiente_consignacion > 0 ? ` · ${perfil.items_costo_pendiente_consignacion} con costo pendiente` : ''}`}
             />
           )}
           <Kpi

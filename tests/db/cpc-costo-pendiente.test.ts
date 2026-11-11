@@ -623,4 +623,138 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     expect(vigentes).toHaveLength(1)
     expect(Number(vigentes![0].costo)).toBe(1500)
   })
+
+  describe('9. sp_crear_stock_directo (00154 — costo opcional/pendiente)', () => {
+    it('operador sin inventario.cargar_costos intenta enviar p_costo -> rechazo no-permission', async () => {
+      const t = await setupFixture('stock-directo-sin-permiso')
+      const clientSinCostos = await createClientWithPermisos(t, 'OperadorSinCargarCostos', {
+        inventario: ['ver', 'crear', 'editar'],
+      })
+
+      const { data: idProd } = await t.authAdmin.rpc('sp_create_producto', {
+        p_id_categoria: t.idCategoria,
+        p_nombre: 'Remera Directa',
+        p_sku: `SKU-${Date.now()}-sd1`,
+      })
+
+      const { data, error } = await clientSinCostos.rpc('sp_crear_stock_directo', {
+        p_id_producto: idProd,
+        p_costo: 1500,
+        p_items: [{ talle: 'M', cantidad: 2 }],
+      })
+
+      expect(error).not.toBeNull()
+      expect(error?.code).toBe('42501')
+      expect(error?.message).toMatch(/no-permission/)
+      expect(data).toBeNull()
+
+      // Invariante: no se crearon items
+      const { data: items } = await serviceRole
+        .from('item_producto')
+        .select('id_item')
+        .eq('id_producto', idProd)
+      expect(items).toHaveLength(0)
+    })
+
+    it('operador sin inventario.cargar_costos crea stock directo sin costo en producto sin costo previo -> costo_ingreso null', async () => {
+      const t = await setupFixture('stock-directo-costo-null')
+      const clientSinCostos = await createClientWithPermisos(t, 'OperadorSinCargarCostos', {
+        inventario: ['ver', 'crear', 'editar'],
+      })
+
+      const { data: idProd } = await t.authAdmin.rpc('sp_create_producto', {
+        p_id_categoria: t.idCategoria,
+        p_nombre: 'Remera Sin Costo Previo',
+        p_sku: `SKU-${Date.now()}-sd2`,
+      })
+
+      const { data: itemsCreados, error } = await clientSinCostos.rpc('sp_crear_stock_directo', {
+        p_id_producto: idProd,
+        p_costo: null,
+        p_items: [{ talle: 'M', cantidad: 2 }],
+      })
+
+      expect(error).toBeNull()
+      expect(itemsCreados).toBe(2)
+
+      const { data: items } = await serviceRole
+        .from('item_producto')
+        .select('id_item, costo_ingreso, estado_item')
+        .eq('id_producto', idProd)
+      expect(items).toHaveLength(2)
+      expect(items![0].costo_ingreso).toBeNull()
+      expect(items![1].costo_ingreso).toBeNull()
+    })
+
+    it('operador crea stock directo con p_costo null en producto CON costo vigente -> hereda fn_costo_vigente_producto', async () => {
+      const t = await setupFixture('stock-directo-hereda-vigente')
+      const clientSinCostos = await createClientWithPermisos(t, 'OperadorSinCargarCostos', {
+        inventario: ['ver', 'crear', 'editar'],
+      })
+
+      const { data: idProd } = await t.authAdmin.rpc('sp_create_producto', {
+        p_id_categoria: t.idCategoria,
+        p_nombre: 'Remera Con Costo Previo',
+        p_sku: `SKU-${Date.now()}-sd3`,
+      })
+
+      // Admin fija costo vigente 3000
+      await t.authAdmin.rpc('sp_set_costo_producto', {
+        p_id_producto: idProd,
+        p_costo: 3000,
+        p_motivo: 'costo inicial',
+      })
+
+      // Operador sin cargar_costos da de alta stock directo con p_costo null
+      const { data: itemsCreados, error } = await clientSinCostos.rpc('sp_crear_stock_directo', {
+        p_id_producto: idProd,
+        p_costo: null,
+        p_items: [{ talle: 'L', cantidad: 1 }],
+      })
+
+      expect(error).toBeNull()
+      expect(itemsCreados).toBe(1)
+
+      const { data: items } = await serviceRole
+        .from('item_producto')
+        .select('id_item, costo_ingreso')
+        .eq('id_producto', idProd)
+      expect(items).toHaveLength(1)
+      expect(Number(items![0].costo_ingreso)).toBe(3000)
+    })
+
+    it('operador con inventario.cargar_costos crea stock directo con costo -> fija costo_ingreso y actualiza costo_producto', async () => {
+      const t = await setupFixture('stock-directo-con-costo')
+
+      const { data: idProd } = await t.authAdmin.rpc('sp_create_producto', {
+        p_id_categoria: t.idCategoria,
+        p_nombre: 'Remera Con Costo Nuevo',
+        p_sku: `SKU-${Date.now()}-sd4`,
+      })
+
+      const { data: itemsCreados, error } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+        p_id_producto: idProd,
+        p_costo: 4500,
+        p_items: [{ talle: 'XL', cantidad: 3 }],
+      })
+
+      expect(error).toBeNull()
+      expect(itemsCreados).toBe(3)
+
+      const { data: items } = await serviceRole
+        .from('item_producto')
+        .select('id_item, costo_ingreso')
+        .eq('id_producto', idProd)
+      expect(items).toHaveLength(3)
+      expect(Number(items![0].costo_ingreso)).toBe(4500)
+
+      const { data: vigentes } = await serviceRole
+        .from('costo_producto')
+        .select('costo')
+        .eq('id_producto', idProd)
+        .is('vigente_hasta', null)
+      expect(vigentes).toHaveLength(1)
+      expect(Number(vigentes![0].costo)).toBe(4500)
+    })
+  })
 })

@@ -34,6 +34,7 @@ export default async function InventarioHome(props: {
   const searchParams = await props.searchParams
   const page = Math.max(1, Number.parseInt(searchParams.page ?? '1', 10) || 1)
   const tieneModuloRevendedoras = hasModuleAccess(session, 'revendedoras', 'ver')
+  const puedeCargarCostos = hasModuleAccess(session, 'inventario', 'cargar_costos')
 
   const [
     { rows: productosPagina, total },
@@ -91,6 +92,7 @@ export default async function InventarioHome(props: {
               categorias={categorias}
               productos={catalogoBuscador}
               proveedores={proveedores}
+              puedeCargarCostos={puedeCargarCostos}
             />
           </div>
         }

@@ -24,6 +24,7 @@ export default async function IngresoDetallePage(props: {
   const { id } = await props.params
   const { from } = await props.searchParams
   const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const puedeCargarCostos = hasModuleAccess(session, 'inventario', 'cargar_costos')
   const ingresoRaw = await getIngreso(id)
   const ingreso = proyectarIngresoDetalle(ingresoRaw, puedeVerCostos)
   if (!ingreso) notFound()
@@ -65,11 +66,12 @@ export default async function IngresoDetallePage(props: {
       <main className="flex-1 p-4 sm:p-6">
         <IngresoDetalleView
           ingreso={ingreso}
-          productos={puedeVerCostos || !ingreso.confirmado ? productos : productos.map(omitirCostoProducto)}
+          productos={puedeCargarCostos || puedeVerCostos ? productos : productos.map(omitirCostoProducto)}
           categorias={categorias}
           qrs={qrs}
           cotizacion={cotizacion}
           puedeVerCostos={puedeVerCostos}
+          puedeCargarCostos={puedeCargarCostos}
         />
       </main>
     </>

@@ -145,7 +145,7 @@ export interface IngresoMercaderiaDetalleRow {
   id_ingreso: string
   id_producto: string
   cantidad: number
-  costo_unitario: number | null
+  costo_unitario?: number | null | null
   // 00032: talle de la línea; se copia a cada item al confirmar.
   talle: string | null
   created_at: string
@@ -223,7 +223,7 @@ export interface IngresoMercaderiaDetalleInsert {
   id_ingreso: string
   id_producto: string
   cantidad: number
-  costo_unitario: number
+  costo_unitario?: number | null
   talle?: string | null
 }
 
@@ -259,4 +259,5 @@ export interface IngresoConResumen extends IngresoMercaderiaRow {
   total_lineas: number
   total_cantidad: number
   total_costo: number | null
+  costo_pendiente?: boolean
 }

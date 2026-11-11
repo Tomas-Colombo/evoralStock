@@ -19,11 +19,88 @@ export function crearIngresoCompletoSchema(tipos: readonly [TipoIngreso, ...Tipo
       numeroRemito: z.string().nullable().optional(),
       observaciones: z.string().nullable().optional(),
       moneda: z.string().optional(),
-      lineas: z.array(z.unknown()),
+      lineas: z.array(
+        z.object({
+          costoUnitario: z.number().nullable().optional(),
+        }).passthrough(),
+      ),
     },
     payloadParams,
   )
 }
+
+export const createProductoSchema = z.object(
+  {
+    idCategoria: z.string().min(1, 'falta-categoria'),
+    nombre: z.string().trim().min(1, 'nombre-requerido'),
+    sku: z.string().nullable().optional(),
+    stockMinimo: z.number().nonnegative().optional(),
+    descripcion: z.string().nullable().optional(),
+    costoInicial: z.number().nonnegative('costo-invalido').nullable().optional(),
+    moneda: z.string().optional(),
+    idProveedor: z.string().nullable().optional(),
+    stock: z
+      .array(
+        z.object({
+          talle: z.string().nullable(),
+          cantidad: z.number(),
+        }),
+      )
+      .optional(),
+  },
+)
+
+export const confirmarIngresoSchema = z.object(
+  {
+    idIngreso: z.string().min(1, 'ingreso-not-found'),
+    costo: z.number().nullable().optional(),
+  },
+)
+
+export const lineaRemitoSchema = z.object(
+  {
+    esNuevo: z.boolean(),
+    idProducto: z.string().nullable(),
+    idCategoria: z.string().nullable(),
+    nombre: z.string(),
+    cantidad: z.number(),
+    costoUnitario: z.number().nullable().optional(),
+    talles: z
+      .array(
+        z.object({
+          talle: z.string().nullable(),
+          cantidad: z.number(),
+        }),
+      )
+      .optional(),
+  },
+)
+
+export const importarRemitoSchema = z.object(
+  {
+    idIngreso: z.string().min(1, 'ingreso-not-found'),
+    moneda: z.string().optional(),
+    lineas: z.array(lineaRemitoSchema),
+  },
+)
+
+export const completarCostoIngresoSchema = z.strictObject(
+  {
+    idIngreso: z.string().min(1, 'ingreso-not-found'),
+    lineas: z
+      .array(
+        z.strictObject(
+          {
+            idDetalle: z.string().min(1, 'detalle-not-found'),
+            costoUnitario: z.number().positive('costo-invalido'),
+          },
+          payloadParams,
+        ),
+      )
+      .min(1, 'sin-lineas'),
+  },
+  payloadParams,
+)
 
 /**
  * Esquema de validación para alta y edición de proveedores (`createProveedorAction`

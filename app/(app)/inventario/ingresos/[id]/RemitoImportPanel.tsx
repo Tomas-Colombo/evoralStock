@@ -25,7 +25,7 @@ export type DetalleImportado = {
   id_producto: string
   nombre: string
   cantidad: number
-  costo_unitario: number
+  costo_unitario: number | null
   talle: string | null
 }
 
@@ -46,12 +46,14 @@ export function RemitoImportPanel({
   categorias,
   cotizacion,
   onImported,
+  puedeCargarCostos,
 }: {
   idIngreso: string
   productos: (ProductoConDetalle | ProductoSinCosto)[]
   categorias: CategoriaRow[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
   onImported: (detalles: DetalleImportado[]) => void
+  puedeCargarCostos: boolean
 }) {
   const toast = useToast()
   const [pending, start] = useTransition()
@@ -188,14 +190,14 @@ export function RemitoImportPanel({
     start(async () => {
       const res = await importarRemitoAction({
         idIngreso,
-        moneda,
+        moneda: puedeCargarCostos ? moneda : undefined,
         lineas: filas.map((f) => ({
           esNuevo: f.esNuevo,
           idProducto: f.esNuevo ? null : f.idProducto || null,
           idCategoria: f.esNuevo ? f.idCategoria || null : null,
           nombre: f.nombre.trim(),
           cantidad: Number(f.cantidad || 0),
-          costoUnitario: Number(f.costoUnitario || 0),
+          costoUnitario: puedeCargarCostos && f.costoUnitario ? Number(f.costoUnitario) : null,
           talles: f.talles.length > 0 ? f.talles : undefined,
         })),
       })
@@ -242,30 +244,32 @@ export function RemitoImportPanel({
       {abierto && (
         <>
           {/* Selector de moneda del remito */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Moneda del remito:</span>
-              <Select
-                value={moneda}
-                onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
-                aria-label="Moneda del remito"
-                className="w-auto"
-                disabled={pending}
-              >
-                <option value="ARS">ARS (Pesos)</option>
-                <option value="USD">USD (Dólares)</option>
-              </Select>
+          {puedeCargarCostos && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Moneda del remito:</span>
+                <Select
+                  value={moneda}
+                  onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
+                  aria-label="Moneda del remito"
+                  className="w-auto"
+                  disabled={pending}
+                >
+                  <option value="ARS">ARS (Pesos)</option>
+                  <option value="USD">USD (Dólares)</option>
+                </Select>
+              </div>
+              {moneda === 'USD' && cotizacion?.valor && (
+                <span className="text-xs text-muted">
+                  Cotización oficial: ${' '}
+                  {cotizacion.valor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  {cotizacion.desactualizada ? ' (desactualizada)' : ''}{' '}
+                  · Total est.: ${' '}
+                  {totalEstimadoArs?.toLocaleString('es-AR')} ARS
+                </span>
+              )}
             </div>
-            {moneda === 'USD' && cotizacion?.valor && (
-              <span className="text-xs text-muted">
-                Cotización oficial: ${' '}
-                {cotizacion.valor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                {cotizacion.desactualizada ? ' (desactualizada)' : ''}{' '}
-                · Total est.: ${' '}
-                {totalEstimadoArs?.toLocaleString('es-AR')} ARS
-              </span>
-            )}
-          </div>
+          )}
 
           <div className="space-y-2">
             {filas.map((f, i) => {
@@ -365,21 +369,23 @@ export function RemitoImportPanel({
                       />
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
-                      <NumberInput
-                        thousands
-                        value={f.costoUnitario}
-                        onChange={(e) => actualizar(i, { costoUnitario: e.target.value })}
-                        aria-label="Precio unitario"
-                        className="w-24 text-right"
-                      />
-                      {estLinea != null && (
-                        <span className="text-xs text-muted shrink-0">
-                          ≈ ${estLinea.toLocaleString('es-AR')} ARS
-                        </span>
-                      )}
-                    </div>
+                    {puedeCargarCostos && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="text-xs text-muted">{moneda === 'USD' ? 'USD' : '$'}</span>
+                        <NumberInput
+                          thousands
+                          value={f.costoUnitario}
+                          onChange={(e) => actualizar(i, { costoUnitario: e.target.value })}
+                          aria-label="Precio unitario"
+                          className="w-24 text-right"
+                        />
+                        {estLinea != null && (
+                          <span className="text-xs text-muted shrink-0">
+                            ≈ ${estLinea.toLocaleString('es-AR')} ARS
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <IconButton
                       type="button"
@@ -456,17 +462,19 @@ export function RemitoImportPanel({
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <div className="text-xs text-muted">
-              {moneda === 'USD' ? (
-                <>
-                  Total comprobante: <b>USD {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
-                  {totalEstimadoArs != null && (
-                    <> (estimado <b>$ {totalEstimadoArs.toLocaleString('es-AR')} ARS</b>)</>
-                  )}
-                </>
-              ) : (
-                <>
-                  Total comprobante: <b>$ {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
-                </>
+              {puedeCargarCostos && (
+                moneda === 'USD' ? (
+                  <>
+                    Total comprobante: <b>USD {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</b>
+                    {totalEstimadoArs != null && (
+                      <> (estimado <b>$ {totalEstimadoArs.toLocaleString('es-AR')} ARS</b>)</>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    Total comprobante: <b>$ {totalMonto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</b>
+                  </>
+                )
               )}
             </div>
             <div className="flex items-center gap-2">

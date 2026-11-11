@@ -14,6 +14,7 @@ interface NuevoProductoModalButtonProps {
   productos: Array<{ nombre: string }>
   proveedores: ProveedorRow[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
+  puedeCargarCostos: boolean
 }
 
 /**
@@ -30,6 +31,7 @@ export function NuevoProductoModalButton({
   productos,
   proveedores,
   cotizacion: cotizacionProp,
+  puedeCargarCostos,
 }: NuevoProductoModalButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -81,6 +83,7 @@ export function NuevoProductoModalButton({
           productos={productos}
           proveedores={proveedores}
           cotizacion={cotizacionEfectiva}
+          puedeCargarCostos={puedeCargarCostos}
           onSuccess={() => {
             setOpen(false)
             router.refresh()

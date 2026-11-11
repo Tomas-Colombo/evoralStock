@@ -2,13 +2,18 @@
 
 import { revalidatePath } from 'next/cache'
 import { AuthorizationError } from '@/lib/dal/errors'
-import { requireModuleRole } from '@/lib/dal/guard'
+import { hasModuleAccess, requireModuleRole } from '@/lib/dal/guard'
 import { verifySession, type Session } from '@/lib/dal/session'
 import { capacidades, tiposIngresoPermitidos } from '@/lib/modulos/capacidades'
 import {
   crearIngresoCompletoSchema,
+  createProductoSchema,
+  confirmarIngresoSchema,
+  importarRemitoSchema,
+  completarCostoIngresoSchema,
   extraerReasonZod,
 } from '@/lib/validation/inventario'
+import { getClientIp } from '@/lib/utils/ip'
 import {
   createCategoria,
   toggleCategoriaActiva,
@@ -39,6 +44,7 @@ import {
   spCancelarIngreso,
   spConfirmarIngreso,
   spImportarRemito,
+  spCompletarCostoIngreso,
 } from '@/lib/dal/inventario/ingreso'
 import {
   excedeOperacion,
@@ -79,7 +85,7 @@ async function guarded(
  * Helper compartido para resolver cotización vigente y convertir líneas de carga en USD a ARS.
  * Mantiene una sola consulta de cotización por acción y propaga cotizacionDesactualizada.
  */
-async function resolverConversionCarga<T extends { costoUnitario: number }>(
+async function resolverConversionCarga<T extends { costoUnitario?: number | null }>(
   moneda: string | undefined | null,
   lineas: T[],
 ): Promise<
@@ -112,6 +118,13 @@ async function resolverConversionCarga<T extends { costoUnitario: number }>(
     }
     const lineasConvertidas = lineas.map((linea) => {
       const costoOriginal = linea.costoUnitario
+      if (costoOriginal == null) {
+        return {
+          ...linea,
+          costoUnitario: null,
+          costoOriginalUsd: null,
+        }
+      }
       const costoArs = convertirUsdEnArs(costoOriginal, cot.valor)
       return {
         ...linea,
@@ -234,9 +247,18 @@ export async function createProductoAction(input: {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
+  const parsed = createProductoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  if (parsed.data.costoInicial != null && !hasModuleAccess(g.session, 'inventario', 'cargar_costos')) {
+    return { ok: false, reason: 'sin-permiso-cargar-costos' }
+  }
+
   // Se valida ANTES de crear nada: si el stock viene mal, no queremos dejar
   // el producto creado y fallar recién al generar las unidades.
-  const stock = (input.stock ?? []).filter((s) => s.cantidad !== 0)
+  const stock = (parsed.data.stock ?? []).filter((s) => s.cantidad !== 0)
   let totalUnidades = 0
   for (const s of stock) {
     const err = unidadesInvalidas(s.cantidad, `talle ${s.talle ?? 'sin talle'}`)
@@ -248,29 +270,29 @@ export async function createProductoAction(input: {
   }
 
   const conversion = await resolverConversionCarga(
-    input.moneda,
-    input.costoInicial != null && input.costoInicial > 0 ? [{ costoUnitario: input.costoInicial }] : [],
+    parsed.data.moneda,
+    parsed.data.costoInicial != null && parsed.data.costoInicial > 0 ? [{ costoUnitario: parsed.data.costoInicial }] : [],
   )
   if (!conversion.ok) return conversion
 
   const { esUsd, cotizacionValor, cotizacionFechaValor, cotizacionDesactualizada } = conversion
-  const costoArs = conversion.lineas[0]?.costoUnitario ?? input.costoInicial ?? 0
+  const costoArs = conversion.lineas[0]?.costoUnitario ?? parsed.data.costoInicial ?? null
   const costoOriginalUsd = conversion.lineas[0]?.costoOriginalUsd ?? null
   const cotizacionAplicada = cotizacionValor
 
   try {
     const id = await spCreateProducto({
-      idCategoria: input.idCategoria,
-      nombre: input.nombre.trim(),
-      sku: input.sku?.trim() || null,
-      stockMinimo: input.stockMinimo ?? 0,
-      descripcion: input.descripcion?.trim() || null,
+      idCategoria: parsed.data.idCategoria,
+      nombre: parsed.data.nombre.trim(),
+      sku: parsed.data.sku?.trim() || null,
+      stockMinimo: parsed.data.stockMinimo ?? 0,
+      descripcion: parsed.data.descripcion?.trim() || null,
     })
-    if (input.costoInicial != null && input.costoInicial > 0) {
+    if (parsed.data.costoInicial != null && parsed.data.costoInicial > 0) {
       await spSetCostoProducto({
         idProducto: id,
-        costo: esUsd ? costoArs : input.costoInicial,
-        moneda: input.moneda ?? 'ARS',
+        costo: esUsd ? costoArs! : parsed.data.costoInicial,
+        moneda: parsed.data.moneda ?? 'ARS',
         motivo: 'costo inicial',
         costoOriginalUsd,
         cotizacionAplicada,
@@ -279,13 +301,17 @@ export async function createProductoAction(input: {
     }
     let itemsCreados = 0
     if (stock.length > 0) {
-      if (input.idProveedor) {
+      const costoParaStock = parsed.data.costoInicial != null && parsed.data.costoInicial > 0
+        ? (esUsd ? costoArs : parsed.data.costoInicial)
+        : null
+
+      if (parsed.data.idProveedor) {
         // Ingreso "compra" dinámico: crea el borrador, agrega una línea por
         // talle y lo confirma para generar los ítems físicos vinculados al
         // proveedor. Mismo circuito que /inventario/ingresos.
         const idIngreso = await createIngresoBorrador({
           tenantId: g.tenantId,
-          idProveedor: input.idProveedor,
+          idProveedor: parsed.data.idProveedor,
           tipoIngreso: 'compra',
           observaciones: 'Ingreso automático al alta del producto',
           idUsuarioAlta: g.userId,
@@ -296,7 +322,7 @@ export async function createProductoAction(input: {
             idIngreso,
             idProducto: id,
             cantidad: s.cantidad,
-            costoUnitario: esUsd ? costoArs : (input.costoInicial ?? 0),
+            costoUnitario: costoParaStock,
             talle: s.talle,
             costoOriginalUsd,
             cotizacionAplicada,
@@ -308,7 +334,7 @@ export async function createProductoAction(input: {
       } else {
         itemsCreados = await spCrearStockDirecto({
           idProducto: id,
-          costo: esUsd ? costoArs : (input.costoInicial ?? 0),
+          costo: costoParaStock,
           items: stock,
         })
       }
@@ -454,13 +480,23 @@ export async function cancelarIngresoAction(input: {
  */
 export async function confirmarIngresoAction(input: {
   idIngreso: string
+  costo?: number | null
 }): Promise<ActionResult<{ itemsGenerados: number }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const parsed = confirmarIngresoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  if (parsed.data.costo != null && !hasModuleAccess(g.session, 'inventario', 'cargar_costos')) {
+    return { ok: false, reason: 'sin-permiso-cargar-costos' }
+  }
+
   try {
-    const count = await spConfirmarIngreso(input.idIngreso)
+    const count = await spConfirmarIngreso(parsed.data.idIngreso)
     revalidatePath('/inventario/ingresos')
-    revalidatePath('/inventario')
     revalidatePath('/inventario')
     return { ok: true, data: { itemsGenerados: count } }
   } catch (e) {
@@ -509,7 +545,7 @@ type DetalleCreado = {
   id_producto: string
   nombre: string
   cantidad: number
-  costo_unitario: number
+  costo_unitario: number | null
   talle: string | null
 }
 
@@ -522,7 +558,7 @@ type LineaRemitoInput = {
   idCategoria: string | null
   nombre: string
   cantidad: number
-  costoUnitario: number
+  costoUnitario?: number | null
   // Desglose por talle opcional; si va, crea una línea de detalle por talle.
   talles?: Array<{ talle: string | null; cantidad: number }>
 }
@@ -533,7 +569,7 @@ type LineaRemitoSp = {
   idProducto: string | null
   idCategoria: string | null
   nombre: string
-  costoUnitario: number
+  costoUnitario: number | null
   partes: Array<{ talle: string | null; cantidad: number }>
 }
 
@@ -555,8 +591,10 @@ function normalizarLineasRemito(
     if (!nombre) return { ok: false, reason: 'hay una línea sin nombre de producto' }
     const errCantidad = unidadesInvalidas(l.cantidad, nombre)
     if (errCantidad) return { ok: false, reason: errCantidad }
-    const errCosto = montoInvalido(l.costoUnitario, nombre)
-    if (errCosto) return { ok: false, reason: errCosto }
+    if (l.costoUnitario != null) {
+      const errCosto = montoInvalido(l.costoUnitario, nombre)
+      if (errCosto) return { ok: false, reason: errCosto }
+    }
     if (l.esNuevo && !l.idCategoria) return { ok: false, reason: `falta categoría para "${nombre}"` }
     if (!l.esNuevo && !l.idProducto) return { ok: false, reason: `falta elegir producto para "${nombre}"` }
 
@@ -587,7 +625,7 @@ function normalizarLineasRemito(
       idProducto: l.esNuevo ? null : l.idProducto,
       idCategoria: l.esNuevo ? l.idCategoria : null,
       nombre,
-      costoUnitario: l.costoUnitario,
+      costoUnitario: l.costoUnitario ?? null,
       partes,
     })
   }
@@ -608,23 +646,32 @@ export async function importarRemitoAction(input: {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
-  const norm = normalizarLineasRemito(input.lineas)
+  const parsed = importarRemitoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  const tieneCosto = parsed.data.lineas.some((l) => l.costoUnitario != null)
+  if (tieneCosto && !hasModuleAccess(g.session, 'inventario', 'cargar_costos')) {
+    return { ok: false, reason: 'sin-permiso-cargar-costos' }
+  }
+
+  const norm = normalizarLineasRemito(parsed.data.lineas)
   if (!norm.ok) return norm
 
-  const conversion = await resolverConversionCarga(input.moneda as 'ARS' | 'USD' | undefined, norm.lineas)
+  const conversion = await resolverConversionCarga(parsed.data.moneda as 'ARS' | 'USD' | undefined, norm.lineas)
   if (!conversion.ok) return conversion
   const { cotizacionValor, cotizacionFechaValor, cotizacionDesactualizada, lineas: lineasParaDal } = conversion
 
   try {
     const res = await spImportarRemito({
-      idIngreso: input.idIngreso,
-      moneda: input.moneda,
+      idIngreso: parsed.data.idIngreso,
+      moneda: parsed.data.moneda,
       cotizacionAplicada: cotizacionValor,
       cotizacionFechaValor,
       lineas: lineasParaDal,
     })
-    revalidatePath(`/inventario/ingresos/${input.idIngreso}`)
-    revalidatePath('/inventario')
+    revalidatePath(`/inventario/ingresos/${parsed.data.idIngreso}`)
     revalidatePath('/inventario')
     return {
       ok: true,
@@ -666,6 +713,13 @@ export async function crearIngresoCompletoAction(input: {
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  const tieneCosto = (parsed.data.lineas as Array<{ costoUnitario?: number | null }>).some(
+    (l) => l.costoUnitario != null,
+  )
+  if (tieneCosto && !hasModuleAccess(g.session, 'inventario', 'cargar_costos')) {
+    return { ok: false, reason: 'sin-permiso-cargar-costos' }
   }
 
   const norm = normalizarLineasRemito(parsed.data.lineas as LineaRemitoInput[])
@@ -787,6 +841,38 @@ export async function registrarAjusteInventarioAction(input: {
     revalidatePath('/inventario/productos')
     revalidatePath('/inventario')
     return { ok: true, data: { idMovimiento: id } }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+/**
+ * Completa costos de líneas pendientes (costo_unitario null) en ingresos confirmados.
+ * 3 gates: requireModuleRole('inventario', 'cargar_costos') -> Zod -> DAL.
+ */
+export async function completarCostoIngresoAction(input: {
+  idIngreso: string
+  lineas: Array<{ idDetalle: string; costoUnitario: number }>
+}): Promise<ActionResult<{ itemsActualizados: number }>> {
+  const g = await guarded('cargar_costos')
+  if ('error' in g) return { ok: false, reason: g.error }
+
+  const parsed = completarCostoIngresoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
+  try {
+    const ip = await getClientIp()
+    const itemsActualizados = await spCompletarCostoIngreso({
+      idIngreso: parsed.data.idIngreso,
+      lineas: parsed.data.lineas,
+      ip,
+    })
+    revalidatePath(`/inventario/ingresos/${parsed.data.idIngreso}`)
+    revalidatePath('/inventario/ingresos')
+    revalidatePath('/inventario')
+    return { ok: true, data: { itemsActualizados } }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }
