@@ -12,13 +12,19 @@ import type {
 /**
  * Listado de reglas del tenant. Por defecto solo activas (sin fecha_baja).
  */
+// Lista explícita, no '*': la Fase 3E de costos-por-columna oculta por policy
+// las filas de margen. Nombrar las columnas deja a la vista qué lee cada caller
+// y evita que una columna nueva viaje sola hasta el navegador.
+const COLUMNAS_REGLA =
+  'id_regla, id_tenant, nombre, tipo_regla, tipo_valor, valor, alcance, id_producto, id_categoria, id_proveedor, forma_pago, prioridad, acumulable, fecha_inicio, fecha_hasta, fecha_baja, created_at, updated_at'
+
 export async function listReglasPrecio(opts?: {
   incluirBaja?: boolean
   tipoRegla?: TipoRegla
   alcance?: AlcanceRegla
 }): Promise<ReglaPrecioRow[]> {
   const supabase = await createServerClient()
-  let q = supabase.from('regla_precio').select('*')
+  let q = supabase.from('regla_precio').select(COLUMNAS_REGLA)
     .order('tipo_regla', { ascending: true })
     .order('alcance', { ascending: false }) // producto (más específico) primero
     .order('prioridad', { ascending: false })
@@ -36,7 +42,7 @@ export async function listReglasPrecio(opts?: {
 export async function getReglaPrecio(id: string): Promise<ReglaPrecioRow | null> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
-    .from('regla_precio').select('*').eq('id_regla', id).maybeSingle()
+    .from('regla_precio').select(COLUMNAS_REGLA).eq('id_regla', id).maybeSingle()
   if (error) throw new Error(`getReglaPrecio: ${error.message}`)
   return (data ?? null) as ReglaPrecioRow | null
 }

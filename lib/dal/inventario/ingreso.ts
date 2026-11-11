@@ -140,7 +140,8 @@ export async function getIngreso(id: string): Promise<
     .select(`
       *,
       proveedor:proveedor(id_proveedor, nombre, telefono),
-      detalle:ingreso_mercaderia_detalle(*)
+      detalle:ingreso_mercaderia_detalle(id_detalle, id_tenant, id_ingreso, id_producto,
+        cantidad, costo_unitario, talle, created_at)
     `)
     .eq('id_ingreso', id)
     .maybeSingle()

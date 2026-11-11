@@ -9,6 +9,12 @@ import type {
   MovimientoItemRow,
 } from '@/lib/types/inventario'
 
+// Lista explícita, no '*': la Fase 3E de costos-por-columna mueve los costos a
+// tablas satélite. Con '*' la columna desaparecería en silencio y el lector
+// recibiría undefined; nombrada, PostgREST falla (42703) y rg encuentra a todos.
+const COLUMNAS_ITEM =
+  'id_item, id_tenant, id_producto, id_ingreso, id_ingreso_detalle, qr_code, estado_item, talle, costo_ingreso, tipo_ingreso, fecha_ingreso, fecha_venta, fecha_devolucion, created_at, updated_at'
+
 export { ESTADOS_IMPRIMIBLES, ETIQUETAS_MAX }
 
 /**
@@ -19,7 +25,7 @@ export { ESTADOS_IMPRIMIBLES, ETIQUETAS_MAX }
 export async function findItemByQr(qr: string): Promise<ItemProductoRow | null> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
-    .from('item_producto').select('*').eq('qr_code', qr).maybeSingle()
+    .from('item_producto').select(COLUMNAS_ITEM).eq('qr_code', qr).maybeSingle()
   if (error) throw new Error(`findItemByQr: ${error.message}`)
   return (data ?? null) as ItemProductoRow | null
 }
@@ -33,7 +39,7 @@ export async function getItemConDetalle(idItem: string): Promise<ItemConProducto
   const { data, error } = await supabase
     .from('item_producto')
     .select(`
-      *,
+      ${COLUMNAS_ITEM},
       producto:producto(id_producto, nombre, sku,
         categoria:categoria(id_categoria, nombre)),
       ingreso:ingreso_mercaderia(
@@ -52,7 +58,7 @@ export async function getItemConDetalle(idItem: string): Promise<ItemConProducto
     .order('ts', { ascending: false })
   if (movErr) throw new Error(`getItemConDetalle movs: ${movErr.message}`)
 
-  const proveedor = (data as { ingreso: { proveedor: ItemConProducto['proveedor'] } | null })
+  const proveedor = (data as unknown as { ingreso: { proveedor: ItemConProducto['proveedor'] } | null })
     .ingreso?.proveedor ?? null
 
   return {
@@ -290,7 +296,7 @@ export async function listItemsByProducto(idProducto: string): Promise<ItemProdu
   const supabase = await createServerClient()
   const { data, error } = await supabase
     .from('item_producto')
-    .select('*')
+    .select(COLUMNAS_ITEM)
     .eq('id_producto', idProducto)
     .order('fecha_ingreso', { ascending: false })
   if (error) throw new Error(`listItemsByProducto: ${error.message}`)
@@ -316,7 +322,7 @@ export async function listItemsDisponibles(
   const supabase = await createServerClient()
   let query = supabase
     .from('item_producto')
-    .select('*')
+    .select(COLUMNAS_ITEM)
     .eq('id_producto', idProducto)
     .eq('estado_item', 'disponible')
     .order('fecha_ingreso', { ascending: true })

@@ -130,6 +130,12 @@ export async function listVentasPeriodo(opts: PeriodoVentas): Promise<VentaLista
   return filas.map(aListada)
 }
 
+// Lista explícita, no '*': la Fase 3E de costos-por-columna mueve
+// costo_snapshot y monto_ganancia a detalle_venta_costo. Con '*' desaparecerían
+// en silencio; nombradas, PostgREST falla (42703) y rg encuentra a los lectores.
+const COLUMNAS_DETALLE_VENTA =
+  'id_detalle_venta, id_tenant, id_venta, id_item, id_producto, id_proveedor, precio_venta, costo_snapshot, monto_proveedor, monto_gasto, monto_ganancia, tipo_ingreso_snapshot, desglose_reglas, id_rendicion, excluida_rendicion, porcentaje_comision_preview, monto_comision, id_liquidacion, excluida_liquidacion, created_at'
+
 export async function getVentaConDetalle(id: string): Promise<VentaConDetalle | null> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
@@ -138,7 +144,7 @@ export async function getVentaConDetalle(id: string): Promise<VentaConDetalle | 
       *,
       cliente:cliente(id_cliente, nombre, nombre_completo, telefono),
       lineas:detalle_venta(
-        *,
+        ${COLUMNAS_DETALLE_VENTA},
         producto:producto(id_producto, nombre, sku),
         item:item_producto(qr_code),
         devolucion:devolucion_venta(id_devolucion),

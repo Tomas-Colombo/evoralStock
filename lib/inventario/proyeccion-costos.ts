@@ -108,9 +108,9 @@ export function proyectarIngresoDetalle(
       detalle: lineas,
     }
   }
-  // Lista blanca, no `...d`: `getIngreso` trae `ingreso_mercaderia_detalle(*)`,
-  // así que en runtime la línea también lleva `costo_original_usd` y la
-  // cotización aplicada aunque el tipo no las declare.
+  // Lista blanca, no `...d`: antes `getIngreso` traía `ingreso_mercaderia_detalle(*)`
+  // y la línea llevaba en runtime `costo_original_usd` y la cotización aunque el
+  // tipo no las declarara. Si el select vuelve a ensancharse, esto sigue filtrando.
   return {
     ...ingreso,
     detalle: lineas.map((d) => ({
