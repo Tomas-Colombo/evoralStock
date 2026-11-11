@@ -44,7 +44,7 @@ interface LookupOk {
     producto_nombre: string
     sku: string | null
     categoria_nombre: string | null
-    costo_ingreso: number
+    costo_ingreso: number | null
     fecha_ingreso: string
   }
 }
@@ -56,7 +56,9 @@ export function ConsignacionDetalleView({
   itemsElegibles,
   puedeEliminar,
   volverHref,
+  puedeVerCostos,
 }: {
+  puedeVerCostos: boolean
   cons: ConsignacionConDetalle
   itemsElegibles: ItemElegibleConsignacion[]
   puedeEliminar: boolean
@@ -323,7 +325,7 @@ export function ConsignacionDetalleView({
           <THead>
             <Th>Producto</Th>
             <Th>QR</Th>
-            <Th align="right">Costo</Th>
+            {puedeVerCostos && <Th align="right">Costo</Th>}
             <Th>Motivo</Th>
             <Th>Estado</Th>
             <Th>Fechas</Th>
@@ -332,7 +334,7 @@ export function ConsignacionDetalleView({
           <TBody>
             {cons.detalles.length === 0 ? (
               <Tr>
-                <Td align="center" colSpan={readonly ? 6 : 7} className="px-4 py-8 text-muted">
+                <Td align="center" colSpan={puedeVerCostos ? (readonly ? 6 : 7) : (readonly ? 5 : 6)} className="px-4 py-8 text-muted">
                   Sin ítems apartados todavía.
                 </Td>
               </Tr>
@@ -346,11 +348,13 @@ export function ConsignacionDetalleView({
                     )}
                   </Td>
                   <Td className="font-mono text-xs">{d.item?.qr_code ?? '—'}</Td>
-                  <Td align="right" className="font-mono">
-                    {d.item?.costo_ingreso != null
-                      ? `$ ${Number(d.item.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
-                      : '—'}
-                  </Td>
+                  {puedeVerCostos && (
+                    <Td align="right" className="font-mono">
+                      {d.item?.costo_ingreso != null
+                        ? `$ ${Number(d.item.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                        : '—'}
+                    </Td>
+                  )}
                   <Td className="text-xs">{d.motivo ?? <span className="text-muted">—</span>}</Td>
                   <Td>
                     <Badge variant={DETALLE_VARIANT[d.estado]}>
@@ -395,7 +399,7 @@ export function ConsignacionDetalleView({
           {cons.detalles.length > 0 && (
             <TFoot>
               <Tr className="border-t bg-card-2">
-                <Td colSpan={4} className="font-semibold">
+                <Td colSpan={puedeVerCostos ? 4 : 3} className="font-semibold">
                   Total {cons.detalles.length} ítem(s)
                 </Td>
                 <Td colSpan={readonly ? 2 : 3} className="text-xs text-muted">

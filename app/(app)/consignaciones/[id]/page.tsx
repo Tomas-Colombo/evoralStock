@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
-import { hasPermission } from '@/lib/dal/guard'
+import { hasModuleAccess, hasPermission } from '@/lib/dal/guard'
+import { proyectarConsignacionConDetalle } from '@/lib/inventario/proyeccion-costos'
 import { verifySession } from '@/lib/dal/session'
 import {
   getConsignacionConDetalle,
@@ -21,7 +22,9 @@ export default async function ConsignacionDetallePage(props: {
   const session = await verifySession()
   const { id } = await props.params
   const { from } = await props.searchParams
-  const cons = await getConsignacionConDetalle(id)
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const consRaw = await getConsignacionConDetalle(id)
+  const cons = proyectarConsignacionConDetalle(consRaw, puedeVerCostos)
   if (!cons) notFound()
 
   // Ítems que se pueden apartar en este lote — alimentan el buscador con
@@ -47,6 +50,7 @@ export default async function ConsignacionDetallePage(props: {
           itemsElegibles={itemsElegibles}
           puedeEliminar={hasPermission(session, 'consignaciones', 'eliminar')}
           volverHref={safeBackHref(from, '/consignaciones')}
+          puedeVerCostos={puedeVerCostos}
         />
       </main>
     </>

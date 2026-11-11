@@ -19,11 +19,13 @@ export function IngresosTable({
   page,
   pageSize,
   total,
+  puedeVerCostos,
 }: {
   initial: IngresoConResumen[]
   page: number
   pageSize: number
   total: number
+  puedeVerCostos: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -93,7 +95,7 @@ export function IngresosTable({
           <Th>Remito</Th>
           <Th align="right">Líneas</Th>
           <Th align="right">Unidades</Th>
-          <Th align="right">Costo total</Th>
+          {puedeVerCostos && <Th align="right">Costo total</Th>}
           <Th>Estado</Th>
           <Th></Th>
         </THead>
@@ -110,9 +112,13 @@ export function IngresosTable({
                 <Td className="font-mono text-xs">{r.numero_remito ?? '—'}</Td>
                 <Td align="right" className="font-mono">{r.total_lineas}</Td>
                 <Td align="right" className="font-mono">{r.total_cantidad}</Td>
-                <Td align="right" className="font-mono">
-                  $ {r.total_costo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                </Td>
+                {puedeVerCostos && (
+                  <Td align="right" className="font-mono">
+                    {r.total_costo != null
+                      ? `$ ${r.total_costo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                      : '—'}
+                  </Td>
+                )}
                 <Td>
                   {cancelado ? (
                     <Badge variant="neutral">Cancelado</Badge>

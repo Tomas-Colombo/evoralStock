@@ -3,7 +3,10 @@ import { notFound } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
+import { proyectarIngresoDetalle } from '@/lib/inventario/proyeccion-costos'
+import { omitirCostoProducto } from '@/lib/inventario/proyeccion-costos'
 import { getIngreso } from '@/lib/dal/inventario/ingreso'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listQrsByIngreso } from '@/lib/dal/inventario/item'
@@ -20,13 +23,16 @@ export default async function IngresoDetallePage(props: {
   const session = await verifySession()
   const { id } = await props.params
   const { from } = await props.searchParams
-  const ingreso = await getIngreso(id)
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const ingresoRaw = await getIngreso(id)
+  const ingreso = proyectarIngresoDetalle(ingresoRaw, puedeVerCostos)
   if (!ingreso) notFound()
 
   const [productos, categorias, qrs, cotizacion] = await Promise.all([
     listProductosConDetalle({ soloActivos: true }),
     listCategoriasActivas(),
     ingreso.confirmado ? listQrsByIngreso(id) : Promise.resolve([] as string[]),
+    // La cotización es pública y el borrador la necesita para estimar líneas en USD.
     leerCotizacionVigente().catch(() => null),
   ])
 
@@ -59,10 +65,11 @@ export default async function IngresoDetallePage(props: {
       <main className="flex-1 p-4 sm:p-6">
         <IngresoDetalleView
           ingreso={ingreso}
-          productos={productos}
+          productos={puedeVerCostos || !ingreso.confirmado ? productos : productos.map(omitirCostoProducto)}
           categorias={categorias}
           qrs={qrs}
           cotizacion={cotizacion}
+          puedeVerCostos={puedeVerCostos}
         />
       </main>
     </>

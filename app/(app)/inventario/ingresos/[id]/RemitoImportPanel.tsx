@@ -11,7 +11,7 @@ import {
   StockTalleLoader,
   type LineaTalle,
 } from '@/components/inventario/StockTalleLoader'
-import type { CategoriaRow, ProductoConDetalle } from '@/lib/types/inventario'
+import type { CategoriaRow, ProductoConDetalle, ProductoSinCosto } from '@/lib/types/inventario'
 import { buscarMatchNombre, indexarPorNombre } from '@/lib/inventario/producto-match'
 import { MAX_PDF_BYTES } from '@/lib/inventario/limites'
 import { importarRemitoAction, parseRemitoPdfAction } from '../../actions'
@@ -48,7 +48,7 @@ export function RemitoImportPanel({
   onImported,
 }: {
   idIngreso: string
-  productos: ProductoConDetalle[]
+  productos: (ProductoConDetalle | ProductoSinCosto)[]
   categorias: CategoriaRow[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
   onImported: (detalles: DetalleImportado[]) => void

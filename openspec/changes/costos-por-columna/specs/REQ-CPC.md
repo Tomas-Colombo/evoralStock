@@ -140,7 +140,7 @@ precios: [
 
 | Acción | Pantallas / Vistas que Habilita | Operaciones / Endpoints Habilitados |
 |---|---|---|
-| `inventario.ver_costos` | Columna de costo en `/inventario`, bloque de costos en `/inventario/ficha/[qr]`, costos históricos en ficha de producto, costo unitario en `/inventario/ingresos/[id]`. | Lectura del campo `costo_vigente` en `sp_listar_productos`, acceso a `costo_producto`, `item_costo`, `ingreso_detalle_costo`. |
+| `inventario.ver_costos` | Columna de costo en `/inventario`, bloque de costos en `/inventario/ficha/[qr]`, costos históricos en ficha de producto, costo unitario en `/inventario/ingresos/[id]`, valor de stock consignación ("a costo") y costo total en `/proveedores/[id]`, columna de costo en `/consignaciones/[id]`. | Lectura del campo `costo_vigente` en `sp_listar_productos`, acceso a `costo_producto`, `item_costo`, `ingreso_detalle_costo`. |
 | `inventario.cargar_costos` | Inputs de costo unitario y costo en USD en `/inventario/ingresos/nuevo` y `/inventario/productos/nuevo`. | Envío de `costoInicial` y `costoUnitario` en Server Actions `confirmarIngresoAction`, `createProductoAction`, `importarRemitoAction`. |
 | `precios.ver_margenes` | Columnas de margen porcentual y costo en `/precios/control`, vista de reglas de margen en `/precios/reglas`, reportes de margen en `/reportes/mercaderia`. | Lectura de márgenes en `sp_control_de_precios` y vista `v_ganancia_por_producto`. |
 
@@ -223,6 +223,10 @@ Ningún Server Component, Layout o Endpoint de API (`app/api/**`) MUST pasar pro
 - **N2**: Vendedora abre `/inventario` → las props `rows` y `catalogo` de `ProductosTableClient` viajan sin `costo_vigente`.
 - **N3**: Vendedora escanea ítem en `/inventario/ficha/[qr]` → la tarjeta omite el renglón de "Costo de ingreso".
 - **N4**: Vendedora consulta `/api/consignaciones/lookup-item?qr=...` → la respuesta JSON no incluye la propiedad `costo_ingreso`.
+- **N5**: Operador sin `inventario.ver_costos` abre `/proveedores/[id]` → omite el KPI de "Valor stock consig." ("a costo") y la columna "Costo total" (`total_costo`) en la tabla de ingresos.
+- **N6**: Operador sin `inventario.ver_costos` abre `/consignaciones/[id]` → omite la columna "Costo" (`costo_ingreso`) en el detalle del lote.
+- **N7**: Operador sin `inventario.ver_costos` o sin `precios.ver_margenes` abre `/precios/control` → omite columnas de costo o margen y las props serializadas viajan con `null`.
+- **N8**: Operador sin `precios.ver_margenes` abre `/precios` → la sección y componente `GananciaProyectadaClient` no se renderizan ni reciben filas.
 
 ### REQ-CPC-07 — Cierre de fugas en funciones de lectura no-`sp_*` (`preview_rendicion`, `rf_*`)
 

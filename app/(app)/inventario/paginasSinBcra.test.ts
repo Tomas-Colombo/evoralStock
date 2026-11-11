@@ -104,6 +104,7 @@ vi.mock('@/lib/dal/inventario/ingreso', () => ({
     tipo: 'compra',
     numero_comprobante: null,
     proveedor: null,
+    detalle: [],
     detalles: [],
   }),
 }))

@@ -12,6 +12,12 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
       'En la sección Ganancia proyectada por producto, buscá por nombre o SKU, o filtrá por categoría.',
       'Verificá el costo vigente, precio de venta, ganancia en pesos y margen porcentual de cada artículo.',
     ],
+    detalles: [
+      {
+        tema: 'Permiso de márgenes',
+        texto: 'La sección de ganancia proyectada por producto aparece si tu rol tiene permiso para ver márgenes.',
+      },
+    ],
   },
   {
     id: 'precios-control-listado',
@@ -23,6 +29,12 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
       'Filtrá los productos por estado: solo desactualizados, sin precio de venta, sin regla de margen o todos.',
       'Utilizá la barra de búsqueda para filtrar por nombre, SKU o categoría.',
       'Compará el costo vigente con el precio actual, el precio proyectado y la variación porcentual.',
+    ],
+    detalles: [
+      {
+        tema: 'Permiso de costos y márgenes',
+        texto: 'La columna de costo aparece si tu rol tiene permiso para ver costos, y las columnas de margen y regla aparecen si contás con permiso para ver márgenes.',
+      },
     ],
   },
   {

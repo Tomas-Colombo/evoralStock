@@ -13,6 +13,12 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
       'Revisá en la cabecera los indicadores de lotes, ítems pendientes y devueltos.',
       'Hacé clic en "Abrir" en cualquier fila para inspeccionar el detalle de los productos incluidos.',
     ],
+    detalles: [
+      {
+        tema: 'Permiso de costos',
+        texto: 'La columna de costo en el detalle del lote aparece si tu rol tiene permiso para ver costos.',
+      },
+    ],
   },
   {
     id: 'consignaciones-nueva',

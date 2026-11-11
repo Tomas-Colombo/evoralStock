@@ -11,6 +11,7 @@ import { FichaActions } from './FichaActions'
 import { hasModuleAccess } from '@/lib/dal/guard'
 import { quienTieneItem } from '@/lib/dal/revendedoras'
 import { Card } from '@/components/ui/Card'
+import { proyectarItemConDetalle } from '@/lib/inventario/proyeccion-costos'
 
 export default async function FichaItemPage(props: {
   params: Promise<{ qr: string }>
@@ -44,7 +45,9 @@ export default async function FichaItemPage(props: {
     )
   }
 
-  const detalle = await getItemConDetalle(base.id_item)
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const detalleRaw = await getItemConDetalle(base.id_item)
+  const detalle = proyectarItemConDetalle(detalleRaw, puedeVerCostos)
   if (!detalle) return null // RLS could hide between calls
 
   const puedeVerRevendedoras = hasModuleAccess(session, 'revendedoras', 'ver')
@@ -96,12 +99,14 @@ export default async function FichaItemPage(props: {
                   <div className="text-xs uppercase font-mono text-muted">Tipo ingreso</div>
                   <div className="capitalize">{detalle.tipo_ingreso}</div>
                 </div>
-                <div>
-                  <div className="text-xs uppercase font-mono text-muted">Costo ingreso</div>
-                  <div className="font-mono">
-                    $ {Number(detalle.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                {puedeVerCostos && detalle.costo_ingreso != null && (
+                  <div>
+                    <div className="text-xs uppercase font-mono text-muted">Costo ingreso</div>
+                    <div className="font-mono">
+                      $ {Number(detalle.costo_ingreso).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    </div>
                   </div>
-                </div>
+                )}
                 <div>
                   <div className="text-xs uppercase font-mono text-muted">Fecha ingreso</div>
                   <div>{new Date(detalle.fecha_ingreso).toLocaleDateString('es-AR')}</div>

@@ -15,6 +15,7 @@ import type {
   IngresoMercaderiaDetalleRow,
   IngresoMercaderiaRow,
   ProductoConDetalle,
+  ProductoSinCosto,
   ProveedorRow,
 } from '@/lib/types/inventario'
 import {
@@ -44,12 +45,14 @@ export function IngresoDetalleView({
   categorias,
   qrs = [],
   cotizacion,
+  puedeVerCostos,
 }: {
   ingreso: Ingreso
-  productos: ProductoConDetalle[]
+  productos: (ProductoConDetalle | ProductoSinCosto)[]
   categorias: CategoriaRow[]
   qrs?: string[]
   cotizacion?: { valor: number; fechaValor?: string | null; desactualizada?: boolean } | null
+  puedeVerCostos: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -87,9 +90,10 @@ export function IngresoDetalleView({
     return categorias.find((c) => c.id_categoria === catId)?.talles ?? []
   })()
 
-  const totalCantidad = detalles.reduce((a, d) => a + d.cantidad, 0)
-  const totalCosto = detalles.reduce((a, d) => a + d.cantidad * d.costo_unitario, 0)
   const readonly = ingreso.confirmado
+  const mostrarCostos = !readonly || puedeVerCostos
+  const totalCantidad = detalles.reduce((a, d) => a + d.cantidad, 0)
+  const totalCosto = mostrarCostos ? detalles.reduce((a, d) => a + d.cantidad * (d.costo_unitario ?? 0), 0) : null
 
   function addLinea(e: React.FormEvent) {
     e.preventDefault()
@@ -208,14 +212,14 @@ export function IngresoDetalleView({
             <Th>Producto</Th>
             <Th>Talle</Th>
             <Th align="right">Cantidad</Th>
-            <Th align="right">Costo unit.</Th>
-            <Th align="right">Subtotal</Th>
+            {mostrarCostos && <Th align="right">Costo unit.</Th>}
+            {mostrarCostos && <Th align="right">Subtotal</Th>}
             {!readonly && <Th></Th>}
           </THead>
           <TBody>
             {detalles.length === 0 ? (
               <Tr>
-                <Td align="center" colSpan={readonly ? 5 : 6} className="px-4 py-6 text-muted">
+                <Td align="center" colSpan={mostrarCostos ? (readonly ? 5 : 6) : (readonly ? 3 : 4)} className="px-4 py-6 text-muted">
                   Sin líneas. Agregá al menos una antes de confirmar.
                 </Td>
               </Tr>
@@ -225,12 +229,20 @@ export function IngresoDetalleView({
                   <Td>{productoNombre(d.id_producto)}</Td>
                   <Td>{d.talle ?? <span className="text-muted">—</span>}</Td>
                   <Td align="right" className="font-mono">{d.cantidad}</Td>
-                  <Td align="right" className="font-mono">
-                    $ {Number(d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                  </Td>
-                  <Td align="right" className="font-mono">
-                    $ {(d.cantidad * d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                  </Td>
+                  {mostrarCostos && (
+                    <Td align="right" className="font-mono">
+                      {d.costo_unitario != null
+                        ? `$ ${Number(d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                        : '—'}
+                    </Td>
+                  )}
+                  {mostrarCostos && (
+                    <Td align="right" className="font-mono">
+                      {d.costo_unitario != null
+                        ? `$ ${(d.cantidad * d.costo_unitario).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                        : '—'}
+                    </Td>
+                  )}
                   {!readonly && (
                     <Td align="right">
                       <Button size="sm" variant="ghost" onClick={() => removeLinea(d.id_detalle)} disabled={pending}>
@@ -246,10 +258,12 @@ export function IngresoDetalleView({
             <Tr className="border-t bg-card-2">
               <Td className="font-semibold" colSpan={2}>Total</Td>
               <Td align="right" className="font-mono font-semibold">{totalCantidad}</Td>
-              <Td></Td>
-              <Td align="right" className="font-mono font-semibold">
-                $ {totalCosto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-              </Td>
+              {mostrarCostos && <Td></Td>}
+              {mostrarCostos && (
+                <Td align="right" className="font-mono font-semibold">
+                  $ {totalCosto?.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                </Td>
+              )}
               {!readonly && <Td></Td>}
             </Tr>
           </TFoot>

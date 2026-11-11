@@ -105,20 +105,8 @@ export async function listProductosConDetallePaginado(opts: {
   return queryProductos(opts)
 }
 
-/**
- * Proyección pura que elimina las claves de costo y margen de un producto.
- */
-export function omitirCostoProducto(
-  producto: ProductoConDetalle,
-): ProductoSinCosto {
-  const {
-    costo_vigente: _costo,
-    moneda_vigente: _moneda,
-    id_regla_margen_aplicada: _regla,
-    ...sinCosto
-  } = producto
-  return sinCosto
-}
+import { omitirCostoProducto } from '@/lib/inventario/proyeccion-costos'
+export { omitirCostoProducto }
 
 /**
  * Variante del listado maestro sin costo vigente ni margen.

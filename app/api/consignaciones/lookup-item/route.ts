@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { AuthorizationError } from '@/lib/dal/errors'
-import { requireModuleRole } from '@/lib/dal/guard'
+import { hasModuleAccess, requireModuleRole } from '@/lib/dal/guard'
+import { proyectarLookupConsignacionItem } from '@/lib/inventario/proyeccion-costos'
 import { verifySession } from '@/lib/dal/session'
 import { findItemByQr } from '@/lib/dal/inventario/item'
 import { createServerClient } from '@/lib/dal/supabase'
@@ -18,8 +19,9 @@ import { createServerClient } from '@/lib/dal/supabase'
  * Read-only. La transacción real es sp_agregar_item_consignacion.
  */
 export async function GET(req: NextRequest) {
+  let session
   try {
-    const session = await verifySession()
+    session = await verifySession()
     if (session.idRevendedora) {
       throw new AuthorizationError('no-permission')
     }
@@ -105,16 +107,20 @@ export async function GET(req: NextRequest) {
       categoria: { id_categoria: string; nombre: string } | null
     }>()
 
+  const puedeVerCostos = session ? hasModuleAccess(session, 'inventario', 'ver_costos') : false
   return NextResponse.json({
     ok: true,
-    item: {
-      id_item: item.id_item,
-      qr_code: item.qr_code,
-      producto_nombre: producto?.nombre ?? '(sin nombre)',
-      sku: producto?.sku ?? null,
-      categoria_nombre: producto?.categoria?.nombre ?? null,
-      costo_ingreso: Number(item.costo_ingreso),
-      fecha_ingreso: item.fecha_ingreso,
-    },
+    item: proyectarLookupConsignacionItem(
+      {
+        id_item: item.id_item,
+        qr_code: item.qr_code,
+        producto_nombre: producto?.nombre ?? '(sin nombre)',
+        sku: producto?.sku ?? null,
+        categoria_nombre: producto?.categoria?.nombre ?? null,
+        costo_ingreso: Number(item.costo_ingreso),
+        fecha_ingreso: item.fecha_ingreso,
+      },
+      puedeVerCostos,
+    ),
   })
 }

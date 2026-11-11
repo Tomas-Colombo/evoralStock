@@ -145,7 +145,7 @@ export interface IngresoMercaderiaDetalleRow {
   id_ingreso: string
   id_producto: string
   cantidad: number
-  costo_unitario: number
+  costo_unitario: number | null
   // 00032: talle de la línea; se copia a cada item al confirmar.
   talle: string | null
   created_at: string
@@ -161,7 +161,7 @@ export interface ItemProductoRow {
   estado_item: EstadoItem
   // 00032: talle de la unidad; null = producto sin talle.
   talle: string | null
-  costo_ingreso: number
+  costo_ingreso: number | null
   tipo_ingreso: TipoIngreso
   fecha_ingreso: string
   fecha_venta: string | null
@@ -258,5 +258,5 @@ export interface IngresoConResumen extends IngresoMercaderiaRow {
   proveedor: Pick<ProveedorRow, 'id_proveedor' | 'nombre'> | null
   total_lineas: number
   total_cantidad: number
-  total_costo: number
+  total_costo: number | null
 }

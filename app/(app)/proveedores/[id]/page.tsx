@@ -4,7 +4,8 @@ import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { Kpi } from '@/components/ui/Kpi'
 import { verifySession } from '@/lib/dal/session'
-import { hasPermission } from '@/lib/dal/guard'
+import { hasModuleAccess, hasPermission } from '@/lib/dal/guard'
+import { proyectarIngresosConResumen } from '@/lib/inventario/proyeccion-costos'
 import { capacidades } from '@/lib/modulos/capacidades'
 import {
   getPerfilProveedorPorId,
@@ -37,6 +38,7 @@ export default async function ProveedorPerfilPage(props: {
 }) {
   const session = await verifySession()
   const puedeEditar = hasPermission(session, 'inventario', 'editar')
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
   const cap = capacidades(session.modulosHabilitados)
   const { id } = await props.params
   const sp = await props.searchParams
@@ -46,7 +48,7 @@ export default async function ProveedorPerfilPage(props: {
 
   const [perfil, ingresosAll, consignacionesAll, rendicionesAll] = await Promise.all([
     cap.consignacionProveedor ? getPerfilProveedorPorId(id) : null,
-    listIngresosDeProveedor(id),
+    listIngresosDeProveedor(id).then((r) => proyectarIngresosConResumen(r, puedeVerCostos)),
     cap.consignacionProveedor ? listConsignaciones({ idProveedor: id }) : Promise.resolve([]),
     cap.consignacionProveedor ? listRendiciones({ idProveedor: id }) : Promise.resolve([]),
   ])
@@ -166,11 +168,13 @@ export default async function ProveedorPerfilPage(props: {
             sub="Pendiente de rendir + valor stock consig."
             variant={perfil.deuda_total_consignacion > 0 ? 'alert' : 'default'}
           />
-          <Kpi
-            label="Valor stock consig."
-            value={fmtMoney(perfil.valor_stock_consignacion)}
-            sub={`${perfil.items_en_stock_consignacion} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo`}
-          />
+          {puedeVerCostos && (
+            <Kpi
+              label="Valor stock consig."
+              value={fmtMoney(perfil.valor_stock_consignacion)}
+              sub={`${perfil.items_en_stock_consignacion} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo`}
+            />
+          )}
           <Kpi
             label="Pendiente de rendir"
             value={fmtMoney(perfil.monto_pendiente_rendicion)}
@@ -219,7 +223,7 @@ export default async function ProveedorPerfilPage(props: {
                     <Th>Remito</Th>
                     <Th align="right">Líneas</Th>
                     <Th align="right">Cantidad</Th>
-                    <Th align="right">Costo total</Th>
+                    {puedeVerCostos && <Th align="right">Costo total</Th>}
                     <Th />
                   </THead>
                   <TBody>
@@ -236,7 +240,7 @@ export default async function ProveedorPerfilPage(props: {
                         </Td>
                         <Td align="right" className="font-mono">{i.total_lineas}</Td>
                         <Td align="right" className="font-mono">{i.total_cantidad}</Td>
-                        <Td align="right" className="font-mono">{fmtMoney(i.total_costo)}</Td>
+                        {puedeVerCostos && <Td align="right" className="font-mono">{i.total_costo != null ? fmtMoney(i.total_costo) : '—'}</Td>}
                         <Td align="right">
                           <Link
                             href={`/inventario/ingresos/${i.id_ingreso}?from=${encodeURIComponent(volverAqui('ing_page', ingPage))}`}

@@ -52,14 +52,14 @@ describe('ControlDePreciosView — Revaluación USD', () => {
   })
 
   it('oculta el botón de revaluación si canRevaluar es false', () => {
-    render(<ControlDePreciosView initial={rows} canRevaluar={false} cantidadUsd={5} />)
+    render(<ControlDePreciosView initial={rows} canRevaluar={false} cantidadUsd={5} puedeVerCostos={true} />)
     expect(
       screen.queryByRole('button', { name: /revaluar costos usd/i }),
     ).not.toBeInTheDocument()
   })
 
   it('muestra el botón si canRevaluar es true y abre el diálogo con la cantidad afectada', async () => {
-    render(<ControlDePreciosView initial={rows} canRevaluar={true} cantidadUsd={5} />)
+    render(<ControlDePreciosView initial={rows} canRevaluar={true} cantidadUsd={5} puedeVerCostos={true} />)
 
     const btn = screen.getByRole('button', { name: /revaluar costos usd/i })
     expect(btn).toBeInTheDocument()
@@ -76,6 +76,7 @@ describe('ControlDePreciosView — Revaluación USD', () => {
         initial={rows}
         canRevaluar={true}
         cantidadUsd={{ revaluables: 5, omitidas: 2 }}
+        puedeVerCostos={true}
       />,
     )
 
@@ -89,7 +90,7 @@ describe('ControlDePreciosView — Revaluación USD', () => {
   })
 
   it('ejecuta la revaluación al confirmar y muestra el desglose del resultado con explicación de omitidos', async () => {
-    render(<ControlDePreciosView initial={rows} canRevaluar={true} cantidadUsd={5} />)
+    render(<ControlDePreciosView initial={rows} canRevaluar={true} cantidadUsd={5} puedeVerCostos={true} />)
 
     fireEvent.click(screen.getByRole('button', { name: /revaluar costos usd/i }))
 
@@ -111,4 +112,18 @@ describe('ControlDePreciosView — Revaluación USD', () => {
       screen.getByText(/los productos omitidos corresponden a costos cargados en usd antes de este cambio/i),
     ).toBeInTheDocument()
   })
-})
+  it('oculta la columna de costo si puedeVerCostos es false', () => {
+    render(<ControlDePreciosView initial={rows} puedeVerCostos={false} />)
+    expect(screen.queryByRole('columnheader', { name: 'Costo' })).not.toBeInTheDocument()
+    expect(screen.queryByText('$ 15.000')).not.toBeInTheDocument()
+  })
+
+  it('oculta las columnas de regla, precio proyectado y margen si puedeVerMargenes es false', () => {
+    render(<ControlDePreciosView initial={rows} puedeVerCostos={true} puedeVerMargenes={false} />)
+    expect(screen.queryByRole('columnheader', { name: 'Regla margen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Precio proyectado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Δ%' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Margen 50%')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin regla de margen')).not.toBeInTheDocument()
+  })
+});

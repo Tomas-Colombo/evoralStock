@@ -61,7 +61,7 @@ export interface ConsignacionConDetalle extends ConsignacionRow {
   detalles: Array<
     ConsignacionDetalleRow & {
       producto: { id_producto: string; nombre: string; sku: string | null } | null
-      item: { qr_code: string; estado_item: string; costo_ingreso: number } | null
+      item: { qr_code: string; estado_item: string; costo_ingreso: number | null } | null
     }
   >
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/Input'
-import type { ProductoConDetalle } from '@/lib/types/inventario'
+import type { ProductoConDetalle, ProductoSinCosto } from '@/lib/types/inventario'
 import { buscarMatchNombre, indexarPorNombre, normalizar } from '@/lib/inventario/producto-match'
 
 export type ProductoNombreValue = {
@@ -33,7 +33,7 @@ export function ProductoNombreCombobox({
   placeholder = 'Escribí el producto…',
   className,
 }: {
-  productos: ProductoConDetalle[]
+  productos: (ProductoConDetalle | ProductoSinCosto)[]
   value: ProductoNombreValue
   onChange: (next: ProductoNombreValue) => void
   disabled?: boolean
@@ -63,7 +63,7 @@ export function ProductoNombreCombobox({
     )
   }
 
-  function elegir(p: ProductoConDetalle) {
+  function elegir(p: ProductoConDetalle | ProductoSinCosto) {
     onChange({ nombre: p.nombre, idProducto: p.id_producto, esNuevo: false })
     setOpen(false)
   }

@@ -208,6 +208,12 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Si no tenés cámara, ingresá el nombre o código en el campo "Buscar por nombre o código" y hacé clic en "Buscar ítem".',
       'El sistema abrirá la ficha del ítem mostrando su producto, talle, estado actual, proveedor e historial.',
     ],
+    detalles: [
+      {
+        tema: 'Permiso de costos',
+        texto: 'El bloque de costo de ingreso aparece si tu rol tiene permiso para ver costos.',
+      },
+    ],
   },
   {
     id: 'inventario-ficha-transicionar-item',
@@ -290,6 +296,12 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Ingresá a Ingresos desde el menú principal de navegación (o hacé clic en "Nuevo ingreso" en Inventario).',
       'Revisá la lista con fecha, proveedor, tipo de ingreso, remito, líneas, unidades, costo total y estado.',
       'Hacé clic en "Abrir" para consultar o continuar la carga de un ingreso.',
+    ],
+    detalles: [
+      {
+        tema: 'Permiso de costos',
+        texto: 'La columna de costo total aparece si tu rol tiene permiso para ver costos.',
+      },
     ],
   },
   {
@@ -377,6 +389,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'El sistema generará los ítems con QR único y el ingreso pasará a estado Confirmado.',
     ],
     detalles: [
+      {
+        tema: 'Permiso de costos',
+        texto: 'Al consultar un ingreso confirmado, las columnas de costo unitario y subtotal aparecen si tu rol tiene permiso para ver costos.',
+      },
       {
         tema: 'Confirmación irreversible',
         texto: 'Una vez confirmado el ingreso se generan los ítems físicos en stock y no se pueden agregar nuevas líneas al comprobante.',
@@ -499,6 +515,12 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Ajustá el filtro de período con fechas Desde y Hasta para delimitar los comprobantes a visualizar.',
       'Revisá el historial de ingresos de mercadería asociados al proveedor.',
     ],
+    detalles: [
+      {
+        tema: 'Permiso de costos',
+        texto: 'La columna de costo total en los ingresos aparece si tu rol tiene permiso para ver costos.',
+      },
+    ],
   },
   {
     id: 'proveedores-perfil-consignacion',
@@ -516,6 +538,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       {
         tema: 'Cálculo de deuda total',
         texto: 'La deuda total suma el monto de ventas pendientes de rendir más el valor a costo de todos los ítems en consignación que siguen en stock.',
+      },
+      {
+        tema: 'Permiso de costos',
+        texto: 'El indicador de valor de stock en consignación aparece si tu rol tiene permiso para ver costos.',
       },
     ],
   },

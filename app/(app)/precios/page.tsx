@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { BandAction } from '@/components/shell/BandAction'
 import { Topbar } from '@/components/shell/Topbar'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { listReglasPrecio } from '@/lib/dal/precios/regla'
 import { getPreciosResumen } from '@/lib/dal/precios/resolucion'
@@ -16,15 +17,16 @@ export default async function PreciosHome(props: {
   searchParams: Promise<{ gq?: string; gcat?: string; gpage?: string }>
 }) {
   const session = await verifySession()
+  const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
   const sp = await props.searchParams
   const page = Math.max(1, Number.parseInt(sp.gpage ?? '1', 10) || 1)
 
   const [reglas, resumen, ganancia, categorias, catalogo] = await Promise.all([
     listReglasPrecio(),
     getPreciosResumen(),
-    listGananciaPorProducto(),
+    puedeVerMargenes ? listGananciaPorProducto() : Promise.resolve([]),
     listCategoriasActivas(),
-    listProductosParaBuscador(),
+    puedeVerMargenes ? listProductosParaBuscador() : Promise.resolve([]),
   ])
 
   const { desactualizados, sinPrecio, conRegla } = resumen
@@ -101,19 +103,21 @@ export default async function PreciosHome(props: {
           </Link>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="font-display text-lg">Ganancia proyectada por producto</h2>
-          <GananciaProyectadaClient
-            rows={pageRows}
-            catalogo={catalogo}
-            categorias={categorias}
-            initialSearch={sp.gq ?? ''}
-            initialCategoria={sp.gcat ?? ''}
-            page={page}
-            pageSize={GANANCIA_PAGE_SIZE}
-            total={total}
-          />
-        </section>
+        {puedeVerMargenes && (
+          <section className="space-y-3">
+            <h2 className="font-display text-lg">Ganancia proyectada por producto</h2>
+            <GananciaProyectadaClient
+              rows={pageRows}
+              catalogo={catalogo}
+              categorias={categorias}
+              initialSearch={sp.gq ?? ''}
+              initialCategoria={sp.gcat ?? ''}
+              page={page}
+              pageSize={GANANCIA_PAGE_SIZE}
+              total={total}
+            />
+          </section>
+        )}
       </main>
     </>
   )

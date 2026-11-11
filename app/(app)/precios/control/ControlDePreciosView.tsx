@@ -23,10 +23,14 @@ export function ControlDePreciosView({
   initial,
   canRevaluar = false,
   cantidadUsd = 0,
+  puedeVerCostos,
+  puedeVerMargenes = true,
 }: {
   initial: ProductoConPrecioStatus[]
   canRevaluar?: boolean
   cantidadUsd?: CantidadUsdProp
+  puedeVerCostos: boolean
+  puedeVerMargenes?: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -210,7 +214,7 @@ export function ControlDePreciosView({
             <option value="todos">Todos</option>
             <option value="desactualizados">Solo desactualizados</option>
             <option value="sin-precio">Sin precio de venta</option>
-            <option value="sin-regla">Sin regla de margen</option>
+            {puedeVerMargenes && <option value="sin-regla">Sin regla de margen</option>}
           </Select>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -252,18 +256,18 @@ export function ControlDePreciosView({
             <Th className="px-3 py-3 w-8"></Th>
             <Th className="px-3 py-3">Producto</Th>
             <Th className="px-3 py-3">Categoría</Th>
-            <Th className="px-3 py-3">Regla margen</Th>
-            <Th align="right" className="px-3 py-3">Costo</Th>
+            {puedeVerMargenes && <Th className="px-3 py-3">Regla margen</Th>}
+            {puedeVerCostos && <Th align="right" className="px-3 py-3">Costo</Th>}
             <Th align="right" className="px-3 py-3">Precio actual</Th>
-            <Th align="right" className="px-3 py-3">Precio proyectado</Th>
-            <Th align="right" className="px-3 py-3">Δ%</Th>
+            {puedeVerMargenes && <Th align="right" className="px-3 py-3">Precio proyectado</Th>}
+            {puedeVerMargenes && <Th align="right" className="px-3 py-3">Δ%</Th>}
             <Th className="px-3 py-3">Estado</Th>
             <Th className="px-3 py-3"></Th>
           </THead>
           <TBody>
             {filtered.length === 0 ? (
               <Tr>
-                <Td align="center" colSpan={10} className="px-3 py-6 text-muted">
+                <Td align="center" colSpan={10 - (puedeVerCostos ? 0 : 1) - (puedeVerMargenes ? 0 : 3)} className="px-3 py-6 text-muted">
                   Nada para mostrar con los filtros actuales.
                 </Td>
               </Tr>
@@ -290,32 +294,40 @@ export function ControlDePreciosView({
                     <Td className="px-3 py-3">
                       {r.categoria_nombre ?? <span className="text-muted">—</span>}
                     </Td>
-                    <Td className="px-3 py-3 text-xs">
-                      {r.regla_margen_nombre ?? (
-                        <span className="text-muted italic">Sin regla → costo</span>
-                      )}
-                    </Td>
-                    <Td align="right" className="px-3 py-3 font-mono">{fmt(r.costo_vigente)}</Td>
+                    {puedeVerMargenes && (
+                      <Td className="px-3 py-3 text-xs">
+                        {r.regla_margen_nombre ?? (
+                          <span className="text-muted italic">Sin regla → costo</span>
+                        )}
+                      </Td>
+                    )}
+                    {puedeVerCostos && (
+                      <Td align="right" className="px-3 py-3 font-mono">{fmt(r.costo_vigente)}</Td>
+                    )}
                     <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_venta)}</Td>
-                    <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_proyectado)}</Td>
-                    <Td align="right" className="px-3 py-3 font-mono">
-                      {r.diferencia_pct == null ? (
-                        <span className="text-muted">—</span>
-                      ) : (
-                        <span
-                          className={
-                            r.diferencia_pct > 0
-                              ? 'text-success'
-                              : r.diferencia_pct < 0
-                                ? 'text-alerta-ink'
-                                : ''
-                          }
-                        >
-                          {r.diferencia_pct > 0 ? '+' : ''}
-                          {r.diferencia_pct}%
-                        </span>
-                      )}
-                    </Td>
+                    {puedeVerMargenes && (
+                      <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_proyectado)}</Td>
+                    )}
+                    {puedeVerMargenes && (
+                      <Td align="right" className="px-3 py-3 font-mono">
+                        {r.diferencia_pct == null ? (
+                          <span className="text-muted">—</span>
+                        ) : (
+                          <span
+                            className={
+                              r.diferencia_pct > 0
+                                ? 'text-success'
+                                : r.diferencia_pct < 0
+                                  ? 'text-alerta-ink'
+                                  : ''
+                            }
+                          >
+                            {r.diferencia_pct > 0 ? '+' : ''}
+                            {r.diferencia_pct}%
+                          </span>
+                        )}
+                      </Td>
+                    )}
                     <Td className="px-3 py-3">
                       {sinPrecio ? (
                         <Badge variant="danger">Sin precio</Badge>
