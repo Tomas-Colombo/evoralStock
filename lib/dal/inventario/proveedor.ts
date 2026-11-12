@@ -177,18 +177,18 @@ export async function getPerfilProveedorPorId(
     permisos.puedeVerCostos
       ? supabase
           .from('item_producto')
-          .select('costo_ingreso, ingreso_mercaderia!inner(id_proveedor)')
+          .select('id_item, item_costo(costo_ingreso), ingreso_mercaderia!inner(id_proveedor)')
           .eq('tipo_ingreso', 'consignacion')
           .in('estado_item', ['disponible', 'reservado', 'devuelto_cliente', 'en_revendedora'])
           .eq('ingreso_mercaderia.id_proveedor', id)
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from('detalle_venta')
-      .select('monto_proveedor, venta!inner(estado_venta)')
+      .select('id_detalle_venta, detalle_venta_rendicion!inner(monto_proveedor), venta!inner(estado_venta)')
       .eq('id_proveedor', id)
       .is('id_rendicion', null)
       .eq('excluida_rendicion', false)
-      .gt('monto_proveedor', 0)
+      .gt('detalle_venta_rendicion.monto_proveedor', 0)
       .eq('venta.estado_venta', 'registrada'),
     supabase
       .from('rendicion_proveedor')
@@ -206,17 +206,27 @@ export async function getPerfilProveedorPorId(
   if (rendHist.error) throw new Error(`perfil.rendHist: ${rendHist.error.message}`)
   if (rendPend.error) throw new Error(`perfil.rendPend: ${rendPend.error.message}`)
 
-  const pendRows = (pend.data ?? []) as Array<{ monto_proveedor: number | string }>
+  const pendRows = ((pend.data ?? []) as Array<{ detalle_venta_rendicion?: unknown }>).map((r) => {
+    const emb = Array.isArray(r.detalle_venta_rendicion)
+      ? r.detalle_venta_rendicion[0]
+      : r.detalle_venta_rendicion
+    const raw = (emb as { monto_proveedor?: number | string | null } | null | undefined)?.monto_proveedor
+    return { monto_proveedor: raw != null ? Number(raw) : 0 }
+  })
   const monto_pendiente_rendicion = pendRows.reduce(
-    (acc, r) => acc + Number(r.monto_proveedor ?? 0),
+    (acc, r) => acc + r.monto_proveedor,
     0,
   )
   const monto_rendido_historico = ((rendHist.data ?? []) as Array<{ monto_total: number | string }>)
     .reduce((acc, r) => acc + Number(r.monto_total ?? 0), 0)
 
-  const stockRows = (stockConsign.data ?? []) as Array<{ costo_ingreso: number | string | null }>
+  const stockRows = ((stockConsign.data ?? []) as Array<{ item_costo?: unknown }>).map((r) => {
+    const emb = Array.isArray(r.item_costo) ? r.item_costo[0] : r.item_costo
+    const raw = (emb as { costo_ingreso?: number | string | null } | null | undefined)?.costo_ingreso
+    return { costo_ingreso: raw != null ? Number(raw) : null }
+  })
   const valor_stock_consignacion = permisos.puedeVerCostos
-    ? stockRows.reduce((acc, r) => acc + Number(r.costo_ingreso ?? 0), 0)
+    ? stockRows.reduce((acc, r) => acc + (r.costo_ingreso ?? 0), 0)
     : null
 
   return proyectarPerfilProveedor(

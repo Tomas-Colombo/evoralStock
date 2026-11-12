@@ -865,14 +865,8 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-04 - rendicion_proveedor', () => {
       .select('id_ingreso')
       .single()
 
-    await fVenta.serviceRole
-      .from('item_producto')
-      .update({
-        id_ingreso: ingVenta!.id_ingreso,
-        tipo_ingreso: 'consignacion',
-        costo_ingreso: 20000,
-      })
-      .eq('id_item', fVenta.items[0])
+    await fVenta.serviceRole.from('item_producto').update({ id_ingreso: ingVenta!.id_ingreso, tipo_ingreso: 'consignacion' }).eq('id_item', fVenta.items[0])
+    await fVenta.serviceRole.from('item_costo').upsert({ id_item: fVenta.items[0], id_tenant: fVenta.tenantId, costo_ingreso: 20000 })
 
     const { data: idVenta, error: errVenta } = await venderContado(fVenta)
     expect(errVenta).toBeNull()
@@ -1697,7 +1691,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M2 - Chequeo de permisos en sp_* de Inventa
           id_producto: prod!.id_producto,
           qr_code: `qr_trans_${i}_${randomUUID().replace(/-/g, '').slice(0, 10)}`,
           estado_item: 'disponible',
-          costo_ingreso: 100,
           tipo_ingreso: 'compra',
           talle: 'U',
         })
@@ -2296,17 +2289,18 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       .select('id_producto')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         estado_item: 'disponible',
         tipo_ingreso: 'compra',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
     expect(item?.id_item).toBeDefined()
 
     const client = await signInAs(fixture)
@@ -2371,18 +2365,19 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       .select('id_ingreso')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const { data: cons } = await fixture.serviceRole
       .from('consignacion')
@@ -2449,18 +2444,19 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       .select('id_ingreso')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const client = await signInAs(fixture)
 
@@ -2508,18 +2504,19 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       .select('id_ingreso')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         id_ingreso: ing!.id_ingreso,
         estado_item: 'devuelto',
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const { data: cons } = await fixture.serviceRole
       .from('consignacion')
@@ -2604,7 +2601,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2617,7 +2613,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
         id_ingreso: ing!.id_ingreso,
         estado_item: 'disponible',
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
         qr_code: randomUUID(),
       })
       .select('id_item')
@@ -2665,7 +2660,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M4 - Chequeo de permisos en sp_* de Consign
       .update({
         id_ingreso: ing!.id_ingreso,
         tipo_ingreso: 'consignacion',
-        costo_ingreso: 1000,
       })
       .eq('id_item', fixture.items[0])
 
@@ -2995,17 +2989,18 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
       .select('id_producto')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         estado_item: 'disponible',
         tipo_ingreso: 'compra',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const { data: rev } = await fixture.serviceRole
       .from('revendedora')
@@ -3049,17 +3044,18 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
       .select('id_producto')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         estado_item: 'en_revendedora',
         tipo_ingreso: 'compra',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const { data: rev } = await fixture.serviceRole
       .from('revendedora')
@@ -3131,17 +3127,18 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
       .select('id_producto')
       .single()
     const { data: item } = await fixture.serviceRole
-      .from('item_producto')
-      .insert({
+        .from('item_producto')
+        .insert({
         id_tenant: fixture.tenantId,
         id_producto: prod!.id_producto,
         estado_item: 'en_revendedora',
         tipo_ingreso: 'compra',
-        costo_ingreso: 1000,
+        
         qr_code: randomUUID(),
       })
-      .select('id_item')
-      .single()
+        .select('id_item')
+        .single()
+      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
 
     const { data: rev } = await fixture.serviceRole
       .from('revendedora')

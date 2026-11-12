@@ -73,17 +73,27 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
     }
   }
 
+  function costoDe(row: { item_costo?: unknown } | null | undefined): number | null {
+    const ic = Array.isArray(row?.item_costo) ? row?.item_costo[0] : row?.item_costo
+    const raw = (ic as { costo_ingreso?: number | string | null } | null | undefined)?.costo_ingreso
+    return raw != null ? Number(raw) : null
+  }
+  function dvcDe(row: { detalle_venta_costo?: unknown } | null | undefined) {
+    const dvc = Array.isArray(row?.detalle_venta_costo) ? row?.detalle_venta_costo[0] : row?.detalle_venta_costo
+    return (dvc as { costo_snapshot?: number | string; monto_ganancia?: number | string } | null | undefined) ?? {}
+  }
+
   async function getCapital(tenantId: string, idProducto: string): Promise<number> {
     const { data, error } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_tenant', tenantId)
       .eq('id_producto', idProducto)
       .eq('tipo_ingreso', 'compra')
       .in('estado_item', ['disponible', 'reservado', 'en_revendedora'])
 
     expect(error).toBeNull()
-    return (data ?? []).reduce((acc, row) => acc + Number(row.costo_ingreso), 0)
+    return (data ?? []).reduce((acc, row) => acc + (costoDe(row) ?? 0), 0)
   }
 
   async function getCostoVigente(tenantId: string, idProducto: string) {
@@ -177,11 +187,11 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
     // Obtener ítems del ingreso 1
     const { data: itemsIngreso1 } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', idIngreso1)
       .order('id_item')
     expect(itemsIngreso1).toHaveLength(5)
-    itemsIngreso1?.forEach((item) => expect(Number(item.costo_ingreso)).toBe(1000))
+    itemsIngreso1?.forEach((item) => expect(costoDe(item)).toBe(1000))
 
     // E2: Venta A de 1 unidad de E1 a 1.500
     // Esperado: costo_snapshot 1.000, monto_ganancia 500. Capital 4.000.
@@ -194,12 +204,12 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: detVentaA } = await serviceRole
       .from('detalle_venta')
-      .select('precio_venta, costo_snapshot, monto_ganancia')
+      .select('precio_venta, detalle_venta_costo(costo_snapshot, monto_ganancia)')
       .eq('id_venta', idVentaA)
       .single()
     expect(Number(detVentaA?.precio_venta)).toBe(1500)
-    expect(Number(detVentaA?.costo_snapshot)).toBe(1000)
-    expect(Number(detVentaA?.monto_ganancia)).toBe(500)
+    expect(Number(dvcDe(detVentaA).costo_snapshot)).toBe(1000)
+    expect(Number(dvcDe(detVentaA).monto_ganancia)).toBe(500)
 
     const capitalE2 = await getCapital(t.tenantId, t.idProducto)
     expect(capitalE2).toBe(4000)
@@ -224,12 +234,12 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
     // Las 4 unidades de E1 que siguen en stock deben haber pasado a 1.300
     const { data: itemsRestantesIngreso1 } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso, estado_item')
+      .select('id_item, estado_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', idIngreso1)
       .neq('id_item', itemVentaA)
     expect(itemsRestantesIngreso1).toHaveLength(4)
     itemsRestantesIngreso1?.forEach((item) => {
-      expect(Number(item.costo_ingreso)).toBe(1300)
+      expect(costoDe(item)).toBe(1300)
     })
 
     // P con precio_venta_desactualizado = true
@@ -263,18 +273,18 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: detVentaB } = await serviceRole
       .from('detalle_venta')
-      .select('precio_venta, costo_snapshot, monto_ganancia')
+      .select('precio_venta, detalle_venta_costo(costo_snapshot, monto_ganancia)')
       .eq('id_venta', idVentaB)
       .single()
     expect(Number(detVentaB?.precio_venta)).toBe(1950)
-    expect(Number(detVentaB?.costo_snapshot)).toBe(1300)
-    expect(Number(detVentaB?.monto_ganancia)).toBe(650)
+    expect(Number(dvcDe(detVentaB).costo_snapshot)).toBe(1300)
+    expect(Number(dvcDe(detVentaB).monto_ganancia)).toBe(650)
 
     // E6: Venta C de 1 unidad de E3 a 1.950
     // Esperado: costo_snapshot 1.300, monto_ganancia 650.
     const { data: itemsIngreso2 } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', idIngreso2)
       .order('id_item')
     const itemVentaC = itemsIngreso2![0].id_item
@@ -287,20 +297,20 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: detVentaC } = await serviceRole
       .from('detalle_venta')
-      .select('precio_venta, costo_snapshot, monto_ganancia')
+      .select('precio_venta, detalle_venta_costo(costo_snapshot, monto_ganancia)')
       .eq('id_venta', idVentaC)
       .single()
     expect(Number(detVentaC?.precio_venta)).toBe(1950)
-    expect(Number(detVentaC?.costo_snapshot)).toBe(1300)
-    expect(Number(detVentaC?.monto_ganancia)).toBe(650)
+    expect(Number(dvcDe(detVentaC).costo_snapshot)).toBe(1300)
+    expect(Number(dvcDe(detVentaC).monto_ganancia)).toBe(650)
 
     // E7: Cierre
     // Ganancia acumulada 1.800 (500 + 650 + 650). Capital 9.100 (7 × 1.300).
     // La línea de venta A sigue con costo 1.000 y ganancia 500.
     const gananciaTotal =
-      Number(detVentaA?.monto_ganancia) +
-      Number(detVentaB?.monto_ganancia) +
-      Number(detVentaC?.monto_ganancia)
+      Number(dvcDe(detVentaA).monto_ganancia) +
+      Number(dvcDe(detVentaB).monto_ganancia) +
+      Number(dvcDe(detVentaC).monto_ganancia)
     expect(gananciaTotal).toBe(1800)
 
     const capitalFinal = await getCapital(t.tenantId, t.idProducto)
@@ -309,11 +319,11 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
     // Comprobar inmutabilidad de la venta A histórica
     const { data: checkVentaA } = await serviceRole
       .from('detalle_venta')
-      .select('precio_venta, costo_snapshot, monto_ganancia')
+      .select('precio_venta, detalle_venta_costo(costo_snapshot, monto_ganancia)')
       .eq('id_venta', idVentaA)
       .single()
-    expect(Number(checkVentaA?.costo_snapshot)).toBe(1000)
-    expect(Number(checkVentaA?.monto_ganancia)).toBe(500)
+    expect(Number(dvcDe(checkVentaA).costo_snapshot)).toBe(1000)
+    expect(Number(dvcDe(checkVentaA).monto_ganancia)).toBe(500)
   })
 
   it('N1: ingreso E3 en consignación actualiza vigente a 1.300 pero no toca unidades de E1', async () => {
@@ -333,11 +343,11 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
     // Unidades de E1 (compra) NO cambian: conservan 1.000
     const { data: itemsE1 } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', idIngreso1)
     expect(itemsE1).toHaveLength(5)
     itemsE1?.forEach((item) => {
-      expect(Number(item.costo_ingreso)).toBe(1000)
+      expect(costoDe(item)).toBe(1000)
     })
   })
 
@@ -451,10 +461,10 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: itemVerif } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso, estado_item')
+      .select('estado_item, item_costo(costo_ingreso)')
       .eq('id_item', itemReservado)
       .single()
-    expect(Number(itemVerif?.costo_ingreso)).toBe(1300)
+    expect(costoDe(itemVerif)).toBe(1300)
 
     // La reserva sigue activa en detalle_reserva
     const { data: detReserva } = await serviceRole
@@ -493,11 +503,11 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: itemVerif } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso, estado_item')
+      .select('estado_item, item_costo(costo_ingreso)')
       .eq('id_item', itemBaja)
       .single()
     expect(itemVerif?.estado_item).toBe('baja')
-    expect(Number(itemVerif?.costo_ingreso)).toBe(1000)
+    expect(costoDe(itemVerif)).toBe(1000)
   })
 
   it('N6: otro tenant con el mismo producto no ve ni modifica nada', async () => {
@@ -517,11 +527,11 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
 
     const { data: itemsT2 } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', idIngresoT2)
     expect(itemsT2).toHaveLength(5)
     itemsT2?.forEach((item) => {
-      expect(Number(item.costo_ingreso)).toBe(1000)
+      expect(costoDe(item)).toBe(1000)
     })
 
     const capitalT2 = await getCapital(t2.tenantId, t2.idProducto)

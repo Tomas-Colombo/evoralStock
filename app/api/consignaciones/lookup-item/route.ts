@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
         producto_nombre: producto?.nombre ?? '(sin nombre)',
         sku: producto?.sku ?? null,
         categoria_nombre: producto?.categoria?.nombre ?? null,
-        costo_ingreso: Number(item.costo_ingreso),
+        costo_ingreso: item.costo_ingreso != null ? Number(item.costo_ingreso) : null,
         fecha_ingreso: item.fecha_ingreso,
       },
       puedeVerCostos,

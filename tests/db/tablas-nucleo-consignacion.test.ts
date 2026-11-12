@@ -225,7 +225,6 @@ describe.skipIf(!hasTestDb)('Tablas del núcleo extendidas por consignación —
         id_producto: prod!.id_producto,
         tipo_ingreso: 'consignacion',
         estado_item: 'disponible',
-        costo_ingreso: 1200,
         qr_code: `TEST-QR-N5-INS-${Date.now()}`,
       })
 
@@ -354,7 +353,6 @@ describe.skipIf(!hasTestDb)('Tablas del núcleo extendidas por consignación —
         id_producto: prod!.id_producto,
         tipo_ingreso: 'consignacion',
         estado_item: 'en_revendedora',
-        costo_ingreso: 2500,
         qr_code: `TEST-QR-REV-VIVO-${Date.now()}`,
       })
       expect(errItem).toBeNull()

@@ -103,11 +103,15 @@ describe('Panel de gestión del local — Slice 4b (REQ-RV-ADM)', () => {
     const qr1 = `QR-PANEL-${tenantId.slice(0, 8)}-01`
     const qr2 = `QR-PANEL-${tenantId.slice(0, 8)}-02`
     const { data: items } = await sr.from('item_producto').insert([
-      { id_tenant: tenantId, id_producto: prod!.id_producto, estado_item: 'disponible', qr_code: qr1, costo_ingreso: 50_000, tipo_ingreso: 'compra' },
-      { id_tenant: tenantId, id_producto: prod!.id_producto, estado_item: 'disponible', qr_code: qr2, costo_ingreso: 50_000, tipo_ingreso: 'compra' },
+      { id_tenant: tenantId, id_producto: prod!.id_producto, estado_item: 'disponible', qr_code: qr1, tipo_ingreso: 'compra' },
+      { id_tenant: tenantId, id_producto: prod!.id_producto, estado_item: 'disponible', qr_code: qr2, tipo_ingreso: 'compra' },
     ]).select('id_item, qr_code')
     const idItem1 = items![0].id_item
     const idItem2 = items![1].id_item
+    await sr.from('item_costo').insert([
+      { id_item: idItem1, id_tenant: tenantId, costo_ingreso: 50_000 },
+      { id_item: idItem2, id_tenant: tenantId, costo_ingreso: 50_000 },
+    ])
 
     // Revendedora R1
     const { data: rev } = await sr.from('revendedora').insert({
@@ -241,11 +245,15 @@ describe('Panel de gestión del local — Slice 4b (REQ-RV-ADM)', () => {
         id_producto: prod!.id_producto,
         estado_item: 'en_revendedora',
         qr_code: `QR-PANEL-DEC-${tenantId.slice(0, 8)}`,
-        costo_ingreso: 25_000,
         tipo_ingreso: 'compra',
       })
       .select('id_item')
       .single()
+    await sr.from('item_costo').insert({
+      id_item: item!.id_item,
+      id_tenant: tenantId,
+      costo_ingreso: 25_000,
+    })
 
     // Panel antes de declarar: declaraciones_pendientes = 0
     const { data: pAntes } = await auth.rpc('rf_panel_revendedoras', {})

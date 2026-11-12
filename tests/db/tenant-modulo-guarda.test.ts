@@ -333,7 +333,6 @@ describe.skipIf(!hasTestDb)('tenant_modulo guarda — REQ-MODOP-01, 02, 03, 10',
         id_producto: prod!.id_producto,
         tipo_ingreso: 'compra',
         estado_item: 'en_revendedora',
-        costo_ingreso: 1000,
         qr_code: `TEST-QR-${Date.now()}`,
       })
 
@@ -455,7 +454,6 @@ describe.skipIf(!hasTestDb)('tenant_modulo guarda — REQ-MODOP-01, 02, 03, 10',
           id_producto: prod!.id_producto,
           tipo_ingreso: 'compra',
           estado_item: 'disponible',
-          costo_ingreso: 1000,
           qr_code: `TEST-QR-DEC-${Date.now()}`,
         })
         .select('id_item')

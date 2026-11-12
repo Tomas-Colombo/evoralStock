@@ -8,6 +8,7 @@ import {
   withScopedTenant,
   type TenantFixture,
 } from './_helpers'
+import { habilitarPaqueteConsignacion } from './_fixtures-ventas'
 
 describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de herencia y D-CPC-08/09', () => {
   const serviceRole = createServiceRoleTestClient()
@@ -336,11 +337,16 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de her
 
     const { data: items } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_tenant', t.tenantId)
       .eq('id_producto', t.idProd)
     expect(items?.length).toBe(2)
-    expect(items?.every((i) => Number(i.costo_ingreso) === 1000)).toBe(true)
+    expect(
+      items?.every((i) => {
+        const ic = Array.isArray(i.item_costo) ? i.item_costo[0] : i.item_costo
+        return Number((ic as { costo_ingreso?: number } | null)?.costo_ingreso) === 1000
+      }),
+    ).toBe(true)
   })
 
   it('5. fn_sellar_costo_herencia_items no pisa ítems que ya tienen costo', async () => {
@@ -366,12 +372,12 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de her
 
     const { data: items } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso')
+      .select('id_item')
       .eq('id_tenant', t.tenantId)
       .eq('id_producto', t.idProd)
     // sp_set_costo_producto sincronizó a 2000; bajamos manualmente el costo del ítem a 777 para probar no-sobrescritura
     await serviceRole
-      .from('item_producto')
+      .from('item_costo')
       .update({ costo_ingreso: 777 })
       .eq('id_item', items![0].id_item)
 
@@ -382,7 +388,7 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de her
     expect(sellErr).toBeNull()
 
     const { data: after } = await serviceRole
-      .from('item_producto')
+      .from('item_costo')
       .select('costo_ingreso')
       .eq('id_item', items![0].id_item)
       .single()
@@ -579,5 +585,554 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de her
       p_id_rendicion: idRend,
     })
     expect(errPagOk).toBeNull()
+  })
+})
+
+describe.skipIf(!hasTestDb)('CPC Fase 3E.2 — satélites item_costo, detalle_venta_costo, detalle_venta_rendicion y devolucion_venta_costo', () => {
+  const serviceRole = createServiceRoleTestClient()
+
+  async function createClientWithPermisos(
+    fixture: TenantFixture,
+    nombreRol: string,
+    permisos: Record<string, string[]>,
+  ) {
+    const { data: rol, error: rolErr } = await fixture.serviceRole
+      .from('rol')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant(nombreRol), permisos })
+      .select('id_rol')
+      .single()
+    if (rolErr || !rol) throw new Error(`createClientWithPermisos rol failed: ${rolErr?.message}`)
+
+    const email = `${withScopedTenant(nombreRol)}@example.com`
+    const password = 'Fixture-Password-1!'
+    const { data: authUser, error: authErr } = await fixture.serviceRole.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+    if (authErr || !authUser?.user) throw new Error(`createClientWithPermisos auth failed: ${authErr?.message}`)
+
+    const { error: usrErr } = await fixture.serviceRole.from('usuario').insert({
+      id_usuario: authUser.user.id,
+      id_tenant: fixture.tenantId,
+      email,
+      nombre_completo: `Usuario ${nombreRol}`,
+      id_rol: rol.id_rol,
+      estado_usuario: 'activo',
+    })
+    if (usrErr) throw new Error(`createClientWithPermisos usuario failed: ${usrErr.message}`)
+
+    return signInAs({ email, password })
+  }
+
+  async function setupSatelites(prefix: string) {
+    const fixture = await createTenantWithUser(withScopedTenant(prefix))
+    const authAdmin = await signInAs(fixture)
+
+    const cuenta = unwrapFixture(
+      'cuenta_destino insert',
+      await serviceRole
+        .from('cuenta_destino')
+        .insert({
+          id_tenant: fixture.tenantId,
+          nombre: 'Caja Principal',
+          tipo: 'efectivo',
+          activo: true,
+          es_predeterminada: true,
+        })
+        .select('id_cuenta_destino')
+        .single(),
+    )
+
+    const categoria = unwrapFixture(
+      'categoria insert',
+      await serviceRole
+        .from('categoria')
+        .insert({ id_tenant: fixture.tenantId, nombre: 'Indumentaria' })
+        .select('id_categoria')
+        .single(),
+    )
+
+    await habilitarPaqueteConsignacion(fixture.tenantId)
+
+    const proveedor = unwrapFixture(
+      'proveedor insert',
+      await serviceRole
+        .from('proveedor')
+        .insert({
+          id_tenant: fixture.tenantId,
+          nombre: 'Proveedor Consig 3E2',
+          tipo: 'consignatario',
+        })
+        .select('id_proveedor')
+        .single(),
+    )
+
+    const { data: idProd, error: prodErr } = await authAdmin.rpc('sp_create_producto', {
+      p_id_categoria: categoria.id_categoria,
+      p_nombre: 'Pantalón 3E2',
+      p_sku: `SKU-3E2-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    })
+    expect(prodErr).toBeNull()
+
+    const { error: costoErr } = await authAdmin.rpc('sp_set_costo_producto', {
+      p_id_producto: idProd,
+      p_costo: 1000,
+      p_moneda: 'ARS',
+    })
+    expect(costoErr).toBeNull()
+
+    const { error: reglaErr } = await authAdmin.rpc('sp_create_regla_precio', {
+      p_nombre: 'Margen 50%',
+      p_tipo_regla: 'margen',
+      p_tipo_valor: 'porcentaje',
+      p_valor: 0.5,
+      p_alcance: 'global',
+    })
+    expect(reglaErr).toBeNull()
+
+    const { error: recalcErr } = await authAdmin.rpc('sp_recalcular_precio_venta', {
+      p_id_producto: idProd,
+    })
+    expect(recalcErr).toBeNull()
+
+    return {
+      ...fixture,
+      authAdmin,
+      idCuenta: cuenta.id_cuenta_destino,
+      idCategoria: categoria.id_categoria,
+      idProveedor: proveedor.id_proveedor,
+      idProd: idProd as string,
+    }
+  }
+
+  it('1. Rol sin ver_costos (Vendedora-Local) consulta las 4 satélites por PostgREST -> 0 filas', async () => {
+    const t = await setupSatelites('3e2-postgrest')
+
+    const { error: stockErr } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+      p_id_producto: t.idProd,
+      p_costo: 1000,
+      p_tipo_ingreso: 'compra',
+      p_items: [{ talle: 'M', cantidad: 1 }],
+    })
+    expect(stockErr).toBeNull()
+
+    const { data: items, error: itErr } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_tenant', t.tenantId)
+    expect(itErr).toBeNull()
+
+    const { data: idVenta, error: vErr } = await t.authAdmin.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: items![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vErr).toBeNull()
+
+    const { data: det, error: detErr } = await serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta')
+      .eq('id_venta', idVenta)
+      .single()
+    expect(detErr).toBeNull()
+
+    const { error: devErr } = await t.authAdmin.rpc('sp_registrar_devolucion_cliente', {
+      p_id_detalle_venta: det!.id_detalle_venta,
+      p_motivo: 'test',
+      p_id_cuenta_reintegro: t.idCuenta,
+      p_medio_reintegro: 'efectivo',
+    })
+    expect(devErr).toBeNull()
+
+    const vendedora = await createClientWithPermisos(t, 'vendedora-3e2', {
+      ventas: ['crear', 'editar'],
+      precios: ['ver'],
+      inventario: ['ver', 'crear', 'editar'],
+    })
+
+    const { data: ic } = await vendedora.from('item_costo').select('id_item')
+    expect(ic).toEqual([])
+    const { data: dvc } = await vendedora.from('detalle_venta_costo').select('id_detalle_venta')
+    expect(dvc).toEqual([])
+    const { data: dvr } = await vendedora.from('detalle_venta_rendicion').select('id_detalle_venta')
+    expect(dvr).toEqual([])
+    const { data: devc } = await vendedora.from('devolucion_venta_costo').select('id_devolucion')
+    expect(devc).toEqual([])
+  })
+
+  it('2. Rol sin ver_costos confirma ingreso sin costo -> item_costo sellada; sellador no pisa costo previo', async () => {
+    const t = await setupSatelites('3e2-herencia')
+    const operadora = await createClientWithPermisos(t, 'operadora-3e2', {
+      inventario: ['ver', 'crear'],
+    })
+
+    const { data: ing, error: ingErr } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+    expect(ingErr).toBeNull()
+
+    const { error: detErr } = await serviceRole.from('ingreso_mercaderia_detalle').insert({
+      id_tenant: t.tenantId,
+      id_ingreso: ing!.id_ingreso,
+      id_producto: t.idProd,
+      cantidad: 1,
+      costo_unitario: null,
+      talle: 'M',
+    })
+    expect(detErr).toBeNull()
+
+    const { error: confErr } = await operadora.rpc('sp_confirmar_ingreso', {
+      p_id_ingreso: ing!.id_ingreso,
+    })
+    expect(confErr).toBeNull()
+
+    const { data: icRows, error: icErr } = await serviceRole
+      .from('item_costo')
+      .select('id_item, costo_ingreso')
+      .eq('id_tenant', t.tenantId)
+    expect(icErr).toBeNull()
+    expect(icRows?.length).toBe(1)
+    expect(Number(icRows![0].costo_ingreso)).toBe(1000)
+
+    // Cambiar costo vigente a 2500 y llamar sellador sobre el ítem ya costeado -> no pisa
+    const { error: c2Err } = await t.authAdmin.rpc('sp_set_costo_producto', {
+      p_id_producto: t.idProd,
+      p_costo: 2500,
+      p_moneda: 'ARS',
+    })
+    expect(c2Err).toBeNull()
+
+    const { error: upErr } = await serviceRole
+      .from('item_costo')
+      .update({ costo_ingreso: 1000 })
+      .eq('id_item', icRows![0].id_item)
+    expect(upErr).toBeNull()
+
+    const { error: sellErr } = await operadora.rpc('fn_sellar_costo_herencia_items', {
+      p_id_producto: t.idProd,
+      p_ids_items: [icRows![0].id_item],
+    })
+    expect(sellErr).toBeNull()
+
+    const { data: after } = await serviceRole
+      .from('item_costo')
+      .select('costo_ingreso')
+      .eq('id_item', icRows![0].id_item)
+      .single()
+    expect(Number(after?.costo_ingreso)).toBe(1000)
+  })
+
+  it('3. Rol sin ver_costos vende y cambia ítem con item_costo -> éxito y sella satélites', async () => {
+    const t = await setupSatelites('3e2-venta-cambio')
+
+    const { error: stockErr } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+      p_id_producto: t.idProd,
+      p_costo: 1000,
+      p_tipo_ingreso: 'compra',
+      p_items: [{ talle: 'M', cantidad: 2 }],
+    })
+    expect(stockErr).toBeNull()
+
+    const { data: items, error: itErr } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_tenant', t.tenantId)
+    expect(itErr).toBeNull()
+    expect(items?.length).toBe(2)
+
+    const vendedora = await createClientWithPermisos(t, 'vendedora-vc', {
+      ventas: ['crear', 'editar'],
+      precios: ['ver'],
+      inventario: ['ver', 'crear', 'editar'],
+    })
+
+    const { data: idVenta, error: vErr } = await vendedora.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: items![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vErr).toBeNull()
+
+    const { data: detOrig, error: detErr } = await serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta')
+      .eq('id_venta', idVenta)
+      .single()
+    expect(detErr).toBeNull()
+
+    const { data: dvcOrig } = await serviceRole
+      .from('detalle_venta_costo')
+      .select('costo_snapshot, monto_ganancia')
+      .eq('id_detalle_venta', detOrig!.id_detalle_venta)
+      .single()
+    expect(Number(dvcOrig?.costo_snapshot)).toBe(1000)
+    expect(Number(dvcOrig?.monto_ganancia)).toBe(500)
+
+    const { data: dvrOrig } = await serviceRole
+      .from('detalle_venta_rendicion')
+      .select('monto_proveedor')
+      .eq('id_detalle_venta', detOrig!.id_detalle_venta)
+      .single()
+    expect(Number(dvrOrig?.monto_proveedor)).toBe(0)
+
+    const { data: cambioRes, error: cErr } = await vendedora.rpc('sp_registrar_cambio', {
+      p_id_detalle_original: detOrig!.id_detalle_venta,
+      p_id_item_entregado: items![1].id_item,
+      p_motivo: 'talle',
+    })
+    expect(cErr).toBeNull()
+    const idDetNuevo = (cambioRes as { id_detalle_nuevo: string }).id_detalle_nuevo
+
+    const { data: dvcNuevo } = await serviceRole
+      .from('detalle_venta_costo')
+      .select('costo_snapshot, monto_ganancia')
+      .eq('id_detalle_venta', idDetNuevo)
+      .single()
+    expect(Number(dvcNuevo?.costo_snapshot)).toBe(1000)
+    expect(Number(dvcNuevo?.monto_ganancia)).toBe(500)
+  })
+
+  it('4. Rol sin ver_costos intenta vender o cambiar ítem sin item_costo -> item-costo-pendiente (P0001) y rollback', async () => {
+    const t = await setupSatelites('3e2-pendiente')
+
+    // Producto nuevo sin costo vigente
+    const { data: idProdSinCosto, error: p2Err } = await t.authAdmin.rpc('sp_create_producto', {
+      p_id_categoria: t.idCategoria,
+      p_nombre: 'Remera Sin Costo',
+      p_sku: `SKU-SC-${Date.now()}`,
+    })
+    expect(p2Err).toBeNull()
+
+    const { error: sdErr } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+      p_id_producto: idProdSinCosto,
+      p_costo: null,
+      p_tipo_ingreso: 'compra',
+      p_items: [{ talle: 'S', cantidad: 1 }],
+    })
+    expect(sdErr).toBeNull()
+
+    // Fijar precio de venta directo para que no falle precio-no-resoluble antes del sellador
+    const { error: upProdErr } = await serviceRole
+      .from('producto')
+      .update({ precio_venta: 1500 })
+      .eq('id_producto', idProdSinCosto)
+    expect(upProdErr).toBeNull()
+
+    const { data: itemsSinCosto } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_producto', idProdSinCosto)
+
+    const vendedora = await createClientWithPermisos(t, 'vendedora-pend', {
+      ventas: ['crear', 'editar'],
+      precios: ['ver'],
+      inventario: ['ver', 'crear', 'editar'],
+    })
+
+    const { error: vErr } = await vendedora.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: itemsSinCosto![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vErr?.code).toBe('P0001')
+    expect(vErr?.message).toMatch(/item-costo-pendiente/)
+
+    // Rollback total: no quedó venta ni cambio
+    const { data: ventasDesp } = await serviceRole
+      .from('venta')
+      .select('id_venta')
+      .eq('id_tenant', t.tenantId)
+    expect(ventasDesp).toEqual([])
+
+    // También probar cambio a ítem sin item_costo
+    const { error: sdConErr } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+      p_id_producto: t.idProd,
+      p_costo: 1000,
+      p_tipo_ingreso: 'compra',
+      p_items: [{ talle: 'M', cantidad: 1 }],
+    })
+    expect(sdConErr).toBeNull()
+    const { data: itemsConCosto } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_producto', t.idProd)
+
+    const { data: idVentaOk, error: vOkErr } = await vendedora.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: itemsConCosto![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vOkErr).toBeNull()
+
+    const { data: detOk } = await serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta')
+      .eq('id_venta', idVentaOk)
+      .single()
+
+    const { error: cErr } = await vendedora.rpc('sp_registrar_cambio', {
+      p_id_detalle_original: detOk!.id_detalle_venta,
+      p_id_item_entregado: itemsSinCosto![0].id_item,
+      p_motivo: 'cambio',
+    })
+    expect(cErr?.code).toBe('P0001')
+    expect(cErr?.message).toMatch(/item-costo-pendiente/)
+
+    const { data: cambios } = await serviceRole
+      .from('cambio_venta')
+      .select('id_cambio')
+      .eq('id_tenant', t.tenantId)
+    expect(cambios).toEqual([])
+  })
+
+  it('5. Rol con rendiciones.ver sin ver_costos lee detalle_venta_rendicion y preview_rendicion, pero 0 filas en detalle_venta_costo', async () => {
+    const t = await setupSatelites('3e2-rend-ver')
+
+    const { data: ing, error: ingErr } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({
+        id_tenant: t.tenantId,
+        id_proveedor: t.idProveedor,
+        tipo_ingreso: 'consignacion',
+        confirmado: false,
+      })
+      .select('id_ingreso')
+      .single()
+    expect(ingErr).toBeNull()
+
+    const { error: detIngErr } = await serviceRole.from('ingreso_mercaderia_detalle').insert({
+      id_tenant: t.tenantId,
+      id_ingreso: ing!.id_ingreso,
+      id_producto: t.idProd,
+      cantidad: 1,
+      costo_unitario: 1000,
+      talle: 'M',
+    })
+    expect(detIngErr).toBeNull()
+
+    const { error: confErr } = await t.authAdmin.rpc('sp_confirmar_ingreso', {
+      p_id_ingreso: ing!.id_ingreso,
+    })
+    expect(confErr).toBeNull()
+
+    const { data: items } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_tenant', t.tenantId)
+
+    const { error: vErr } = await t.authAdmin.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: items![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vErr).toBeNull()
+
+    const rendicionesUser = await createClientWithPermisos(t, 'rend-sin-costos', {
+      rendiciones: ['ver', 'crear'],
+    })
+
+    const { data: dvr } = await rendicionesUser
+      .from('detalle_venta_rendicion')
+      .select('monto_proveedor')
+    expect(dvr?.length).toBe(1)
+    expect(Number(dvr![0].monto_proveedor)).toBe(1000)
+
+    const { data: prev, error: prevErr } = await rendicionesUser.rpc('preview_rendicion', {
+      p_id_proveedor: t.idProveedor,
+    })
+    expect(prevErr).toBeNull()
+    expect(prev?.length).toBe(1)
+    expect(Number(prev![0].monto_proveedor)).toBe(1000)
+
+    const { data: dvc } = await rendicionesUser
+      .from('detalle_venta_costo')
+      .select('id_detalle_venta')
+    expect(dvc).toEqual([])
+
+    // Generar rendición desde detalle_venta_rendicion
+    const { data: idRend, error: genErr } = await rendicionesUser.rpc('sp_generar_rendicion', {
+      p_id_proveedor: t.idProveedor,
+    })
+    expect(genErr).toBeNull()
+    const { data: rend } = await serviceRole
+      .from('rendicion_proveedor')
+      .select('monto_total')
+      .eq('id_rendicion', idRend)
+      .single()
+    expect(Number(rend?.monto_total)).toBe(1000)
+  })
+
+  it('6. Rol con ver_costos ve las 4 satélites completas y devolución sin ver_costos sella devolucion_venta_costo', async () => {
+    const t = await setupSatelites('3e2-devolucion')
+
+    const { error: stockErr } = await t.authAdmin.rpc('sp_crear_stock_directo', {
+      p_id_producto: t.idProd,
+      p_costo: 1000,
+      p_tipo_ingreso: 'compra',
+      p_items: [{ talle: 'M', cantidad: 1 }],
+    })
+    expect(stockErr).toBeNull()
+
+    const { data: items } = await serviceRole
+      .from('item_producto')
+      .select('id_item')
+      .eq('id_tenant', t.tenantId)
+
+    const vendedora = await createClientWithPermisos(t, 'vendedora-dev', {
+      ventas: ['crear', 'editar'],
+      precios: ['ver'],
+      inventario: ['ver'],
+    })
+
+    const { data: idVenta, error: vErr } = await vendedora.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: items![0].id_item, descuentos: [] }],
+      p_forma_pago: 'efectivo',
+      p_pagos: [{ id_cuenta_destino: t.idCuenta, medio: 'efectivo', monto: 1500 }],
+    })
+    expect(vErr).toBeNull()
+
+    const { data: det } = await serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta')
+      .eq('id_venta', idVenta)
+      .single()
+
+    const { error: devErr } = await vendedora.rpc('sp_registrar_devolucion_cliente', {
+      p_id_detalle_venta: det!.id_detalle_venta,
+      p_motivo: 'devolucion sin ver_costos',
+      p_id_cuenta_reintegro: t.idCuenta,
+      p_medio_reintegro: 'efectivo',
+    })
+    expect(devErr).toBeNull()
+
+    // Admin con ver_costos ve las 4 satélites
+    const { data: ic } = await t.authAdmin.from('item_costo').select('costo_ingreso')
+    expect(ic?.length).toBe(1)
+    const { data: dvc } = await t.authAdmin.from('detalle_venta_costo').select('costo_snapshot')
+    expect(dvc?.length).toBe(1)
+    const { data: dvr } = await t.authAdmin.from('detalle_venta_rendicion').select('monto_proveedor')
+    expect(dvr?.length).toBe(1)
+    const { data: devc } = await t.authAdmin.from('devolucion_venta_costo').select('costo_recuperado')
+    expect(devc?.length).toBe(1)
+    expect(Number(devc![0].costo_recuperado)).toBe(Number(dvc![0].costo_snapshot))
+
+    // Verificación de conteos (consistencia tipo backfill)
+    const { count: cntDv } = await serviceRole
+      .from('detalle_venta')
+      .select('id_detalle_venta', { count: 'exact', head: true })
+      .eq('id_tenant', t.tenantId)
+    const { count: cntDvc } = await serviceRole
+      .from('detalle_venta_costo')
+      .select('id_detalle_venta', { count: 'exact', head: true })
+      .eq('id_tenant', t.tenantId)
+    const { count: cntDvr } = await serviceRole
+      .from('detalle_venta_rendicion')
+      .select('id_detalle_venta', { count: 'exact', head: true })
+      .eq('id_tenant', t.tenantId)
+    expect(cntDvc).toBe(cntDv)
+    expect(cntDvr).toBe(cntDv)
   })
 })

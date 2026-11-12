@@ -14,7 +14,7 @@ describe.skipIf(!hasTestDb)('Slice 8 — Cambios de Producto en Local (REQ-RV-DB
     // Obtener detalle de venta original
     const { data: detOriginal } = await f.serviceRole
       .from('detalle_venta')
-      .select('id_detalle_venta, precio_venta, costo_snapshot')
+      .select('id_detalle_venta, precio_venta, detalle_venta_costo(costo_snapshot)')
       .eq('id_venta', idVenta)
       .single()
     expect(detOriginal).toBeDefined()
@@ -66,7 +66,7 @@ describe.skipIf(!hasTestDb)('Slice 8 — Cambios de Producto en Local (REQ-RV-DB
     // Verificar nueva línea creada para el ítem entregado
     const { data: detNuevo } = await f.serviceRole
       .from('detalle_venta')
-      .select('id_item, precio_venta, costo_snapshot, excluida_liquidacion')
+      .select('id_item, precio_venta, excluida_liquidacion, detalle_venta_costo(costo_snapshot)')
       .eq('id_venta', idVenta)
       .eq('id_item', f.items[1])
       .single()

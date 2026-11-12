@@ -66,13 +66,43 @@ export async function getConsignacionConDetalle(
       detalles:consignacion_detalle(
         *,
         producto:producto(id_producto, nombre, sku),
-        item:item_producto(qr_code, estado_item, costo_ingreso)
+        item:item_producto(qr_code, estado_item, item_costo(costo_ingreso))
       )
     `)
     .eq('id_consignacion', id)
     .maybeSingle()
   if (error) throw new Error(`getConsignacionConDetalle: ${error.message}`)
-  return (data ?? null) as unknown as ConsignacionConDetalle | null
+  if (!data) return null
+
+  const row = data as unknown as {
+    detalles?: Array<{
+      item?: {
+        qr_code: string
+        estado_item: string
+        item_costo?: { costo_ingreso?: number | string | null } | Array<{ costo_ingreso?: number | string | null }> | null
+      } | null
+      [k: string]: unknown
+    }>
+    [k: string]: unknown
+  }
+
+  return {
+    ...row,
+    detalles: (row.detalles ?? []).map((d) => {
+      if (!d.item) return d
+      const embed = Array.isArray(d.item.item_costo) ? d.item.item_costo[0] : d.item.item_costo
+      const rawCosto = embed?.costo_ingreso
+      const { item_costo: _drop, ...itemRest } = d.item
+      void _drop
+      return {
+        ...d,
+        item: {
+          ...itemRest,
+          costo_ingreso: rawCosto != null ? Number(rawCosto) : null,
+        },
+      }
+    }),
+  } as unknown as ConsignacionConDetalle
 }
 
 /** Unidad elegible para apartar en un lote de consignación (buscador). */

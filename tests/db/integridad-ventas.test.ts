@@ -60,13 +60,11 @@ describe.skipIf(!hasTestDb)('Integridad de Ventas — Zona Horaria (00066)', () 
   })
 })
 
-describe.skipIf(!hasTestDb)('Ganancia y Costo Consistentes (00067)', () => {
-  it('INSERT detalle_venta con monto_ganancia ≠ precio_venta - costo_snapshot levanta error de integridad', async () => {
-    const f = await ventaFixture('ganancia-inconsistente')
+describe.skipIf(!hasTestDb)('Ganancia y Costo Consistentes (00067 / 00156 satélites)', () => {
+  it('authenticated no puede insertar directamente en detalle_venta_costo ni detalle_venta_rendicion', async () => {
+    const f = await ventaFixture('satelites-solo-sellador')
     const sr = f.serviceRole
-    
-    // Venta sin pagos: total 0 para que el cuadre de pagos (00068/00075) no la rechace
-    // antes de llegar al check de ganancia que este test quiere ejercitar
+
     const { data: venta } = await sr.from('venta').insert({
       id_tenant: f.tenantId,
       id_cliente: f.idCliente,
@@ -74,80 +72,35 @@ describe.skipIf(!hasTestDb)('Ganancia y Costo Consistentes (00067)', () => {
       forma_pago: 'efectivo',
       total: 0
     }).select('id_venta').single()
-    
-    const { error } = await sr.from('detalle_venta').insert({
+
+    const { data: det } = await sr.from('detalle_venta').insert({
       id_tenant: f.tenantId,
       id_venta: venta!.id_venta,
       id_item: f.items[0],
       id_producto: f.idProducto,
       precio_venta: f.precio,
+      monto_gasto: 0,
+      tipo_ingreso_snapshot: 'compra'
+    }).select('id_detalle_venta').single()
+
+    const { error: errCosto } = await f.authenticated.from('detalle_venta_costo').insert({
+      id_detalle_venta: det!.id_detalle_venta,
+      id_tenant: f.tenantId,
       costo_snapshot: f.costo,
+      monto_ganancia: f.precio - f.costo,
+    })
+    expect(errCosto).not.toBeNull()
+
+    const { error: errRend } = await f.authenticated.from('detalle_venta_rendicion').insert({
+      id_detalle_venta: det!.id_detalle_venta,
+      id_tenant: f.tenantId,
       monto_proveedor: 0,
-      monto_gasto: 0,
-      monto_ganancia: f.precio, // INCORRECTO: Debería ser precio - costo
-      tipo_ingreso_snapshot: 'compra'
     })
-    
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/monto_ganancia/)
-  })
+    expect(errRend).not.toBeNull()
 
-  it('INSERT detalle_venta de compra con monto_proveedor ≠ 0 levanta error', async () => {
-    const f = await ventaFixture('compra-monto-proveedor')
-    const sr = f.serviceRole
-    
-    const { data: venta } = await sr.from('venta').insert({
-      id_tenant: f.tenantId,
-      id_cliente: f.idCliente,
-      id_usuario_alta: f.userId,
-      forma_pago: 'efectivo',
-      total: 0
-    }).select('id_venta').single()
-    
-    const { error } = await sr.from('detalle_venta').insert({
-      id_tenant: f.tenantId,
-      id_venta: venta!.id_venta,
-      id_item: f.items[0],
-      id_producto: f.idProducto,
-      precio_venta: f.precio,
-      costo_snapshot: f.costo,
-      monto_proveedor: f.costo, // INCORRECTO para compra
-      monto_gasto: 0,
-      monto_ganancia: f.precio - f.costo,
-      tipo_ingreso_snapshot: 'compra'
-    })
-    
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/monto_proveedor/)
-  })
-
-  it('INSERT detalle_venta de consignación con monto_proveedor ≠ costo_snapshot levanta error', async () => {
-    const f = await ventaFixture('consignacion-monto-proveedor', 1, { tipoIngreso: 'consignacion' })
-    const sr = f.serviceRole
-    
-    const { data: venta } = await sr.from('venta').insert({
-      id_tenant: f.tenantId,
-      id_cliente: f.idCliente,
-      id_usuario_alta: f.userId,
-      forma_pago: 'efectivo',
-      total: 0
-    }).select('id_venta').single()
-    
-    const { error } = await sr.from('detalle_venta').insert({
-      id_tenant: f.tenantId,
-      id_venta: venta!.id_venta,
-      id_item: f.items[0],
-      id_producto: f.idProducto,
-      precio_venta: f.precio,
-      costo_snapshot: f.costo,
-      monto_proveedor: 0, // INCORRECTO para consignacion (debería ser f.costo)
-      monto_gasto: 0,
-      monto_ganancia: f.precio - f.costo,
-      tipo_ingreso_snapshot: 'consignacion'
-    })
-    
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/monto_proveedor/)
+    // Limpiar fila huérfana de prueba para mantener la integridad de detalle_venta_costo
+    await sr.from('detalle_venta').delete().eq('id_detalle_venta', det!.id_detalle_venta)
+    await sr.from('venta').delete().eq('id_venta', venta!.id_venta)
   })
 
   it('venta de compra calcula monto_ganancia = precio - costo, NO precio entero', async () => {
@@ -159,14 +112,17 @@ describe.skipIf(!hasTestDb)('Ganancia y Costo Consistentes (00067)', () => {
     
     const { data: detalle } = await f.serviceRole
       .from('detalle_venta')
-      .select('monto_ganancia, costo_snapshot, precio_venta, tipo_ingreso_snapshot')
+      .select('precio_venta, tipo_ingreso_snapshot, detalle_venta_costo(costo_snapshot, monto_ganancia)')
       .eq('id_venta', idVenta)
       .single()
-      
+
+    const dvc = Array.isArray(detalle?.detalle_venta_costo)
+      ? detalle.detalle_venta_costo[0]
+      : detalle?.detalle_venta_costo
     expect(detalle?.tipo_ingreso_snapshot).toBe('compra')
     expect(Number(detalle?.precio_venta)).toBe(f.precio)
-    expect(Number(detalle?.costo_snapshot)).toBe(f.costo)
-    expect(Number(detalle?.monto_ganancia)).toBe(f.precio - f.costo)
+    expect(Number((dvc as { costo_snapshot?: number } | null)?.costo_snapshot)).toBe(f.costo)
+    expect(Number((dvc as { monto_ganancia?: number } | null)?.monto_ganancia)).toBe(f.precio - f.costo)
   })
 })
 

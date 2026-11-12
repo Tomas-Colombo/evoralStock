@@ -99,15 +99,16 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(Number(cp!.cotizacion_aplicada)).toBe(1500.0)
       expect(cp!.cotizacion_fecha_valor).toBe(t.hoy)
 
-      // Verificación en item_producto
+      // Verificación en item_producto + item_costo
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('*')
+        .select('id_item, item_costo(costo_ingreso)')
         .eq('id_producto', idProd)
 
       expect(items!.length).toBe(2)
       for (const item of items!) {
-        expect(Number(item.costo_ingreso)).toBe(150000.0)
+        const ic = Array.isArray(item.item_costo) ? item.item_costo[0] : item.item_costo
+        expect(Number((ic as { costo_ingreso?: number } | null)?.costo_ingreso)).toBe(150000.0)
       }
     })
 
@@ -175,15 +176,16 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(Number(detalle!.cotizacion_aplicada)).toBe(1500.0)
       expect(detalle!.cotizacion_fecha_valor).toBe(t.hoy)
 
-      // Verificar que los 10 ítems físicos tengan costo_ingreso 75000
+      // Verificar que los 10 ítems físicos tengan costo_ingreso 75000 en item_costo
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('costo_ingreso')
+        .select('id_item, item_costo(costo_ingreso)')
         .eq('id_ingreso_detalle', idDetalle!.id_detalle)
 
       expect(items!.length).toBe(10)
       for (const item of items!) {
-        expect(Number(item.costo_ingreso)).toBe(75000.0)
+        const ic = Array.isArray(item.item_costo) ? item.item_costo[0] : item.item_costo
+        expect(Number((ic as { costo_ingreso?: number } | null)?.costo_ingreso)).toBe(75000.0)
       }
     })
 
@@ -453,12 +455,13 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       // Con change costo-unico (D5), el stock físico preexistente se sincroniza al costo vigente (180.000)
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('costo_ingreso')
+        .select('id_item, item_costo(costo_ingreso)')
         .eq('id_producto', prod!.id_producto)
 
       expect(items!.length).toBe(3)
       for (const itm of items!) {
-        expect(Number(itm.costo_ingreso)).toBe(180000.0)
+        const ic = Array.isArray(itm.item_costo) ? itm.item_costo[0] : itm.item_costo
+        expect(Number((ic as { costo_ingreso?: number } | null)?.costo_ingreso)).toBe(180000.0)
       }
     })
 

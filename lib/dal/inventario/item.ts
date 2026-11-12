@@ -13,7 +13,21 @@ import type {
 // tablas satélite. Con '*' la columna desaparecería en silencio y el lector
 // recibiría undefined; nombrada, PostgREST falla (42703) y rg encuentra a todos.
 const COLUMNAS_ITEM =
-  'id_item, id_tenant, id_producto, id_ingreso, id_ingreso_detalle, qr_code, estado_item, talle, costo_ingreso, tipo_ingreso, fecha_ingreso, fecha_venta, fecha_devolucion, created_at, updated_at'
+  'id_item, id_tenant, id_producto, id_ingreso, id_ingreso_detalle, qr_code, estado_item, talle, tipo_ingreso, fecha_ingreso, fecha_venta, fecha_devolucion, created_at, updated_at, item_costo(costo_ingreso)'
+
+function extraerCostoItem(embed: unknown): number | null {
+  const row = Array.isArray(embed) ? embed[0] : embed
+  const raw = (row as { costo_ingreso?: number | string | null } | null | undefined)?.costo_ingreso
+  return raw != null ? Number(raw) : null
+}
+
+function aplanarItem<T extends Record<string, unknown>>(row: T): Omit<T, 'item_costo'> & { costo_ingreso: number | null } {
+  const { item_costo, ...rest } = row
+  return {
+    ...rest,
+    costo_ingreso: extraerCostoItem(item_costo),
+  }
+}
 
 export { ESTADOS_IMPRIMIBLES, ETIQUETAS_MAX }
 
@@ -27,7 +41,8 @@ export async function findItemByQr(qr: string): Promise<ItemProductoRow | null> 
   const { data, error } = await supabase
     .from('item_producto').select(COLUMNAS_ITEM).eq('qr_code', qr).maybeSingle()
   if (error) throw new Error(`findItemByQr: ${error.message}`)
-  return (data ?? null) as ItemProductoRow | null
+  if (!data) return null
+  return aplanarItem(data as unknown as Record<string, unknown>) as unknown as ItemProductoRow
 }
 
 /**
@@ -61,8 +76,9 @@ export async function getItemConDetalle(idItem: string): Promise<ItemConProducto
   const proveedor = (data as unknown as { ingreso: { proveedor: ItemConProducto['proveedor'] } | null })
     .ingreso?.proveedor ?? null
 
+  const aplanado = aplanarItem(data as unknown as Record<string, unknown>)
   return {
-    ...(data as ItemProductoRow),
+    ...(aplanado as unknown as ItemProductoRow),
     producto: (data as unknown as { producto: ItemConProducto['producto'] }).producto,
     proveedor,
     movimientos: (movs ?? []) as MovimientoItemRow[],
@@ -104,13 +120,13 @@ export async function getUltimoContextoIngresoProducto(
 ): Promise<{
   proveedor: { id_proveedor: string; nombre: string } | null
   tipoIngreso: 'compra' | 'consignacion'
-  costoUnitario: number
+  costoUnitario: number | null
 } | null> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
     .from('item_producto')
     .select(
-      'tipo_ingreso, costo_ingreso, ingreso:ingreso_mercaderia!inner(proveedor:proveedor(id_proveedor, nombre))',
+      'tipo_ingreso, item_costo(costo_ingreso), ingreso:ingreso_mercaderia!inner(proveedor:proveedor(id_proveedor, nombre))',
     )
     .eq('id_producto', idProducto)
     .order('fecha_ingreso', { ascending: false })
@@ -120,13 +136,13 @@ export async function getUltimoContextoIngresoProducto(
   if (!data) return null
   const row = data as unknown as {
     tipo_ingreso: 'compra' | 'consignacion'
-    costo_ingreso: number | string
+    item_costo: unknown
     ingreso: { proveedor: { id_proveedor: string; nombre: string } | null } | null
   }
   return {
     proveedor: row.ingreso?.proveedor ?? null,
     tipoIngreso: row.tipo_ingreso,
-    costoUnitario: Number(row.costo_ingreso),
+    costoUnitario: extraerCostoItem(row.item_costo),
   }
 }
 
@@ -300,7 +316,9 @@ export async function listItemsByProducto(idProducto: string): Promise<ItemProdu
     .eq('id_producto', idProducto)
     .order('fecha_ingreso', { ascending: false })
   if (error) throw new Error(`listItemsByProducto: ${error.message}`)
-  return (data ?? []) as ItemProductoRow[]
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(
+    (r) => aplanarItem(r) as unknown as ItemProductoRow,
+  )
 }
 
 /**
@@ -331,7 +349,9 @@ export async function listItemsDisponibles(
   else if (talle) query = query.ilike('talle', talle)
   const { data, error } = await query
   if (error) throw new Error(`listItemsDisponibles: ${error.message}`)
-  return (data ?? []) as ItemProductoRow[]
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(
+    (r) => aplanarItem(r) as unknown as ItemProductoRow,
+  )
 }
 
 /** Stock de un talle concreto (`null` = unidades sin talle asignado). */

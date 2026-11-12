@@ -131,10 +131,10 @@ export async function listVentasPeriodo(opts: PeriodoVentas): Promise<VentaLista
 }
 
 // Lista explícita, no '*': la Fase 3E de costos-por-columna mueve
-// costo_snapshot y monto_ganancia a detalle_venta_costo. Con '*' desaparecerían
-// en silencio; nombradas, PostgREST falla (42703) y rg encuentra a los lectores.
+// costo_snapshot y monto_ganancia a detalle_venta_costo y monto_proveedor a
+// detalle_venta_rendicion.
 const COLUMNAS_DETALLE_VENTA =
-  'id_detalle_venta, id_tenant, id_venta, id_item, id_producto, id_proveedor, precio_venta, costo_snapshot, monto_proveedor, monto_gasto, monto_ganancia, tipo_ingreso_snapshot, desglose_reglas, id_rendicion, excluida_rendicion, porcentaje_comision_preview, monto_comision, id_liquidacion, excluida_liquidacion, created_at'
+  'id_detalle_venta, id_tenant, id_venta, id_item, id_producto, id_proveedor, precio_venta, monto_gasto, tipo_ingreso_snapshot, desglose_reglas, id_rendicion, excluida_rendicion, porcentaje_comision_preview, monto_comision, id_liquidacion, excluida_liquidacion, created_at, detalle_venta_costo(costo_snapshot, monto_ganancia), detalle_venta_rendicion(monto_proveedor)'
 
 export async function getVentaConDetalle(id: string): Promise<VentaConDetalle | null> {
   const supabase = await createServerClient()
@@ -159,7 +159,28 @@ export async function getVentaConDetalle(id: string): Promise<VentaConDetalle | 
     .eq('id_venta', id)
     .maybeSingle()
   if (error) throw new Error(`getVentaConDetalle: ${error.message}`)
-  return (data ?? null) as unknown as VentaConDetalle | null
+  if (!data) return null
+
+  const row = data as unknown as { lineas?: Array<Record<string, unknown>>; [k: string]: unknown }
+  return {
+    ...row,
+    lineas: (row.lineas ?? []).map((l) => {
+      const dvc = Array.isArray(l.detalle_venta_costo) ? l.detalle_venta_costo[0] : l.detalle_venta_costo
+      const dvr = Array.isArray(l.detalle_venta_rendicion) ? l.detalle_venta_rendicion[0] : l.detalle_venta_rendicion
+      const rawCosto = (dvc as { costo_snapshot?: number | string | null } | null | undefined)?.costo_snapshot
+      const rawGan = (dvc as { monto_ganancia?: number | string | null } | null | undefined)?.monto_ganancia
+      const rawProv = (dvr as { monto_proveedor?: number | string | null } | null | undefined)?.monto_proveedor
+      const { detalle_venta_costo: _c, detalle_venta_rendicion: _r, ...rest } = l
+      void _c
+      void _r
+      return {
+        ...rest,
+        costo_snapshot: rawCosto != null ? Number(rawCosto) : null,
+        monto_ganancia: rawGan != null ? Number(rawGan) : null,
+        monto_proveedor: rawProv != null ? Number(rawProv) : null,
+      }
+    }),
+  } as unknown as VentaConDetalle
 }
 
 export function extraerSlugRpc(error: { message: string }): string {

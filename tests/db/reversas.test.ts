@@ -310,11 +310,14 @@ describe.skipIf(!hasTestDb)('Devoluciones de Cliente (Slice 6)', () => {
     })
     
     const { data: dev } = await f.serviceRole.from('devolucion_venta')
-      .select('costo_recuperado')
+      .select('id_devolucion, devolucion_venta_costo(costo_recuperado)')
       .eq('id_detalle_venta', detalles![0].id_detalle_venta)
       .single()
-      
-    expect(dev!.costo_recuperado).toBe(f.costo)
+
+    const devc = Array.isArray(dev?.devolucion_venta_costo)
+      ? dev.devolucion_venta_costo[0]
+      : dev?.devolucion_venta_costo
+    expect(Number((devc as { costo_recuperado?: number } | null)?.costo_recuperado)).toBe(f.costo)
   })
 
   it('Devolución bloqueada si la línea ya fue rendida al proveedor (detalle-ya-rendido)', async () => {

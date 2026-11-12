@@ -24,6 +24,10 @@ const TABLAS_CON_COSTO = [
   'devolucion_venta',
   'regla_precio',
   'costo_producto',
+  'item_costo',
+  'detalle_venta_costo',
+  'detalle_venta_rendicion',
+  'devolucion_venta_costo',
 ]
 
 function archivos(dir: string): string[] {

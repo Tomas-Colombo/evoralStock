@@ -478,6 +478,9 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'fn_auto_crear_rol_revendedora', // trigger on tenant_modulo (00079)
       'sp_enlazar_revendedora_usuario', // provisión de usuario revendedora (00079)
       'fn_sellar_costo_herencia_items', // sellador de herencia de costo vigente (00155, REQ-CPC §6.1)
+      'fn_sellar_costo_venta', // sellador de costo/rendición en venta (00156, REQ-CPC §6.1)
+      'fn_sellar_costo_cambio', // sellador de costo/rendición en cambio (00156, REQ-CPC §6.1)
+      'fn_sellar_costo_devolucion', // sellador de costo recuperado en devolución (00156, REQ-CPC §6.1)
     ]
 
     for (const p of defProcs) {

@@ -45,8 +45,8 @@ export interface PreviewLineaRendicion {
   producto_sku: string | null
   qr_code: string
   precio_venta: number
-  costo_snapshot: number
-  monto_proveedor: number
+  costo_snapshot: number | null
+  monto_proveedor: number | null
   cliente_nombre: string | null
 }
 

@@ -25,6 +25,10 @@ const SIN_MENSAJE: Record<string, string> = {
   // base. El operador no las alcanza desde la UI, así que cae el genérico.
   'venta-inmutable': 'trigger 00068, defensivo',
   'detalle-venta-inmutable': 'trigger 00068, defensivo',
+  'detalle-venta-costo-inmutable': 'trigger 00156, defensivo',
+  'detalle-venta-rendicion-inmutable': 'trigger 00156, defensivo',
+  'devolucion-venta-costo-inmutable': 'trigger 00156, defensivo',
+  'devolucion-not-found': 'invariante interna del sellador fn_sellar_costo_devolucion (00156)',
   'pago-venta-inmutable': 'trigger 00068, defensivo',
   'cuadre-pagos-fallido': 'constraint trigger 00068, defensivo',
   'financiacion-no-cuadra': 'chequeo defensivo de sp_registrar_venta',

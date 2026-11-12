@@ -73,8 +73,6 @@ describe.skipIf(!hasTestDb)('Inmutabilidad de ventas (00068)', () => {
   describe('detalle_venta', () => {
     it.each([
       ['precio_venta', { precio_venta: 1 }],
-      ['costo_snapshot', { costo_snapshot: 1 }],
-      ['monto_ganancia', { monto_ganancia: 1 }],
     ])('UPDATE detalle_venta SET %s levanta detalle-venta-inmutable', async (_col, cambio) => {
       const { f, idDetalle } = await ventaContado(`inmut-det-${_col}`)
 
@@ -85,6 +83,22 @@ describe.skipIf(!hasTestDb)('Inmutabilidad de ventas (00068)', () => {
 
       expect(error).not.toBeNull()
       expect(error?.message).toMatch(/^detalle-venta-inmutable/)
+    })
+
+    it('UPDATE detalle_venta_costo y detalle_venta_rendicion levantan inmutabilidad', async () => {
+      const { f, idDetalle } = await ventaContado('inmut-det-satelites')
+
+      const { error: eCosto } = await f.serviceRole
+        .from('detalle_venta_costo')
+        .update({ costo_snapshot: 1 })
+        .eq('id_detalle_venta', idDetalle)
+      expect(eCosto?.message).toMatch(/^detalle-venta-costo-inmutable/)
+
+      const { error: eRend } = await f.serviceRole
+        .from('detalle_venta_rendicion')
+        .update({ monto_proveedor: 1 })
+        .eq('id_detalle_venta', idDetalle)
+      expect(eRend?.message).toMatch(/^detalle-venta-rendicion-inmutable/)
     })
 
     it('UPDATE de excluida_rendicion SÍ se permite', async () => {

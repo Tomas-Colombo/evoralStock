@@ -49,8 +49,8 @@ export async function getRendicionConDetalle(id: string): Promise<RendicionConDe
       id_detalle_venta,
       id_venta,
       precio_venta,
-      costo_snapshot,
-      monto_proveedor,
+      detalle_venta_costo(costo_snapshot),
+      detalle_venta_rendicion(monto_proveedor),
       venta:venta(fecha, cliente:cliente(nombre, nombre_completo)),
       producto:producto(nombre, sku),
       item:item_producto(qr_code)
@@ -63,23 +63,27 @@ export async function getRendicionConDetalle(id: string): Promise<RendicionConDe
     id_detalle_venta: string
     id_venta: string
     precio_venta: number
-    costo_snapshot: number
-    monto_proveedor: number
+    detalle_venta_costo: { costo_snapshot?: number | string | null } | Array<{ costo_snapshot?: number | string | null }> | null
+    detalle_venta_rendicion: { monto_proveedor?: number | string | null } | Array<{ monto_proveedor?: number | string | null }> | null
     venta: { fecha: string; cliente: { nombre: string; nombre_completo: string } | null } | null
     producto: { nombre: string; sku: string | null } | null
     item: { qr_code: string } | null
-  }>).map((l) => ({
-    id_detalle_venta: l.id_detalle_venta,
-    id_venta: l.id_venta,
-    fecha: l.venta?.fecha ?? '',
-    producto_nombre: l.producto?.nombre ?? '—',
-    producto_sku: l.producto?.sku ?? null,
-    qr_code: l.item?.qr_code ?? '—',
-    precio_venta: Number(l.precio_venta),
-    costo_snapshot: Number(l.costo_snapshot),
-    monto_proveedor: Number(l.monto_proveedor),
-    cliente_nombre: l.venta?.cliente ? nombreCliente(l.venta.cliente) : null,
-  }))
+  }>).map((l) => {
+    const dvc = Array.isArray(l.detalle_venta_costo) ? l.detalle_venta_costo[0] : l.detalle_venta_costo
+    const dvr = Array.isArray(l.detalle_venta_rendicion) ? l.detalle_venta_rendicion[0] : l.detalle_venta_rendicion
+    return {
+      id_detalle_venta: l.id_detalle_venta,
+      id_venta: l.id_venta,
+      fecha: l.venta?.fecha ?? '',
+      producto_nombre: l.producto?.nombre ?? '—',
+      producto_sku: l.producto?.sku ?? null,
+      qr_code: l.item?.qr_code ?? '—',
+      precio_venta: Number(l.precio_venta),
+      costo_snapshot: dvc?.costo_snapshot != null ? Number(dvc.costo_snapshot) : null,
+      monto_proveedor: dvr?.monto_proveedor != null ? Number(dvr.monto_proveedor) : null,
+      cliente_nombre: l.venta?.cliente ? nombreCliente(l.venta.cliente) : null,
+    }
+  })
 
   return {
     ...(data as unknown as RendicionProveedorRow),
@@ -103,8 +107,8 @@ export async function previewRendicion(idProveedor: string): Promise<PreviewLine
   return ((data ?? []) as PreviewLineaRendicion[]).map((r) => ({
     ...r,
     precio_venta: Number(r.precio_venta),
-    costo_snapshot: Number(r.costo_snapshot),
-    monto_proveedor: Number(r.monto_proveedor),
+    costo_snapshot: r.costo_snapshot != null ? Number(r.costo_snapshot) : null,
+    monto_proveedor: r.monto_proveedor != null ? Number(r.monto_proveedor) : null,
   }))
 }
 

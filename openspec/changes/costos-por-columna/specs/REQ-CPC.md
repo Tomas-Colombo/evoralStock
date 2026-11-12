@@ -442,9 +442,9 @@ Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las
      - Si `detalle_venta_costo` ya existe para ese detalle, no hace nada (idempotente).
      - Lee `item_costo.costo_ingreso` del nuevo ítem; si es `null` o inexistente, aborta con `'item-costo-pendiente'` (`P0001`). Calcula margen y persiste en `detalle_venta_costo`. Retorna `void`.
 
-4. **`fn_sellar_costo_devolucion(p_id_devolucion uuid) RETURNS void`**:
+4. **`fn_sellar_costo_devolucion(p_id_devolucion uuid) RETURNS void`** *(3E.2)*:
    - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
-   - **Permiso**: Exige `auth_tiene_permiso('ventas', 'editar')`.
+   - **Permiso**: Exige `auth_tiene_permiso('ventas', 'editar')`. Valida `auth_tenant_id()` y rechaza `auth_revendedora_id() is not null`.
    - **Contrato / Idempotencia**:
      - Verifica tenant y existencia de `p_id_devolucion`.
      - Si `devolucion_venta_costo` ya fue registrado para esa devolución, no hace nada (`ON CONFLICT (id_devolucion) DO NOTHING`).
@@ -682,8 +682,8 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 
 *Partición final (4 sub-fases)*:
 - **3E.1** Policies sin mover datos + sellador de herencia + cierre `preview_rendicion` / `rf_*` / `sp_perdida_incobrable_venta`.
-- **3E.2** Satélites de stock y venta (`item_costo` + `detalle_venta_costo` + `detalle_venta_rendicion`) + `fn_sellar_costo_venta` / `fn_sellar_costo_cambio` + `DROP COLUMN` de `item_producto` y `detalle_venta` en la misma migración.
-- **3E.3** Satélites de devolución e ingreso (`devolucion_venta_costo` + `ingreso_detalle_costo`) + `fn_sellar_costo_devolucion` + `DROP COLUMN` de `devolucion_venta` e `ingreso_mercaderia_detalle` en la misma migración.
+- **3E.2** Satélites de stock, venta y devolución (`item_costo` + `detalle_venta_costo` + `detalle_venta_rendicion` + `devolucion_venta_costo`) + `fn_sellar_costo_venta` / `fn_sellar_costo_cambio` / `fn_sellar_costo_devolucion` + `DROP COLUMN` de `item_producto`, `detalle_venta` y `devolucion_venta` en la misma migración.
+- **3E.3** Satélite de ingreso (`ingreso_detalle_costo`) + `DROP COLUMN` de `ingreso_mercaderia_detalle` en la misma migración.
 - **3E.4** Cierre final: verificación de whitelist DEFINER cerrada y documentación de reglas en `AGENTS.md` / `supabase/README.md`.
 
 ##### Sub-fase 3E.1 — Policies sin mover datos, cierre RPC y sellador de herencia
@@ -702,42 +702,41 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
   6. Vendedora vende en mostrador con descuentos → precio final intacto.
 - **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` de `00155` dropea policies nuevas y `fn_sellar_costo_herencia_items`, restaura funciones previas.
 
-##### Sub-fase 3E.2 — Satélites `item_costo`, `detalle_venta_costo` y `detalle_venta_rendicion` (D-CPC-07)
-- **Migración tentativa**: `00156_cpc_item_y_venta_costo.sql`.
+##### Sub-fase 3E.2 — Satélites `item_costo`, `detalle_venta_costo`, `detalle_venta_rendicion` y `devolucion_venta_costo` (D-CPC-07)
+- **Migración tentativa**: `00156_cpc_item_venta_devolucion_costo.sql`.
 - **Objetos SQL nuevos / recreados**:
   - Tablas satélite con RLS + backfill + verificación de conteos:
     - `item_costo(id_item PK/FK, id_tenant, costo_ingreso)` (`ver_costos` / `cargar_costos` / `editar_cotizacion`).
     - `detalle_venta_costo(id_detalle_venta PK/FK, id_tenant, costo_snapshot, monto_ganancia)` (`SELECT` `ver_costos`).
     - `detalle_venta_rendicion(id_detalle_venta PK/FK, id_tenant, monto_proveedor)` (`SELECT` `ver_costos OR rendiciones.ver`).
-  - Nuevos selladores DEFINER: `fn_sellar_costo_venta(p_id_venta uuid)`, `fn_sellar_costo_cambio(p_id_detalle_venta uuid)` (con guard `'item-costo-pendiente'` sobre `item_costo` y sellado de `detalle_venta_rendicion`).
-  - Recrea: `fn_sellar_costo_herencia_items` (escribe en `item_costo`), `sp_confirmar_ingreso` (`00153:276`), `sp_crear_stock_directo` (`00154:101`), `sp_aplicar_ultimo_costo` (`00153:606`), `sp_completar_costo_ingreso` (`00153:714`), `sp_registrar_venta` (`00153:872`), `sp_registrar_cambio` (`00153:1337`), `sp_registrar_devolucion_cliente` (`00144:632`, lee `detalle_venta_costo.costo_snapshot`), `sp_generar_rendicion` (`00147:698`), `preview_rendicion` (`00126:231`), `sp_perdida_incobrable_venta` (`00059:788`), `fn_modulo_tiene_estado_vivo` (`00122:164`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_posicion` (`00111:344`), `v_linea_venta` (`00110:23`), `v_perfil_proveedor` (`00071:264`), `tg_detalle_venta_inmutable` (`00088:67`, sin referencias a columnas borradas + trigger inmutable en `detalle_venta_costo` y `detalle_venta_rendicion`).
-  - **`DROP COLUMN` en la misma migración**: `item_producto.costo_ingreso`, `detalle_venta.costo_snapshot`, `detalle_venta.monto_ganancia`, `detalle_venta.monto_proveedor`.
-- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/item.ts`, `lib/dal/consignaciones/consignacion.ts`, `lib/dal/inventario/proveedor.ts`, `lib/dal/ventas/venta.ts`, `lib/dal/rendiciones/rendicion.ts`; actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_venta` y `fn_sellar_costo_cambio`).
-- **Tests `tests/db` (6 casos)**:
-  1. Rol sin `ver_costos` (`Vendedora-Local`) consulta `item_costo`, `detalle_venta_costo` y `detalle_venta_rendicion` por PostgREST → 0 filas.
+    - `devolucion_venta_costo(id_devolucion PK/FK, id_tenant, costo_recuperado)` (`SELECT` `ver_costos`).
+  - Nuevos selladores DEFINER: `fn_sellar_costo_venta(p_id_venta uuid)`, `fn_sellar_costo_cambio(p_id_detalle_venta uuid)`, `fn_sellar_costo_devolucion(p_id_devolucion uuid)` (con guard `'item-costo-pendiente'` sobre `item_costo` y sellado de `detalle_venta_rendicion`).
+  - Recrea: `fn_sellar_costo_herencia_items` (escribe en `item_costo`), `sp_confirmar_ingreso` (`00155`), `sp_crear_stock_directo` (`00155`), `sp_aplicar_ultimo_costo` (`00155`), `sp_completar_costo_ingreso` (`00153:714`), `sp_registrar_venta` (`00153:872`), `sp_registrar_cambio` (`00153:1337`), `sp_registrar_devolucion_cliente` (`00144:632`, delega sellado a `fn_sellar_costo_devolucion`), `sp_generar_rendicion` (`00155`), `preview_rendicion` (`00155`), `sp_perdida_incobrable_venta` (`00155`), `fn_modulo_tiene_estado_vivo` (`00122:164`), `rf_finanzas_resultados` (`00155`), `rf_finanzas_posicion` (`00155`), `v_linea_venta` (`00110:23`), `v_perfil_proveedor` (`00071:264`), `tg_detalle_venta_inmutable` (`00088:67`, sin referencias a columnas borradas + triggers de inmutabilidad en `detalle_venta_costo`, `detalle_venta_rendicion` y `devolucion_venta_costo`).
+  - **`DROP COLUMN` en la misma migración**: `item_producto.costo_ingreso`, `detalle_venta.costo_snapshot`, `detalle_venta.monto_ganancia`, `detalle_venta.monto_proveedor`, `devolucion_venta.costo_recuperado`.
+- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/item.ts`, `lib/dal/consignaciones/consignacion.ts`, `lib/dal/inventario/proveedor.ts`, `lib/dal/ventas/venta.ts`, `lib/dal/rendiciones/rendicion.ts`; actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_venta`, `fn_sellar_costo_cambio` y `fn_sellar_costo_devolucion`).
+- **Tests `tests/db` (7 casos)**:
+  1. Rol sin `ver_costos` (`Vendedora-Local`) consulta `item_costo`, `detalle_venta_costo`, `detalle_venta_rendicion` y `devolucion_venta_costo` por PostgREST → 0 filas.
   2. Rol sin `ver_costos` confirma ingreso sin costo → `item_costo` sellada; llama `fn_sellar_costo_herencia_items` por RPC sobre ítems con costo → no pisa.
   3. Rol sin `ver_costos` vende y cambia ítem con `item_costo` → éxito y sella `detalle_venta_costo` + `detalle_venta_rendicion`.
   4. Rol sin `ver_costos` intenta vender o cambiar ítem sin `item_costo` → aborta con `'item-costo-pendiente'` (`P0001`) y rollback total.
   5. Rol con `rendiciones.ver` y sin `ver_costos` lee `detalle_venta_rendicion.monto_proveedor` y `preview_rendicion`, pero ve 0 filas en `detalle_venta_costo`.
-  6. Rol con `ver_costos` ve las 3 satélites completas.
-- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 4 columnas, las repuebla desde las 3 satélites, restaura funciones/vistas/trigger y dropea las 3 satélites + selladores; revertir DAL.
+  6. Rol con `ver_costos` ve las 4 satélites completas.
+  7. Rol sin `ver_costos` (con `ventas.editar`) devuelve prenda → éxito y `devolucion_venta_costo` sellada con `costo_recuperado = costo_snapshot`.
+- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 5 columnas, las repuebla desde las 4 satélites, restaura funciones/vistas/trigger y dropea las 4 satélites + selladores; revertir DAL.
 
-##### Sub-fase 3E.3 — Satélites `devolucion_venta_costo` e `ingreso_detalle_costo`
-- **Migración tentativa**: `00157_cpc_devolucion_e_ingreso_costo.sql`.
+##### Sub-fase 3E.3 — Satélite `ingreso_detalle_costo`
+- **Migración tentativa**: `00157_cpc_ingreso_costo.sql`.
 - **Objetos SQL nuevos / recreados**:
-  - Tablas satélite con RLS + backfill + verificación de conteos:
-    - `devolucion_venta_costo(id_devolucion PK/FK, id_tenant, costo_recuperado)` (`SELECT` `ver_costos`).
+  - Tabla satélite con RLS + backfill + verificación de conteos:
     - `ingreso_detalle_costo(id_detalle PK/FK, id_tenant, costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor)` (`ver_costos` / `cargar_costos`).
-  - Nuevo sellador DEFINER: `fn_sellar_costo_devolucion(p_id_devolucion uuid)`.
-  - Recrea: `sp_registrar_devolucion_cliente` (`00144:632`), `sp_importar_remito` (`00153:415`), `sp_confirmar_ingreso` (`00153:276`), `sp_completar_costo_ingreso` (`00153:714`), `ingreso_detalle_bloquea_confirmado` (`00153:180`), `v_linea_venta` (`00110:23`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`).
-  - **`DROP COLUMN` en la misma migración**: `devolucion_venta.costo_recuperado`, `ingreso_mercaderia_detalle.{costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor}`.
-- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/ingreso.ts` (`listIngresosConResumen`, `listIngresosDeProveedor`, `getIngreso`, `addIngresoDetalle` leen/escriben `ingreso_detalle_costo`); actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_devolucion`).
-- **Tests `tests/db` (4 casos)**:
-  1. Rol sin `ver_costos` consulta `devolucion_venta_costo` e `ingreso_detalle_costo` por PostgREST → 0 filas.
-  2. Rol sin `ver_costos` (con `ventas.editar`) devuelve prenda → éxito y `devolucion_venta_costo` sellada.
-  3. Rol sin `cargar_costos` importa remito con costo → `42501`; sin costo → éxito.
-  4. Administrador lee `ingreso_detalle_costo` y `devolucion_venta_costo` normalmente.
-- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 5 columnas, las repuebla desde ambas satélites, restaura funciones/vistas/trigger y dropea ambas satélites + `fn_sellar_costo_devolucion`; revertir DAL.
+  - Recrea: `sp_importar_remito` (`00153:415`), `sp_confirmar_ingreso` (`00156`), `sp_completar_costo_ingreso` (`00156`), `ingreso_detalle_bloquea_confirmado` (`00153:180`), `rf_finanzas_flujo` (`00155`), `rf_finanzas_posicion` (`00156`).
+  - **`DROP COLUMN` en la misma migración**: `ingreso_mercaderia_detalle.{costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor}`.
+- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/ingreso.ts` (`listIngresosConResumen`, `listIngresosDeProveedor`, `getIngreso`, `addIngresoDetalle` leen/escriben `ingreso_detalle_costo`).
+- **Tests `tests/db` (3 casos)**:
+  1. Rol sin `ver_costos` consulta `ingreso_detalle_costo` por PostgREST → 0 filas.
+  2. Rol sin `cargar_costos` importa remito con costo → `42501`; sin costo → éxito.
+  3. Administrador lee `ingreso_detalle_costo` normalmente.
+- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 4 columnas, las repuebla desde la satélite, restaura funciones/trigger y dropea `ingreso_detalle_costo`; revertir DAL.
 
 ##### Sub-fase 3E.4 — Cierre: whitelist final y reglas de arquitectura
 - **Migración SQL**: Ninguna.

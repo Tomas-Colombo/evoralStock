@@ -523,6 +523,25 @@ describe.skipIf(!hasTestDb)('Venta por canal — Slice 6a (REQ-RV-DB-05)', () =>
     expect(error?.message).toMatch(/medio-solo-revendedora/)
   })
 
+  test('Slice 6d — canal local con financiacion externa medio cuenta_revendedora se rechaza con medio-solo-revendedora', async () => {
+    const f = await ventaFixture('VtaLocalFinRev', 1, { tipoIngreso: 'compra' })
+
+    const { error } = await f.authenticated.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: f.items[0] }],
+      p_canal: 'local',
+      p_id_cliente: f.idCliente,
+      p_financiacion: { cuotas: 3, primer_vencimiento: '2026-12-01' },
+      p_financiador: {
+        propia: false,
+        medio: 'cuenta_revendedora',
+        id_cuenta_destino: f.idCuenta,
+      },
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message).toMatch(/medio-solo-revendedora/)
+  })
+
   test('Slice 6d — canal revendedora con pagos manuales se rechaza con venta-revendedora-con-pagos', async () => {
     const f = await ventaFixture('VtaRevConPagos', 1, { tipoIngreso: 'compra' })
     await habilitarModuloRevendedoras(f.tenantId)

@@ -96,6 +96,12 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     return signInAs({ email, password })
   }
 
+  function costoDe(row: { item_costo?: unknown } | null | undefined): number | null {
+    const ic = Array.isArray(row?.item_costo) ? row?.item_costo[0] : row?.item_costo
+    const raw = (ic as { costo_ingreso?: number | string | null } | null | undefined)?.costo_ingreso
+    return raw != null ? Number(raw) : null
+  }
+
   it('1. confirmar un remito con costo (igual que hoy)', async () => {
     const t = await setupFixture('remito-con-costo')
 
@@ -129,11 +135,11 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     // Items generados tienen costo_ingreso = 1000
     const { data: items } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso, estado_item')
+      .select('estado_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', ing!.id_ingreso)
 
     expect(items).toHaveLength(2)
-    expect(items?.every((i) => Number(i.costo_ingreso) === 1000)).toBe(true)
+    expect(items?.every((i) => costoDe(i) === 1000)).toBe(true)
 
     // costo_producto tiene fila vigente = 1000
     const { data: vigentes } = await serviceRole
@@ -201,11 +207,11 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     // Items heredaron el costo vigente = 2000
     const { data: items } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', ing!.id_ingreso)
 
     expect(items).toHaveLength(3)
-    expect(items?.every((i) => Number(i.costo_ingreso) === 2000)).toBe(true)
+    expect(items?.every((i) => costoDe(i) === 2000)).toBe(true)
 
     // La línea del detalle permanece null
     const { data: detDespues } = await serviceRole
@@ -261,11 +267,11 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     // Items quedan con costo_ingreso = null
     const { data: items } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', ing!.id_ingreso)
 
     expect(items).toHaveLength(2)
-    expect(items?.every((i) => i.costo_ingreso === null)).toBe(true)
+    expect(items?.every((i) => costoDe(i) === null)).toBe(true)
 
     // costo_producto sigue sin ninguna fila para este producto
     const { data: costos } = await serviceRole
@@ -303,13 +309,20 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
 
     await t.authAdmin.rpc('sp_confirmar_ingreso', { p_id_ingreso: ing!.id_ingreso })
 
+    // Fijar precio de venta para que sp_calcular_precio_venta_snapshot resuelva
+    // y no falle con precio-no-resoluble antes de que el sellador evalúe item-costo-pendiente
+    await serviceRole
+      .from('producto')
+      .update({ precio_venta: 1500 })
+      .eq('id_producto', idProd)
+
     const { data: itemPendiente } = await serviceRole
       .from('item_producto')
-      .select('id_item, costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_ingreso', ing!.id_ingreso)
       .single()
 
-    expect(itemPendiente!.costo_ingreso).toBeNull()
+    expect(costoDe(itemPendiente)).toBeNull()
 
     // Intentar registrar venta con ítem con costo pendiente
     const { error: errVenta } = await t.authAdmin.rpc('sp_registrar_venta', {
@@ -371,8 +384,8 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     // Simulamos que un ítem ya fue vendido previamente con snapshot de costo 600
     await serviceRole
       .from('item_producto')
-      .update({ estado_item: 'vendido', costo_ingreso: 600 })
-      .eq('id_item', items![0].id_item)
+      .update({ estado_item: 'vendido' }).eq('id_item', items![0].id_item)
+    await serviceRole.from('item_costo').upsert({ id_item: items![0].id_item, id_tenant: t.tenantId, costo_ingreso: 600 })
 
     // Completar el costo de la línea a 1500
     const { data: actualizados, error: errComp } = await t.authAdmin.rpc('sp_completar_costo_ingreso', {
@@ -387,18 +400,18 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     // Ítem no vendido tomó el costo 1500
     const { data: itemDisponible } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_item', items![1].id_item)
       .single()
-    expect(Number(itemDisponible!.costo_ingreso)).toBe(1500)
+    expect(costoDe(itemDisponible)).toBe(1500)
 
     // Ítem vendido no cambió (conserva 600)
     const { data: itemVendido } = await serviceRole
       .from('item_producto')
-      .select('costo_ingreso')
+      .select('id_item, item_costo(costo_ingreso)')
       .eq('id_item', items![0].id_item)
       .single()
-    expect(Number(itemVendido!.costo_ingreso)).toBe(600)
+    expect(costoDe(itemVendido)).toBe(600)
 
     // La línea del detalle se completó con 1500
     const { data: detFinal } = await serviceRole
@@ -679,11 +692,11 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
 
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('id_item, costo_ingreso, estado_item')
+        .select('id_item, estado_item, item_costo(costo_ingreso)')
         .eq('id_producto', idProd)
       expect(items).toHaveLength(2)
-      expect(items![0].costo_ingreso).toBeNull()
-      expect(items![1].costo_ingreso).toBeNull()
+      expect(costoDe(items![0])).toBeNull()
+      expect(costoDe(items![1])).toBeNull()
     })
 
     it('operador crea stock directo con p_costo null en producto CON costo vigente -> hereda fn_costo_vigente_producto', async () => {
@@ -717,10 +730,10 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
 
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('id_item, costo_ingreso')
+        .select('id_item, item_costo(costo_ingreso)')
         .eq('id_producto', idProd)
       expect(items).toHaveLength(1)
-      expect(Number(items![0].costo_ingreso)).toBe(3000)
+      expect(costoDe(items![0])).toBe(3000)
     })
 
     it('operador con inventario.cargar_costos crea stock directo con costo -> fija costo_ingreso y actualiza costo_producto', async () => {
@@ -743,10 +756,10 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
 
       const { data: items } = await serviceRole
         .from('item_producto')
-        .select('id_item, costo_ingreso')
+        .select('id_item, item_costo(costo_ingreso)')
         .eq('id_producto', idProd)
       expect(items).toHaveLength(3)
-      expect(Number(items![0].costo_ingreso)).toBe(4500)
+      expect(costoDe(items![0])).toBe(4500)
 
       const { data: vigentes } = await serviceRole
         .from('costo_producto')

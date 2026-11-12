@@ -136,10 +136,10 @@ export interface DetalleVentaRow {
   id_producto: string
   id_proveedor: string | null
   precio_venta: number
-  costo_snapshot: number
-  monto_proveedor: number
+  costo_snapshot: number | null
+  monto_proveedor: number | null
   monto_gasto: number
-  monto_ganancia: number
+  monto_ganancia: number | null
   tipo_ingreso_snapshot: TipoIngreso
   desglose_reglas: DesgloseVenta
   id_rendicion: string | null
