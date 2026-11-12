@@ -72,8 +72,12 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
+    // Leer el PDF y el import comparten la misma transición: las filas se pintan
+    // antes de que `pending` vuelva a false, y bajo carga el botón seguía en
+    // «Importando…». Esperar al botón listo, no solo a las filas.
     await waitFor(() => {
       expect(screen.getByDisplayValue('Buzo Canguro')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /importar \d+ línea\(s\)/i })).toBeEnabled()
     })
   }
 
