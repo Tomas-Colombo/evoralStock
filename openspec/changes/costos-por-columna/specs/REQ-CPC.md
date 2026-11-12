@@ -6,7 +6,7 @@
 
 ## 0. Decisiones de la persona (STOP AND ASK — AGENTS.md)
 
-**Resueltas** (2026-11-10, registradas en `proposal.md §7`): DP-CPC-01 → 1.B (D-CPC-03); DP-CPC-02 → Enfoque B con selladores (D-CPC-02); DP-CPC-03 → 3.B (D-CPC-04); DP-CPC-04 → 4.A (D-CPC-05); DP-CPC-05 → 5.A (D-CPC-06); DP-CPC-07 → 7.A (D-CPC-07, 2026-11-12). Las opciones se conservan abajo como registro.
+**Resueltas** (2026-11-10, registradas en `proposal.md §7`): DP-CPC-01 → 1.B (D-CPC-03); DP-CPC-02 → Enfoque B con selladores (D-CPC-02); DP-CPC-03 → 3.B (D-CPC-04); DP-CPC-04 → 4.A (D-CPC-05); DP-CPC-05 → 5.A (D-CPC-06); DP-CPC-07 → 7.A (D-CPC-07, 2026-11-12); DP-CPC-08 → 8.B (D-CPC-08, 2026-11-12). Las opciones se conservan abajo como registro.
 
 > [!IMPORTANT]
 > Siguiendo el protocolo de `AGENTS.md`, la spec **PROPONE** y la **PERSONA DECIDE**. Todo cambio que afecte la lógica financiera (precio de venta, cálculo de márgenes, rendiciones a proveedores), la convivencia de esquemas de stock o la introducción de excepciones `SECURITY DEFINER` queda catalogado a continuación con sus opciones y tradeoffs técnicos.
@@ -237,6 +237,7 @@ Las funciones de lectura `preview_rendicion`, `sp_perdida_incobrable_venta` y la
 - **N2**: Operador sin `reportes.ver` ejecuta `rf_finanzas_resultados` vía RPC → la función aborta con `no-permission` (`42501`).
 - **N3**: Operador sin `ventas.ver` ejecuta `sp_perdida_incobrable_venta` vía RPC → la función aborta con `no-permission` (`42501`).
 - **N4**: Operador sin `reportes.ver` ejecuta `rf_finanzas_ranking_productos` vía RPC → la función aborta con `no-permission` (`42501`).
+- **N5** (D-CPC-08): Operador con `reportes.ver` y sin `inventario.ver_costos` ejecuta `rf_finanzas_*` → sin error; ventas, cobrado y gastos completos; costo, ganancia, margen y montos de rendición en `null` (nunca `0`).
 
 ### REQ-CPC-08 — Consulta de stock disponible y lookups de venta por QR
 
@@ -647,7 +648,7 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
    - *Verificación de acceso*: `/administracion/auditoria` está gateada por `administracion.ver` (`app/(app)/administracion/layout.tsx:17`, `docs/modulos.md:9`) y su único lector es `lib/dal/administracion/administracion.ts:296,343`.
    - *Policy propuesta (sin lista de acciones)*: En **3E.1** agregar `create policy rlsp_auditoria_select on auditoria as restrictive for select to authenticated using ((select auth_tiene_permiso('administracion', 'ver')) and (select auth_tiene_permiso('inventario', 'ver_costos')));` — no depende de nombres de entidad ni acción y cierra toda fuga presente o futura en `auditoria.cambios` frente a roles sin `ver_costos`. *(Tradeoff: si existiera un rol con `administracion.ver` sin `inventario.ver_costos`, vería 0 filas en `/administracion/auditoria`.)*
 
-5. **Vistas `security_invoker` y reportes — DP-CPC-08 (ABIERTA, NO DECIDIR)**:
+5. **Vistas `security_invoker` y reportes — DP-CPC-08 (RESUELTA → 8.B, D-CPC-08)**:
    - *Vistas*: `v_ganancia_por_producto` (`00028:17`, `LEFT JOIN costo_producto`) y `v_linea_venta` (`00110:23`, pasará a `LEFT JOIN detalle_venta_costo`, `detalle_venta_rendicion` y `devolucion_venta_costo`) devuelven `null` en columnas de costo/ganancia cuando falta `ver_costos`, sin error.
    - *Llamadores verificados en `app/` y `lib/`*:
      - `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`), `rf_finanzas_ranking_productos` (`00073:213`) y `rf_finanzas_serie_mensual` (`00073:34`, llama a `rf_finanzas_resultados`) → `lib/dal/reportes/finanzas.ts:21,49,74,91,110` → `app/(app)/reportes/page.tsx:79-85` (envueltos en `tryFetch` `app/(app)/reportes/page.tsx:34-41`, que captura excepciones y devuelve `{ ok: false }` sin tirar 500).
@@ -688,14 +689,14 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 ##### Sub-fase 3E.1 — Policies sin mover datos, cierre RPC y sellador de herencia
 - **Migración tentativa**: `00155_cpc_policies_y_herencia.sql`.
 - **Objetos SQL nuevos / recreados**:
-  - Policies restrictivas: `costo_producto` (`ver_costos`), `regla_precio` (`tipo_regla <> 'margen' OR precios.ver_margenes`), `auditoria` (`administracion.ver AND ver_costos`), `rendicion_proveedor` (cerrar `inventario.ver` → `rendiciones.ver OR inventario.ver_costos`, más `reportes.ver` según DP-CPC-08).
+  - Policies restrictivas: `costo_producto` (`ver_costos`), `regla_precio` (`tipo_regla <> 'margen' OR precios.ver_margenes`), `auditoria` (`administracion.ver AND ver_costos`), `rendicion_proveedor` (cerrar `inventario.ver` → `rendiciones.ver OR inventario.ver_costos`; sin `reportes.ver`: por D-CPC-08 los reportes reciben `null` en los montos de rendición).
   - Nuevo sellador DEFINER: `fn_sellar_costo_herencia_items(p_id_producto uuid, p_ids_items uuid[]) RETURNS void`.
   - Recrea: `sp_confirmar_ingreso` (`00153:276`), `sp_crear_stock_directo` (`00154:101`), `preview_rendicion` (`00126:231`), `sp_perdida_incobrable_venta` (`00059:788`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`), `rf_finanzas_ranking_productos` (`00073:213`), `sp_recalcular_precio_venta` (`00146:159`), `sp_revaluar_costos_usd_vigentes` (`00146:499`).
-- **Cambios en `lib/dal` y `app` juntos**: Actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_herencia_items`); ajustar `app/(app)/reportes/page.tsx` y `lib/dal/reportes/finanzas.ts` según lo que resuelva **DP-CPC-08**. Perfil de proveedor (`app/(app)/proveedores/[id]/page.tsx`, `lib/dal/inventario/proveedor.ts:110-168`): con la policy nueva de `rendicion_proveedor` (y desde 3E.2 con `detalle_venta_rendicion`) un rol sin `inventario.ver_costos` ni `rendiciones.ver` recibe 0 filas y las sumas darían `$0` falso. Los KPI de monto (pendiente de rendir, rendido histórico, rendiciones pendientes de pago, deuda total, valor stock consig.) se calculan y se serializan solo con alguno de esos dos permisos; sin ellos no se consultan y la pantalla no los muestra. Nunca `?? 0` sobre una fila que la RLS ocultó.
+- **Cambios en `lib/dal` y `app` juntos**: Actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_herencia_items`); por D-CPC-08 (8.B), `rf_finanzas_*` y `sp_perdida_incobrable_venta` siguen exigiendo solo `reportes.ver` / `ventas.ver` y devuelven `null` en cada campo de costo, ganancia, margen y monto de rendición cuando falta `inventario.ver_costos`: un `case` explícito sobre el permiso, no el `sum` de filas ocultas por RLS, y sin `coalesce(..., 0)` en esos campos. Ventas, cobrado y gastos no cambian. `lib/dal/reportes/finanzas.ts` deja de convertir esos `null` en `0` (`Number(row.X ?? 0)`), los tipos pasan a `number | null` y los bloques de `app/(app)/reportes/page.tsx` muestran "sin permiso" en vez de un monto. Perfil de proveedor (`app/(app)/proveedores/[id]/page.tsx`, `lib/dal/inventario/proveedor.ts:110-168`): con la policy nueva de `rendicion_proveedor` (y desde 3E.2 con `detalle_venta_rendicion`) un rol sin `inventario.ver_costos` ni `rendiciones.ver` recibe 0 filas y las sumas darían `$0` falso. Los KPI de monto (pendiente de rendir, rendido histórico, rendiciones pendientes de pago, deuda total, valor stock consig.) se calculan y se serializan solo con alguno de esos dos permisos; sin ellos no se consultan y la pantalla no los muestra. Nunca `?? 0` sobre una fila que la RLS ocultó.
 - **Tests `tests/db` (6 casos)**:
   1. Rol sin `ver_costos` lee `costo_producto`, `regla_precio` (margen), `auditoria` y `rendicion_proveedor` por PostgREST → 0 filas.
   2. Rol sin `rendiciones.ver` llama `preview_rendicion` → `42501`.
-  3. Rol sin `ver_costos` llama `sp_recalcular_precio_venta` / `sp_revaluar_costos_usd_vigentes` → `42501`; en `rf_finanzas_*` y `sp_perdida_incobrable_venta` según DP-CPC-08.
+  3. Rol sin `ver_costos` llama `sp_recalcular_precio_venta` / `sp_revaluar_costos_usd_vigentes` → `42501`; con `reportes.ver` y sin `ver_costos` llama `rf_finanzas_resultados`, `rf_finanzas_flujo`, `rf_finanzas_posicion` y `rf_finanzas_ranking_productos`, y con `ventas.ver` llama `sp_perdida_incobrable_venta` → sin error, ventas/cobrado/gastos iguales a los del Administrador y cada campo de costo, ganancia, margen y rendición en `null` (no `0`).
   4. Rol sin `ver_costos` con `inventario.crear` confirma ingreso sin costo y crea stock directo sin costo → hereda `costo_ingreso` vigente sin ver `costo_producto`.
   5. Rol sin `cargar_costos` (con `inventario.crear`) llama `fn_sellar_costo_herencia_items` por RPC sobre ítems que ya tienen costo → el costo no cambia.
   6. Vendedora vende en mostrador con descuentos → precio final intacto.

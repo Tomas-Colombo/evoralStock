@@ -132,6 +132,13 @@ cambio cierra. Pasa a una tabla satélite propia, sellada por
 `sp_generar_rendicion`, `preview_rendicion`, `v_perfil_proveedor`,
 `v_linea_venta` y `lib/dal/inventario/proveedor.ts`. Decidido el 2026-11-12.
 
+**D-CPC-08 — Los reportes sin ver_costos muestran ventas y ocultan costos (DP-CPC-08, opción 8.B).**
+Un rol con `reportes.ver` y sin `inventario.ver_costos` sigue viendo ventas,
+cobrado y gastos. Costo, ganancia, margen y montos de rendición le llegan `null`
+(nunca `0`) y la UI muestra "sin permiso". Cortar el reporte entero le quitaba
+también lo que sí le corresponde ver. Aplica a `rf_finanzas_*` y a
+`sp_perdida_incobrable_venta`. Decidido el 2026-11-12.
+
 ## 8. Riesgos
 
 | Riesgo | Mitigación |
