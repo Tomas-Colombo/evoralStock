@@ -139,6 +139,19 @@ cobrado y gastos. Costo, ganancia, margen y montos de rendición le llegan `null
 también lo que sí le corresponde ver. Aplica a `rf_finanzas_*` y a
 `sp_perdida_incobrable_venta`. Decidido el 2026-11-12.
 
+**D-CPC-09 — Escribir exige poder ver (margen y rendiciones).**
+Con las policies de 3E.1 el `RETURNING` y el `select ... for update` de los
+escritores INVOKER evalúan la policy de SELECT. Ampliar ese OR con `crear` o
+`editar` reabría la fuga, así que el permiso de lectura se exige en el `sp_*`:
+`sp_create_regla_precio` rechaza con `no-permission` una regla `margen` sin
+`precios.ver_margenes`; `sp_baja_regla_precio` y `sp_extender_vigencia_regla`
+no cambian (sin `ver_margenes` la regla no se ve y devuelven `regla-not-found`).
+`sp_generar_rendicion` exige `rendiciones.crear` y `rendiciones.ver`;
+`sp_marcar_rendicion_pagada`, `rendiciones.editar` y `rendiciones.ver`. Toda
+pantalla de rendiciones ya exige `rendiciones.ver`
+(`app/(app)/rendiciones/layout.tsx:13`), así que solo cierra el RPC directo.
+Decidido el 2026-11-12.
+
 ## 8. Riesgos
 
 | Riesgo | Mitigación |
