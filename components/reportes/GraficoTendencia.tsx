@@ -14,7 +14,7 @@ function formatMoneyCompact(value: number) {
 }
 
 function formatMoneyFull(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
 }
 
@@ -111,7 +111,8 @@ export function GraficoTendencia({ serie, tieneGastos }: GraficoTendenciaProps) 
                 // Calculamos alturas
                 const vH = Math.max(0, (s.ventas_netas / yMax) * chartHeight)
                 const cH = Math.max(0, (s.cobrado_neto / yMax) * chartHeight)
-                const gH = Math.max(0, ((tieneGastos ? s.ganancia_final : s.ganancia_sobre_ventas) / yMax) * chartHeight)
+                const gananciaVal = tieneGastos ? s.ganancia_final : s.ganancia_sobre_ventas
+                const gH = gananciaVal != null ? Math.max(0, (gananciaVal / yMax) * chartHeight) : 0
 
                 return (
                   <g key={s.mes} className="transition-all duration-300 ease-in-out hover:opacity-80">

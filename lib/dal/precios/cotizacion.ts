@@ -254,8 +254,14 @@ export type ConteoProductosCostoUsd = {
  * Usado para confirmar el alcance de la revaluación masiva en Control de Precios.
  */
 export async function countProductosCostoUsdVigentes(
-  client?: SupabaseClient,
-): Promise<ConteoProductosCostoUsd> {
+  client: SupabaseClient | undefined,
+  // Requerido: sin ver_costos la RLS de costo_producto da 0 filas y el conteo
+  // diría "0 productos a revaluar" en vez de "falta permiso".
+  opts: { puedeVerCostos: boolean },
+): Promise<ConteoProductosCostoUsd | null> {
+  if (!opts.puedeVerCostos) {
+    return null
+  }
   const supabase = client ?? (await createServerClient())
   const [resRev, resOmit] = await Promise.all([
     supabase

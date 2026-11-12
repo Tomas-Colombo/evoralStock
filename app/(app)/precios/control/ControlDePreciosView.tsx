@@ -17,7 +17,7 @@ import { Select } from '@/components/ui/Select'
 
 type Filter = 'todos' | 'desactualizados' | 'sin-precio' | 'sin-regla'
 
-export type CantidadUsdProp = number | { revaluables: number; omitidas: number }
+export type CantidadUsdProp = number | { revaluables: number; omitidas: number } | null
 
 export function ControlDePreciosView({
   initial,
@@ -143,10 +143,12 @@ export function ControlDePreciosView({
   const fmt = (n: number | null) =>
     n == null ? '—' : `$ ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
+  const sinPermisoCostosUsd = canRevaluar && (!puedeVerCostos || cantidadUsd == null)
   const revaluables = typeof cantidadUsd === 'number' ? cantidadUsd : (cantidadUsd?.revaluables ?? 0)
-  const omitidas = typeof cantidadUsd === 'object' ? (cantidadUsd?.omitidas ?? 0) : 0
-  const confirmDesc =
-    omitidas > 0
+  const omitidas = typeof cantidadUsd === 'object' && cantidadUsd !== null ? (cantidadUsd.omitidas ?? 0) : 0
+  const confirmDesc = sinPermisoCostosUsd
+    ? 'No tenés permiso para ver costos, así que no podés consultar ni revaluar los costos en USD.'
+    : omitidas > 0
       ? `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD (${omitidas} omitido(s) por no tener costo original en USD registrado).`
       : `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD.`
 
@@ -222,9 +224,12 @@ export function ControlDePreciosView({
             <Button
               variant="secondary"
               onClick={() => setConfirmRevaluarOpen(true)}
-              disabled={pending}
+              disabled={pending || sinPermisoCostosUsd}
+              title={sinPermisoCostosUsd ? 'Requiere permiso para ver costos' : undefined}
             >
-              Revaluar costos USD al dólar vigente
+              {sinPermisoCostosUsd
+                ? 'Revaluar USD (sin permiso de costos)'
+                : 'Revaluar costos USD al dólar vigente'}
             </Button>
           )}
           <span className="text-sm text-muted">{selected.size} seleccionados</span>

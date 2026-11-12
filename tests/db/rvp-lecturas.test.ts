@@ -477,6 +477,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     const PERMITTED_NON_RVP_DEFINER = [
       'fn_auto_crear_rol_revendedora', // trigger on tenant_modulo (00079)
       'sp_enlazar_revendedora_usuario', // provisión de usuario revendedora (00079)
+      'fn_sellar_costo_herencia_items', // sellador de herencia de costo vigente (00155, REQ-CPC §6.1)
     ]
 
     for (const p of defProcs) {

@@ -88,13 +88,13 @@ export interface FinanzasResultadosRow {
   ventas_brutas: number
   anulaciones: number
   ventas_netas: number
-  costo_mercaderia: number
-  ganancia_sobre_ventas: number
+  costo_mercaderia: number | null
+  ganancia_sobre_ventas: number | null
   gastos: number
   comision_liquidada: number
   comision_pendiente_estimada: number
-  ganancia_final: number
-  porcentaje_ganancia: number
+  ganancia_final: number | null
+  porcentaje_ganancia: number | null
   cantidad_ventas: number
   ticket_promedio: number
 }
@@ -105,29 +105,29 @@ export interface FinanzasFlujoRow {
   devuelto_clientes: number
   costo_procesamiento: number
   neto_cobros: number
-  compras_mercaderia: number
-  pagos_proveedores: number
+  compras_mercaderia: number | null
+  pagos_proveedores: number | null
   gastos: number
-  flujo_neto: number
+  flujo_neto: number | null
   por_acreditar: Record<string, number> | null
 }
 
 export interface FinanzasSerieMensualRow {
   mes: string
   ventas_netas: number
-  ganancia_sobre_ventas: number
-  ganancia_final: number
+  ganancia_sobre_ventas: number | null
+  ganancia_final: number | null
   cobrado_neto: number
 }
 
 export interface FinanzasPosicion {
-  capital_propio: number
-  mercaderia_terceros: number
-  devueltos_clientes: number
+  capital_propio: number | null
+  mercaderia_terceros: number | null
+  devueltos_clientes: number | null
   valor_venta_potencial: number
   productos_sin_precio: number
   por_cobrar: CuentasPorCobrar | null
-  deuda_proveedores: number
+  deuda_proveedores: number | null
 }
 
 export interface FinanzasRankingRow {
@@ -135,7 +135,7 @@ export interface FinanzasRankingRow {
   nombre: string
   unidades_vendidas: number
   monto_vendido: number
-  ganancia: number
+  ganancia: number | null
   porcentaje_ventas: number | null
 }
 

@@ -4,7 +4,7 @@ import type { FinanzasPosicion } from '@/lib/types/reportes'
 import { Card } from '@/components/ui/Card'
 
 function formatMoney(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
 }
 
@@ -13,7 +13,7 @@ interface BloqueProveedoresProps {
 }
 
 export function BloqueProveedores({ posicion }: BloqueProveedoresProps) {
-  const deuda = posicion.deuda_proveedores ?? 0
+  const deuda = posicion.deuda_proveedores
 
   return (
     <Card as="section" padding="none" aria-labelledby="h2-proveedores" className="overflow-hidden h-full flex flex-col">
@@ -30,7 +30,7 @@ export function BloqueProveedores({ posicion }: BloqueProveedoresProps) {
           </p>
         </div>
         
-        {deuda > 0 && (
+        {deuda != null && deuda > 0 && (
           <div className="mt-auto">
             <Link 
               href="/rendiciones?estado=pendiente" 

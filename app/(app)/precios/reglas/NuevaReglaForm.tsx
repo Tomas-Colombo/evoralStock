@@ -25,12 +25,14 @@ export function NuevaReglaForm({
   categorias,
   proveedores,
   productos,
+  puedeVerMargenes = true,
   onSuccess,
   onCancel,
 }: {
   categorias: Ref[]
   proveedores: Ref[]
   productos: Ref[]
+  puedeVerMargenes?: boolean
   /** Set when the form runs inside a modal: closes it instead of navigating. */
   onSuccess?: () => void
   onCancel?: () => void
@@ -139,7 +141,7 @@ export function NuevaReglaForm({
         `recargo_cuotas`, en Precios y Cuentas, donde se lo puede enfrentar
         con el arancel que pretende cubrir. El valor del enum sigue en la DB
         para que las reglas viejas se puedan seguir leyendo. */}
-    {(['margen', 'descuento'] as TipoRegla[]).map((t) => (
+    {(puedeVerMargenes ? (['margen', 'descuento'] as TipoRegla[]) : (['descuento'] as TipoRegla[])).map((t) => (
               <option key={t} value={t}>
                 {TIPO_REGLA_LABEL[t]}
               </option>

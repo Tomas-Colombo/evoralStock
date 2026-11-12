@@ -13,9 +13,9 @@ export default async function ControlDePreciosPage() {
   const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
   const [rows, cantidadUsd] = await Promise.all([
     listControlDePrecios(),
-    canRevaluar
-      ? countProductosCostoUsdVigentes()
-      : Promise.resolve({ revaluables: 0, omitidas: 0 }),
+    canRevaluar && puedeVerCostos
+      ? countProductosCostoUsdVigentes(undefined, { puedeVerCostos })
+      : Promise.resolve(null),
   ])
   const initial = proyectarControlDePrecios(rows, { puedeVerCostos, puedeVerMargenes })
   return (

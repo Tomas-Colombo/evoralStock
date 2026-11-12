@@ -16,6 +16,10 @@ function fila<T>(data: unknown): T | null {
   return (Array.isArray(data) ? data[0] : data) as T
 }
 
+function toNullableNumber(v: unknown): number | null {
+  return v == null ? null : Number(v)
+}
+
 export async function getResultados(desde: string, hasta: string): Promise<FinanzasResultadosRow | null> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('rf_finanzas_resultados', {
@@ -32,13 +36,13 @@ export async function getResultados(desde: string, hasta: string): Promise<Finan
     ventas_brutas: Number(row.ventas_brutas ?? 0),
     anulaciones: Number(row.anulaciones ?? 0),
     ventas_netas: Number(row.ventas_netas ?? 0),
-    costo_mercaderia: Number(row.costo_mercaderia ?? 0),
-    ganancia_sobre_ventas: Number(row.ganancia_sobre_ventas ?? 0),
+    costo_mercaderia: toNullableNumber(row.costo_mercaderia),
+    ganancia_sobre_ventas: toNullableNumber(row.ganancia_sobre_ventas),
     gastos: Number(row.gastos ?? 0),
     comision_liquidada: Number(row.comision_liquidada ?? 0),
     comision_pendiente_estimada: Number(row.comision_pendiente_estimada ?? 0),
-    ganancia_final: Number(row.ganancia_final ?? 0),
-    porcentaje_ganancia: Number(row.porcentaje_ganancia ?? 0),
+    ganancia_final: toNullableNumber(row.ganancia_final),
+    porcentaje_ganancia: toNullableNumber(row.porcentaje_ganancia),
     cantidad_ventas: Number(row.cantidad_ventas ?? 0),
     ticket_promedio: Number(row.ticket_promedio ?? 0),
   }
@@ -61,10 +65,10 @@ export async function getFlujo(desde: string, hasta: string): Promise<FinanzasFl
     devuelto_clientes: Number(row.devuelto_clientes ?? 0),
     costo_procesamiento: Number(row.costo_cobro ?? 0),
     neto_cobros: Number(row.neto_cobros ?? 0),
-    compras_mercaderia: Number(row.compras_mercaderia ?? 0),
-    pagos_proveedores: Number(row.pagos_proveedores ?? 0),
+    compras_mercaderia: toNullableNumber(row.compras_mercaderia),
+    pagos_proveedores: toNullableNumber(row.pagos_proveedores),
     gastos: Number(row.gastos ?? 0),
-    flujo_neto: Number(row.flujo_neto ?? 0),
+    flujo_neto: toNullableNumber(row.flujo_neto),
     por_acreditar: row.por_acreditar ? (row.por_acreditar as Record<string, number>) : null,
   }
 }
@@ -80,8 +84,8 @@ export async function getSerieMensual(hasta: string, meses: number = 12): Promis
   return (data as Record<string, unknown>[]).map(row => ({
     mes: String(row.mes ?? ''),
     ventas_netas: Number(row.ventas_netas ?? 0),
-    ganancia_sobre_ventas: Number(row.ganancia_sobre_ventas ?? 0),
-    ganancia_final: Number(row.ganancia_final ?? 0),
+    ganancia_sobre_ventas: toNullableNumber(row.ganancia_sobre_ventas),
+    ganancia_final: toNullableNumber(row.ganancia_final),
     cobrado_neto: Number(row.cobrado_neto ?? 0),
   }))
 }
@@ -95,13 +99,13 @@ export async function getPosicion(): Promise<FinanzasPosicion | null> {
   if (!row) return null
 
   return {
-    capital_propio: Number(row.capital_propio ?? 0),
-    mercaderia_terceros: Number(row.mercaderia_terceros ?? 0),
-    devueltos_clientes: Number(row.devueltos_clientes ?? 0),
+    capital_propio: toNullableNumber(row.capital_propio),
+    mercaderia_terceros: toNullableNumber(row.mercaderia_terceros),
+    devueltos_clientes: toNullableNumber(row.devueltos_clientes),
     valor_venta_potencial: Number(row.valor_venta_potencial ?? 0),
     productos_sin_precio: Number(row.productos_sin_precio ?? 0),
     por_cobrar: row.por_cobrar ? (row.por_cobrar as CuentasPorCobrar) : null,
-    deuda_proveedores: Number(row.deuda_proveedores ?? 0),
+    deuda_proveedores: toNullableNumber(row.deuda_proveedores),
   }
 }
 
@@ -120,7 +124,7 @@ export async function getRankingProductos(desde: string, hasta: string, limite: 
     nombre: String(row.nombre ?? ''),
     unidades_vendidas: Number(row.unidades_vendidas ?? 0),
     monto_vendido: Number(row.monto_vendido ?? 0),
-    ganancia: Number(row.ganancia ?? 0),
+    ganancia: toNullableNumber(row.ganancia),
     porcentaje_ventas: row.porcentaje_ventas != null ? Number(row.porcentaje_ventas) : null,
   }))
 }

@@ -1,6 +1,7 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { GuiaReglas } from '@/components/precios/GuiaReglas'
 import { verifySession } from '@/lib/dal/session'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
@@ -9,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 
 export default async function NuevaReglaPage() {
   const session = await verifySession()
+  const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
   const [categorias, proveedores, productos] = await Promise.all([
     listCategoriasActivas(),
     listProveedoresActivos(),
@@ -39,6 +41,7 @@ export default async function NuevaReglaPage() {
               nombre: p.nombre,
               sku: p.sku,
             }))}
+            puedeVerMargenes={puedeVerMargenes}
           />
         </Card>
       </main>

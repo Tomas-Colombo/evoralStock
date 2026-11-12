@@ -45,7 +45,7 @@ export const SP_SIN_CHEQUEO: Record<string, string> = {
   // Helper llamado por sp con chequeo (1): función pura de cálculo de SKU
   sp_gen_sku: 'Helper interno de cálculo puro invocado por sp_create_producto y sp_importar_remito',
 
-  // Solo lectura, acotada por RLS (11): funciones de solo lectura sin efectos colaterales
+  // Solo lectura, acotada por RLS (10): funciones de solo lectura sin efectos colaterales
   sp_calcular_costo_cobro: 'Solo lectura / cálculo puro sin efectos colaterales',
   sp_calcular_precio_venta_snapshot: 'Solo lectura / cálculo puro acotado por RLS',
   sp_control_de_precios: 'Solo lectura acotada por RLS',
@@ -53,7 +53,6 @@ export const SP_SIN_CHEQUEO: Record<string, string> = {
   sp_get_cotizacion_vigente: 'Solo lectura acotada por RLS',
   sp_inventario_resumen: 'Solo lectura acotada por RLS',
   sp_listar_productos: 'Solo lectura acotada por RLS',
-  sp_perdida_incobrable_venta: 'Solo lectura acotada por RLS',
   sp_precios_resumen: 'Solo lectura acotada por RLS',
   sp_session_context: 'Solo lectura de contexto de sesión',
   sp_stock_por_talle: 'Solo lectura acotada por RLS',

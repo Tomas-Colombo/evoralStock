@@ -395,12 +395,27 @@ describe('lib/dal/precios/cotizacion — Servicio de cotización vigente y sincr
         }),
       }
 
-      const res = await countProductosCostoUsdVigentes(mockClient as unknown as SupabaseClient)
+      const res = await countProductosCostoUsdVigentes(mockClient as unknown as SupabaseClient, {
+        puedeVerCostos: true,
+      })
 
       expect(res).toEqual({
         revaluables: 8,
         omitidas: 3,
       })
+    })
+
+    it('sin permiso ver_costos devuelve null sin consultar costo_producto (nunca 0 falso)', async () => {
+      const mockClient = {
+        from: vi.fn(),
+      }
+
+      const res = await countProductosCostoUsdVigentes(mockClient as unknown as SupabaseClient, {
+        puedeVerCostos: false,
+      })
+
+      expect(res).toBeNull()
+      expect(mockClient.from).not.toHaveBeenCalled()
     })
   })
 })

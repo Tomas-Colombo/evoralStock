@@ -4,7 +4,7 @@ import { DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
 
 function formatMoney(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
     .format(value)
     .replace(/\u00A0/g, ' ')
@@ -66,7 +66,7 @@ export function BloqueMovimientoPlata({
               <Td className="text-ink">Compras de mercadería</Td>
               <Td className="text-muted hidden sm:table-cell">Se asumen pagadas al recibirlas</Td>
               <Td align="right">
-                {flujo.compras_mercaderia > 0 ? '-' : ''}{formatMoney(flujo.compras_mercaderia)}
+                {flujo.compras_mercaderia != null && flujo.compras_mercaderia > 0 ? '-' : ''}{formatMoney(flujo.compras_mercaderia)}
               </Td>
             </Tr>
             {tieneConsignacion && (
@@ -74,7 +74,7 @@ export function BloqueMovimientoPlata({
                 <Td className="text-ink">Pagos a proveedores</Td>
                 <Td className="text-muted hidden sm:table-cell">Rendiciones pagadas</Td>
                 <Td align="right">
-                  {flujo.pagos_proveedores > 0 ? '-' : ''}{formatMoney(flujo.pagos_proveedores)}
+                  {flujo.pagos_proveedores != null && flujo.pagos_proveedores > 0 ? '-' : ''}{formatMoney(flujo.pagos_proveedores)}
                 </Td>
               </Tr>
             )}

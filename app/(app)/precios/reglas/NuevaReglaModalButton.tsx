@@ -15,10 +15,12 @@ export function NuevaReglaModalButton({
   categorias,
   proveedores,
   productos,
+  puedeVerMargenes = true,
 }: {
   categorias: Ref[]
   proveedores: Ref[]
   productos: Ref[]
+  puedeVerMargenes?: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -53,6 +55,7 @@ export function NuevaReglaModalButton({
             categorias={categorias}
             proveedores={proveedores}
             productos={productos}
+            puedeVerMargenes={puedeVerMargenes}
             onSuccess={() => setOpen(false)}
             onCancel={() => setOpen(false)}
           />

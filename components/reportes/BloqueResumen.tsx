@@ -9,8 +9,15 @@ function formatMoney(value: number | null | undefined) {
     .replace(/\u00A0/g, ' ')
 }
 
-function variacionPct(actual: number, previo: number | null): number | null {
-  if (previo === null || previo === 0) return null
+function formatMoneyOrSinPermiso(value: number | null | undefined) {
+  if (value == null) return 'Sin permiso'
+  return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
+    .format(value)
+    .replace(/\u00A0/g, ' ')
+}
+
+function variacionPct(actual: number | null, previo: number | null): number | null {
+  if (actual === null || previo === null || previo === 0) return null
   return (actual - previo) / Math.abs(previo)
 }
 
@@ -53,7 +60,7 @@ export function resumenKpis({
     { label: 'Vendiste', value: formatMoney(resultados.ventas_netas), sub: <VariacionBadge variacion={varVentas} /> },
     {
       label: tieneGastos ? 'Te quedó de ganancia' : 'Ganancia (antes de gastos)',
-      value: formatMoney(gananciaActual),
+      value: formatMoneyOrSinPermiso(gananciaActual),
       sub: <VariacionBadge variacion={varGanancia} />,
     },
     { label: 'Entró a caja', value: formatMoney(flujo.neto_cobros), sub: <VariacionBadge variacion={varCobros} /> },

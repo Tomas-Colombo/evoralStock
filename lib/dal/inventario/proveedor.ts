@@ -65,10 +65,10 @@ export async function updateProveedor(
 export interface PerfilProveedorDetalle {
   items_disponibles: number
   consignaciones_activas: number
-  monto_pendiente_rendicion: number
-  lineas_pendientes_rendicion: number
-  monto_rendido_historico: number
-  rendiciones_pendientes_pago: number
+  monto_pendiente_rendicion: number | null
+  lineas_pendientes_rendicion: number | null
+  monto_rendido_historico: number | null
+  rendiciones_pendientes_pago: number | null
   /**
    * Valor a costo (= lo que se le debe al proveedor si se vende) de la
    * mercadería de consignación que sigue en poder de la tienda: estados
@@ -76,46 +76,112 @@ export interface PerfilProveedorDetalle {
    * cuatro SÍ te quedan pendientes al proveedor; 'vendido', 'devuelto' al
    * proveedor y 'baja' no). Es deuda POTENCIAL — se vuelve real al vender.
    */
-  valor_stock_consignacion: number
-  items_en_stock_consignacion: number
+  valor_stock_consignacion: number | null
+  items_en_stock_consignacion: number | null
   // Ítems con costo pendiente (null): no suman al valor, así que el total
   // queda por debajo; la UI lo avisa en vez de contarlos como 0.
-  items_costo_pendiente_consignacion: number
+  items_costo_pendiente_consignacion: number | null
   /**
    * Deuda total con el proveedor = pendiente de rendir (ya vendido)
    * + valor a costo del stock de consignación aún en tu poder. Representa
    * el "techo" de lo que le tenés que pagar si todo lo suyo se vende.
    */
-  deuda_total_consignacion: number
+  deuda_total_consignacion: number | null
+}
+
+export interface PermisosPerfilProveedor {
+  puedeVerCostos: boolean
+  puedeVerRendiciones: boolean
+}
+
+export function proyectarPerfilProveedor(
+  perfil: PerfilProveedorDetalle,
+  permisos: PermisosPerfilProveedor,
+): PerfilProveedorDetalle {
+  const puedeVerMontos = permisos.puedeVerCostos || permisos.puedeVerRendiciones
+  if (!puedeVerMontos) {
+    return {
+      items_disponibles: perfil.items_disponibles,
+      consignaciones_activas: perfil.consignaciones_activas,
+      monto_pendiente_rendicion: null,
+      lineas_pendientes_rendicion: null,
+      monto_rendido_historico: null,
+      rendiciones_pendientes_pago: null,
+      valor_stock_consignacion: null,
+      items_en_stock_consignacion: null,
+      items_costo_pendiente_consignacion: null,
+      deuda_total_consignacion: null,
+    }
+  }
+  if (!permisos.puedeVerCostos) {
+    return {
+      ...perfil,
+      valor_stock_consignacion: null,
+      items_en_stock_consignacion: null,
+      items_costo_pendiente_consignacion: null,
+      // La deuda total suma el stock a costo: sin ver_costos no hay total que mostrar.
+      deuda_total_consignacion: null,
+    }
+  }
+  return perfil
 }
 
 export async function getPerfilProveedorPorId(
   id: string,
+  // Sin default: un llamador que se olvide los permisos no debe recibir montos.
+  permisos: PermisosPerfilProveedor,
 ): Promise<PerfilProveedorDetalle> {
   const supabase = await createServerClient()
+  const puedeVerMontos = permisos.puedeVerCostos || permisos.puedeVerRendiciones
 
-  const [items, stockConsign, consign, pend, rendHist, rendPend] = await Promise.all([
+  const [items, consign] = await Promise.all([
     supabase
       .from('item_producto')
       .select('id_item, ingreso_mercaderia!inner(id_proveedor)', { count: 'exact', head: true })
       .eq('estado_item', 'disponible')
       .eq('tipo_ingreso', 'consignacion')
       .eq('ingreso_mercaderia.id_proveedor', id),
-    // Stock de consignación en poder de la tienda (deuda potencial): todos
-    // los estados que NO son 'vendido' (ya cuenta como pendiente de rendir),
-    // NO son 'devuelto' (fue al proveedor) ni 'baja' (ajuste). Incluye
-    // 'en_revendedora' porque el artículo sigue siendo responsabilidad del local.
-    supabase
-      .from('item_producto')
-      .select('costo_ingreso, ingreso_mercaderia!inner(id_proveedor)')
-      .eq('tipo_ingreso', 'consignacion')
-      .in('estado_item', ['disponible', 'reservado', 'devuelto_cliente', 'en_revendedora'])
-      .eq('ingreso_mercaderia.id_proveedor', id),
     supabase
       .from('consignacion')
       .select('id_consignacion', { count: 'exact', head: true })
       .eq('id_proveedor', id)
       .eq('estado', 'activa'),
+  ])
+
+  if (items.error) throw new Error(`perfil.items: ${items.error.message}`)
+  if (consign.error) throw new Error(`perfil.consign: ${consign.error.message}`)
+
+  if (!puedeVerMontos) {
+    return proyectarPerfilProveedor(
+      {
+        items_disponibles: items.count ?? 0,
+        consignaciones_activas: consign.count ?? 0,
+        monto_pendiente_rendicion: null,
+        lineas_pendientes_rendicion: null,
+        monto_rendido_historico: null,
+        rendiciones_pendientes_pago: null,
+        valor_stock_consignacion: null,
+        items_en_stock_consignacion: null,
+        items_costo_pendiente_consignacion: null,
+        deuda_total_consignacion: null,
+      },
+      permisos,
+    )
+  }
+
+  const [stockConsign, pend, rendHist, rendPend] = await Promise.all([
+    // Stock de consignación en poder de la tienda (deuda potencial): todos
+    // los estados que NO son 'vendido' (ya cuenta como pendiente de rendir),
+    // NO son 'devuelto' (fue al proveedor) ni 'baja' (ajuste). Incluye
+    // 'en_revendedora' porque el artículo sigue siendo responsabilidad del local.
+    permisos.puedeVerCostos
+      ? supabase
+          .from('item_producto')
+          .select('costo_ingreso, ingreso_mercaderia!inner(id_proveedor)')
+          .eq('tipo_ingreso', 'consignacion')
+          .in('estado_item', ['disponible', 'reservado', 'devuelto_cliente', 'en_revendedora'])
+          .eq('ingreso_mercaderia.id_proveedor', id)
+      : Promise.resolve({ data: null, error: null }),
     supabase
       .from('detalle_venta')
       .select('monto_proveedor, venta!inner(estado_venta)')
@@ -135,9 +201,7 @@ export async function getPerfilProveedorPorId(
       .eq('estado', 'pendiente'),
   ])
 
-  if (items.error) throw new Error(`perfil.items: ${items.error.message}`)
   if (stockConsign.error) throw new Error(`perfil.stockConsign: ${stockConsign.error.message}`)
-  if (consign.error) throw new Error(`perfil.consign: ${consign.error.message}`)
   if (pend.error) throw new Error(`perfil.pend: ${pend.error.message}`)
   if (rendHist.error) throw new Error(`perfil.rendHist: ${rendHist.error.message}`)
   if (rendPend.error) throw new Error(`perfil.rendPend: ${rendPend.error.message}`)
@@ -151,21 +215,28 @@ export async function getPerfilProveedorPorId(
     .reduce((acc, r) => acc + Number(r.monto_total ?? 0), 0)
 
   const stockRows = (stockConsign.data ?? []) as Array<{ costo_ingreso: number | string | null }>
-  const valor_stock_consignacion = stockRows.reduce(
-    (acc, r) => acc + Number(r.costo_ingreso ?? 0),
-    0,
-  )
+  const valor_stock_consignacion = permisos.puedeVerCostos
+    ? stockRows.reduce((acc, r) => acc + Number(r.costo_ingreso ?? 0), 0)
+    : null
 
-  return {
-    items_disponibles: items.count ?? 0,
-    consignaciones_activas: consign.count ?? 0,
-    monto_pendiente_rendicion,
-    lineas_pendientes_rendicion: pendRows.length,
-    monto_rendido_historico,
-    rendiciones_pendientes_pago: rendPend.count ?? 0,
-    valor_stock_consignacion,
-    items_en_stock_consignacion: stockRows.length,
-    items_costo_pendiente_consignacion: stockRows.filter((r) => r.costo_ingreso == null).length,
-    deuda_total_consignacion: valor_stock_consignacion + monto_pendiente_rendicion,
-  }
+  return proyectarPerfilProveedor(
+    {
+      items_disponibles: items.count ?? 0,
+      consignaciones_activas: consign.count ?? 0,
+      monto_pendiente_rendicion,
+      lineas_pendientes_rendicion: pendRows.length,
+      monto_rendido_historico,
+      rendiciones_pendientes_pago: rendPend.count ?? 0,
+      valor_stock_consignacion,
+      items_en_stock_consignacion: permisos.puedeVerCostos ? stockRows.length : null,
+      items_costo_pendiente_consignacion: permisos.puedeVerCostos
+        ? stockRows.filter((r) => r.costo_ingreso == null).length
+        : null,
+      deuda_total_consignacion:
+        valor_stock_consignacion != null
+          ? valor_stock_consignacion + monto_pendiente_rendicion
+          : null,
+    },
+    permisos,
+  )
 }

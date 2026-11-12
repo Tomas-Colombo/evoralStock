@@ -6,7 +6,7 @@ import type { FinanzasRankingRow } from '@/lib/types/reportes'
 import { Table, type Column } from '@/components/ui/Table'
 
 function formatMoney(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
 }
 
@@ -39,7 +39,7 @@ export function BloqueRanking({ ranking, ordenActual }: BloqueRankingProps) {
         escapeCsvField(r.nombre),
         r.unidades_vendidas,
         r.monto_vendido,
-        r.ganancia
+        r.ganancia ?? 'Sin permiso'
       ].join(','))
     })
     downloadCsv(`ranking-productos-${ordenActual}.csv`, csvRows.join('\n'))

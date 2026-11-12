@@ -39,6 +39,8 @@ export default async function ProveedorPerfilPage(props: {
   const session = await verifySession()
   const puedeEditar = hasPermission(session, 'inventario', 'editar')
   const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const puedeVerRendiciones = hasModuleAccess(session, 'rendiciones', 'ver')
+  const puedeVerMontosProveedor = puedeVerCostos || puedeVerRendiciones
   const cap = capacidades(session.modulosHabilitados)
   const { id } = await props.params
   const sp = await props.searchParams
@@ -47,10 +49,14 @@ export default async function ProveedorPerfilPage(props: {
   if (!proveedor) notFound()
 
   const [perfil, ingresosAll, consignacionesAll, rendicionesAll] = await Promise.all([
-    cap.consignacionProveedor ? getPerfilProveedorPorId(id) : null,
+    cap.consignacionProveedor
+      ? getPerfilProveedorPorId(id, { puedeVerCostos, puedeVerRendiciones })
+      : null,
     listIngresosDeProveedor(id).then((r) => proyectarIngresosConResumen(r, puedeVerCostos)),
     cap.consignacionProveedor ? listConsignaciones({ idProveedor: id }) : Promise.resolve([]),
-    cap.consignacionProveedor ? listRendiciones({ idProveedor: id }) : Promise.resolve([]),
+    cap.consignacionProveedor && puedeVerMontosProveedor
+      ? listRendiciones({ idProveedor: id })
+      : Promise.resolve([]),
   ])
 
   // Filtro de fechas compartido (vacío = sin filtro). El input <input type="date">
@@ -116,7 +122,11 @@ export default async function ProveedorPerfilPage(props: {
               <BajaProveedorButton
                 id={proveedor.id_proveedor}
                 activo={proveedor.activo}
-                tieneDeudaPendiente={Boolean(perfil && perfil.monto_pendiente_rendicion > 0)}
+                tieneDeudaPendiente={Boolean(
+                  perfil &&
+                    perfil.monto_pendiente_rendicion != null &&
+                    perfil.monto_pendiente_rendicion > 0,
+                )}
               />
             </div>
           </header>
@@ -162,34 +172,42 @@ export default async function ProveedorPerfilPage(props: {
         {/* ─── Deuda y contadores ──────────────────────── */}
         {cap.consignacionProveedor && perfil && (
           <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          <Kpi
-            label="Deuda total"
-            value={fmtMoney(perfil.deuda_total_consignacion)}
-            sub="Pendiente de rendir + valor stock consig."
-            variant={perfil.deuda_total_consignacion > 0 ? 'alert' : 'default'}
-          />
-          {puedeVerCostos && (
+          {puedeVerMontosProveedor && perfil.deuda_total_consignacion != null && (
+            <Kpi
+              label="Deuda total"
+              value={fmtMoney(perfil.deuda_total_consignacion)}
+              sub="Pendiente de rendir + valor stock consig."
+              variant={perfil.deuda_total_consignacion > 0 ? 'alert' : 'default'}
+            />
+          )}
+          {puedeVerCostos && perfil.valor_stock_consignacion != null && (
             <Kpi
               label="Valor stock consig."
               value={fmtMoney(perfil.valor_stock_consignacion)}
-              sub={`${perfil.items_en_stock_consignacion} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo${perfil.items_costo_pendiente_consignacion > 0 ? ` · ${perfil.items_costo_pendiente_consignacion} con costo pendiente` : ''}`}
+              sub={`${perfil.items_en_stock_consignacion ?? 0} ítem${perfil.items_en_stock_consignacion === 1 ? '' : 's'} a costo${(perfil.items_costo_pendiente_consignacion ?? 0) > 0 ? ` · ${perfil.items_costo_pendiente_consignacion} con costo pendiente` : ''}`}
             />
           )}
-          <Kpi
-            label="Pendiente de rendir"
-            value={fmtMoney(perfil.monto_pendiente_rendicion)}
-            sub={`${perfil.lineas_pendientes_rendicion} línea${perfil.lineas_pendientes_rendicion === 1 ? '' : 's'} vendida${perfil.lineas_pendientes_rendicion === 1 ? '' : 's'} sin rendir`}
-            variant={perfil.monto_pendiente_rendicion > 0 ? 'alert' : 'default'}
-          />
-          <Kpi
-            label="Rendiciones sin pagar"
-            value={perfil.rendiciones_pendientes_pago.toString()}
-            variant={perfil.rendiciones_pendientes_pago > 0 ? 'alert' : 'default'}
-          />
-          <Kpi
-            label="Rendido histórico"
-            value={fmtMoney(perfil.monto_rendido_historico)}
-          />
+          {puedeVerMontosProveedor && perfil.monto_pendiente_rendicion != null && (
+            <Kpi
+              label="Pendiente de rendir"
+              value={fmtMoney(perfil.monto_pendiente_rendicion)}
+              sub={`${perfil.lineas_pendientes_rendicion ?? 0} línea${perfil.lineas_pendientes_rendicion === 1 ? '' : 's'} vendida${perfil.lineas_pendientes_rendicion === 1 ? '' : 's'} sin rendir`}
+              variant={perfil.monto_pendiente_rendicion > 0 ? 'alert' : 'default'}
+            />
+          )}
+          {puedeVerMontosProveedor && perfil.rendiciones_pendientes_pago != null && (
+            <Kpi
+              label="Rendiciones sin pagar"
+              value={perfil.rendiciones_pendientes_pago.toString()}
+              variant={perfil.rendiciones_pendientes_pago > 0 ? 'alert' : 'default'}
+            />
+          )}
+          {puedeVerMontosProveedor && perfil.monto_rendido_historico != null && (
+            <Kpi
+              label="Rendido histórico"
+              value={fmtMoney(perfil.monto_rendido_historico)}
+            />
+          )}
           <Kpi
             label="Consignaciones activas"
             value={perfil.consignaciones_activas.toString()}

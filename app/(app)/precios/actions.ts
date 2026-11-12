@@ -82,6 +82,10 @@ export async function createReglaAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guarded('crear')
   if (!g.ok) return { ok: false, reason: g.error }
+  if (input.tipo_regla === 'margen') {
+    const gm = await guarded('ver_margenes')
+    if (!gm.ok) return { ok: false, reason: gm.error }
+  }
   try {
     const id = await spCreateReglaPrecio(input)
     revalidatePath('/precios/reglas')

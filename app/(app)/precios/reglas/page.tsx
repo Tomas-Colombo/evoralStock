@@ -1,5 +1,6 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
+import { hasModuleAccess } from '@/lib/dal/guard'
 import { listReglasPrecio } from '@/lib/dal/precios/regla'
 import { listPlanesCuotas } from '@/lib/dal/precios/cuotas'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
@@ -10,6 +11,7 @@ import { NuevaReglaModalButton } from './NuevaReglaModalButton'
 
 export default async function ReglasPage() {
   const session = await verifySession()
+  const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
   const [rows, planesCuotas, categorias, proveedores, productos] = await Promise.all([
     listReglasPrecio({ incluirBaja: false }),
     listPlanesCuotas(),
@@ -33,6 +35,7 @@ export default async function ReglasPage() {
               nombre: p.nombre,
               sku: p.sku,
             }))}
+            puedeVerMargenes={puedeVerMargenes}
           />
         }
       />

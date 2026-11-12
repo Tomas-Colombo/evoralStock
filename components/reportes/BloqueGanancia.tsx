@@ -4,7 +4,7 @@ import React from 'react'
 import type { FinanzasResultadosRow } from '@/lib/types/reportes'
 
 function formatMoney(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
     .format(value)
     .replace(/\u00A0/g, ' ')
@@ -25,13 +25,13 @@ export function BloqueGanancia({ resultados, tieneGastos }: BloqueGananciaProps)
     const csvRows = [
       'Concepto,Monto',
       `${escapeCsvField('Vendiste (neto)')},${resultados.ventas_netas}`,
-      `${escapeCsvField('Menos costo de mercadería')},${csvNegative(resultados.costo_mercaderia)}`,
-      `${escapeCsvField('Ganancia antes de gastos')},${resultados.ganancia_sobre_ventas}`
+      `${escapeCsvField('Menos costo de mercadería')},${resultados.costo_mercaderia != null ? csvNegative(resultados.costo_mercaderia) : 'Sin permiso'}`,
+      `${escapeCsvField('Ganancia antes de gastos')},${resultados.ganancia_sobre_ventas ?? 'Sin permiso'}`
     ]
     if (tieneGastos) {
       csvRows.push(
         `${escapeCsvField('Menos gastos')},${csvNegative(resultados.gastos)}`,
-        `${escapeCsvField('Ganancia final')},${resultados.ganancia_final}`
+        `${escapeCsvField('Ganancia final')},${resultados.ganancia_final ?? 'Sin permiso'}`
       )
     }
 
@@ -67,7 +67,7 @@ export function BloqueGanancia({ resultados, tieneGastos }: BloqueGananciaProps)
               <Td className="text-alerta-ink">Menos costo de mercadería</Td>
               <Td className="text-muted hidden sm:table-cell">Lo que te costaron los productos que vendiste</Td>
               <Td align="right" className="text-alerta-ink">
-                {resultados.costo_mercaderia > 0 ? '-' : ''}{formatMoney(resultados.costo_mercaderia)}
+                {resultados.costo_mercaderia != null && resultados.costo_mercaderia > 0 ? '-' : ''}{formatMoney(resultados.costo_mercaderia)}
               </Td>
             </Tr>
             <Tr className={tieneGastos ? 'bg-panel/50' : 'bg-panel font-medium text-base'}>

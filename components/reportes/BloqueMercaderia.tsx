@@ -4,7 +4,7 @@ import type { FinanzasPosicion } from '@/lib/types/reportes'
 import { Card } from '@/components/ui/Card'
 
 function formatMoney(value: number | null | undefined) {
-  if (value == null) return '—'
+  if (value == null) return 'Sin permiso'
   return Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
 }
 
@@ -15,8 +15,9 @@ interface BloqueMercaderiaProps {
 
 export function BloqueMercaderia({ posicion, tieneConsignacion }: BloqueMercaderiaProps) {
   const tieneSinPrecio = posicion.productos_sin_precio > 0
-  const capital = posicion.capital_propio ?? 0
-  const consignacion = tieneConsignacion ? (posicion.mercaderia_terceros ?? 0) : 0
+  const capital = posicion.capital_propio
+  const consignacion = tieneConsignacion ? posicion.mercaderia_terceros : 0
+  const totalCosto = capital != null && consignacion != null ? capital + consignacion : null
 
   return (
     <Card as="section" padding="none" aria-labelledby="h2-mercaderia" className="overflow-hidden h-full flex flex-col">
@@ -27,7 +28,7 @@ export function BloqueMercaderia({ posicion, tieneConsignacion }: BloqueMercader
       <div className="p-6 flex-1 flex flex-col justify-center">
         <div className="mb-6">
           <p className="text-sm font-medium text-muted uppercase tracking-wider mb-1">Costo total inventario</p>
-          <p className="font-display text-4xl tabular-nums text-ink leading-none">{formatMoney(capital + consignacion)}</p>
+          <p className="font-display text-4xl tabular-nums text-ink leading-none">{formatMoney(totalCosto)}</p>
           <p className="text-sm text-muted mt-2">
             Lo que te costó (o debes por) la mercadería que tenés disponible.
           </p>

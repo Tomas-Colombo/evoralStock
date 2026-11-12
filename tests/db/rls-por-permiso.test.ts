@@ -764,7 +764,8 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-03 - categoria_gasto', () => {
 })
 
 describe.skipIf(!hasTestDb)('REQ-RLSP-04 - rendicion_proveedor', () => {
-  it('Feliz: SELECT con rendiciones.ver, inventario.ver (perfil proveedor) o reportes.ver; INSERT con rendiciones.crear; UPDATE con rendiciones.crear o rendiciones.editar; SPs reales', async () => {
+  // Una decena de sign-ins y RPCs en serie: con el default de 5 s cortaba por tiempo, no por error.
+  it('Feliz: SELECT con rendiciones.ver (inventario.ver y reportes.ver ven 0 filas desde 00155); INSERT con rendiciones.crear; UPDATE con rendiciones.crear o rendiciones.editar; SPs reales', { timeout: 20_000 }, async () => {
     const fixture = await createTenantWithUser('rlsp_rend_f')
     await habilitarPaqueteConsignacion(fixture.tenantId, fixture.serviceRole)
 
@@ -794,20 +795,20 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-04 - rendicion_proveedor', () => {
     expect(errRV).toBeNull()
     expect(dataRV?.some((r) => r.id_rendicion === rendIni!.id_rendicion)).toBe(true)
 
-    // 2. Perfil de proveedor: SELECT con solo inventario.ver lee rendicion_proveedor
+    // 2 y 3. Desde 00155 (REQ-CPC §11 3E.1, D-CPC-07/08) el monto rendido es costo de
+    // consignación: inventario.ver (perfil de proveedor) y reportes.ver ya no lo leen.
     const clientInvVer = await createClientWithPermisos(fixture, 'InvVerProv', { inventario: ['ver'] })
     const { data: dataIV, error: errIV } = await clientInvVer
       .from('rendicion_proveedor')
       .select('*')
       .eq('id_proveedor', prov!.id_proveedor)
     expect(errIV).toBeNull()
-    expect(dataIV?.some((r) => r.id_rendicion === rendIni!.id_rendicion)).toBe(true)
+    expect(dataIV).toEqual([])
 
-    // 3. SELECT con reportes.ver
     const clientRepVer = await createClientWithPermisos(fixture, 'RepRendVer', { reportes: ['ver'] })
     const { data: dataRepV, error: errRepV } = await clientRepVer.from('rendicion_proveedor').select('*')
     expect(errRepV).toBeNull()
-    expect(dataRepV?.some((r) => r.id_rendicion === rendIni!.id_rendicion)).toBe(true)
+    expect(dataRepV).toEqual([])
 
     // 4. INSERT con rendiciones.crear (+ rendiciones.ver)
     const clientRendCrear = await createClientWithPermisos(fixture, 'RendCrear', { rendiciones: ['ver', 'crear'] })
@@ -1886,7 +1887,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M2 - Chequeo de permisos en sp_* de Inventa
     // 6. precios.editar_cotizacion -> sp_aplicar_ultimo_costo y sp_marcar_precio_desactualizado_by_producto
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['ver'] } })
+      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['ver', 'ver_costos'] } })
       .eq('id_rol', fixture.rolId)
 
     const { data: idCostoCot, error: errCostoCot } = await client.rpc('sp_aplicar_ultimo_costo', {
@@ -2099,7 +2100,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios
     // 1. precios.crear -> sp_create_regla_precio
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { precios: ['crear', 'ver'] } })
+      .update({ permisos: { precios: ['crear', 'ver', 'ver_margenes'] } })
       .eq('id_rol', fixture.rolId)
 
     const { data: idRegla, error: errCreate } = await client.rpc('sp_create_regla_precio', {
@@ -2115,7 +2116,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios
     // 2. precios.editar -> sp_extender_vigencia_regla, sp_recalcular_precio_venta, sp_recalcular_precios_batch
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { precios: ['editar', 'ver'] } })
+      .update({ permisos: { precios: ['editar', 'ver', 'ver_margenes'], inventario: ['ver', 'ver_costos'] } })
       .eq('id_rol', fixture.rolId)
 
     const nuevaFecha = new Date(Date.now() + 86400000).toISOString()
@@ -2140,7 +2141,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios
     // 3. precios.editar_cotizacion -> sp_set_cotizacion_manual, sp_set_modo_cotizacion, sp_revaluar_costos_usd_vigentes
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['crear', 'ver'] } })
+      .update({ permisos: { precios: ['editar_cotizacion', 'ver'], inventario: ['crear', 'ver', 'ver_costos'] } })
       .eq('id_rol', fixture.rolId)
 
     const { error: errManual } = await client.rpc('sp_set_cotizacion_manual', {
@@ -2164,7 +2165,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M3 - Chequeo de permisos en sp_* de Precios
     // 4. precios.eliminar -> sp_baja_regla_precio
     await fixture.serviceRole
       .from('rol')
-      .update({ permisos: { precios: ['eliminar', 'ver'] } })
+      .update({ permisos: { precios: ['eliminar', 'ver', 'ver_margenes'] } })
       .eq('id_rol', fixture.rolId)
 
     const { error: errBaja } = await client.rpc('sp_baja_regla_precio', {
