@@ -6,7 +6,7 @@
 
 ## 0. Decisiones de la persona (STOP AND ASK — AGENTS.md)
 
-**Resueltas** (2026-11-10, registradas en `proposal.md §7`): DP-CPC-01 → 1.B (D-CPC-03); DP-CPC-02 → Enfoque B con selladores (D-CPC-02); DP-CPC-03 → 3.B (D-CPC-04); DP-CPC-04 → 4.A (D-CPC-05); DP-CPC-05 → 5.A (D-CPC-06). Las opciones se conservan abajo como registro.
+**Resueltas** (2026-11-10, registradas en `proposal.md §7`): DP-CPC-01 → 1.B (D-CPC-03); DP-CPC-02 → Enfoque B con selladores (D-CPC-02); DP-CPC-03 → 3.B (D-CPC-04); DP-CPC-04 → 4.A (D-CPC-05); DP-CPC-05 → 5.A (D-CPC-06); DP-CPC-07 → 7.A (D-CPC-07, 2026-11-12). Las opciones se conservan abajo como registro.
 
 > [!IMPORTANT]
 > Siguiendo el protocolo de `AGENTS.md`, la spec **PROPONE** y la **PERSONA DECIDE**. Todo cambio que afecte la lógica financiera (precio de venta, cálculo de márgenes, rendiciones a proveedores), la convivencia de esquemas de stock o la introducción de excepciones `SECURITY DEFINER` queda catalogado a continuación con sus opciones y tradeoffs técnicos.
@@ -317,6 +317,9 @@ Los endpoints y funciones de búsqueda de stock (`findItemByQr`, `/api/ventas/lo
 | 34 | `regla_precio` | `valor` (margen) | **Policy restrictiva por fila** | Enmascarar en DAL o RPC no frena un `select` por PostgREST. La tabla mezcla `tipo_regla` margen, descuento y recargo, y el mostrador lee descuentos (`sp_calcular_precio_venta_snapshot`, `sp_descuentos_disponibles_venta`), así que no se cierra entera: `using (tipo_regla <> 'margen' or auth_tiene_permiso('precios', 'ver_margenes'))`. |
 | 35 | `producto` | `id_regla_margen_aplicada` | Sin cambio en DB | Con la fila de margen oculta por la policy de #34, el id no revela el valor. Se omite de los DTOs de 3A por prolijidad. |
 
+> [!NOTE]
+> **Columna `detalle_venta.monto_proveedor` (D-CPC-07, `proposal.md §7`)**: No integra las 35 columnas originales de `inventario.md §1`, pero en `sp_registrar_venta` (`00153:1111`) copia `v_costo` para ítems en consignación. Pasa a su satélite propia **`detalle_venta_rendicion(id_detalle_venta, id_tenant, monto_proveedor)`**, sellada por `fn_sellar_costo_venta`, con `SELECT` para `inventario.ver_costos OR rendiciones.ver`. Ver §11 (3E.2).
+
 ### 4.2. Comparación cuantitativa: Enfoque A (Revocación) vs Enfoque B (Tablas Satélites)
 
 | Dimensión | Enfoque A (Revocación a `authenticated`) | Enfoque B (Tablas Satélites con RLS) |
@@ -408,39 +411,48 @@ Se propone implementar un primer slice puramente en TypeScript/Next.js antes de 
 
 ## 6. Funciones DEFINER nuevas (Lista Cerrada propuesta y Test de Guard)
 
-Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las funciones principales de negocio (`sp_registrar_venta`, `sp_registrar_cambio`, `sp_registrar_devolucion_cliente`) **permanecen `SECURITY INVOKER`**. La lista cerrada de excepciones `SECURITY DEFINER` se compone exclusivamente de **selladores chicos que retornan `void`** (más la resolución opcional de recálculo según DP-CPC-05):
+Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las funciones principales de negocio (`sp_registrar_venta`, `sp_registrar_cambio`, `sp_registrar_devolucion_cliente`, `sp_confirmar_ingreso`, `sp_crear_stock_directo`, `sp_recalcular_precio_venta`) **permanecen `SECURITY INVOKER`**. La lista cerrada de excepciones `SECURITY DEFINER` se compone exclusivamente de **4 selladores chicos que retornan `void`**:
 
 ### 6.1. Contratos y firmas de los Selladores DEFINER chicos (Enfoque B)
 
-1. **`fn_sellar_costo_venta(p_id_venta uuid) RETURNS void`**:
+1. **`fn_sellar_costo_herencia_items(p_id_producto uuid, p_ids_items uuid[]) RETURNS void`**:
+   - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
+   - **Permiso**: Exige el OR de sus llamadores (`sp_confirmar_ingreso` y `sp_crear_stock_directo`): `auth_tiene_permiso('inventario', 'crear')`. Valida `auth_tenant_id()` y rechaza `auth_revendedora_id() is not null`.
+   - **Contrato / Idempotencia**:
+     - Filtra estrictamente por `auth_tenant_id()` y acepta solo ítems de `item_producto` que pertenezcan a `p_id_producto` y a `auth_tenant_id()`.
+     - Lee `costo_producto.costo` vigente (`vigente_hasta is null`) para `p_id_producto`. Si no existe costo vigente, no hace nada (los ítems quedan sin costo / `pendiente_costeo` según D-CPC-03).
+     - Completa **únicamente** ítems sin costo previo (sin pisar nunca un costo ya asignado): en 3E.1 actualiza `item_producto` donde `id_item = any(p_ids_items)` y `costo_ingreso is null`; desde 3E.2 inserta en `item_costo(id_item, id_tenant, costo_ingreso)` solo para los `p_ids_items` válidos que no existan aún en `item_costo` (`ON CONFLICT (id_item) DO NOTHING`). Retorna `void`.
+
+2. **`fn_sellar_costo_venta(p_id_venta uuid) RETURNS void`**:
    - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
    - **Permiso**: Exige `(auth_tiene_permiso('ventas', 'crear') OR auth_tiene_permiso('revendedoras', 'crear'))`. Valida `auth_tenant_id()` y rechaza `auth_revendedora_id() is not null`.
    - **Contrato / Idempotencia**:
      - Filtra estrictamente por `auth_tenant_id()`.
-     - Selecciona las líneas de `detalle_venta` de `p_id_venta` que aún no tienen registro en `detalle_venta_costo`.
-     - Para cada línea pendiente, lee `item_costo.costo_ingreso`, calcula margen (`dv.precio_venta - costo_snapshot`) e inserta en `detalle_venta_costo`.
-     - Si todas las líneas ya están selladas, la ejecución es no-op (idempotente). Retorna `void` (cero fuga por RPC).
+     - Selecciona las líneas de `detalle_venta` de `p_id_venta` que aún no tienen registro en `detalle_venta_costo` (o en `detalle_venta_rendicion`).
+     - Para cada línea pendiente, lee `item_costo.costo_ingreso`; si es `null` o no existe fila en `item_costo`, aborta con `raise exception 'item-costo-pendiente' using errcode = 'P0001'` (revirtiendo toda la venta).
+     - Calcula margen (`dv.precio_venta - costo_snapshot`) e inserta en `detalle_venta_costo` (`ON CONFLICT (id_detalle_venta) DO NOTHING`).
+     - Sella también `detalle_venta_rendicion(id_detalle_venta, id_tenant, monto_proveedor)` (D-CPC-07): `costo_snapshot` si `tipo_ingreso_snapshot <> 'compra'`, o `0` si es `'compra'` (`ON CONFLICT (id_detalle_venta) DO NOTHING`). Retorna `void` (cero fuga por RPC).
 
-2. **`fn_sellar_costo_cambio(p_id_detalle_venta uuid) RETURNS void`**:
+3. **`fn_sellar_costo_cambio(p_id_detalle_venta uuid) RETURNS void`**:
    - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
    - **Permiso**: Exige `(auth_tiene_permiso('ventas', 'crear') OR auth_tiene_permiso('revendedoras', 'crear'))`.
    - **Contrato / Idempotencia**:
      - Verifica tenant y existencia de `p_id_detalle_venta`.
      - Si `detalle_venta_costo` ya existe para ese detalle, no hace nada (idempotente).
-     - Lee el costo del nuevo ítem en `item_costo`, calcula margen y persiste la fila en `detalle_venta_costo`. Retorna `void`.
+     - Lee `item_costo.costo_ingreso` del nuevo ítem; si es `null` o inexistente, aborta con `'item-costo-pendiente'` (`P0001`). Calcula margen y persiste en `detalle_venta_costo`. Retorna `void`.
 
-3. **`fn_sellar_costo_devolucion(p_id_devolucion uuid) RETURNS void`**:
+4. **`fn_sellar_costo_devolucion(p_id_devolucion uuid) RETURNS void`**:
    - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
    - **Permiso**: Exige `auth_tiene_permiso('ventas', 'editar')`.
    - **Contrato / Idempotencia**:
      - Verifica tenant y existencia de `p_id_devolucion`.
-     - Si `devolucion_venta_costo` ya fue registrado para esa devolución, no hace nada.
+     - Si `devolucion_venta_costo` ya fue registrado para esa devolución, no hace nada (`ON CONFLICT (id_devolucion) DO NOTHING`).
      - Lee `costo_snapshot` de `detalle_venta_costo` correspondiente a la prenda devuelta e inserta `costo_recuperado` en `devolucion_venta_costo`. Retorna `void`.
 
-4. **`sp_recalcular_precio_venta(p_id_producto uuid, p_ip inet default null) RETURNS numeric`** *(Condicional a DP-CPC-05)*:
-   - Si se adopta la Opción 5.B: corre como DEFINER, exige `auth_tiene_permiso('precios', 'editar')`, lee `costo_producto.costo`, actualiza `producto.precio_venta` y devuelve únicamente el valor numérico del precio público resultante. (Si se adopta la Opción 5.A, permanece INVOKER puro y no integra esta lista).
+> [!NOTE]
+> **`sp_recalcular_precio_venta` (D-CPC-06 resuelto)**: Permanece `SECURITY INVOKER` y exige `precios.editar` + `inventario.ver_costos` + `precios.ver_margenes` (`proposal.md §7`). No integra esta lista DEFINER.
 
-**Recuento total de DEFINER en Enfoque B**: **3 selladores chicos** (más 0 o 1 en recálculo). **CERO (0) funciones DEFINER de lectura**.
+**Recuento total de DEFINER en Enfoque B**: **4 selladores chicos** (`RETURNS void`). **CERO (0) funciones DEFINER de lectura**.
 
 ### 6.2. Reglas de blindaje obligatorio para las funciones DEFINER
 
@@ -562,15 +574,174 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 - Tests: `tests/unit/dal-select-whitelist.test.ts` (escaneo estático contra `select('*')` en tablas sensibles).
 
 ### Fase 3E — Segregación técnica en Postgres, Selladores DEFINER chicos y Cierre de Fugas RPC
-*Objetivo*: Crear tablas satélites con RLS (`item_costo`, `detalle_venta_costo`, `ingreso_detalle_costo`, `devolucion_venta_costo`), implementar los selladores chicos `fn_sellar_*`, cerrar las fugas de permisos en `preview_rendicion`, `sp_perdida_incobrable_venta` y funciones `rf_*`, resolver `sp_recalcular_precio_venta` según DP-CPC-05 y actualizar las guardias de seguridad.
 
-> [!NOTE]
-> **Sellador de herencia en 3E**: `fn_costo_vigente_producto` (creada en 3C.1 como INVOKER) devuelve el valor numérico del costo, por lo que NO puede pasar a `SECURITY DEFINER` tal como está porque se filtraría por RPC hacia roles sin permiso de ver costos. La Fase 3E debe sellar la herencia de costo dentro de un sellador `fn_sellar_*` que no devuelva nada (retorne `void`).
+#### A. Inventario vivo de lectores y escritores (evidencia mecánica)
 
-- Archivos:
-  - `supabase/migrations/<next>_cpc_segregacion_costos.sql`
-  - `tests/db/cpc-segregacion.test.ts` (prueba integral con rol Administrador y rol Vendedora-Local ejecutando ventas, recálculos y consultas directas)
-  - Actualización de `tests/db/rvp-lecturas.test.ts` (guardia anti-propagación de DEFINER).
+**Comandos ejecutados** (sobre `supabase/migrations/*.sql` excluyendo comentarios `--` / `-- DOWN:` con `sinComentarios` y funciones dropeadas con `def.borradaDespues.length === 0` de `scripts/sp-parser.mts`, más escaneo de `lib/dal/**/*.ts`):
+1. `node --experimental-strip-types -e "import { buscarDefinicionFuncion, leerMigraciones, sinComentarios } from './scripts/sp-parser.mts'; ..."` (funciones vivas)
+2. `node --experimental-strip-types -e "import { leerMigraciones, sinComentarios } from './scripts/sp-parser.mts'; ..."` (vistas, triggers y policies vivas)
+3. `node --experimental-strip-types -e "..."` sobre `lib/dal/` (lectores/escritores TypeScript)
+
+##### A.1. Funciones SQL vivas (`archivo:línea` vigente)
+
+| Objeto / Columna | Funciones que leen o escriben (`archivo:línea` vigente) |
+|---|---|
+| `item_producto.costo_ingreso` | `sp_confirmar_ingreso` (`00153_cpc_costo_pendiente.sql:276`), `sp_crear_stock_directo` (`00154_cpc_stock_directo_costo.sql:101`), `sp_aplicar_ultimo_costo` (`00153_cpc_costo_pendiente.sql:606`), `sp_completar_costo_ingreso` (`00153_cpc_costo_pendiente.sql:714`), `sp_registrar_venta` (`00153_cpc_costo_pendiente.sql:872`), `sp_registrar_cambio` (`00153_cpc_costo_pendiente.sql:1337`), `rf_finanzas_resultados` (`00110_finanzas_cambio_diferencia.sql:69`), `rf_finanzas_posicion` (`00111_seguridad_revendedoras.sql:344`). |
+| `detalle_venta.costo_snapshot`, `monto_ganancia` | `sp_registrar_venta` (`00153_cpc_costo_pendiente.sql:872`), `sp_registrar_cambio` (`00153_cpc_costo_pendiente.sql:1337`), `sp_registrar_devolucion_cliente` (`00144_rlsp_sp_ventas.sql:632`), `preview_rendicion` (`00126_rendicion_modulo.sql:231`), `sp_perdida_incobrable_venta` (`00059_financiacion_propia.sql:788`), `tg_detalle_venta_inmutable` (`00088_venta_canal.sql:67`). |
+| `detalle_venta.monto_proveedor` *(ver DP-CPC-07)* | `sp_registrar_venta` (`00153_cpc_costo_pendiente.sql:872`), `sp_registrar_cambio` (`00153_cpc_costo_pendiente.sql:1337`), `sp_generar_rendicion` (`00147_rlsp_sp_consignaciones_rendiciones.sql:698`), `preview_rendicion` (`00126_rendicion_modulo.sql:231`), `sp_perdida_incobrable_venta` (`00059_financiacion_propia.sql:788`), `fn_modulo_tiene_estado_vivo` (`00122_guardas_consignacion_ingreso_proveedor.sql:164`), `tg_detalle_venta_inmutable` (`00088_venta_canal.sql:67`). |
+| `ingreso_mercaderia_detalle` (`costo_unitario`, `costo_original_usd`, `cotizacion_aplicada`, `cotizacion_fecha_valor`) | `ingreso_detalle_bloquea_confirmado` (`00153_cpc_costo_pendiente.sql:180`), `sp_confirmar_ingreso` (`00153_cpc_costo_pendiente.sql:276`), `sp_importar_remito` (`00153_cpc_costo_pendiente.sql:415`), `sp_completar_costo_ingreso` (`00153_cpc_costo_pendiente.sql:714`), `rf_finanzas_flujo` (`00095_liquidacion_functions.sql:956`), `rf_finanzas_posicion` (`00111_seguridad_revendedoras.sql:344`). |
+| `devolucion_venta.costo_recuperado` | `sp_registrar_devolucion_cliente` (`00144_rlsp_sp_ventas.sql:632`), `rf_finanzas_resultados` (`00110_finanzas_cambio_diferencia.sql:69`). |
+| `costo_producto` (tabla completa) | `fn_costo_vigente_producto` (`00153_cpc_costo_pendiente.sql:253`), `sp_aplicar_ultimo_costo` (`00153_cpc_costo_pendiente.sql:606`), `sp_set_costo_producto` (`00145_rlsp_sp_inventario.sql:164`), `sp_revaluar_costos_usd_vigentes` (`00146_rlsp_sp_precios.sql:499`), `sp_recalcular_precio_venta` (`00146_rlsp_sp_precios.sql:159`), `sp_control_de_precios` (`00040_precios_batch.sql:55`), `sp_listar_productos` (`00042_inventario_batch.sql:40`). |
+| `regla_precio` (filas `tipo_regla = 'margen'`) | `resolver_regla_margen` (`00019_precios_functions.sql:23`), `sp_control_de_precios` (`00040_precios_batch.sql:55`), `sp_recalcular_precio_venta` (`00146_rlsp_sp_precios.sql:159`), `sp_create_regla_precio` (`00146_rlsp_sp_precios.sql:22`), `sp_baja_regla_precio` (`00146_rlsp_sp_precios.sql:83`), `sp_extender_vigencia_regla` (`00146_rlsp_sp_precios.sql:123`), `sp_marcar_precio_desactualizado_by_regla` (`00146_rlsp_sp_precios.sql:596`). *(Solo `descuento`/`recargo`: `sp_calcular_precio_venta_snapshot` `00064:55`, `sp_descuentos_disponibles_venta` `00046:169`, `resolver_reglas_descuento` `00019:105`, `resolver_regla_recargo` `00019:62`).* |
+
+##### A.2. Vistas, triggers y policies vivas (`archivo:línea` vigente)
+
+- **Vistas (`security_invoker = true/on`)**:
+  - `v_ganancia_por_producto` (`00028_reportes.sql:17`): lee `costo_producto`.
+  - `v_linea_venta` (`00110_finanzas_cambio_diferencia.sql:23`): lee `detalle_venta.costo_snapshot`, `detalle_venta.monto_ganancia`, `detalle_venta.monto_proveedor`, `devolucion_venta.costo_recuperado`; consumida por `rf_finanzas_resultados` (`00110:69`) y `rf_finanzas_ranking_productos` (`00073_finanzas_lectura_2.sql:213`).
+  - `v_perfil_proveedor` (`00071_devolucion_cliente.sql:264`): lee `detalle_venta.monto_proveedor`.
+- **Triggers vivos en las 6 tablas**:
+  - `detalle_venta.tr_detalle_venta_inmutable` (`00075_restaurar_inmutabilidad_ventas.sql:84` → `tg_detalle_venta_inmutable` `00088:67`, referencia `costo_snapshot` y `monto_ganancia`).
+  - `ingreso_mercaderia_detalle.ingreso_detalle_inmutable` (`00051_ingreso_confirmado_inmutable.sql:78` → `ingreso_detalle_bloquea_confirmado` `00153:180`, referencia `costo_unitario`).
+  - `item_producto.item_producto_touch` (`00015_item_producto.sql:42`), `item_producto.tr_item_producto_consignacion` (`00123_guarda_item_producto_consignacion.sql:44`), `regla_precio.regla_precio_touch` (`00017_precios_enums_regla.sql:81`) — no tocan columnas de costo.
+- **Policies vivas en las 6 tablas**:
+  - `costo_producto`: `costo_producto_all_own_tenant` (`00013_producto.sql:81`), `restrict_revendedora_costo_producto` (`00078_rls_revendedoras.sql:53`).
+  - `detalle_venta`: `detalle_venta_all_own_tenant` (`00021_venta.sql:100`), `restrict_revendedora_detalle_venta` (`00078_rls_revendedoras.sql:57`).
+  - `devolucion_venta`: `devolucion_venta_tenant` (`00070_reintegro_y_devolucion.sql:21`), `restrict_revendedora_devolucion_venta` (`00078_rls_revendedoras.sql:58`).
+  - `ingreso_mercaderia_detalle`: `ingreso_detalle_all_own_tenant` (`00014_ingreso_mercaderia.sql:67`), `restrict_revendedora_ingreso_mercaderia_detalle` (`00078_rls_revendedoras.sql:61`), `rlsp_ingreso_mercaderia_detalle_{select,insert,delete}` (`00142_rls_por_permiso.sql:65,68,75`), `rlsp_ingreso_mercaderia_detalle_costo_insert` (`00153:168`), `rlsp_ingreso_mercaderia_detalle_update` (`00153:174`).
+  - `item_producto`: `item_producto_all_own_tenant` (`00015_item_producto.sql:47`), `restrict_revendedora_item_producto` (`00078_rls_revendedoras.sql:62`).
+  - `regla_precio`: `regla_precio_all_own_tenant` (`00017_precios_enums_regla.sql:86`), `restrict_revendedora_regla_precio` (`00078_rls_revendedoras.sql:71`).
+
+##### A.3. Archivos en `lib/dal/` (`archivo:línea`)
+
+- `item_producto.costo_ingreso`: `lib/dal/inventario/item.ts:16,113,123,129`, `lib/dal/consignaciones/consignacion.ts:69`, `lib/dal/inventario/proveedor.ts:110,153,155,168`.
+- `detalle_venta.costo_snapshot` / `monto_ganancia` / `monto_proveedor`: `lib/dal/ventas/venta.ts:137`, `lib/dal/rendiciones/rendicion.ts:52-53,66-67,79-80,106-107`, `lib/dal/inventario/proveedor.ts:121,125,145,147`.
+- `ingreso_mercaderia_detalle.{costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor}`: `lib/dal/inventario/ingreso.ts:39,53,58,62,95,106,111,115,144,227,229-231,244,275-276,302`.
+- `costo_producto`: `lib/dal/precios/cotizacion.ts:262,266,268,272`, `lib/dal/inventario/producto.ts:293` (RPC `sp_set_costo_producto`).
+- `regla_precio`: `lib/dal/precios/regla.ts:27,45,61,82`.
+- `v_ganancia_por_producto`: `lib/dal/reportes/reportes.ts:79`.
+
+---
+
+#### B. Resolución de trampas con evidencia
+
+1. **TRAMPA guard de venta (`item-costo-pendiente`)**:
+   - *Evidencia*: `sp_registrar_venta` (`00153:1042-1044`) y `sp_registrar_cambio` (`00153:1493-1495`) son `INVOKER` y abortan con `'item-costo-pendiente'` si `v_item.costo_ingreso is null`. Movido a `item_costo` con RLS `inventario.ver_costos`, una vendedora sin `ver_costos` ve 0 filas y se bloquearían todas las ventas.
+   - *Resolución*: Porque `sp_registrar_venta` y `sp_registrar_cambio` leen `costo_ingreso` y escriben `detalle_venta_costo` / `detalle_venta_rendicion`, **`item_costo`, `detalle_venta_costo` y `detalle_venta_rendicion` se despliegan juntos en la misma sub-fase (3E.2)**. El guard `'item-costo-pendiente'` sale de los SPs `INVOKER` y vive dentro de `fn_sellar_costo_venta` y `fn_sellar_costo_cambio` (`SECURITY DEFINER`), eliminando `item_producto.costo_ingreso` y las columnas viejas de `detalle_venta` en esa misma migración (cero doble escritura).
+   - *Test en `tests/db`*: Rol sin `inventario.ver_costos` (`Vendedora-Local`, con `ventas.crear`) vende y cambia un ítem con fila en `item_costo` (éxito y sella `detalle_venta_costo` + `detalle_venta_rendicion`), y falla con `'item-costo-pendiente'` (`P0001`) al intentar vender o cambiar un ítem sin fila en `item_costo`, verificando rollback total de `venta`/`detalle_venta`/`cambio_venta`.
+
+2. **TRAMPA herencia y precios en mostrador**:
+   - *Evidencia*: `fn_costo_vigente_producto` (`00153:253`, `INVOKER`) es llamada por `sp_confirmar_ingreso` (`00153:337`) y `sp_crear_stock_directo` (`00154:145`) cuando el costo llega `null`. Con RLS `ver_costos` en `costo_producto`, una vendedora con `inventario.crear` recibiría `null` y los ítems quedarían sin costo.
+   - *Resolución*: Entra **`fn_sellar_costo_herencia_items(p_id_producto uuid, p_ids_items uuid[]) RETURNS void`** (`SECURITY DEFINER`) en **3E.1** (misma sub-fase que la RLS de `costo_producto`), exigiendo `auth_tiene_permiso('inventario', 'crear')`, rechazando revendedoras, validando `p_id_producto` + `auth_tenant_id()` y completando solo ítems sin costo previo (sin pisar nunca un costo existente). En 3E.1 actualiza `item_producto.costo_ingreso`; en 3E.2 pasa a insertar en `item_costo`.
+   - *Precios en mostrador*: Verificado que `sp_calcular_precio_venta_snapshot` (`00064:55,115`), `sp_descuentos_disponibles_venta` (`00046:169,197`) y `resolver_reglas_descuento` (`00019:105,123`) solo leen `producto.precio_venta` y `regla_precio` con `tipo_regla = 'descuento'`. Ninguno lee `costo_producto` ni `tipo_regla = 'margen'`. La RLS nueva **no rompe** el precio de venta en mostrador.
+   - *Hallazgo adicional*: `sp_revaluar_costos_usd_vigentes` (`00146:499`) lee `costo_producto` (`00146:543,552`) exigiendo solo `precios.editar_cotizacion`. Con RLS `ver_costos` en `costo_producto`, un usuario con `editar_cotizacion` sin `ver_costos` revaluaría 0 filas en silencio; en 3E.1 debe exigir también `inventario.ver_costos` (su caller `app/(app)/precios/cotizacion/actions.ts:133` captura `42501` con `errorDeRpc` sin tirar 500).
+
+3. **TRAMPA consignación — Resuelta por D-CPC-07 (`proposal.md §7`)**:
+   - *Evidencia*: `sp_registrar_venta` (`00153:1111`) copia `v_costo` en `detalle_venta.monto_proveedor` para consignación. Sus lectores vivos son: `sp_generar_rendicion` (`00147:698`), `preview_rendicion` (`00126:231`), `v_perfil_proveedor` (`00071:264`), `v_linea_venta` (`00110:23`), `sp_perdida_incobrable_venta` (`00059:788`), `fn_modulo_tiene_estado_vivo` (`00122:164`), `tg_detalle_venta_inmutable` (`00088:67`), `lib/dal/inventario/proveedor.ts:121` y `lib/dal/rendiciones/rendicion.ts:53`.
+   - *Implementación en 3E.2*: `monto_proveedor` sale de `detalle_venta` a su satélite propia **`detalle_venta_rendicion(id_detalle_venta PK/FK, id_tenant, monto_proveedor)`** (NO a `detalle_venta_costo`, cuya RLS es solo `ver_costos`), sellada por `fn_sellar_costo_venta` (y `fn_sellar_costo_cambio`, con `0`), con policy `SELECT` `auth_tiene_permiso('inventario', 'ver_costos') OR auth_tiene_permiso('rendiciones', 'ver')`.
+   - *Verificación `rendicion_proveedor`*: No tiene tablas hijas (solo `rendicion_proveedor` en `00026_rendicion_gasto.sql`), pero su policy actual (`00142_rls_por_permiso.sql:51-52`) permite `rendiciones.ver OR inventario.ver OR reportes.ver` — como `Vendedora-Local` tiene `inventario.ver`, hoy puede leer `rendicion_proveedor.monto_total`. Se cierra en **3E.1** a `rendiciones.ver OR inventario.ver_costos` (y `reportes.ver` sujeto a DP-CPC-08).
+
+4. **Auditoría y `jsonb`**:
+   - *Triggers / tablas*: Ningún trigger usa `to_jsonb(NEW)` o `row_to_json(NEW)` sobre las 6 tablas. `movimiento_item` no tiene columnas de costo ni `jsonb`. No existe `audit_log` ni `historial`.
+   - *`auditoria.cambios`*: `auditoria_select_own` (`00007_auditoria.sql:30`) permite `SELECT` a todo `authenticated` del tenant. `sp_aplicar_ultimo_costo` (`00153:695`), `sp_recalcular_precio_venta` (`00146:217`) y `sp_crear_stock_directo` (`00154:193`) escriben costos en `auditoria.cambios`.
+   - *Verificación de acceso*: `/administracion/auditoria` está gateada por `administracion.ver` (`app/(app)/administracion/layout.tsx:17`, `docs/modulos.md:9`) y su único lector es `lib/dal/administracion/administracion.ts:296,343`.
+   - *Policy propuesta (sin lista de acciones)*: En **3E.1** agregar `create policy rlsp_auditoria_select on auditoria as restrictive for select to authenticated using ((select auth_tiene_permiso('administracion', 'ver')) and (select auth_tiene_permiso('inventario', 'ver_costos')));` — no depende de nombres de entidad ni acción y cierra toda fuga presente o futura en `auditoria.cambios` frente a roles sin `ver_costos`. *(Tradeoff: si existiera un rol con `administracion.ver` sin `inventario.ver_costos`, vería 0 filas en `/administracion/auditoria`.)*
+
+5. **Vistas `security_invoker` y reportes — DP-CPC-08 (ABIERTA, NO DECIDIR)**:
+   - *Vistas*: `v_ganancia_por_producto` (`00028:17`, `LEFT JOIN costo_producto`) y `v_linea_venta` (`00110:23`, pasará a `LEFT JOIN detalle_venta_costo`, `detalle_venta_rendicion` y `devolucion_venta_costo`) devuelven `null` en columnas de costo/ganancia cuando falta `ver_costos`, sin error.
+   - *Llamadores verificados en `app/` y `lib/`*:
+     - `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`), `rf_finanzas_ranking_productos` (`00073:213`) y `rf_finanzas_serie_mensual` (`00073:34`, llama a `rf_finanzas_resultados`) → `lib/dal/reportes/finanzas.ts:21,49,74,91,110` → `app/(app)/reportes/page.tsx:79-85` (envueltos en `tryFetch` `app/(app)/reportes/page.tsx:34-41`, que captura excepciones y devuelve `{ ok: false }` sin tirar 500).
+     - `sp_perdida_incobrable_venta` (`00059:788`) → `lib/dal/cuotas/cuota.ts:240` (`getPerdidaIncobrableVenta`) → **0 llamadores en `app/`** actualmente (y `sp_marcar_cuota_incobrable` no la invoca).
+     - `preview_rendicion` (`00126:231`) → `lib/dal/rendiciones/rendicion.ts:99` → `app/(app)/rendiciones/nueva/page.tsx:14` (gateada por `rendiciones.ver`; bajo D-CPC-07 lee `detalle_venta_rendicion`, no requiere `ver_costos` y proyecta `costo_snapshot = null` sin `ver_costos`).
+   - **DP-CPC-08 — Comportamiento de `rf_finanzas_*` y `sp_perdida_incobrable_venta` para rol con `reportes.ver` / `ventas.ver` pero SIN `inventario.ver_costos`**:
+     - **Opción 8.A (Cortar con `42501`)**: Exigir `auth_tiene_permiso('reportes', 'ver') AND auth_tiene_permiso('inventario', 'ver_costos')` en `rf_finanzas_*` (y `ventas.ver AND ver_costos` en `sp_perdida_incobrable_venta`). *Tradeoff*: Simple y evita mostrar `$0` falso por `coalesce(..., 0)`; en `/reportes` `tryFetch` atrapa el error y muestra `<BloqueError />` en esos bloques (sin 500). Bloquea también métricas no-costo de esos RPCs (ej. `ventas_netas`, `cobrado`).
+     - **Opción 8.B (Devolver `null` en campos de costo/ganancia)**: Mantener solo `reportes.ver` / `ventas.ver`; cuando falte `ver_costos`, los campos de costo/ganancia retornan `null` (nunca `0`) y la UI muestra "sin permiso". *Tradeoff*: Conserva visibles `ventas_netas`, `cobrado` y `gastos`, pero requiere adaptar `rf_finanzas_*`, `lib/dal/reportes/finanzas.ts` (hoy convierte `null` a `0` con `Number(row.X ?? 0)`) y componentes de `/reportes`.
+     - **Opción 8.C (Separar la parte de costo en funciones aparte)**: Extraer métricas públicas (`ventas_netas`, `cobrado`, `gastos`) a RPCs sin costo y dejar los RPCs de costo/margen bajo `ver_costos`. *Tradeoff*: Separación limpia de permisos, pero mayor refactor en `rf_finanzas_*`, `finanzas.ts` y `/reportes`.
+
+6. **Orden en transacción, idempotencia, rollback y policies en satélites**:
+   - *Orden*: El `sp_*` (`INVOKER`) valida permisos, lockea filas e inserta/actualiza la fila base; en la misma transacción llama al sellador `fn_sellar_*` (`DEFINER`, `RETURNS void`).
+   - *Idempotencia*: Todos los selladores filtran por `auth_tenant_id()` y usan `ON CONFLICT (...) DO NOTHING` (o `WHERE NOT EXISTS`).
+   - *Rollback*: Cualquier error dentro del sellador (`item-costo-pendiente`, `no-permission`) revierte la transacción completa del `sp_*` llamador.
+   - *Policies de `INSERT` / `UPDATE` en satélites* (todas con `restrict_revendedora_*` + `id_tenant = auth_tenant_id()`):
+     - `item_costo`: `SELECT` `ver_costos`; `INSERT`/`UPDATE` `cargar_costos` o `editar_cotizacion`. Sin `DELETE`.
+     - `detalle_venta_costo`: `SELECT` `ver_costos`; sin policies de `INSERT`/`UPDATE`/`DELETE` para `authenticated` (solo selladores `DEFINER`).
+     - `detalle_venta_rendicion`: `SELECT` `ver_costos OR rendiciones.ver`; sin policies de `INSERT`/`UPDATE`/`DELETE` para `authenticated` (solo selladores `DEFINER`).
+     - `devolucion_venta_costo`: `SELECT` `ver_costos`; sin policies de `INSERT`/`UPDATE`/`DELETE` para `authenticated` (solo `fn_sellar_costo_devolucion`).
+     - `ingreso_detalle_costo`: `SELECT` `ver_costos`; `INSERT`/`UPDATE`/`DELETE` `cargar_costos` (y en `DELETE`, también `editar` o `eliminar` como `00142:75`).
+
+7. **§6.1 punto 4**: Resuelto por D-CPC-06: `sp_recalcular_precio_venta` sigue `INVOKER` con `precios.editar` + `inventario.ver_costos` + `precios.ver_margenes`. Rama condicional eliminada de §6.1.
+
+8. **Migración de datos y rollback (`DOWN`) sin columnas duplicadas**:
+   - En **3E.2** y **3E.3**, cada migración crea su(s) satélite(s), copia datos no nulos, verifica `count(*)` origen = `count(*)` satélite en `DO $$ ... END $$;`, recrea **todos** los lectores/escritores/vistas/triggers afectados, y **elimina las columnas viejas en esa misma migración** (cero doble escritura ni fugas residuales).
+   - El `-- DOWN:` de cada sub-fase recrea las columnas viejas, las repuebla desde la satélite (`UPDATE ... FROM <satelite>`), restaura funciones/vistas/triggers previos y dropea la satélite sin pérdida de datos.
+
+---
+
+#### C. Sub-fases desplegables por separado
+
+*Partición final (4 sub-fases)*:
+- **3E.1** Policies sin mover datos + sellador de herencia + cierre `preview_rendicion` / `rf_*` / `sp_perdida_incobrable_venta`.
+- **3E.2** Satélites de stock y venta (`item_costo` + `detalle_venta_costo` + `detalle_venta_rendicion`) + `fn_sellar_costo_venta` / `fn_sellar_costo_cambio` + `DROP COLUMN` de `item_producto` y `detalle_venta` en la misma migración.
+- **3E.3** Satélites de devolución e ingreso (`devolucion_venta_costo` + `ingreso_detalle_costo`) + `fn_sellar_costo_devolucion` + `DROP COLUMN` de `devolucion_venta` e `ingreso_mercaderia_detalle` en la misma migración.
+- **3E.4** Cierre final: verificación de whitelist DEFINER cerrada y documentación de reglas en `AGENTS.md` / `supabase/README.md`.
+
+##### Sub-fase 3E.1 — Policies sin mover datos, cierre RPC y sellador de herencia
+- **Migración tentativa**: `00155_cpc_policies_y_herencia.sql`.
+- **Objetos SQL nuevos / recreados**:
+  - Policies restrictivas: `costo_producto` (`ver_costos`), `regla_precio` (`tipo_regla <> 'margen' OR precios.ver_margenes`), `auditoria` (`administracion.ver AND ver_costos`), `rendicion_proveedor` (cerrar `inventario.ver` → `rendiciones.ver OR inventario.ver_costos`, más `reportes.ver` según DP-CPC-08).
+  - Nuevo sellador DEFINER: `fn_sellar_costo_herencia_items(p_id_producto uuid, p_ids_items uuid[]) RETURNS void`.
+  - Recrea: `sp_confirmar_ingreso` (`00153:276`), `sp_crear_stock_directo` (`00154:101`), `preview_rendicion` (`00126:231`), `sp_perdida_incobrable_venta` (`00059:788`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`), `rf_finanzas_ranking_productos` (`00073:213`), `sp_recalcular_precio_venta` (`00146:159`), `sp_revaluar_costos_usd_vigentes` (`00146:499`).
+- **Cambios en `lib/dal` y `app` juntos**: Actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_herencia_items`); ajustar `app/(app)/reportes/page.tsx` y `lib/dal/reportes/finanzas.ts` según lo que resuelva **DP-CPC-08**. Perfil de proveedor (`app/(app)/proveedores/[id]/page.tsx`, `lib/dal/inventario/proveedor.ts:110-168`): con la policy nueva de `rendicion_proveedor` (y desde 3E.2 con `detalle_venta_rendicion`) un rol sin `inventario.ver_costos` ni `rendiciones.ver` recibe 0 filas y las sumas darían `$0` falso. Los KPI de monto (pendiente de rendir, rendido histórico, rendiciones pendientes de pago, deuda total, valor stock consig.) se calculan y se serializan solo con alguno de esos dos permisos; sin ellos no se consultan y la pantalla no los muestra. Nunca `?? 0` sobre una fila que la RLS ocultó.
+- **Tests `tests/db` (6 casos)**:
+  1. Rol sin `ver_costos` lee `costo_producto`, `regla_precio` (margen), `auditoria` y `rendicion_proveedor` por PostgREST → 0 filas.
+  2. Rol sin `rendiciones.ver` llama `preview_rendicion` → `42501`.
+  3. Rol sin `ver_costos` llama `sp_recalcular_precio_venta` / `sp_revaluar_costos_usd_vigentes` → `42501`; en `rf_finanzas_*` y `sp_perdida_incobrable_venta` según DP-CPC-08.
+  4. Rol sin `ver_costos` con `inventario.crear` confirma ingreso sin costo y crea stock directo sin costo → hereda `costo_ingreso` vigente sin ver `costo_producto`.
+  5. Rol sin `cargar_costos` (con `inventario.crear`) llama `fn_sellar_costo_herencia_items` por RPC sobre ítems que ya tienen costo → el costo no cambia.
+  6. Vendedora vende en mostrador con descuentos → precio final intacto.
+- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` de `00155` dropea policies nuevas y `fn_sellar_costo_herencia_items`, restaura funciones previas.
+
+##### Sub-fase 3E.2 — Satélites `item_costo`, `detalle_venta_costo` y `detalle_venta_rendicion` (D-CPC-07)
+- **Migración tentativa**: `00156_cpc_item_y_venta_costo.sql`.
+- **Objetos SQL nuevos / recreados**:
+  - Tablas satélite con RLS + backfill + verificación de conteos:
+    - `item_costo(id_item PK/FK, id_tenant, costo_ingreso)` (`ver_costos` / `cargar_costos` / `editar_cotizacion`).
+    - `detalle_venta_costo(id_detalle_venta PK/FK, id_tenant, costo_snapshot, monto_ganancia)` (`SELECT` `ver_costos`).
+    - `detalle_venta_rendicion(id_detalle_venta PK/FK, id_tenant, monto_proveedor)` (`SELECT` `ver_costos OR rendiciones.ver`).
+  - Nuevos selladores DEFINER: `fn_sellar_costo_venta(p_id_venta uuid)`, `fn_sellar_costo_cambio(p_id_detalle_venta uuid)` (con guard `'item-costo-pendiente'` sobre `item_costo` y sellado de `detalle_venta_rendicion`).
+  - Recrea: `fn_sellar_costo_herencia_items` (escribe en `item_costo`), `sp_confirmar_ingreso` (`00153:276`), `sp_crear_stock_directo` (`00154:101`), `sp_aplicar_ultimo_costo` (`00153:606`), `sp_completar_costo_ingreso` (`00153:714`), `sp_registrar_venta` (`00153:872`), `sp_registrar_cambio` (`00153:1337`), `sp_registrar_devolucion_cliente` (`00144:632`, lee `detalle_venta_costo.costo_snapshot`), `sp_generar_rendicion` (`00147:698`), `preview_rendicion` (`00126:231`), `sp_perdida_incobrable_venta` (`00059:788`), `fn_modulo_tiene_estado_vivo` (`00122:164`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_posicion` (`00111:344`), `v_linea_venta` (`00110:23`), `v_perfil_proveedor` (`00071:264`), `tg_detalle_venta_inmutable` (`00088:67`, sin referencias a columnas borradas + trigger inmutable en `detalle_venta_costo` y `detalle_venta_rendicion`).
+  - **`DROP COLUMN` en la misma migración**: `item_producto.costo_ingreso`, `detalle_venta.costo_snapshot`, `detalle_venta.monto_ganancia`, `detalle_venta.monto_proveedor`.
+- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/item.ts`, `lib/dal/consignaciones/consignacion.ts`, `lib/dal/inventario/proveedor.ts`, `lib/dal/ventas/venta.ts`, `lib/dal/rendiciones/rendicion.ts`; actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_venta` y `fn_sellar_costo_cambio`).
+- **Tests `tests/db` (6 casos)**:
+  1. Rol sin `ver_costos` (`Vendedora-Local`) consulta `item_costo`, `detalle_venta_costo` y `detalle_venta_rendicion` por PostgREST → 0 filas.
+  2. Rol sin `ver_costos` confirma ingreso sin costo → `item_costo` sellada; llama `fn_sellar_costo_herencia_items` por RPC sobre ítems con costo → no pisa.
+  3. Rol sin `ver_costos` vende y cambia ítem con `item_costo` → éxito y sella `detalle_venta_costo` + `detalle_venta_rendicion`.
+  4. Rol sin `ver_costos` intenta vender o cambiar ítem sin `item_costo` → aborta con `'item-costo-pendiente'` (`P0001`) y rollback total.
+  5. Rol con `rendiciones.ver` y sin `ver_costos` lee `detalle_venta_rendicion.monto_proveedor` y `preview_rendicion`, pero ve 0 filas en `detalle_venta_costo`.
+  6. Rol con `ver_costos` ve las 3 satélites completas.
+- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 4 columnas, las repuebla desde las 3 satélites, restaura funciones/vistas/trigger y dropea las 3 satélites + selladores; revertir DAL.
+
+##### Sub-fase 3E.3 — Satélites `devolucion_venta_costo` e `ingreso_detalle_costo`
+- **Migración tentativa**: `00157_cpc_devolucion_e_ingreso_costo.sql`.
+- **Objetos SQL nuevos / recreados**:
+  - Tablas satélite con RLS + backfill + verificación de conteos:
+    - `devolucion_venta_costo(id_devolucion PK/FK, id_tenant, costo_recuperado)` (`SELECT` `ver_costos`).
+    - `ingreso_detalle_costo(id_detalle PK/FK, id_tenant, costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor)` (`ver_costos` / `cargar_costos`).
+  - Nuevo sellador DEFINER: `fn_sellar_costo_devolucion(p_id_devolucion uuid)`.
+  - Recrea: `sp_registrar_devolucion_cliente` (`00144:632`), `sp_importar_remito` (`00153:415`), `sp_confirmar_ingreso` (`00153:276`), `sp_completar_costo_ingreso` (`00153:714`), `ingreso_detalle_bloquea_confirmado` (`00153:180`), `v_linea_venta` (`00110:23`), `rf_finanzas_resultados` (`00110:69`), `rf_finanzas_flujo` (`00095:956`), `rf_finanzas_posicion` (`00111:344`).
+  - **`DROP COLUMN` en la misma migración**: `devolucion_venta.costo_recuperado`, `ingreso_mercaderia_detalle.{costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor}`.
+- **Cambios en `lib/dal` y `app` juntos**: `lib/dal/inventario/ingreso.ts` (`listIngresosConResumen`, `listIngresosDeProveedor`, `getIngreso`, `addIngresoDetalle` leen/escriben `ingreso_detalle_costo`); actualizar `tests/db/rvp-lecturas.test.ts` (agregar `fn_sellar_costo_devolucion`).
+- **Tests `tests/db` (4 casos)**:
+  1. Rol sin `ver_costos` consulta `devolucion_venta_costo` e `ingreso_detalle_costo` por PostgREST → 0 filas.
+  2. Rol sin `ver_costos` (con `ventas.editar`) devuelve prenda → éxito y `devolucion_venta_costo` sellada.
+  3. Rol sin `cargar_costos` importa remito con costo → `42501`; sin costo → éxito.
+  4. Administrador lee `ingreso_detalle_costo` y `devolucion_venta_costo` normalmente.
+- **Deploy / Rollback**: `supabase db push` → `git push`. Rollback: `-- DOWN:` recrea las 5 columnas, las repuebla desde ambas satélites, restaura funciones/vistas/trigger y dropea ambas satélites + `fn_sellar_costo_devolucion`; revertir DAL.
+
+##### Sub-fase 3E.4 — Cierre: whitelist final y reglas de arquitectura
+- **Migración SQL**: Ninguna.
+- **Cambios en repo**: Verificar whitelist cerrada en `tests/db/rvp-lecturas.test.ts` (exactamente los 4 selladores `RETURNS void` de §6.1), documentar la regla de tablas satélite de costo en `AGENTS.md` y `supabase/README.md`, y correr `pnpm gate:full`.
+- **Tests**: Suite completa (`pnpm gate:full`) confirmando 0 referencias a columnas eliminadas y whitelist DEFINER cerrada.
 
 ---
 

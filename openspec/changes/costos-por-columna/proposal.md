@@ -120,6 +120,18 @@ el precio. Sin DEFINER. Como las reglas de margen quedan ocultas por fila sin
 `precios.ver_margenes` (`REQ-CPC.md §4.1 #34`), el recálculo exige también ese
 permiso: sin él no encontraría la regla y calcularía un precio equivocado.
 
+**D-CPC-07 — El monto a rendir de consignación se esconde (DP-CPC-07, opción 7.A).**
+En una venta de consignación `detalle_venta.monto_proveedor` es el costo del
+ítem (`00153:1111`): dejarlo legible reabre por otra columna la fuga que este
+cambio cierra. Pasa a una tabla satélite propia, sellada por
+`fn_sellar_costo_venta`, que se lee con `inventario.ver_costos` o
+`rendiciones.ver` (quien rinde al proveedor necesita el monto). No va a
+`detalle_venta_costo`: la RLS es por fila y esa tabla se lee solo con
+`ver_costos`. Un rol de rendiciones no vería el monto, y abrirla con
+`rendiciones.ver` le mostraría también el costo y el margen. Entran al alcance
+`sp_generar_rendicion`, `preview_rendicion`, `v_perfil_proveedor`,
+`v_linea_venta` y `lib/dal/inventario/proveedor.ts`. Decidido el 2026-11-12.
+
 ## 8. Riesgos
 
 | Riesgo | Mitigación |
