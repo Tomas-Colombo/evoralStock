@@ -62,6 +62,21 @@ describe('etiquetaConfigSchema (REQ-ETQ-01 y REQ-ETQ-04)', () => {
     expect(etiquetaConfigSchema.safeParse({ ...configValida, offset_y_mm: 11 }).success).toBe(false)
   })
 
+  it('acepta medidas con hasta 2 decimales y rechaza más de 2 (numeric(5,2))', () => {
+    // 0.5 es válido
+    expect(etiquetaConfigSchema.safeParse({ ...configValida, margen_mm: 0.5 }).success).toBe(true)
+    expect(etiquetaConfigSchema.safeParse({ ...configValida, separacion_mm: 2.25 }).success).toBe(true)
+    expect(etiquetaConfigSchema.safeParse({ ...configValida, offset_x_mm: -1.5 }).success).toBe(true)
+    expect(etiquetaConfigSchema.safeParse({ ...configValida, offset_y_mm: 3.75 }).success).toBe(true)
+
+    // 0.123 (3 decimales) es rechazado con etiqueta-config-invalida
+    const r = etiquetaConfigSchema.safeParse({ ...configValida, margen_mm: 0.123 })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(r.error.issues[0]?.message).toBe('etiqueta-config-invalida')
+    }
+  })
+
   it('rechaza claves adicionales por strictObject', () => {
     const r = etiquetaConfigSchema.safeParse({ ...configValida, extra: 'invalido' })
     expect(r.success).toBe(false)
@@ -87,14 +102,34 @@ describe('crearEtiquetaPlantillaSchema (REQ-ETQ-03)', () => {
     expect(r.success).toBe(true)
   })
 
-  it('rechaza nombres inválidos o con espacios al borde (REQ-ETQ-03)', () => {
+  it('rechaza nombres inválidos con plantilla-nombre-invalido y aplica trim antes de min/max (REQ-ETQ-03 N7)', () => {
     // Vacío
-    expect(crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: '' }).success).toBe(false)
+    const rVacio = crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: '' })
+    expect(rVacio.success).toBe(false)
+    if (!rVacio.success) {
+      expect(rVacio.error.issues[0]?.message).toBe('plantilla-nombre-invalido')
+    }
+
+    // Solo espacios: trim() lo deja en vacío y falla min(1) con plantilla-nombre-invalido
+    const rEspacios = crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: '    ' })
+    expect(rEspacios.success).toBe(false)
+    if (!rEspacios.success) {
+      expect(rEspacios.error.issues[0]?.message).toBe('plantilla-nombre-invalido')
+    }
+
     // Más de 40 caracteres
-    expect(crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: 'a'.repeat(41) }).success).toBe(false)
-    // Espacio al inicio o al final
-    expect(crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: ' Remera' }).success).toBe(false)
-    expect(crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: 'Remera ' }).success).toBe(false)
+    const rLargo = crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: 'a'.repeat(41) })
+    expect(rLargo.success).toBe(false)
+    if (!rLargo.success) {
+      expect(rLargo.error.issues[0]?.message).toBe('plantilla-nombre-invalido')
+    }
+
+    // Espacios al borde: trim() previo los elimina y acepta el nombre limpio
+    const rTrim = crearEtiquetaPlantillaSchema.safeParse({ ...plantillaValida, nombre: '  Remera 40x30  ' })
+    expect(rTrim.success).toBe(true)
+    if (rTrim.success) {
+      expect(rTrim.data.nombre).toBe('Remera 40x30')
+    }
   })
 
   it('rechaza medidas fuera de rango con plantilla-medidas-invalidas (REQ-ETQ-03 N3)', () => {

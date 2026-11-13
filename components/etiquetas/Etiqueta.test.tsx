@@ -89,4 +89,23 @@ describe('Etiqueta', () => {
     // En 1D el texto del código muestra codigo_ean
     expect(screen.getByText('2000000000008')).toBeInTheDocument()
   })
+
+  it('no utiliza colores de la skin/tema y renderiza texto en negro', () => {
+    const { container } = render(
+      <Etiqueta
+        plantilla={plantillaBase}
+        item={itemPrueba}
+        simbologia="qr"
+      />,
+    )
+
+    const html = container.innerHTML
+    // No debe contener clases de color del tema
+    expect(html).not.toContain('text-muted')
+    expect(html).not.toContain('text-text')
+    expect(html).not.toContain('bg-card')
+    // El contenedor y los textos usan text-black / bg-white
+    expect(html).toContain('text-black')
+    expect(html).toContain('bg-white')
+  })
 })

@@ -1,4 +1,4 @@
-import bwipjs from 'bwip-js'
+import bwipjs from 'bwip-js/browser'
 import {
   obtenerSimbologia,
   type SimbologiaId,

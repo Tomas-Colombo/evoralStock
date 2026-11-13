@@ -28,6 +28,19 @@ const payloadParams = {
 }
 
 /**
+ * Validación para medidas numéricas de impresora con hasta 2 decimales (base numeric(5,2)).
+ */
+const decimalMmSchema = (min: number, max: number) =>
+  z
+    .number({ error: () => 'etiqueta-config-invalida' })
+    .min(min, 'etiqueta-config-invalida')
+    .max(max, 'etiqueta-config-invalida')
+    .refine(
+      (n) => Number.isFinite(n) && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6,
+      'etiqueta-config-invalida',
+    )
+
+/**
  * Esquema de validación para `etiqueta_config` (REQ-ETQ-01 y REQ-ETQ-04).
  */
 export const etiquetaConfigSchema = z.strictObject(
@@ -38,44 +51,28 @@ export const etiquetaConfigSchema = z.strictObject(
     impresora_tipo: z.enum(IMPRESORA_TIPOS, {
       error: () => 'etiqueta-config-invalida',
     }),
-    margen_mm: z
-      .number({ error: () => 'etiqueta-config-invalida' })
-      .int('etiqueta-config-invalida')
-      .min(IMPRESORA_MARGEN_MM_MIN, 'etiqueta-config-invalida')
-      .max(IMPRESORA_MARGEN_MM_MAX, 'etiqueta-config-invalida'),
-    separacion_mm: z
-      .number({ error: () => 'etiqueta-config-invalida' })
-      .int('etiqueta-config-invalida')
-      .min(IMPRESORA_SEPARACION_MM_MIN, 'etiqueta-config-invalida')
-      .max(IMPRESORA_SEPARACION_MM_MAX, 'etiqueta-config-invalida'),
+    margen_mm: decimalMmSchema(IMPRESORA_MARGEN_MM_MIN, IMPRESORA_MARGEN_MM_MAX),
+    separacion_mm: decimalMmSchema(IMPRESORA_SEPARACION_MM_MIN, IMPRESORA_SEPARACION_MM_MAX),
     columnas: z
       .number({ error: () => 'etiqueta-config-invalida' })
       .int('etiqueta-config-invalida')
       .min(IMPRESORA_COLUMNAS_MIN, 'etiqueta-config-invalida')
       .max(IMPRESORA_COLUMNAS_MAX, 'etiqueta-config-invalida')
       .nullable(),
-    offset_x_mm: z
-      .number({ error: () => 'etiqueta-config-invalida' })
-      .int('etiqueta-config-invalida')
-      .min(IMPRESORA_OFFSET_MM_MIN, 'etiqueta-config-invalida')
-      .max(IMPRESORA_OFFSET_MM_MAX, 'etiqueta-config-invalida'),
-    offset_y_mm: z
-      .number({ error: () => 'etiqueta-config-invalida' })
-      .int('etiqueta-config-invalida')
-      .min(IMPRESORA_OFFSET_MM_MIN, 'etiqueta-config-invalida')
-      .max(IMPRESORA_OFFSET_MM_MAX, 'etiqueta-config-invalida'),
+    offset_x_mm: decimalMmSchema(IMPRESORA_OFFSET_MM_MIN, IMPRESORA_OFFSET_MM_MAX),
+    offset_y_mm: decimalMmSchema(IMPRESORA_OFFSET_MM_MIN, IMPRESORA_OFFSET_MM_MAX),
   },
   payloadParams,
 )
 
 /**
- * Nombre de plantilla: 1 a 40 caracteres, sin espacios al borde (REQ-ETQ-03).
+ * Nombre de plantilla: 1 a 40 caracteres, trim previo a min/max (REQ-ETQ-03 N7).
  */
 const nombrePlantillaSchema = z
-  .string('payload-invalido')
-  .min(PLANTILLA_NOMBRE_MIN, 'payload-invalido')
-  .max(PLANTILLA_NOMBRE_MAX, 'payload-invalido')
-  .refine((s) => s.trim() === s, 'payload-invalido')
+  .string('plantilla-nombre-invalido')
+  .trim()
+  .min(PLANTILLA_NOMBRE_MIN, 'plantilla-nombre-invalido')
+  .max(PLANTILLA_NOMBRE_MAX, 'plantilla-nombre-invalido')
 
 const anchoPlantillaSchema = z
   .number('plantilla-medidas-invalidas')

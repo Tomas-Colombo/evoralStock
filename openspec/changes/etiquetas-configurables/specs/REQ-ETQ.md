@@ -25,8 +25,10 @@ más el `check` de la columna, y un test MUST verificar que los dos coinciden.
 
 Toda fila de `item_producto` MUST tener `codigo_ean`: 13 dígitos, prefijo `20`,
 contador de 10 dígitos por tenant y dígito verificador GS1 válido. Es único por
-`(id_tenant, codigo_ean)`. Lo asigna el trigger `before insert` cuando viene null.
-Es inmutable: un `update` que lo cambie MUST fallar.
+`(id_tenant, codigo_ean)`. Lo asigna siempre el trigger `before insert`, e
+ignora cualquier valor que venga en el insert: un EAN elegido a mano podría
+ocupar un número futuro del contador y bloquear las altas siguientes. Un `check`
+exige `^20[0-9]{11}$`. Es inmutable: un `update` que lo cambie MUST fallar.
 
 - **Feliz**: `sp_confirmar_ingreso` crea 3 ítems → reciben 3 EAN correlativos válidos.
 - **N1**: dos inserts concurrentes del mismo tenant → EAN distintos (el contador
@@ -58,6 +60,8 @@ La primera plantilla creada es la predeterminada.
 - **N5**: id de otro tenant o inexistente → `plantilla-no-encontrada`, sin
   distinguir entre los dos casos.
 - **N6**: crear la número 21 → `plantillas-limite`.
+- **N7**: nombre vacío, de más de 40 caracteres o con espacios al borde →
+  `plantilla-nombre-invalido` (no `plantilla-nombre-duplicado`).
 
 ### REQ-ETQ-04 — Perfil de impresora
 
@@ -116,7 +120,9 @@ La migración MUST crear, por cada tenant, una plantilla "Predeterminada" que
 reproduzca la impresión actual. Medidas: si había `impresora_ancho_mm`/`alto_mm`,
 esos valores con `impresora_tipo = 'rollo'`; si no, las que surgen de
 `qr_lado_mm` (o 35) más el texto, según `ImprimirEtiquetasClient.tsx:37-89`, con
-`impresora_tipo = 'hoja'`. Después borra las 3 claves `etiquetas` de
+`impresora_tipo = 'hoja'`. Hoy la etiqueta muestra solo código, nombre y talle,
+así que la "Predeterminada" migrada (y la que crea `provision-tenant`) va con
+`mostrar_sku = false` y `mostrar_texto_codigo = false`. Después borra las 3 claves `etiquetas` de
 `configuracion` y retira `sp_set_configuracion_qr_lado_mm` y
 `sp_set_configuracion_impresora`. El DOWN MUST restaurar claves y SP (desde
 `pnpm sp:last`).
@@ -231,7 +237,7 @@ queda con ese nombre y solo cambia su texto a "Escaneá el código".
 
 ## 7. Slugs nuevos (`lib/errores/mensajes.ts` + inventario de `mensajes.test.ts`)
 
-`etiqueta-config-invalida`, `plantilla-nombre-duplicado`,
+`etiqueta-config-invalida`, `plantilla-nombre-duplicado`, `plantilla-nombre-invalido`,
 `plantilla-medidas-invalidas`, `plantilla-predeterminada-no-se-borra`,
 `plantilla-no-encontrada`, `plantillas-limite`, `codigo-ean-inmutable`,
 `etiqueta-chica-para-codigo`, `etiqueta-no-entra-en-hoja`. Los dos últimos son

@@ -73,7 +73,7 @@ export function Etiqueta({
           altoMm={tamano.altoMm}
         />
         {plantilla.mostrar_texto_codigo && (
-          <div className="mt-0.5 font-mono text-[8px] leading-none text-muted select-all">
+          <div className="mt-0.5 font-mono text-[8px] leading-none text-black select-all">
             {textoCodigo}
           </div>
         )}
@@ -81,18 +81,18 @@ export function Etiqueta({
 
       <div className="w-full flex flex-col items-center justify-end leading-tight shrink-0">
         {plantilla.mostrar_nombre && item.nombre && (
-          <div className="w-full truncate text-[11px] font-semibold">
+          <div className="w-full truncate text-[11px] font-semibold text-black">
             {item.nombre.trim()}
           </div>
         )}
         <div className="flex items-center justify-center gap-1.5 flex-wrap">
           {plantilla.mostrar_talle && item.talle && (
-            <span className="font-mono text-[10px] font-bold">
+            <span className="font-mono text-[10px] font-bold text-black">
               {item.talle}
             </span>
           )}
           {plantilla.mostrar_sku && item.sku && (
-            <span className="font-mono text-[9px] text-muted">
+            <span className="font-mono text-[9px] text-black">
               {item.sku}
             </span>
           )}
