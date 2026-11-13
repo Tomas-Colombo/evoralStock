@@ -274,8 +274,8 @@ async function provision(opts: Opciones): Promise<void> {
       alto_mm: 47,
       mostrar_nombre: true,
       mostrar_talle: true,
-      mostrar_sku: true,
-      mostrar_texto_codigo: true,
+      mostrar_sku: false,
+      mostrar_texto_codigo: false,
       predeterminada: true,
     })
     if (plantillaError) throw new Error(`etiqueta_plantilla: ${plantillaError.message}`)

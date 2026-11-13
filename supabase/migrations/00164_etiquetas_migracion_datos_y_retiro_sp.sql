@@ -158,7 +158,7 @@ begin
       )
       values (
         v_tenant.id_tenant, 'Predeterminada', v_p_ancho, v_p_alto,
-        true, true, true, true,
+        true, true, false, false,
         true
       );
     end if;

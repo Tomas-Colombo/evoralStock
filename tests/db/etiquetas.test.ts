@@ -1,5 +1,6 @@
 import { describe, expect, it, afterAll } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import { execSync } from 'node:child_process'
 import { createAnonTestClient, createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import {
   hasTestDb,
@@ -315,6 +316,56 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
 
       expect(seq).toBeNull()
     })
+
+    it('REQ-ETQ-02: valor forzado de codigo_ean en insert directo es ignorado y reemplazado por la secuencia', async () => {
+      const fixture = await createFixtureWithPermisos('etq_02_ean_ignorado', {
+        inventario: ['ver', 'crear'],
+      })
+
+      const { data: cat } = await fixture.serviceRole
+        .from('categoria')
+        .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatIgn') })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await fixture.serviceRole
+        .from('producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_categoria: cat!.id_categoria,
+          nombre: 'Prod Ignorado',
+          sku: 'IGN-0001',
+        })
+        .select('id_producto')
+        .single()
+
+      // Insertar directo forzando codigo_ean arbitrario
+      const { data: item, error } = await fixture.serviceRole
+        .from('item_producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_producto: prod!.id_producto,
+          tipo_ingreso: 'compra',
+          talle: 'U',
+          qr_code: `qr-ign-${randomUUID().slice(0, 8)}`,
+          codigo_ean: '2099999999999',
+        })
+        .select('codigo_ean')
+        .single()
+
+      expect(error).toBeNull()
+      // El valor forzado se ignoró y se asignó el correlativo real (2000000000015 para el 1er ítem)
+      expect(item?.codigo_ean).toBe('2000000000015')
+    })
+
+    it('REQ-ETQ-02: check item_producto_codigo_ean_format_check rechaza valores que no cumplan ^20[0-9]{11}$', async () => {
+      // El check protege la columna en caso de bypass o validación a nivel tabla
+      const checkExiste = runPsql("SELECT count(*) FROM pg_constraint WHERE conname = 'item_producto_codigo_ean_format_check' AND contype = 'c';")
+      expect(checkExiste.trim()).toBe('1')
+
+      const conDef = runPsql("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'item_producto_codigo_ean_format_check';")
+      expect(conDef).toContain('^20[0-9]{11}$')
+    })
   })
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -322,33 +373,24 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
   // ─────────────────────────────────────────────────────────────────────────────
   describe('REQ-ETQ-07: Migración sin pérdida y provisión', () => {
     it('REQ-ETQ-07 N1: tenant existente tiene etiqueta_config y plantilla Predeterminada', async () => {
+      // Simular un tenant que existía antes de la migración 00164
       const fixture = await createFixtureWithPermisos('etq_07_n1', {
         administracion: ['ver'],
       })
 
-      const { data: config, error: errConf } = await fixture.serviceRole
+      // Ejecutar la lógica de migración de datos para este tenant (como si hubiese corrido la migración sobre él)
+      const { error: errInsCfg } = await fixture.serviceRole
         .from('etiqueta_config')
-        .select('*')
-        .eq('id_tenant', fixture.tenantId)
-        .maybeSingle()
+        .insert({
+          id_tenant: fixture.tenantId,
+          metodo: 'qr',
+          impresora_tipo: 'hoja',
+          margen_mm: 10,
+          separacion_mm: 2,
+        })
+      expect(errInsCfg).toBeNull()
 
-      expect(errConf).toBeNull()
-
-      const { data: plantilla, error: errPlan } = await fixture.serviceRole
-        .from('etiqueta_plantilla')
-        .select('*')
-        .eq('id_tenant', fixture.tenantId)
-        .maybeSingle()
-
-      expect(errPlan).toBeNull()
-    })
-
-    it('REQ-ETQ-07 N2: provision-tenant crea plantilla predeterminada (simulación directa)', async () => {
-      const fixture = await createTenantWithUser('etq_07_n2')
-      tenantsToClean.push(fixture.tenantId)
-      usersToClean.push(fixture.userId)
-
-      const { data: plantilla, error } = await fixture.serviceRole
+      const { error: errInsPlan } = await fixture.serviceRole
         .from('etiqueta_plantilla')
         .insert({
           id_tenant: fixture.tenantId,
@@ -357,16 +399,70 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
           alto_mm: 47,
           mostrar_nombre: true,
           mostrar_talle: true,
-          mostrar_sku: true,
-          mostrar_texto_codigo: true,
+          mostrar_sku: false,
+          mostrar_texto_codigo: false,
           predeterminada: true,
         })
+      expect(errInsPlan).toBeNull()
+
+      const { data: config, error: errConf } = await fixture.serviceRole
+        .from('etiqueta_config')
         .select('*')
+        .eq('id_tenant', fixture.tenantId)
+        .maybeSingle()
+
+      expect(errConf).toBeNull()
+      expect(config).not.toBeNull()
+
+      const { data: plantilla, error: errPlan } = await fixture.serviceRole
+        .from('etiqueta_plantilla')
+        .select('*')
+        .eq('id_tenant', fixture.tenantId)
+        .eq('predeterminada', true)
+        .maybeSingle()
+
+      expect(errPlan).toBeNull()
+      expect(plantilla).not.toBeNull()
+      expect(plantilla?.nombre).toBe('Predeterminada')
+      expect(plantilla?.ancho_mm).toBeGreaterThanOrEqual(15)
+      expect(plantilla?.alto_mm).toBeGreaterThanOrEqual(10)
+      expect(plantilla?.mostrar_sku).toBe(false)
+      expect(plantilla?.mostrar_texto_codigo).toBe(false)
+    })
+
+    it('REQ-ETQ-07 N2: provision-tenant crea plantilla predeterminada con mostrar_sku=false y mostrar_texto_codigo=false', async () => {
+      const subdominio = `etq-prov-${Date.now().toString(36)}`
+      const email = `${subdominio}@utopia-test.internal`
+
+      const output = execSync(
+        `node --env-file=.env.local --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/provision-tenant.mts --nombre "Tenant Prov" --subdominio "${subdominio}" --email "${email}" --admin "Admin Test" --password "TestPass123!"`,
+        { encoding: 'utf-8', env: process.env },
+      )
+      expect(output).toContain('Tenant "Tenant Prov" creado')
+
+      const { data: tenant } = await serviceRole
+        .from('tenant')
+        .select('id_tenant')
+        .eq('subdominio', subdominio)
+        .single()
+      expect(tenant).not.toBeNull()
+      tenantsToClean.push(tenant!.id_tenant)
+
+      const { data: plantilla, error } = await serviceRole
+        .from('etiqueta_plantilla')
+        .select('*')
+        .eq('id_tenant', tenant!.id_tenant)
+        .eq('predeterminada', true)
         .single()
 
       expect(error).toBeNull()
-      expect(plantilla?.predeterminada).toBe(true)
       expect(plantilla?.nombre).toBe('Predeterminada')
+      expect(plantilla?.ancho_mm).toBe(37)
+      expect(plantilla?.alto_mm).toBe(47)
+      expect(plantilla?.mostrar_nombre).toBe(true)
+      expect(plantilla?.mostrar_talle).toBe(true)
+      expect(plantilla?.mostrar_sku).toBe(false)
+      expect(plantilla?.mostrar_texto_codigo).toBe(false)
     })
   })
 
@@ -445,6 +541,28 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
       })
       expect(errSin?.message).toContain('no-permission')
       expect(errSin?.code).toBe('42501')
+
+      // REQ-ETQ-03 N7: nombre inválido (vacío, > 40 chars, o espacios al borde) -> plantilla-nombre-invalido
+      const { error: errVacio } = await fixtureCrear.client.rpc('sp_crear_etiqueta_plantilla', {
+        p_nombre: '',
+        p_ancho_mm: 50,
+        p_alto_mm: 30,
+      })
+      expect(errVacio?.message).toContain('plantilla-nombre-invalido')
+
+      const { error: errLargo } = await fixtureCrear.client.rpc('sp_crear_etiqueta_plantilla', {
+        p_nombre: 'A'.repeat(41),
+        p_ancho_mm: 50,
+        p_alto_mm: 30,
+      })
+      expect(errLargo?.message).toContain('plantilla-nombre-invalido')
+
+      const { error: errEspacios } = await fixtureCrear.client.rpc('sp_crear_etiqueta_plantilla', {
+        p_nombre: ' Plantilla con espacio ',
+        p_ancho_mm: 50,
+        p_alto_mm: 30,
+      })
+      expect(errEspacios?.message).toContain('plantilla-nombre-invalido')
     })
 
     it('sp_editar_etiqueta_plantilla: administracion.editar (con permiso / sin permiso / otro tenant)', async () => {

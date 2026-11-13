@@ -65,7 +65,7 @@ const SLUGS_DE_LA_APP = [
   'venta-con-incobrables', 'venta-not-found', 'venta-ya-rendida', 'venta-liquidada', 'venta-revendedora-sin-id', 'canal-no-disponible', 'devolucion-venta-revendedora', 'item-no-en-revendedora', 'medio-solo-revendedora', 'venta-revendedora-con-pagos', 'canal-invalido', 'revendedora-invalida',
   'liquidacion-vacia', 'liquidacion-ya-pagada', 'cuenta-invalida-liquidacion', 'monto-pago-invalido', 'detalle-ya-liquidado', 'detalle-no-en-liquidacion', 'liquidacion-no-encontrada', 'revendedora-invalida-liquidacion', 'pago-revendedora-inmutable',
   'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora',
-  'formato-ean12-invalido', 'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-medidas-invalidas',
+  'formato-ean12-invalido', 'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-nombre-invalido', 'plantilla-medidas-invalidas',
   'plantilla-predeterminada-no-se-borra', 'plantilla-no-encontrada', 'plantillas-limite', 'codigo-ean-inmutable',
   // Rutas de API
   'elegir-talle', 'item-no-disponible', 'item-no-es-consignacion', 'proveedor-vacio',

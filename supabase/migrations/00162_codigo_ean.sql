@@ -3,9 +3,9 @@
 --     1. fn_ean13_digito(text): función pura e inmutable que calcula el dígito verificador GS1.
 --     2. item_producto.codigo_ean: columna nullable inicialmente para permitir backfill.
 --     3. item_ean_seq: contador correlativo por tenant con RLS estricta.
---     4. fn_asignar_codigo_ean(): trigger before insert que asigna EAN correlativo con prefijo '20' y valida inmutabilidad en update.
---     5. Backfill de filas existentes de item_producto (desactivando triggers durante el backfill para no mutar updated_at ni romper por módulos opcionales).
---     6. Constraint not null e índice único (id_tenant, codigo_ean).
+--     4. Backfill de filas existentes de item_producto (desactivando triggers durante el backfill para no mutar updated_at ni romper por módulos opcionales).
+--     5. Constraint not null, check de formato e índice único (id_tenant, codigo_ean).
+--     6. fn_asignar_codigo_ean() y trigger before insert or update (creado DESPUÉS del backfill y not null).
 --
 -- DOWN:
 --   drop trigger if exists item_producto_codigo_ean_tr on item_producto;
@@ -18,6 +18,7 @@
 --   drop policy if exists item_ean_seq_tenant_isolation on item_ean_seq;
 --   drop table if exists item_ean_seq;
 --   drop index if exists item_producto_tenant_codigo_ean_uk;
+--   alter table item_producto drop constraint if exists item_producto_codigo_ean_format_check;
 --   alter table item_producto drop column if exists codigo_ean;
 --   drop function if exists fn_ean13_digito(text);
 
@@ -98,49 +99,7 @@ create policy item_ean_seq_rlsp_delete on item_ean_seq as restrictive
 revoke all on item_ean_seq from anon, public;
 grant select, insert, update on item_ean_seq to authenticated;
 
--- ─── 4. Trigger de asignación e inmutabilidad ────────────────────────
-create or replace function fn_asignar_codigo_ean()
-returns trigger
-language plpgsql
-security invoker
-set search_path = public, extensions, pg_temp
-as $$
-declare
-  v_seq  bigint;
-  v_base text;
-begin
-  if TG_OP = 'UPDATE' then
-    if OLD.codigo_ean is distinct from NEW.codigo_ean then
-      raise exception 'codigo-ean-inmutable' using errcode = '22023';
-    end if;
-    return NEW;
-  end if;
-
-  -- TG_OP = 'INSERT'
-  if NEW.codigo_ean is null then
-    insert into item_ean_seq (id_tenant, ultimo)
-    values (NEW.id_tenant, 1)
-    on conflict (id_tenant)
-    do update set ultimo = item_ean_seq.ultimo + 1
-    returning ultimo into v_seq;
-
-    v_base := '20' || lpad(v_seq::text, 10, '0');
-    NEW.codigo_ean := v_base || fn_ean13_digito(v_base)::text;
-  end if;
-
-  return NEW;
-end;
-$$;
-
-revoke all on function fn_asignar_codigo_ean() from anon, public;
-grant execute on function fn_asignar_codigo_ean() to authenticated;
-
-drop trigger if exists item_producto_codigo_ean_tr on item_producto;
-create trigger item_producto_codigo_ean_tr
-  before insert or update on item_producto
-  for each row execute function fn_asignar_codigo_ean();
-
--- ─── 5. Backfill de ítems existentes ─────────────────────────────────
+-- ─── 4. Backfill de ítems existentes ─────────────────────────────────
 -- El backfill dispara item_producto_touch (00015) y tr_item_producto_consignacion (00123).
 -- Deshabilitamos ambos triggers durante el backfill para:
 -- 1) Preservar el valor histórico de updated_at sin alterarlo artificialmente.
@@ -157,12 +116,8 @@ declare
   v_ean    text;
 begin
   for v_tenant in select distinct id_tenant from item_producto where codigo_ean is null loop
-    v_seq := 0;
-
-    -- Si ya hubiera secuencia creada para el tenant, arrancar desde allí
-    select coalesce(ultimo, 0) into v_seq
-      from item_ean_seq
-     where id_tenant = v_tenant.id_tenant;
+    -- Si el tenant no tiene fila en item_ean_seq, coalesce con subquery asegura 0 (no null)
+    v_seq := coalesce((select ultimo from item_ean_seq where id_tenant = v_tenant.id_tenant), 0);
 
     for v_item in
       select id_item
@@ -190,8 +145,51 @@ $$;
 alter table item_producto enable trigger tr_item_producto_consignacion;
 alter table item_producto enable trigger item_producto_touch;
 
--- ─── 6. Not null y unique index ──────────────────────────────────────
+-- ─── 5. Not null, check de formato e índice único ────────────────────
 alter table item_producto alter column codigo_ean set not null;
+
+alter table item_producto add constraint item_producto_codigo_ean_format_check
+  check (codigo_ean ~ '^20[0-9]{11}$');
 
 create unique index if not exists item_producto_tenant_codigo_ean_uk
   on item_producto(id_tenant, codigo_ean);
+
+-- ─── 6. Trigger de asignación e inmutabilidad (después del backfill) ──
+create or replace function fn_asignar_codigo_ean()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_seq  bigint;
+  v_base text;
+begin
+  if TG_OP = 'UPDATE' then
+    if OLD.codigo_ean is distinct from NEW.codigo_ean then
+      raise exception 'codigo-ean-inmutable' using errcode = '22023';
+    end if;
+    return NEW;
+  end if;
+
+  -- TG_OP = 'INSERT': asigna siempre e ignora cualquier valor que venga
+  insert into item_ean_seq (id_tenant, ultimo)
+  values (NEW.id_tenant, 1)
+  on conflict (id_tenant)
+  do update set ultimo = item_ean_seq.ultimo + 1
+  returning ultimo into v_seq;
+
+  v_base := '20' || lpad(v_seq::text, 10, '0');
+  NEW.codigo_ean := v_base || fn_ean13_digito(v_base)::text;
+
+  return NEW;
+end;
+$$;
+
+revoke all on function fn_asignar_codigo_ean() from anon, public;
+grant execute on function fn_asignar_codigo_ean() to authenticated;
+
+drop trigger if exists item_producto_codigo_ean_tr on item_producto;
+create trigger item_producto_codigo_ean_tr
+  before insert or update on item_producto
+  for each row execute function fn_asignar_codigo_ean();

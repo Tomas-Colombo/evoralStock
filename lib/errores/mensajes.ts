@@ -382,6 +382,7 @@ const MENSAJES: Record<string, string> = {
   'formato-ean12-invalido': 'El formato del código base EAN debe contener exactamente 12 dígitos numéricos.',
   'etiqueta-config-invalida': 'La configuración de etiquetas contiene valores fuera de rango.',
   'plantilla-nombre-duplicado': 'Ya existe una plantilla con ese nombre.',
+  'plantilla-nombre-invalido': 'El nombre de la plantilla debe tener entre 1 y 40 caracteres y no contener espacios al inicio o al final.',
   'plantilla-medidas-invalidas': 'Las medidas de la plantilla están fuera del rango permitido.',
   'plantilla-predeterminada-no-se-borra': 'No podés eliminar la plantilla predeterminada.',
   'plantilla-no-encontrada': 'La plantilla solicitada no existe o pertenece a otro negocio.',

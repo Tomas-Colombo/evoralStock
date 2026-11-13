@@ -272,7 +272,7 @@ begin
   end if;
 
   if p_nombre is null or length(trim(p_nombre)) < 1 or length(trim(p_nombre)) > 40 or trim(p_nombre) <> p_nombre then
-    raise exception 'plantilla-nombre-duplicado' using errcode = '22023';
+    raise exception 'plantilla-nombre-invalido' using errcode = '22023';
   end if;
 
   if p_ancho_mm is null or p_ancho_mm < 15 or p_ancho_mm > 300
@@ -369,7 +369,7 @@ begin
   end if;
 
   if p_nombre is null or length(trim(p_nombre)) < 1 or length(trim(p_nombre)) > 40 or trim(p_nombre) <> p_nombre then
-    raise exception 'plantilla-nombre-duplicado' using errcode = '22023';
+    raise exception 'plantilla-nombre-invalido' using errcode = '22023';
   end if;
 
   if p_ancho_mm is null or p_ancho_mm < 15 or p_ancho_mm > 300
