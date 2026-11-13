@@ -23,6 +23,9 @@ importers:
       '@zxing/library':
         specifier: ^0.23.0
         version: 0.23.0
+      bwip-js:
+        specifier: 4.11.4
+        version: 4.11.4
       next:
         specifier: 16.2.10
         version: 16.2.10(@babel/core@7.29.7)(@playwright/test@1.62.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1312,6 +1315,10 @@ packages:
 
   buffer-equal-constant-time@1.0.1:
     resolution: {integrity: sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==}
+
+  bwip-js@4.11.4:
+    resolution: {integrity: sha512-FOXnOQkinxog8FwxdnPB+8k2wRqwPnqXwxX37KcXOtMNW+9CinOkGv9MtIoRC4HX/UyogT0/9lIp6FDm2DcquQ==}
+    hasBin: true
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -4194,6 +4201,8 @@ snapshots:
       update-browserslist-db: 1.2.3(browserslist@4.28.7)
 
   buffer-equal-constant-time@1.0.1: {}
+
+  bwip-js@4.11.4: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
