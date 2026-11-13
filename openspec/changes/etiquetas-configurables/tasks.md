@@ -19,9 +19,9 @@
 
 ## F3 — Administración
 
-- [ ] 3.1 `lib/dal/etiquetas/etiquetas.ts`; borrar DAL y validación `*QrLadoMm*` / `*Impresora*`.
-- [ ] 3.2 Actions con las tres compuertas en `administracion/actions.ts`; slugs en `mensajes.ts`.
-- [ ] 3.3 `ConfiguracionEtiquetasCard` + `PlantillasEtiquetaCard` con vista previa; borrar las dos cards viejas.
+- [x] 3.1 `lib/dal/etiquetas/etiquetas.ts`; borrar DAL y validación `*QrLadoMm*` / `*Impresora*`.
+- [x] 3.2 Actions con las tres compuertas en `administracion/actions.ts`; slugs en `mensajes.ts`.
+- [x] 3.3 `ConfiguracionEtiquetasCard` + `PlantillasEtiquetaCard` con vista previa; borrar las dos cards viejas.
 
 ## F4 — Impresión y ficha
 

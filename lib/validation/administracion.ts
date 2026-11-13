@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { IMPRESORA_MM_MAX, IMPRESORA_MM_MIN, QR_LADO_MM_MAX, QR_LADO_MM_MIN } from '@/lib/inventario/limites'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 import { LOGO_MAX_BYTES, LOGO_MIME } from '@/lib/tenant/logo'
 
@@ -96,29 +95,6 @@ export function updateRolSchema(modulosVisibles: readonly string[]) {
 
 export const deleteRolSchema = z.strictObject(
   { idRol: z.uuid('id-rol-invalido') },
-  payloadParams,
-)
-
-export const updateConfiguracionQrSchema = z.strictObject(
-  {
-    ladoMm: z
-      .number('qr-lado-mm-invalido')
-      .int('qr-lado-mm-invalido')
-      .min(QR_LADO_MM_MIN, 'qr-lado-mm-invalido')
-      .max(QR_LADO_MM_MAX, 'qr-lado-mm-invalido'),
-  },
-  payloadParams,
-)
-
-const medidaImpresoraSchema = z
-  .number('impresora-medida-invalida')
-  .int('impresora-medida-invalida')
-  .min(IMPRESORA_MM_MIN, 'impresora-medida-invalida')
-  .max(IMPRESORA_MM_MAX, 'impresora-medida-invalida')
-  .nullable()
-
-export const updateConfiguracionImpresoraSchema = z.strictObject(
-  { anchoMm: medidaImpresoraSchema, altoMm: medidaImpresoraSchema },
   payloadParams,
 )
 

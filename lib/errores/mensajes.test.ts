@@ -31,7 +31,7 @@ const SLUGS_DE_LA_APP = [
   'modulo-desconocido', 'accion-invalida', 'acciones-duplicadas', 'cargar-costos-requiere-ver-costos', 'id-rol-invalido',
   'id-venta-invalido', 'id-detalle-invalido', 'nombre-largo', 'motivo-largo', 'motivo-invalido',
   'item-invalido', 'descuento-invalido', 'cuenta-invalida', 'forma-pago-invalida',
-  'cliente-invalido', 'reserva-invalida', 'observaciones-largas', 'qr-lado-mm-invalido', 'impresora-medida-invalida',
+  'cliente-invalido', 'reserva-invalida', 'observaciones-largas', 
   'logo-invalido', 'logo-muy-grande', 'proveedor-invalido', 'tipo-ingreso-invalido', 'tipo-proveedor-invalido',
   // Stored procedures
   'cantidad-invalida', 'categoria-not-found', 'categoria-sin-talles',
@@ -66,7 +66,7 @@ const SLUGS_DE_LA_APP = [
   'liquidacion-vacia', 'liquidacion-ya-pagada', 'cuenta-invalida-liquidacion', 'monto-pago-invalido', 'detalle-ya-liquidado', 'detalle-no-en-liquidacion', 'liquidacion-no-encontrada', 'revendedora-invalida-liquidacion', 'pago-revendedora-inmutable',
   'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora',
   'formato-ean12-invalido', 'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-nombre-invalido', 'plantilla-medidas-invalidas',
-  'plantilla-predeterminada-no-se-borra', 'plantilla-no-encontrada', 'plantillas-limite', 'codigo-ean-inmutable',
+  'plantilla-predeterminada-no-se-borra', 'plantilla-no-encontrada', 'plantillas-limite', 'codigo-ean-inmutable', 'etiqueta-chica-para-codigo', 'etiqueta-no-entra-en-hoja',
   // Rutas de API
   'elegir-talle', 'item-no-disponible', 'item-no-es-consignacion', 'proveedor-vacio',
   'qr-vacio', 'item-ya-marcado', 'sin-precio-lista', 'sku-sin-stock', 'sku-sin-stock-libre',

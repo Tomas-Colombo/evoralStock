@@ -4,16 +4,18 @@ import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { capacidades, modulosDePermisoVisibles } from '@/lib/modulos/capacidades'
 import {
-  getConfiguracionImpresora,
-  getConfiguracionQrLadoMm,
   listAuditoria,
   listRoles,
   listUsuarios,
 } from '@/lib/dal/administracion/administracion'
+import {
+  getEtiquetaConfig,
+  listEtiquetaPlantillas,
+} from '@/lib/dal/etiquetas/etiquetas'
 import { CambiarPasswordCard } from './CambiarPasswordCard'
 import { ConfiguracionLogoCard } from './ConfiguracionLogoCard'
-import { ConfiguracionImpresoraCard } from './ConfiguracionImpresoraCard'
-import { ConfiguracionQrCard } from './ConfiguracionQrCard'
+import { ConfiguracionEtiquetasCard } from './ConfiguracionEtiquetasCard'
+import { PlantillasEtiquetaCard } from './PlantillasEtiquetaCard'
 import { RolesModal } from './RolesModal'
 import { Card } from '@/components/ui/Card'
 
@@ -34,14 +36,16 @@ export default async function AdministracionHome() {
   const session = await verifySession()
   const cap = capacidades(session.modulosHabilitados)
   const modulosVisibles = modulosDePermisoVisibles(cap)
-  const [usuarios, roles, ultimasAcciones, ladoMm, impresora] = await Promise.all([
+  const [usuarios, roles, ultimasAcciones, etiquetaConfig, plantillas] = await Promise.all([
     listUsuarios(),
     listRoles(),
     listAuditoria({ limit: 15 }),
-    getConfiguracionQrLadoMm(),
-    getConfiguracionImpresora(),
+    getEtiquetaConfig(),
+    listEtiquetaPlantillas(),
   ])
+  const canCreate = hasModuleAccess(session, 'administracion', 'crear')
   const canEdit = hasModuleAccess(session, 'administracion', 'editar')
+  const canDelete = hasModuleAccess(session, 'administracion', 'eliminar')
 
   // Roles no está acá: es un pop-up (`RolesModal`), no una ruta. Módulos
   // tampoco: lo que el cliente contrató lo decide el operador, no el admin
@@ -65,8 +69,14 @@ export default async function AdministracionHome() {
         </section>
 
         <ConfiguracionLogoCard logoActual={session.marca.logoUrl} canEdit={canEdit} />
-        <ConfiguracionQrCard ladoMmInicial={ladoMm} canEdit={canEdit} />
-        <ConfiguracionImpresoraCard inicial={impresora} canEdit={canEdit} />
+        <ConfiguracionEtiquetasCard inicial={etiquetaConfig} canEdit={canEdit} />
+        <PlantillasEtiquetaCard
+          plantillas={plantillas}
+          config={etiquetaConfig}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
         <CambiarPasswordCard />
 
         <Card as="section" padding="none" className="overflow-x-auto">

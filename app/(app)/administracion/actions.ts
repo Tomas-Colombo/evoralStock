@@ -1,5 +1,20 @@
 'use server'
 
+import {
+  spCrearEtiquetaPlantilla,
+  spEditarEtiquetaPlantilla,
+  spEliminarEtiquetaPlantilla,
+  spMarcarEtiquetaPlantillaPredeterminada,
+  spSetEtiquetaConfig,
+} from '@/lib/dal/etiquetas/etiquetas'
+import {
+  crearEtiquetaPlantillaSchema,
+  editarEtiquetaPlantillaSchema,
+  eliminarEtiquetaPlantillaSchema,
+  etiquetaConfigSchema,
+  marcarEtiquetaPlantillaPredeterminadaSchema,
+} from '@/lib/validation/etiquetas'
+
 import { revalidatePath } from 'next/cache'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { requireModuleRole } from '@/lib/dal/guard'
@@ -11,8 +26,6 @@ import {
   spAsignarRol,
   spCreateRol,
   spDeleteRol,
-  spSetConfiguracionImpresora,
-  spSetConfiguracionQrLadoMm,
   quitarLogoTenant,
   spToggleUsuarioActivo,
   spUpdateRol,
@@ -23,8 +36,6 @@ import {
   createRolSchema,
   deleteRolSchema,
   primerReason,
-  updateConfiguracionImpresoraSchema,
-  updateConfiguracionQrSchema,
   updateRolSchema,
   updateTenantLogoSchema,
   cambiarPasswordSchema,
@@ -194,34 +205,85 @@ export async function deleteRolAction(input: { idRol: string }): Promise<ActionR
   }
 }
 
-export async function updateConfiguracionQrAction(
-  raw: unknown,
-): Promise<ActionResult<{ ladoMm: number }>> {
+export async function setEtiquetaConfigAction(raw: unknown): Promise<ActionResult> {
   const g = await guarded('editar')
   if (!g.ok) return { ok: false, reason: g.error }
 
-  const parsed = updateConfiguracionQrSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
+  const parsed = etiquetaConfigSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? 'payload-invalido' }
 
   try {
-    const ladoMm = await spSetConfiguracionQrLadoMm(parsed.data.ladoMm)
+    await spSetEtiquetaConfig(parsed.data)
     revalidatePath('/administracion')
     revalidatePath('/inventario/imprimir-etiquetas')
-    return { ok: true, data: { ladoMm } }
+    return { ok: true }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }
 }
 
-export async function updateConfiguracionImpresoraAction(raw: unknown): Promise<ActionResult> {
+export async function crearEtiquetaPlantillaAction(
+  raw: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const g = await guarded('crear')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  const parsed = crearEtiquetaPlantillaSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? 'payload-invalido' }
+
+  try {
+    const id = await spCrearEtiquetaPlantilla(parsed.data)
+    revalidatePath('/administracion')
+    revalidatePath('/inventario/imprimir-etiquetas')
+    return { ok: true, data: { id } }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function editarEtiquetaPlantillaAction(raw: unknown): Promise<ActionResult> {
   const g = await guarded('editar')
   if (!g.ok) return { ok: false, reason: g.error }
 
-  const parsed = updateConfiguracionImpresoraSchema.safeParse(raw)
-  if (!parsed.success) return { ok: false, reason: primerReason(parsed.error) }
+  const parsed = editarEtiquetaPlantillaSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? 'payload-invalido' }
 
   try {
-    await spSetConfiguracionImpresora(parsed.data)
+    await spEditarEtiquetaPlantilla(parsed.data)
+    revalidatePath('/administracion')
+    revalidatePath('/inventario/imprimir-etiquetas')
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function marcarEtiquetaPlantillaPredeterminadaAction(raw: unknown): Promise<ActionResult> {
+  const g = await guarded('editar')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  const parsed = marcarEtiquetaPlantillaPredeterminadaSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? 'payload-invalido' }
+
+  try {
+    await spMarcarEtiquetaPlantillaPredeterminada(parsed.data.id)
+    revalidatePath('/administracion')
+    revalidatePath('/inventario/imprimir-etiquetas')
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function eliminarEtiquetaPlantillaAction(raw: unknown): Promise<ActionResult> {
+  const g = await guarded('eliminar')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  const parsed = eliminarEtiquetaPlantillaSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? 'payload-invalido' }
+
+  try {
+    await spEliminarEtiquetaPlantilla(parsed.data.id)
     revalidatePath('/administracion')
     revalidatePath('/inventario/imprimir-etiquetas')
     return { ok: true }

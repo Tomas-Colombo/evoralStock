@@ -57,28 +57,6 @@ describe('getConfiguracionQrLadoMm', () => {
   })
 })
 
-describe('spSetConfiguracionQrLadoMm', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('invoca el RPC sp_set_configuracion_qr_lado_mm con p_lado_mm y p_ip', async () => {
-    const rpcMock = vi.fn().mockResolvedValue({ data: 50, error: null })
-    createServerClientMock.mockResolvedValue({
-      rpc: rpcMock,
-    })
-
-    const { spSetConfiguracionQrLadoMm } = await import('./administracion')
-    const res = await spSetConfiguracionQrLadoMm(50)
-
-    expect(rpcMock).toHaveBeenCalledWith('sp_set_configuracion_qr_lado_mm', {
-      p_lado_mm: 50,
-      p_ip: null,
-    })
-    expect(res).toBe(50)
-  })
-})
-
 describe('spSetTenantLogo', () => {
   beforeEach(() => {
     vi.clearAllMocks()

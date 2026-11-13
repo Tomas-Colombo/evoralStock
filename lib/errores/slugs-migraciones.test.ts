@@ -32,6 +32,8 @@ const SIN_MENSAJE: Record<string, string> = {
   'pago-venta-inmutable': 'trigger 00068, defensivo',
   'cuadre-pagos-fallido': 'constraint trigger 00068, defensivo',
   'financiacion-no-cuadra': 'chequeo defensivo de sp_registrar_venta',
+  'qr-lado-mm-invalido': 'SP retirado en 00164 (D-ETQ-03)',
+  'impresora-medida-invalida': 'SP retirado en 00164 (D-ETQ-03)',
 }
 
 function sinComentarios(sql: string): string {

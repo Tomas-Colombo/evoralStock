@@ -187,19 +187,6 @@ export async function getConfiguracionQrLadoMm(): Promise<number> {
   return Math.round(n)
 }
 
-export async function spSetConfiguracionQrLadoMm(
-  ladoMm: number,
-  ip?: string | null,
-): Promise<number> {
-  const supabase = await createServerClient()
-  const { data, error } = await supabase.rpc('sp_set_configuracion_qr_lado_mm', {
-    p_lado_mm: ladoMm,
-    p_ip: ip ?? null,
-  })
-  if (error) throw new Error(errorDeRpc('sp_set_configuracion_qr_lado_mm', error))
-  return Number(data ?? ladoMm)
-}
-
 export async function spSetTenantLogo(
   logoUrl: string | null,
   ip?: string | null,
@@ -368,15 +355,3 @@ export async function getConfiguracionImpresora(): Promise<ConfiguracionImpresor
   return { anchoMm: leer('impresora_ancho_mm'), altoMm: leer('impresora_alto_mm') }
 }
 
-export async function spSetConfiguracionImpresora(
-  params: ConfiguracionImpresora,
-  ip?: string | null,
-): Promise<void> {
-  const supabase = await createServerClient()
-  const { error } = await supabase.rpc('sp_set_configuracion_impresora', {
-    p_ancho_mm: params.anchoMm,
-    p_alto_mm: params.altoMm,
-    p_ip: ip ?? null,
-  })
-  if (error) throw new Error(errorDeRpc('sp_set_configuracion_impresora', error))
-}

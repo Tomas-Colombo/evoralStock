@@ -75,8 +75,6 @@ const MENSAJES: Record<string, string> = {
   'no-tenant': 'Tu sesión no está asociada a ningún negocio. Volvé a iniciar sesión.',
   'usuario-sin-rol': 'Tu usuario todavía no tiene un rol asignado. Pedile a un administrador que configure tu acceso.',
   'zona-horaria-invalida': 'La zona horaria elegida no es válida.',
-  'qr-lado-mm-invalido': 'El tamaño del QR debe estar entre 15 y 100 mm.',
-  'impresora-medida-invalida': 'El ancho y el alto de la impresora deben estar entre 2 y 30 cm.',
   'logo-invalido': 'Elegí una imagen para el logo.',
   'logo-muy-grande': 'La imagen del logo es demasiado pesada. Probá con una más simple o de menor resolución.',
   'logo-formato-invalido': 'El logo tiene que ser una imagen PNG, JPG, WebP o SVG.',
@@ -388,6 +386,8 @@ const MENSAJES: Record<string, string> = {
   'plantilla-no-encontrada': 'La plantilla solicitada no existe o pertenece a otro negocio.',
   'plantillas-limite': 'Alcanzaste el límite de 20 plantillas de etiquetas.',
   'codigo-ean-inmutable': 'El código EAN del ítem no puede ser modificado.',
+  'etiqueta-chica-para-codigo': 'La medida de la etiqueta es demasiado chica para este código.',
+  'etiqueta-no-entra-en-hoja': 'La etiqueta o la cantidad de columnas no entran en la hoja.',
 }
 
 /**
