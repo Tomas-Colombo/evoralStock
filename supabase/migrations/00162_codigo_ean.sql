@@ -14,7 +14,7 @@
 --   drop policy if exists item_ean_seq_rlsp_update on item_ean_seq;
 --   drop policy if exists item_ean_seq_rlsp_insert on item_ean_seq;
 --   drop policy if exists item_ean_seq_rlsp_select on item_ean_seq;
---   drop policy if exists item_ean_seq_restrict_revendedora on item_ean_seq;
+--   drop policy if exists restrict_revendedora_item_ean_seq on item_ean_seq;
 --   drop policy if exists item_ean_seq_tenant_isolation on item_ean_seq;
 --   drop table if exists item_ean_seq;
 --   drop index if exists item_producto_tenant_codigo_ean_uk;
@@ -70,8 +70,8 @@ create policy item_ean_seq_tenant_isolation on item_ean_seq
   using (id_tenant = auth_tenant_id())
   with check (id_tenant = auth_tenant_id());
 
--- Restrictiva de revendedora (REQ-ETQ-08 N2)
-create policy item_ean_seq_restrict_revendedora on item_ean_seq as restrictive
+-- Restrictiva de revendedora (REQ-ETQ-08 N2, ACC-11)
+create policy restrict_revendedora_item_ean_seq on item_ean_seq as restrictive
   for all to authenticated
   using (auth_revendedora_id() is null);
 

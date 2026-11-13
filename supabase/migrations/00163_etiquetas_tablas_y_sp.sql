@@ -11,14 +11,14 @@
 --   drop policy if exists etiqueta_plantilla_rlsp_update on etiqueta_plantilla;
 --   drop policy if exists etiqueta_plantilla_rlsp_insert on etiqueta_plantilla;
 --   drop policy if exists etiqueta_plantilla_rlsp_select on etiqueta_plantilla;
---   drop policy if exists etiqueta_plantilla_restrict_revendedora on etiqueta_plantilla;
+--   drop policy if exists restrict_revendedora_etiqueta_plantilla on etiqueta_plantilla;
 --   drop policy if exists etiqueta_plantilla_tenant_isolation on etiqueta_plantilla;
 --   drop table if exists etiqueta_plantilla;
 --   drop policy if exists etiqueta_config_rlsp_delete on etiqueta_config;
 --   drop policy if exists etiqueta_config_rlsp_update on etiqueta_config;
 --   drop policy if exists etiqueta_config_rlsp_insert on etiqueta_config;
 --   drop policy if exists etiqueta_config_rlsp_select on etiqueta_config;
---   drop policy if exists etiqueta_config_restrict_revendedora on etiqueta_config;
+--   drop policy if exists restrict_revendedora_etiqueta_config on etiqueta_config;
 --   drop policy if exists etiqueta_config_tenant_isolation on etiqueta_config;
 --   drop table if exists etiqueta_config;
 
@@ -44,8 +44,8 @@ create policy etiqueta_config_tenant_isolation on etiqueta_config
   using (id_tenant = auth_tenant_id())
   with check (id_tenant = auth_tenant_id());
 
--- Restrictiva revendedora (REQ-ETQ-08 N2)
-create policy etiqueta_config_restrict_revendedora on etiqueta_config as restrictive
+-- Restrictiva revendedora (REQ-ETQ-08 N2, ACC-11)
+create policy restrict_revendedora_etiqueta_config on etiqueta_config as restrictive
   for all to authenticated
   using (auth_revendedora_id() is null);
 
@@ -111,8 +111,8 @@ create policy etiqueta_plantilla_tenant_isolation on etiqueta_plantilla
   using (id_tenant = auth_tenant_id())
   with check (id_tenant = auth_tenant_id());
 
--- Restrictiva revendedora (REQ-ETQ-08 N2)
-create policy etiqueta_plantilla_restrict_revendedora on etiqueta_plantilla as restrictive
+-- Restrictiva revendedora (REQ-ETQ-08 N2, ACC-11)
+create policy restrict_revendedora_etiqueta_plantilla on etiqueta_plantilla as restrictive
   for all to authenticated
   using (auth_revendedora_id() is null);
 
