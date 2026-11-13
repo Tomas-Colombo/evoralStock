@@ -52,7 +52,8 @@ supabase/      migrations + stored procedures  — business invariants live here
 - **Writes go through `sp_*` stored procedures** called from `lib/dal`. A
   multi-table write assembled in TypeScript breaks between two awaits.
 - **INVOKER / DEFINER**: writes/reads are INVOKER. DEFINER only for `rvp_*` portal
-  reads, the 2 revendedoras exceptions (`fn_auto_crear_rol_revendedora`,
+  reads, `auth_tiene_permiso` (caller's own role only; avoids RLS recursion on
+  `usuario`/`rol`), the 2 revendedoras exceptions (`fn_auto_crear_rol_revendedora`,
   `sp_enlazar_revendedora_usuario`) and selladores `fn_sellar_costo_*` (void, sin
   montos por parámetro, permiso = OR de llamadores). Enforced by `tests/db/rvp-lecturas.test.ts`.
 - **Regla de satélites**: costo, margen o monto a proveedor vive SOLO en satélites

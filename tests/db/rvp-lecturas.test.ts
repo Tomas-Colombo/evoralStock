@@ -475,6 +475,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
 
     // Lista blanca estricta de funciones SECURITY DEFINER que NO empiezan con rvp_
     const PERMITTED_NON_RVP_DEFINER = [
+      'auth_tiene_permiso', // solo responde por el que llama; DEFINER evita la recursión con las policies de usuario/rol (00160)
       'fn_auto_crear_rol_revendedora', // trigger on tenant_modulo (00079)
       'sp_enlazar_revendedora_usuario', // provisión de usuario revendedora (00079)
       'fn_sellar_costo_herencia_items', // sellador de herencia de costo vigente (00155, REQ-CPC §6.1)
