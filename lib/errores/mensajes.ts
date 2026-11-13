@@ -379,6 +379,7 @@ const MENSAJES: Record<string, string> = {
   'email-en-uso': 'Ya existe un usuario registrado con ese email.',
   'usuario-invalido': 'El usuario administrador especificado no es válido.',
   'estado-invalido': 'El estado indicado no es válido.',
+  'formato-ean12-invalido': 'El formato del código base EAN debe contener exactamente 12 dígitos numéricos.',
   'etiqueta-config-invalida': 'La configuración de etiquetas contiene valores fuera de rango.',
   'plantilla-nombre-duplicado': 'Ya existe una plantilla con ese nombre.',
   'plantilla-medidas-invalidas': 'Las medidas de la plantilla están fuera del rango permitido.',
