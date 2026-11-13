@@ -436,7 +436,7 @@ Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las
 
 3. **`fn_sellar_costo_cambio(p_id_detalle_venta uuid) RETURNS void`**:
    - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
-   - **Permiso**: Exige `(auth_tiene_permiso('ventas', 'crear') OR auth_tiene_permiso('revendedoras', 'crear'))`.
+   - **Permiso**: Exige `auth_tiene_permiso('ventas', 'crear')`.
    - **Contrato / Idempotencia**:
      - Verifica tenant y existencia de `p_id_detalle_venta`.
      - Si `detalle_venta_costo` ya existe para ese detalle, no hace nada (idempotente).

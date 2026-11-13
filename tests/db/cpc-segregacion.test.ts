@@ -1145,6 +1145,21 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.2 — satélites item_costo, detalle_ve
     expect(cntDvc).toBe(cntDv)
     expect(cntDvr).toBe(cntDv)
   })
+
+  it('7. Rol con revendedoras.crear y sin ventas.crear llama a fn_sellar_costo_cambio por RPC -> 42501', async () => {
+    const fixture = await createTenantWithUser(withScopedTenant('CpcSellCambioPerm'))
+    const authRevSinVentas = await createClientWithPermisos(fixture, 'SoloRev', {
+      revendedoras: ['crear'],
+    })
+
+    const { error } = await authRevSinVentas.rpc('fn_sellar_costo_cambio', {
+      p_id_detalle_venta: '00000000-0000-0000-0000-000000000000',
+    })
+
+    expect(error).toBeDefined()
+    expect(error?.code).toBe('42501')
+    expect(error?.message).toMatch(/no-permission/)
+  })
 })
 
 describe.skipIf(!hasTestDb)('CPC Fase 3E.3 — satélite ingreso_detalle_costo', () => {
