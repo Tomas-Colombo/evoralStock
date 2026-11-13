@@ -53,7 +53,7 @@ const SLUGS_DE_LA_APP = [
   'linea-sin-nombre', 'monto-excede-saldo', 'no-se-pudo-generar-sku',
   'nombre-requerido', 'orden-invalido', 'pago-credito-sin-cuotas', 'pago-cuotas-medio-invalido',
   'pago-monto-invalido', 'pagos-no-cuadran', 'periodo-invalido', 'producto-not-found',
-  'proveedor-con-items', 'quedan-pendientes', 'regla-not-found',
+  'proveedor-con-items', 'quedan-pendientes', 'regla-not-found', 'regla-no-es-margen',
   'concepto-invalido', 'medio-pago-invalido', 'movimiento-inexistente',
   'movimiento-ya-anulado', 'tipo-movimiento-invalido', 'tenant-inexistente', 'paquete-invalido',
   'subdominio-invalido', 'subdominio-en-uso', 'email-en-uso', 'usuario-invalido', 'estado-invalido',
@@ -65,6 +65,8 @@ const SLUGS_DE_LA_APP = [
   'venta-con-incobrables', 'venta-not-found', 'venta-ya-rendida', 'venta-liquidada', 'venta-revendedora-sin-id', 'canal-no-disponible', 'devolucion-venta-revendedora', 'item-no-en-revendedora', 'medio-solo-revendedora', 'venta-revendedora-con-pagos', 'canal-invalido', 'revendedora-invalida',
   'liquidacion-vacia', 'liquidacion-ya-pagada', 'cuenta-invalida-liquidacion', 'monto-pago-invalido', 'detalle-ya-liquidado', 'detalle-no-en-liquidacion', 'liquidacion-no-encontrada', 'revendedora-invalida-liquidacion', 'pago-revendedora-inmutable',
   'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora',
+  'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-medidas-invalidas',
+  'plantilla-predeterminada-no-se-borra', 'plantilla-no-encontrada', 'plantillas-limite', 'codigo-ean-inmutable',
   // Rutas de API
   'elegir-talle', 'item-no-disponible', 'item-no-es-consignacion', 'proveedor-vacio',
   'qr-vacio', 'item-ya-marcado', 'sin-precio-lista', 'sku-sin-stock', 'sku-sin-stock-libre',

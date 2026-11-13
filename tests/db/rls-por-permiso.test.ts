@@ -3260,16 +3260,12 @@ describe.skipIf(!hasTestDb)('Fase 5b-M6 - Chequeo de permisos en sp_* de Gastos 
         },
       },
       {
-        sp: 'sp_set_configuracion_qr_lado_mm',
+        sp: 'sp_set_etiqueta_config',
         params: {
-          p_lado_mm: 35,
-        },
-      },
-      {
-        sp: 'sp_set_configuracion_impresora',
-        params: {
-          p_ancho_mm: 50,
-          p_alto_mm: 30,
+          p_metodo: 'qr',
+          p_impresora_tipo: 'hoja',
+          p_margen_mm: 10,
+          p_separacion_mm: 2,
         },
       },
       {
@@ -3365,7 +3361,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M6 - Chequeo de permisos en sp_* de Gastos 
     expect(idRol).toBeDefined()
   })
 
-  it('administracion.editar: sp_set_configuracion_qr_lado_mm pasa con rol que solo tiene administracion.editar', async () => {
+  it('administracion.editar: sp_set_etiqueta_config pasa con rol que solo tiene administracion.editar', async () => {
     const fixture = await createTenantWithUser('rlsp_m6_a_editar')
 
     const { error: errRol } = await fixture.serviceRole
@@ -3376,11 +3372,13 @@ describe.skipIf(!hasTestDb)('Fase 5b-M6 - Chequeo de permisos en sp_* de Gastos 
 
     const client = await signInAs(fixture)
 
-    const { data, error } = await client.rpc('sp_set_configuracion_qr_lado_mm', {
-      p_lado_mm: 45,
+    const { error } = await client.rpc('sp_set_etiqueta_config', {
+      p_metodo: 'ean13',
+      p_impresora_tipo: 'rollo',
+      p_margen_mm: 5,
+      p_separacion_mm: 1,
     })
     expect(error).toBeNull()
-    expect(data).toBe(45)
   })
 
   it('administracion.eliminar: sp_delete_rol pasa con rol que solo tiene administracion.eliminar', async () => {

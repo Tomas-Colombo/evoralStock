@@ -332,6 +332,7 @@ const MENSAJES: Record<string, string> = {
   'no-revendedora': 'Esta acción sólo puede ser realizada por una revendedora.',
 
   'regla-not-found': 'Esa regla ya no existe. Recargá la página.',
+  'regla-no-es-margen': 'Esta regla no es de margen.',
   'regla-comision-not-found': 'Esa regla de comisión ya no existe. Recargá la página.',
   'regla-solapada': 'Ya existe una regla de comisión activa con fechas solapadas.',
   'regla-comision-solapada': 'Ya existe una regla de comisión activa con fechas solapadas para este caso.',
@@ -378,6 +379,13 @@ const MENSAJES: Record<string, string> = {
   'email-en-uso': 'Ya existe un usuario registrado con ese email.',
   'usuario-invalido': 'El usuario administrador especificado no es válido.',
   'estado-invalido': 'El estado indicado no es válido.',
+  'etiqueta-config-invalida': 'La configuración de etiquetas contiene valores fuera de rango.',
+  'plantilla-nombre-duplicado': 'Ya existe una plantilla con ese nombre.',
+  'plantilla-medidas-invalidas': 'Las medidas de la plantilla están fuera del rango permitido.',
+  'plantilla-predeterminada-no-se-borra': 'No podés eliminar la plantilla predeterminada.',
+  'plantilla-no-encontrada': 'La plantilla solicitada no existe o pertenece a otro negocio.',
+  'plantillas-limite': 'Alcanzaste el límite de 20 plantillas de etiquetas.',
+  'codigo-ean-inmutable': 'El código EAN del ítem no puede ser modificado.',
 }
 
 /**

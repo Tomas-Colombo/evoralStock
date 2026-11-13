@@ -265,6 +265,20 @@ async function provision(opts: Opciones): Promise<void> {
       estado_usuario: 'invitado',
     })
     if (usuarioError) throw new Error(`usuario: ${usuarioError.message}`)
+
+    // Plantilla predeterminada de etiquetas (REQ-ETQ-07 N2)
+    const { error: plantillaError } = await db.from('etiqueta_plantilla').insert({
+      id_tenant: tenantId,
+      nombre: 'Predeterminada',
+      ancho_mm: 37,
+      alto_mm: 47,
+      mostrar_nombre: true,
+      mostrar_talle: true,
+      mostrar_sku: true,
+      mostrar_texto_codigo: true,
+      predeterminada: true,
+    })
+    if (plantillaError) throw new Error(`etiqueta_plantilla: ${plantillaError.message}`)
   } catch (error) {
     // Roll back in reverse. A half-provisioned tenant is worse than none:
     // it holds the subdomain hostage and, without an admin user, nobody can
