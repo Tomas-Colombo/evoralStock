@@ -1,7 +1,7 @@
 # Inventario de RLS, Privilegios, Escritores y Lectores — public
 
 Fecha de relevamiento: 2026-11-13 (verificado contra PostgreSQL local y código fuente).
-Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_class`, `pg_tables`, `pg_policies`, `has_table_privilege`), análisis estático de migraciones vivas (`scripts/sp-parser.mts`) y análisis de llamadas en `lib/dal/**` y `app/**`. La evidencia de comandos ejecutados se encuentra en el [Apéndice de Comandos y Evidencia](#apéndice-de-comandos-y-evidencia).
+Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_class`, `pg_tables`, `pg_policies`, `has_table_privilege`), análisis estático de migraciones vivas (`scripts/sp-parser.mts`) y análisis estricto de mutaciones en `lib/dal/**` y `app/**`. La evidencia de comandos ejecutados se encuentra en el [Apéndice de Comandos y Evidencia](#apéndice-de-comandos-y-evidencia).
 
 ---
 
@@ -12,7 +12,11 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
 3. **Estado de RLS**: Las 56 tablas base tienen `rowsecurity = true`. Sin embargo, solo **8 tablas** tienen un cierre completo de RLS restrictivo por permiso para los 4 comandos (SELECT, INSERT, UPDATE, DELETE): `categoria_gasto`, `gasto_negocio`, `ingreso_detalle_costo`, `ingreso_mercaderia_detalle`, `item_costo`, `rendicion_proveedor`, `rol` y `usuario`.
 4. **Cierre parcial (solo SELECT)**: **6 tablas** (`auditoria`, `costo_producto`, `detalle_venta_costo`, `detalle_venta_rendicion`, `devolucion_venta_costo`, `regla_precio`) tienen policy restrictiva de SELECT, pero en `costo_producto` y `regla_precio` la policy permisiva de tenant cubre `ALL`, permitiendo INSERT/UPDATE/DELETE arbitrario a cualquier usuario autenticado de ese tenant.
 5. **Abiertas sin chequeo de permisos (42 tablas)**: 39 tablas de dominio + `tenant` + `tenant_modulo` + `auditoria` (para escrituras) solo filtran por `id_tenant = auth_tenant_id()` y `auth_revendedora_id() is null`. Un token con `tenant_id` y sin ningún permiso puede consultar clientes, ventas, pagos, cuotas, cuentas bancarias, etc.
-6. **Vistas de public**: Las 8 vistas existentes (`tenant_listado`, `tenant_movimiento`, `tenant_saldo`, `v_alerta_reposicion`, `v_alerta_rotacion_vencida`, `v_ganancia_por_producto`, `v_linea_venta`, `v_perfil_proveedor`) poseen la opción `security_invoker = true/on`.
+6. **Escrituras Directas en `lib/dal` (13 tablas de dominio + 1 auth)**:
+   - **12 tablas con cliente de usuario (`createServerClient`)**: `arancel_cobro`, `categoria`, `categoria_gasto`, `cliente`, `cuenta_destino`, `ingreso_detalle_costo`, `ingreso_mercaderia`, `ingreso_mercaderia_detalle`, `plan_cuotas`, `producto`, `proveedor`, `recargo_cuotas`.
+   - **2 tablas con service client (`createServiceClient` / `admin`)**: `revendedora` (desvinculación de usuario), `usuario` (creación de operador y desactivación por desvinculación).
+   - Estas 13 tablas de dominio requieren policies restrictivas explícitas de INSERT/UPDATE/DELETE para que el cliente autenticado no pueda ejecutar mutaciones arbitrarias fuera de los permisos del módulo (Decisión **D-RCD-01 = A**).
+7. **Vistas de public**: Las 8 vistas existentes (`tenant_listado`, `tenant_movimiento`, `tenant_saldo`, `v_alerta_reposicion`, `v_alerta_rotacion_vencida`, `v_ganancia_por_producto`, `v_linea_venta`, `v_perfil_proveedor`) poseen la opción `security_invoker = true/on`.
 
 ---
 
@@ -31,8 +35,10 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/arancel.ts` -> función `createArancelCobro` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (3)*:
+    - `lib/dal/ventas/arancel.ts:41` [insert] -> función `createArancelCobro` (cliente: `supabase` [user])
+    - `lib/dal/ventas/arancel.ts:75` [update] -> función `updateArancelCobro` (cliente: `supabase` [user])
+    - `lib/dal/ventas/arancel.ts:89` [update] -> función `toggleArancelCobroActivo` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/arancel.ts` -> función `listArancelesCobro` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/arancel.ts` -> función `createArancelCobro` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -97,8 +103,10 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/categoria.ts` -> función `createCategoria` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (3)*:
+    - `lib/dal/inventario/categoria.ts:54` [insert] -> función `createCategoria` (cliente: `supabase` [user])
+    - `lib/dal/inventario/categoria.ts:80` [update] -> función `updateCategoria` (cliente: `supabase` [user])
+    - `lib/dal/inventario/categoria.ts:90` [update] -> función `toggleCategoriaActiva` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/categoria.ts` -> función `listCategorias` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/categoria.ts` -> función `listCategoriasActivas` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -130,10 +138,12 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *WITH CHECK*: `( SELECT auth_tiene_permiso('gastos'::text, 'editar'::text) AS auth_tiene_permiso)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: sp_set_presupuesto_categoria_gasto | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/gastos/gasto.ts` -> función `createCategoriaGasto` (op: `insert`, serviceClient: false)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/gastos/gasto.ts` -> función `bajaCategoriaGasto` (op: `delete`, serviceClient: false)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/gastos/gasto.ts` -> función `bajaCategoriaGasto` (op: `update`, serviceClient: false)
+  - *Escrituras directas en lib/dal (5)*:
+    - `lib/dal/gastos/gasto.ts:98` [insert] -> función `createCategoriaGasto` (cliente: `supabase` [user])
+    - `lib/dal/gastos/gasto.ts:113` [update] -> función `renameCategoriaGasto` (cliente: `supabase` [user])
+    - `lib/dal/gastos/gasto.ts:136` [delete] -> función `bajaCategoriaGasto (hard)` (cliente: `supabase` [user])
+    - `lib/dal/gastos/gasto.ts:144` [update] -> función `bajaCategoriaGasto (soft)` (cliente: `supabase` [user])
+    - `lib/dal/gastos/gasto.ts:154` [update] -> función `reactivarCategoriaGasto` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/gastos/gasto.ts` -> función `listCategoriasGasto` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/gastos/gasto.ts` -> función `createCategoriaGasto` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -155,8 +165,10 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/clientes/cliente.ts` -> función `createCliente` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (3)*:
+    - `lib/dal/clientes/cliente.ts:103` [insert] -> función `createCliente` (cliente: `supabase` [user])
+    - `lib/dal/clientes/cliente.ts:114` [update] -> función `updateCliente` (cliente: `supabase` [user])
+    - `lib/dal/clientes/cliente.ts:120` [update] -> función `toggleClienteActivo` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/clientes/cliente.ts` -> función `listClientes` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/clientes/cliente.ts` -> función `listClientesPaginado` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -389,9 +401,11 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/cuenta-destino.ts` -> función `createCuentaDestino` (op: `insert`, serviceClient: false)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/cuenta-destino.ts` -> función `setCuentaPredeterminada` (op: `update`, serviceClient: false)
+  - *Escrituras directas en lib/dal (4)*:
+    - `lib/dal/ventas/cuenta-destino.ts:67` [insert] -> función `createCuentaDestino` (cliente: `supabase` [user])
+    - `lib/dal/ventas/cuenta-destino.ts:103` [update] -> función `updateCuentaDestino` (cliente: `supabase` [user])
+    - `lib/dal/ventas/cuenta-destino.ts:117` [update] -> función `toggleCuentaDestinoActiva` (cliente: `supabase` [user])
+    - `lib/dal/ventas/cuenta-destino.ts:124` [update] -> función `togglePermiteManual` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/cuenta-destino.ts` -> función `listCuentasDestino` | Guardas consumidor: `revendedoras.ver`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/ventas/cuenta-destino.ts` -> función `listCuentasDestinoPaginado` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -651,8 +665,8 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *WITH CHECK*: `(( SELECT auth_tiene_permiso('inventario'::text, 'cargar_costos'::text) AS auth_tiene_permiso) OR (( SELECT auth_tiene_permiso('precios'::text, 'editar_cotizacion'::text) AS auth_tiene_permiso) AND ( SELECT auth_tiene_permiso('inventario'::text, 'ver_costos'::text) AS auth_tiene_permiso)))`
 - **Escritores**:
   - *SPs vivos*: INSERT: sp_importar_remito, sp_completar_costo_ingreso | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `addIngresoDetalle` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (1)*:
+    - `lib/dal/inventario/ingreso.ts:290` [insert] -> función `addIngresoDetalle (costo)` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - Ninguna lectura directa con cliente de usuario (solo service client o solo lectura vía SP/RPC).
 - **Funciones INVOKER con RETURNING o FOR UPDATE** (evalúan policy de SELECT):
@@ -672,8 +686,8 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: sp_confirmar_ingreso | DELETE: sp_cancelar_ingreso
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `createIngresoBorrador` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (1)*:
+    - `lib/dal/inventario/ingreso.ts:232` [insert] -> función `createIngreso` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `listIngresosConResumen` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `listIngresosDeProveedor` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -706,9 +720,9 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *WITH CHECK*: `false`
 - **Escritores**:
   - *SPs vivos*: INSERT: sp_importar_remito | UPDATE: ninguno | DELETE: sp_cancelar_ingreso
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `addIngresoDetalle` (op: `insert`, serviceClient: false)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `removeIngresoDetalle` (op: `delete`, serviceClient: false)
+  - *Escrituras directas en lib/dal (2)*:
+    - `lib/dal/inventario/ingreso.ts:275` [insert] -> función `addIngresoDetalle` (cliente: `supabase` [user])
+    - `lib/dal/inventario/ingreso.ts:418` [delete] -> función `removeIngresoDetalle` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/ingreso.ts` -> función `addIngresoDetalle` | Guardas consumidor: `inventario.editar`
 - **Funciones INVOKER con RETURNING o FOR UPDATE** (evalúan policy de SELECT):
@@ -892,7 +906,9 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*: ninguna (solo vía SPs o service role)
+  - *Escrituras directas en lib/dal (2)*:
+    - `lib/dal/precios/cuotas.ts:30` [upsert] -> función `savePlanCuotas` (cliente: `supabase` [user])
+    - `lib/dal/precios/cuotas.ts:45` [update] -> función `togglePlanCuotasActivo` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/precios/cuotas.ts` -> función `listPlanesCuotas` | Guardas consumidor: `sin guarda identificada (layout/pública)`
 - **Funciones INVOKER con RETURNING o FOR UPDATE** (evalúan policy de SELECT):
@@ -912,7 +928,8 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: sp_create_producto, sp_importar_remito | UPDATE: sp_recalcular_precio_venta, sp_marcar_precio_desactualizado_by_producto, sp_marcar_precio_desactualizado_by_regla | DELETE: sp_cancelar_ingreso
-  - *Escrituras directas en lib/dal*: ninguna (solo vía SPs o service role)
+  - *Escrituras directas en lib/dal (1)*:
+    - `lib/dal/inventario/producto.ts:321` [update] -> función `updateProducto` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/codigo.ts` -> función `resolverCodigo` | Guardas consumidor: `ventas.ver`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/producto.ts` -> función `listProductosParaBuscador` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -957,9 +974,9 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/proveedor.ts` -> función `createProveedor` (op: `insert`, serviceClient: false)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/proveedor.ts` -> función `updateProveedor` (op: `update`, serviceClient: false)
+  - *Escrituras directas en lib/dal (2)*:
+    - `lib/dal/inventario/proveedor.ts:42` [insert] -> función `createProveedor` (cliente: `supabase` [user])
+    - `lib/dal/inventario/proveedor.ts:53` [update] -> función `updateProveedor` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/proveedor.ts` -> función `listProveedores` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/inventario/proveedor.ts` -> función `listProveedoresActivos` | Guardas consumidor: `inventario.editar`
@@ -983,8 +1000,10 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `(auth_revendedora_id() IS NULL)`
 - **Escritores**:
   - *SPs vivos*: INSERT: ninguno | UPDATE: ninguno | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/precios/recargo.ts` -> función `createRecargoCuotas` (op: `insert`, serviceClient: false)
+  - *Escrituras directas en lib/dal (3)*:
+    - `lib/dal/precios/recargo.ts:63` [insert] -> función `createRecargoCuotas` (cliente: `supabase` [user])
+    - `lib/dal/precios/recargo.ts:92` [update] -> función `updateRecargoCuotas` (cliente: `supabase` [user])
+    - `lib/dal/precios/recargo.ts:106` [update] -> función `toggleRecargoCuotasActivo` (cliente: `supabase` [user])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/precios/recargo.ts` -> función `listRecargosCuotas` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/precios/recargo.ts` -> función `createRecargoCuotas` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -1130,8 +1149,8 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *WITH CHECK*: `(id_tenant = auth_tenant_id())`
 - **Escritores**:
   - *SPs vivos*: INSERT: sp_crear_revendedora | UPDATE: sp_editar_revendedora, sp_baja_revendedora, sp_enlazar_revendedora_usuario, sp_reactivar_acceso_revendedora | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/revendedoras/index.ts` -> función `revocarAccesoRevendedora` (op: `update`, serviceClient: true)
+  - *Escrituras directas en lib/dal (1)*:
+    - `lib/dal/revendedoras/index.ts:233` [update] -> función `desvincularUsuarioRevendedora` (cliente: `admin` [service])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/revendedoras/consignacion.ts` -> función `lookupItemParaConsignacionRevendedora` | Guardas consumidor: `revendedoras.ver`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/revendedoras/consignacion.ts` -> función `lookupItemParaVentaRevendedora` | Guardas consumidor: `revendedoras.ver`
@@ -1290,9 +1309,9 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
     - *USING*: `true`
 - **Escritores**:
   - *SPs vivos*: INSERT: sp_enlazar_revendedora_usuario, sp_alta_tenant | UPDATE: sp_update_usuario, sp_toggle_usuario_activo, sp_reactivar_acceso_revendedora | DELETE: ninguno
-  - *Escrituras directas en lib/dal*:
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/administracion/administracion.ts` -> función `inviteUsuario` (op: `insert`, serviceClient: true)
-    - `c:/Archivos de trabajo/evoralStock/lib/dal/revendedoras/index.ts` -> función `revocarAccesoRevendedora` (op: `update`, serviceClient: true)
+  - *Escrituras directas en lib/dal (2)*:
+    - `lib/dal/administracion/administracion.ts:99` [insert] -> función `crearUsuario` (cliente: `admin` [service])
+    - `lib/dal/revendedoras/index.ts:241` [update] -> función `desvincularUsuarioRevendedora` (cliente: `admin` [service])
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/administracion/administracion.ts` -> función `listUsuarios` | Guardas consumidor: `sin guarda identificada (layout/pública)`
   - `c:/Archivos de trabajo/evoralStock/lib/dal/administracion/administracion.ts` -> función `listAuditoria` | Guardas consumidor: `sin guarda identificada (layout/pública)`
@@ -1389,19 +1408,24 @@ Metodología: 100% generado a partir de consultas al catálogo PostgreSQL (`pg_c
 - **Lectores con cliente de usuario en `lib/dal`**:
   - `c:/Archivos de trabajo/evoralStock/lib/dal/reportes/reportes.ts` -> función `listPerfilProveedor` | Guardas consumidor: `sin guarda`
 
-## 4. Clasificación de Tablas por Superficie de Exposición
+## 4. Clasificación de Tablas con Escrituras Directas en `lib/dal` (13 de Dominio + 1 Auth)
 
-| Grupo | Tablas | Estado Actual de RLS | Riesgo Dominante |
-| --- | --- | --- | --- |
-| **A. Blindadas Completas (8)** | `categoria_gasto`, `gasto_negocio`, `ingreso_detalle_costo`, `ingreso_mercaderia_detalle`, `item_costo`, `rendicion_proveedor`, `rol`, `usuario` | RLS restrictiva para SELECT, INSERT, UPDATE, DELETE por permiso | Ninguno en RLS (falta revocar grants a `anon`) |
-| **B. Blindadas Parciales (6)** | `auditoria`, `costo_producto`, `detalle_venta_costo`, `detalle_venta_rendicion`, `devolucion_venta_costo`, `regla_precio` | RLS restrictiva solo en SELECT. En `costo_producto` y `regla_precio`, INSERT/UPDATE/DELETE permanece PERMISSIVE ALL. En satélites no hay permissive para escritura. | Mutación no autorizada de costos vigentes y reglas de precio |
-| **C. Dinero y Finanzas (6)** | `venta`, `pago_venta`, `cuota_financiada`, `cuenta_destino`, `arancel_cobro`, `reintegro_cliente` | Solo tenant ALL + revendedoras. `anon` y cualquier usuario autenticado sin permiso pueden leer transacciones financieras. | Fuga crítica de cifras financieras y transacciones |
-| **D. Datos Personales y Terceros (4)** | `cliente`, `proveedor`, `revendedora`, `pago_revendedora` | Solo tenant ALL + revendedoras. Lectura completa de clientes, teléfonos, direcciones y proveedores. | Fuga de privacidad y datos comerciales |
-| **E. Circuito Comercial y Stock (10)** | `detalle_venta`, `cambio_venta`, `devolucion_venta`, `reserva`, `detalle_reserva`, `item_producto`, `movimiento_item`, `comprobante`, `ingreso_mercaderia`, `consignacion_revendedora_detalle` | Solo tenant ALL + revendedoras. Lectura y mutación sin permiso por PostgREST. | Venta y anulación espuria, manipulación de stock |
-| **F. Consignaciones y Revendedoras (6)** | `consignacion`, `consignacion_detalle`, `consignacion_revendedora`, `declaracion_venta_revendedora`, `liquidacion_revendedora`, `escala_comision` | Solo tenant ALL + revendedoras. | Fuga de condiciones de consignación y liquidaciones |
-| **G. Configuración y Reglas Operativas (8)** | `configuracion`, `cotizacion_config`, `cotizacion_dolar`, `plan_cuotas`, `recargo_cuotas`, `regla_comision`, `producto_sku_seq`, `consulta_ayuda` | Solo tenant ALL + revendedoras. | Modificación arbitraria de recargos y planes de cuotas |
-| **H. Catálogo de Artículos (2)** | `producto`, `categoria` | Solo tenant ALL + revendedoras. | Lectura global de catálogo por el tenant (legítimo para operar), pero escritura abierta |
-| **I. Núcleo Plataforma y Tenant (5)** | `modulo`, `tenant`, `tenant_modulo`, `superadmin`, `tenant_cargo`, `tenant_pago` | `superadmin`/`tenant_cargo`/`tenant_pago` cerrados sin grants. `tenant` y `tenant_modulo` abiertos en SELECT al tenant. | `tenant` editable en UPDATE por cualquier usuario del tenant |
+| Tabla | Tipo de Cliente | Operaciones Directas | Archivo / Función en DAL | Permiso Requerido para la Policy de Escritura |
+| --- | --- | --- | --- | --- |
+| `arancel_cobro` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/ventas/arancel.ts` (`createArancelCobro`, `updateArancelCobro`, `toggleArancelCobroActivo`) | INSERT: `administracion.crear` | UPDATE: `administracion.editar` | DELETE: `administracion.eliminar` |
+| `categoria` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/inventario/categoria.ts` (`createCategoria`, `updateCategoria`, `toggleCategoriaActiva`) | INSERT: `inventario.crear` | UPDATE: `inventario.editar` | DELETE: `inventario.eliminar` |
+| `categoria_gasto` | Usuario (`createServerClient`) | INSERT, UPDATE, DELETE | `lib/dal/gastos/gasto.ts` (`createCategoriaGasto`, `renameCategoriaGasto`, `bajaCategoriaGasto`, `reactivarCategoriaGasto`) | INSERT: `gastos.crear` | UPDATE: `gastos.editar` | DELETE: `gastos.editar` (00142 ya vigente) |
+| `cliente` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/clientes/cliente.ts` (`createCliente`, `updateCliente`, `toggleClienteActivo`) | INSERT: `ventas.crear` | UPDATE: `ventas.editar` | DELETE: `ventas.eliminar` |
+| `cuenta_destino` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/ventas/cuenta-destino.ts` (`createCuentaDestino`, `updateCuentaDestino`, `toggleCuentaDestinoActiva`, `togglePermiteManual`) | INSERT: `administracion.crear` | UPDATE: `administracion.editar` | DELETE: `administracion.eliminar` |
+| `ingreso_detalle_costo` | Usuario (`createServerClient`) | INSERT | `lib/dal/inventario/ingreso.ts` (`addIngresoDetalle`) | INSERT: `inventario.cargar_costos` | DELETE: `inventario.editar` O `inventario.eliminar` (00157 ya vigente) |
+| `ingreso_mercaderia` | Usuario (`createServerClient`) | INSERT | `lib/dal/inventario/ingreso.ts` (`createIngreso`) | INSERT: `inventario.crear` | UPDATE: `inventario.editar` O `inventario.crear` | DELETE: `inventario.eliminar` |
+| `ingreso_mercaderia_detalle` | Usuario (`createServerClient`) | INSERT, DELETE | `lib/dal/inventario/ingreso.ts` (`addIngresoDetalle`, `removeIngresoDetalle`) | INSERT: `inventario.crear` | DELETE: `inventario.editar` O `inventario.eliminar` (00142 ya vigente) |
+| `plan_cuotas` | Usuario (`createServerClient`) | UPSERT, UPDATE | `lib/dal/precios/cuotas.ts` (`savePlanCuotas`, `togglePlanCuotasActivo`) | INSERT: `precios.crear` | UPDATE: `precios.editar` | DELETE: `precios.eliminar` |
+| `producto` | Usuario (`createServerClient`) | UPDATE | `lib/dal/inventario/producto.ts` (`updateProducto`) | INSERT: `inventario.crear` | UPDATE: `inventario.editar` | DELETE: `inventario.eliminar` |
+| `proveedor` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/inventario/proveedor.ts` (`createProveedor`, `updateProveedor`) | INSERT: `inventario.crear` | UPDATE: `inventario.editar` | DELETE: `inventario.eliminar` |
+| `recargo_cuotas` | Usuario (`createServerClient`) | INSERT, UPDATE | `lib/dal/precios/recargo.ts` (`createRecargoCuotas`, `updateRecargoCuotas`, `toggleRecargoCuotasActivo`) | INSERT: `precios.crear` | UPDATE: `precios.editar` | DELETE: `precios.eliminar` |
+| `revendedora` | Service (`createServiceClient` / `admin`) | UPDATE | `lib/dal/revendedoras/index.ts` (`desvincularUsuarioRevendedora`) | En PostgREST usuario: INSERT: `revendedoras.crear` | UPDATE: `revendedoras.editar` | DELETE: `revendedoras.eliminar` (service client bypasses RLS) |
+| `usuario` | Service (`createServiceClient` / `admin`) | INSERT, UPDATE | `lib/dal/administracion/administracion.ts` (`crearUsuario`), `lib/dal/revendedoras/index.ts` (`desvincularUsuarioRevendedora`) | Policies restrictivas ya vigentes en 00159 (`administracion.crear/editar/eliminar`) |
 
 ---
 
@@ -1418,28 +1442,44 @@ Si la tabla tiene una policy restrictiva de SELECT que exige un permiso que el l
 - Si es `FOR UPDATE`: la consulta retorna 0 filas. El SP cree que la fila no existe y lanza una excepción tipo `not-found` o no ejecuta la actualización requerida.
 - Si es `RETURNING`: la sentencia falla con error de permisos o retorna NULL en la variable receptora.
 
-### Mapa Crítico de Cobertura Requerida por SP:
+### Regla Fundamental:
+> **Todo permiso que autoriza a un `sp_*` INVOKER que lee una tabla mediante `FOR UPDATE` o `RETURNING` MUST formar parte del `OR` de la policy restrictiva de `SELECT` de dicha tabla.**
 
-1. **`sp_registrar_venta`** (exige `ventas.crear`):
-   - Hace `FOR UPDATE` en: `item_producto`, `consignacion_revendedora_detalle`, `reserva`.
-   - Si `item_producto` restringe su SELECT a `inventario.ver`, un vendedor con solo `ventas.crear` **no puede vender**. Por lo tanto, la policy de SELECT de `item_producto` DEBE permitir `ventas.crear` o ser legible por el tenant para disponibilidad de venta.
-2. **`sp_confirmar_ingreso`** y **`sp_crear_stock_directo`** (exige `inventario.crear`):
-   - Hacen `FOR UPDATE` en `ingreso_mercaderia` y `RETURNING` en `item_producto`.
-   - Exige que quien ingresa pueda hacer SELECT en `ingreso_mercaderia` e `item_producto`.
-3. **`sp_anular_venta`** (exige `ventas.eliminar`):
-   - Hace `FOR UPDATE` en `venta` y `detalle_venta`.
-   - Hace `RETURNING` en `cuota_financiada`.
-   - Exige que quien anula venta pueda hacer SELECT en `cuota_financiada`.
-4. **`sp_cobrar_cuota`** (exige `ventas.editar`):
-   - Hace `FOR UPDATE` en `cuota_financiada` y `RETURNING` en `pago_venta`.
-   - Exige que quien cobra cuotas pueda hacer SELECT en `pago_venta` y `cuota_financiada`.
-5. **`sp_registrar_cambio`** (exige `ventas.crear`):
-   - Hace `RETURNING` en `cambio_venta` y `detalle_venta`.
-   - Hace `FOR UPDATE` en `item_producto`.
-6. **`sp_generar_liquidacion`** (exige `revendedoras.liquidar`):
-   - Hace `FOR UPDATE` en `detalle_venta` y `revendedora`.
-   - Hace `RETURNING` en `liquidacion_revendedora`.
-   - Exige que el liquidador pueda hacer SELECT en `detalle_venta` y `revendedora`.
+### Mapeo de SPs INVOKER y Aportes al OR de SELECT por Tabla:
+
+| Tabla | SPs INVOKER con FOR UPDATE o RETURNING | Permisos Aportados al OR de SELECT |
+| --- | --- | --- |
+| `cambio_venta` | `sp_registrar_cambio` [RETURNING] | `ventas.crear` |
+| `categoria_gasto` | `sp_set_presupuesto_categoria_gasto` [FOR UPDATE] | `gastos.editar` |
+| `comprobante` | `sp_emitir_comprobante` [RETURNING] | `ventas.crear` |
+| `consignacion` | `sp_agregar_item_consignacion` [FOR UPDATE], `sp_cerrar_consignacion` [FOR UPDATE], `sp_crear_consignacion_con_items` [RETURNING], `sp_editar_consignacion` [FOR UPDATE], `sp_confirmar_consignacion` [FOR UPDATE], `sp_eliminar_consignacion` [FOR UPDATE] | `consignaciones.crear`, `consignaciones.editar`, `consignaciones.eliminar` |
+| `consignacion_detalle` | `sp_agregar_item_consignacion` [RETURNING], `sp_cancelar_item_consignacion` [FOR UPDATE], `sp_confirmar_salida_item` [FOR UPDATE], `sp_confirmar_consignacion` [FOR UPDATE] | `consignaciones.crear`, `consignaciones.editar` |
+| `consignacion_revendedora` | `sp_crear_consignacion_revendedora_con_items` [RETURNING], `sp_editar_consignacion_revendedora` [FOR UPDATE], `sp_confirmar_consignacion_revendedora` [FOR UPDATE], `sp_registrar_devolucion_revendedora` [FOR UPDATE], `sp_cerrar_consignacion_revendedora` [FOR UPDATE], `sp_eliminar_consignacion_revendedora` [FOR UPDATE] | `revendedoras.crear`, `revendedoras.editar`, `revendedoras.eliminar` |
+| `consignacion_revendedora_detalle` | `sp_registrar_venta` [FOR UPDATE], `sp_crear_consignacion_revendedora_con_items` [RETURNING], `sp_confirmar_consignacion_revendedora` [FOR UPDATE], `sp_registrar_devolucion_revendedora` [FOR UPDATE] | `ventas.crear`, `revendedoras.crear`, `revendedoras.editar` |
+| `consulta_ayuda` | `sp_registrar_consulta_ayuda` [RETURNING] | `ayuda.consultar` |
+| `costo_producto` | `sp_revaluar_costos_usd_vigentes` [FOR UPDATE], `sp_aplicar_ultimo_costo` [FOR UPDATE, RETURNING] | `precios.editar_cotizacion`, `inventario.ver_costos`, `inventario.cargar_costos` |
+| `cuota_financiada` | `sp_anular_venta` [RETURNING], `sp_cobrar_cuota` [FOR UPDATE], `sp_marcar_cuota_incobrable` [FOR UPDATE, RETURNING] | `ventas.editar`, `ventas.eliminar` |
+| `declaracion_venta_revendedora` | `sp_declarar_venta_revendedora` [RETURNING], `sp_retirar_declaracion` [FOR UPDATE], `sp_confirmar_declaracion_venta` [FOR UPDATE], `sp_rechazar_declaracion_venta` [FOR UPDATE] | `revendedoras.crear`, `revendedoras.declarar` |
+| `detalle_venta` | `sp_anular_venta` [FOR UPDATE], `sp_registrar_devolucion_cliente` [FOR UPDATE], `sp_excluir_detalle_rendicion` [FOR UPDATE], `sp_reincluir_detalle_rendicion` [FOR UPDATE], `sp_generar_liquidacion` [FOR UPDATE], `sp_excluir_detalle_liquidacion` [FOR UPDATE], `sp_reincluir_detalle_liquidacion` [FOR UPDATE], `sp_registrar_cambio` [FOR UPDATE, RETURNING] | `ventas.crear`, `ventas.editar`, `ventas.eliminar`, `rendiciones.editar`, `revendedoras.liquidar` |
+| `devolucion_venta` | `sp_registrar_devolucion_cliente` [RETURNING] | `ventas.editar` |
+| `gasto_negocio` | `sp_registrar_gasto` [RETURNING] | `gastos.crear` |
+| `ingreso_mercaderia` | `sp_confirmar_ingreso` [FOR UPDATE], `sp_cancelar_ingreso` [FOR UPDATE], `sp_completar_costo_ingreso` [FOR UPDATE] | `inventario.crear`, `inventario.editar`, `inventario.cargar_costos` |
+| `ingreso_mercaderia_detalle` | `sp_importar_remito` [RETURNING] | `inventario.crear` |
+| `item_producto` | `sp_transicion_item_producto` [FOR UPDATE], `sp_confirmar_ingreso` [RETURNING], `sp_crear_reserva` [FOR UPDATE], `sp_registrar_venta` [FOR UPDATE], `sp_agregar_item_consignacion` [FOR UPDATE], `sp_registrar_ajuste_inventario` [FOR UPDATE], `sp_crear_stock_directo` [RETURNING], `sp_asignar_talles_a_producto` [FOR UPDATE], `sp_crear_consignacion_revendedora_con_items` [FOR UPDATE], `sp_confirmar_consignacion_revendedora` [FOR UPDATE], `sp_registrar_devolucion_revendedora` [FOR UPDATE], `sp_registrar_cambio` [FOR UPDATE] | `inventario.crear`, `inventario.editar`, `ventas.crear`, `ventas.editar`, `consignaciones.crear`, `consignaciones.editar`, `consignaciones.eliminar`, `revendedoras.crear`, `revendedoras.editar` |
+| `liquidacion_revendedora` | `sp_generar_liquidacion` [RETURNING], `sp_marcar_liquidacion_pagada` [FOR UPDATE] | `revendedoras.liquidar` |
+| `movimiento_item` | `sp_registrar_ajuste_inventario` [RETURNING] | `inventario.editar` |
+| `pago_revendedora` | `sp_marcar_liquidacion_pagada` [RETURNING] | `revendedoras.liquidar` |
+| `pago_venta` | `sp_cobrar_cuota` [RETURNING], `sp_registrar_cambio` [RETURNING] | `ventas.editar`, `ventas.crear` |
+| `producto` | `sp_create_producto` [RETURNING], `sp_importar_remito` [RETURNING] | `inventario.crear`, `inventario.cargar_costos` |
+| `producto_sku_seq` | `sp_gen_sku` [RETURNING] | `inventario.crear` |
+| `regla_comision` | `sp_crear_regla_comision` [RETURNING], `sp_terminar_regla_comision` [FOR UPDATE] | `revendedoras.editar` |
+| `regla_precio` | `sp_create_regla_precio` [RETURNING] | `precios.crear`, `precios.ver_margenes` |
+| `rendicion_proveedor` | `sp_generar_rendicion` [RETURNING], `sp_marcar_rendicion_pagada` [FOR UPDATE] | `rendiciones.crear`, `rendiciones.ver`, `rendiciones.editar` |
+| `reserva` | `sp_crear_reserva` [RETURNING], `sp_cancelar_reserva` [FOR UPDATE], `sp_vencer_reservas` [FOR UPDATE], `sp_registrar_venta` [FOR UPDATE] | `ventas.crear`, `ventas.editar`, `revendedoras.crear` |
+| `revendedora` | `sp_crear_revendedora` [RETURNING], `sp_editar_revendedora` [FOR UPDATE], `sp_baja_revendedora` [FOR UPDATE], `sp_crear_consignacion_revendedora_con_items` [FOR UPDATE], `sp_generar_liquidacion` [FOR UPDATE] | `revendedoras.crear`, `revendedoras.editar`, `revendedoras.eliminar`, `revendedoras.liquidar` |
+| `rol` | `sp_create_rol` [RETURNING], `sp_update_rol_permisos` [FOR UPDATE], `sp_delete_rol` [FOR UPDATE] | `administracion.crear`, `administracion.editar`, `administracion.eliminar` |
+| `usuario` | `sp_toggle_usuario_activo` [FOR UPDATE] | `administracion.editar` |
+| `venta` | `sp_anular_venta` [FOR UPDATE], `sp_registrar_devolucion_cliente` [FOR UPDATE] | `ventas.editar`, `ventas.eliminar` |
 
 ---
 
@@ -1481,22 +1521,54 @@ ORDER BY c.relname;
 ```
 Evidencia: Las 8 vistas devuelven `{security_invoker=on}` o `{security_invoker=true}`.
 
-### 4. Búsqueda de Escrituras Directas en `lib/dal`
-Comando ejecutado:
-```bash
-rg -n "\.from\(['\"][a-zA-Z0-9_]+['"]\)" lib/dal
+### 4. Comando Reproducible para Detección de Mutaciones Directas en `lib/dal`
+El siguiente script en Node.js inspecciona cada archivo bajo `lib/dal/**`, extrayendo las mutaciones directas (`insert`, `update`, `delete`, `upsert`) y clasificando el cliente según provenga de `createServerClient` (usuario autenticado) o `createServiceClient` (service role / admin):
+
+```ts
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+
+function getFiles(dir: string): string[] {
+  let res: string[] = []
+  for (const item of readdirSync(dir)) {
+    const p = join(dir, item)
+    if (statSync(p).isDirectory()) res = res.concat(getFiles(p))
+    else if (p.endsWith('.ts') && !p.endsWith('.test.ts') && !p.endsWith('.d.ts')) res.push(p)
+  }
+  return res
+}
+
+const dalFiles = getFiles('lib/dal')
+const regex = /([a-zA-Z0-9_]+)s*.s*from(s*['"]([a-zA-Z0-9_]+)['"]s*)s*.s*(insert|update|delete|upsert)s*(/g
+
+for (const f of dalFiles) {
+  const content = readFileSync(f, 'utf-8')
+  const rel = f.replace(/\\/g, '/')
+  const isPlataforma = rel.startsWith('lib/dal/plataforma')
+  let m
+  while ((m = regex.exec(content)) !== null) {
+    const clientVar = m[1]
+    const table = m[2]
+    const op = m[3]
+    const line = content.slice(0, m.index).split('\n').length
+    const isService = isPlataforma || clientVar === 'admin'
+    console.log(`${table} | ${op} | ${isService ? 'service' : 'user'} | ${rel}:${line}`)
+  }
+}
 ```
-Evidencia encontrada de mutaciones sin SP:
-- `lib/dal/clientes/cliente.ts:104`: `createCliente` (`insert`)
-- `lib/dal/clientes/cliente.ts:114`: `updateCliente` (`update`)
-- `lib/dal/clientes/cliente.ts:120`: `toggleClienteActivo` (`update`)
-- `lib/dal/inventario/proveedor.ts:43`: `createProveedor` (`insert`)
-- `lib/dal/inventario/proveedor.ts:54`: `updateProveedor` (`update`)
-- `lib/dal/inventario/categoria.ts:81`: `updateCategoria` (`update`)
-- `lib/dal/inventario/categoria.ts:91`: `toggleCategoriaActiva` (`update`)
-- `lib/dal/inventario/producto.ts:321`: `updateProducto` (`update`)
-- `lib/dal/inventario/ingreso.ts:233`: `createIngreso` (`insert` en `ingreso_mercaderia`)
-- `lib/dal/ventas/cuenta-destino.ts`: `createCuentaDestino`, `updateCuentaDestino`
-- `lib/dal/ventas/arancel.ts`: `createArancel`, `updateArancel`
-- `lib/dal/precios/cuotas.ts`: `createPlanCuotas`, `updatePlanCuotas`
-- `lib/dal/precios/recargo.ts`: `createRecargoCuotas`, `updateRecargoCuotas`
+
+Salida del comando (14 tablas con escrituras directas):
+- **`arancel_cobro`** [user]: `lib/dal/ventas/arancel.ts:41` (insert), `line:75` (update), `line:89` (update)
+- **`categoria`** [user]: `lib/dal/inventario/categoria.ts:54` (insert), `line:80` (update), `line:90` (update)
+- **`categoria_gasto`** [user]: `lib/dal/gastos/gasto.ts:98` (insert), `line:113` (update), `line:136` (delete), `line:144` (update), `line:154` (update)
+- **`cliente`** [user]: `lib/dal/clientes/cliente.ts:103` (insert), `line:114` (update), `line:120` (update)
+- **`cuenta_destino`** [user]: `lib/dal/ventas/cuenta-destino.ts:67` (insert), `line:103` (update), `line:117` (update), `line:124` (update)
+- **`ingreso_detalle_costo`** [user]: `lib/dal/inventario/ingreso.ts:290` (insert en `addIngresoDetalle`)
+- **`ingreso_mercaderia`** [user]: `lib/dal/inventario/ingreso.ts:232` (insert en `createIngreso`)
+- **`ingreso_mercaderia_detalle`** [user]: `lib/dal/inventario/ingreso.ts:275` (insert en `addIngresoDetalle`), `line:418` (delete en `removeIngresoDetalle`)
+- **`plan_cuotas`** [user]: `lib/dal/precios/cuotas.ts:30` (upsert), `line:45` (update)
+- **`producto`** [user]: `lib/dal/inventario/producto.ts:321` (update en `updateProducto`)
+- **`proveedor`** [user]: `lib/dal/inventario/proveedor.ts:42` (insert), `line:53` (update)
+- **`recargo_cuotas`** [user]: `lib/dal/precios/recargo.ts:63` (insert), `line:92` (update), `line:106` (update)
+- **`revendedora`** [service]: `lib/dal/revendedoras/index.ts:233` (update en `desvincularUsuarioRevendedora`)
+- **`usuario`** [service]: `lib/dal/administracion/administracion.ts:99` (insert), `lib/dal/revendedoras/index.ts:241` (update)

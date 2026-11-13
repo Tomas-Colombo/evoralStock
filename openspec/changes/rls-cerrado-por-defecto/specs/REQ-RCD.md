@@ -44,15 +44,60 @@ Toda tabla representativa de dinero, cobranzas, cuentas bancarias o saldo financ
 
 ---
 
-### REQ-RCD-04 — Stock Operativo y Concurrencia de Venta (`item_producto`, `movimiento_item`)
-La tabla `item_producto` MUST permitir lectura operativa a los roles comerciales y de inventario para no trabar el punto de venta, pero su mutación directa MUST estar vedada.
+### REQ-RCD-04 — Stock Operativo y Concurrencia por Flujo en `item_producto` (Decisión D-RCD-02 = B)
+La tabla `item_producto` MUST contar con policy restrictiva de `SELECT` gobernada por el `OR` de todos los permisos operativos que interactúan con stock en los escritores y lectores INVOKER:
+`(inventario.ver OR inventario.crear OR inventario.editar OR ventas.ver OR ventas.crear OR ventas.editar OR consignaciones.ver OR consignaciones.crear OR consignaciones.editar OR consignaciones.eliminar OR revendedoras.ver OR revendedoras.crear OR revendedoras.editar OR rendiciones.ver)`.
 
-- **Feliz**:
-  - Operador con `ventas.crear` ejecuta `sp_registrar_venta`: el SP realiza `SELECT ... FOR UPDATE` sobre `item_producto` y concreta la venta exitosamente.
-  - Operador con `inventario.crear` ejecuta `sp_confirmar_ingreso`: el SP crea ítems y asigna QR.
-- **N1**: Operador sin permisos comerciales ni de stock (ej. solo `gastos`) intenta `SELECT * FROM item_producto` → Obtiene **0 filas**.
+#### Casos Positivos por Flujo Operativo (rol limitado con SOLO ese permiso):
+- **P1 (Flujo Venta en Mostrador — `ventas.crear`)**:
+  - *Dado*: Un usuario autenticado con un rol que posee **únicamente** el permiso `ventas.crear`.
+  - *Cuando*: Ejecuta `sp_registrar_venta` pasando el ID de un ítem disponible.
+  - *Entonces*: El SP ejecuta `SELECT ... FOR UPDATE` sobre `item_producto`, completa la venta y la transacción finaliza con éxito (`{ ok: true }`).
+- **P2 (Flujo Cambio de Mercadería — `ventas.crear`)**:
+  - *Dado*: Un rol con **únicamente** `ventas.crear`.
+  - *Cuando*: Ejecuta `sp_registrar_cambio` entregando un ítem de stock y recibiendo el devuelto.
+  - *Entonces*: El SP realiza `FOR UPDATE` sobre `item_producto` sin ser bloqueado por RLS.
+- **P3 (Flujo Devolución de Cliente — `ventas.editar`)**:
+  - *Dado*: Un rol con **únicamente** `ventas.editar`.
+  - *Cuando*: Ejecuta `sp_registrar_devolucion_cliente` y reingresa el ítem al inventario.
+  - *Entonces*: El `FOR UPDATE` sobre `item_producto` se autoriza con éxito.
+- **P4 (Flujo Reserva de Mostrador — `ventas.crear`)**:
+  - *Dado*: Un rol con **únicamente** `ventas.crear`.
+  - *Cuando*: Ejecuta `sp_crear_reserva` para apartar un ítem.
+  - *Entonces*: El SP bloquea el ítem con `FOR UPDATE` y crea la reserva exitosamente.
+- **P5 (Flujo Consignación a Proveedor — `consignaciones.crear`)**:
+  - *Dado*: Un rol con **únicamente** `consignaciones.crear`.
+  - *Cuando*: Ejecuta `sp_agregar_item_consignacion` asociando un ítem disponible.
+  - *Entonces*: El `FOR UPDATE` en `item_producto` tiene éxito y el ítem se vincula al remito.
+- **P6 (Flujo Consignación a Revendedora — `revendedoras.crear`)**:
+  - *Dado*: Un rol con **únicamente** `revendedoras.crear`.
+  - *Cuando*: Ejecuta `sp_crear_consignacion_revendedora_con_items`.
+  - *Entonces*: El SP bloquea los ítems solicitados vía `FOR UPDATE` y los entrega en consignación.
+- **P7 (Flujo Devolución de Revendedora — `revendedoras.editar`)**:
+  - *Dado*: Un rol con **únicamente** `revendedoras.editar`.
+  - *Cuando*: Ejecuta `sp_registrar_devolucion_revendedora`.
+  - *Entonces*: El `FOR UPDATE` sobre `item_producto` transiciona el estado de 'consignado' a 'disponible' sin error.
+- **P8 (Flujo Ingreso de Mercadería — `inventario.crear`)**:
+  - *Dado*: Un rol con **únicamente** `inventario.crear`.
+  - *Cuando*: Ejecuta `sp_confirmar_ingreso`.
+  - *Entonces*: El `INSERT INTO item_producto ... RETURNING id_item` evalúa satisfactoriamente el SELECT de `item_producto` y retorna los IDs creados.
+- **P9 (Flujo Stock Directo — `inventario.crear`)**:
+  - *Dado*: Un rol con **únicamente** `inventario.crear`.
+  - *Cuando*: Ejecuta `sp_crear_stock_directo`.
+  - *Entonces*: El `RETURNING` sobre `item_producto` se ejecuta exitosamente.
+- **P10 (Flujo Ajuste de Inventario — `inventario.editar`)**:
+  - *Dado*: Un rol con **únicamente** `inventario.editar`.
+  - *Cuando*: Ejecuta `sp_registrar_ajuste_inventario` dando de baja un ítem por rotura o extravío.
+  - *Entonces*: El `FOR UPDATE` sobre `item_producto` se ejecuta exitosamente.
+- **P11 (Flujo Rendición de Proveedor — `rendiciones.ver`)**:
+  - *Dado*: Un rol con **únicamente** `rendiciones.ver`.
+  - *Cuando*: Consulta el detalle de ítems de consignación vendidos pendientes de rendir en `lib/dal/rendiciones/rendicion.ts`.
+  - *Entonces*: La consulta sobre `item_producto` devuelve las filas correspondientes sin bloqueo.
+
+#### Casos Negativos de `item_producto`:
+- **N1**: Operador autenticado sin ningún permiso de stock ni comercial (ej. rol con **únicamente** `gastos.ver`) intenta `SELECT * FROM item_producto` vía PostgREST → Obtiene **0 filas**.
 - **N2**: Operador autenticado intenta `UPDATE item_producto SET estado_item = 'disponible'` directamente vía PostgREST sin pasar por un `sp_*` → 0 filas actualizadas o `42501`.
-- **N3**: Operador autenticado intenta `INSERT INTO movimiento_item` directo → 0 filas o rechazo `42501`.
+- **N3**: Operador intenta `INSERT INTO item_producto` directamente sin `inventario.crear` → Rechazo `42501`.
 
 ---
 
@@ -68,7 +113,7 @@ Las tablas con policy restrictiva de SELECT (`costo_producto`, `regla_precio`) M
 
 ---
 
-### REQ-RCD-06 — Protección de Integridad del Tenant (`tenant`, `tenant_modulo`)
+### REQ-RCD-06 — Protección de Integridad del Tenant (`tenant`, `tenant_modulo`) (Decisión D-RCD-03 = A)
 La fila de la entidad `tenant` MUST ser legible por los usuarios de ese tenant para resolver la sesión y branding, pero MUST NOT ser editable salvo por quien posea `administracion.editar`.
 
 - **Feliz**: Cualquier usuario autenticado del tenant consulta `tenant` y obtiene su nombre y subdominio.
@@ -99,24 +144,38 @@ Debe existir una suite de tests automatizada que verifique mecánicamente la inv
 
 ---
 
-## 2. Matriz de Permisos por Grupo de Tablas
+## 2. Matriz de Permisos por Tabla (Alineada con Invocadores INVOKER y DAL)
 
-| Tabla / Entidad | SELECT | INSERT | UPDATE | DELETE |
+| Tabla / Entidad | SELECT (OR de Permisos) | INSERT | UPDATE | DELETE |
 | --- | --- | --- | --- | --- |
 | `cliente` | `ventas.ver` O `ventas.crear` | `ventas.crear` | `ventas.editar` | `ventas.eliminar` |
 | `proveedor` | `inventario.ver` O `consignaciones.ver` O `rendiciones.ver` | `inventario.crear` | `inventario.editar` | `inventario.eliminar` |
-| `venta` | `ventas.ver` O `reportes.ver` O `revendedoras.ver` | `ventas.crear` | `ventas.eliminar` | *solo DEFINER* |
-| `pago_venta` | `ventas.ver` O `reportes.ver` | `ventas.crear` O `ventas.editar` | `ventas.eliminar` | *solo DEFINER* |
-| `cuota_financiada` | `ventas.ver` O `reportes.ver` | `ventas.crear` | `ventas.editar` O `ventas.eliminar` | *solo DEFINER* |
+| `venta` | `ventas.ver` O `ventas.crear` O `ventas.editar` O `ventas.eliminar` O `reportes.ver` O `revendedoras.ver` | `ventas.crear` | `ventas.eliminar` | *solo DEFINER* |
+| `pago_venta` | `ventas.ver` O `ventas.crear` O `ventas.editar` O `reportes.ver` | `ventas.crear` O `ventas.editar` | `ventas.eliminar` | *solo DEFINER* |
+| `cuota_financiada` | `ventas.ver` O `ventas.crear` O `ventas.editar` O `ventas.eliminar` O `reportes.ver` | `ventas.crear` | `ventas.editar` O `ventas.eliminar` | *solo DEFINER* |
 | `cuenta_destino` | `ventas.ver` O `ventas.crear` O `gastos.ver` O `administracion.ver` | `administracion.crear` | `administracion.editar` | `administracion.eliminar` |
 | `arancel_cobro` | `ventas.ver` O `ventas.crear` O `administracion.ver` | `administracion.crear` | `administracion.editar` | `administracion.eliminar` |
-| `item_producto` | `todo_el_tenant` (conforme D-RCD-02 Opción A/B) | `inventario.crear` | OR de editores (`inventario.editar`, `ventas.crear`, etc.) | `inventario.eliminar` |
-| `movimiento_item` | `inventario.ver` | OR de creadores de movimiento | *inmutable* | *inmutable* |
-| `detalle_venta` | `ventas.ver` O `rendiciones.ver` O `reportes.ver` O `revendedoras.liquidar` | `ventas.crear` | `ventas.eliminar` O `rendiciones.crear` O `revendedoras.liquidar` | *inmutable* |
-| `ingreso_mercaderia` | `inventario.ver` | `inventario.crear` | `inventario.editar` O `inventario.crear` | `inventario.eliminar` |
-| `consignacion` | `consignaciones.ver` | `consignaciones.crear` | `consignaciones.editar` | `consignaciones.eliminar` |
-| `consignacion_revendedora` | `revendedoras.ver` | `revendedoras.crear` | `revendedoras.editar` | `revendedoras.eliminar` |
-| `revendedora` | `revendedoras.ver` O `ventas.crear` | `revendedoras.crear` | `revendedoras.editar` | `revendedoras.eliminar` |
+| `item_producto` | `inventario.ver` O `inventario.crear` O `inventario.editar` O `ventas.ver` O `ventas.crear` O `ventas.editar` O `consignaciones.ver` O `consignaciones.crear` O `consignaciones.editar` O `consignaciones.eliminar` O `revendedoras.ver` O `revendedoras.crear` O `revendedoras.editar` O `rendiciones.ver` | `inventario.crear` | `inventario.editar` O `ventas.crear` O `ventas.editar` O `consignaciones.crear` O `consignaciones.editar` O `revendedoras.crear` O `revendedoras.editar` | `inventario.eliminar` |
+| `movimiento_item` | `inventario.ver` O `inventario.editar` | `inventario.crear` O `inventario.editar` O `ventas.crear` O `ventas.eliminar` O `consignaciones.crear` O `revendedoras.crear` | *inmutable* | *inmutable* |
+| `detalle_venta` | `ventas.ver` O `ventas.crear` O `ventas.editar` O `ventas.eliminar` O `rendiciones.ver` O `rendiciones.editar` O `reportes.ver` O `revendedoras.liquidar` | `ventas.crear` | `ventas.eliminar` O `rendiciones.crear` O `revendedoras.liquidar` | *inmutable* |
+| `cambio_venta` | `ventas.ver` O `ventas.crear` O `reportes.ver` | `ventas.crear` | *inmutable* | *inmutable* |
+| `devolucion_venta` | `ventas.ver` O `ventas.crear` O `ventas.editar` O `reportes.ver` | `ventas.crear` O `ventas.editar` | *inmutable* | *inmutable* |
+| `reserva` | `ventas.ver` O `ventas.crear` O `ventas.editar` | `ventas.crear` | `ventas.crear` O `ventas.editar` | `ventas.eliminar` |
+| `detalle_reserva` | `ventas.ver` O `ventas.crear` O `ventas.editar` | `ventas.crear` | `ventas.crear` O `ventas.editar` | `ventas.eliminar` |
+| `comprobante` | `ventas.ver` O `ventas.crear` | `ventas.crear` | *solo DEFINER* | *solo DEFINER* |
+| `ingreso_mercaderia` | `inventario.ver` O `inventario.crear` O `inventario.editar` O `inventario.cargar_costos` | `inventario.crear` | `inventario.editar` O `inventario.crear` | `inventario.eliminar` |
+| `ingreso_mercaderia_detalle` | `inventario.ver` O `inventario.crear` O `reportes.ver` | `inventario.crear` | *solo DEFINER* | `inventario.editar` O `inventario.eliminar` |
+| `ingreso_detalle_costo` | `inventario.ver_costos` | `inventario.cargar_costos` | *solo DEFINER* | `inventario.editar` O `inventario.eliminar` |
+| `categoria_gasto` | `gastos.ver` O `gastos.editar` O `reportes.ver` | `gastos.crear` | `gastos.editar` | `gastos.editar` |
+| `gasto_negocio` | `gastos.ver` O `gastos.crear` O `reportes.ver` | `gastos.crear` | *inmutable* | `gastos.editar` |
+| `consignacion` | `consignaciones.ver` O `consignaciones.crear` O `consignaciones.editar` O `consignaciones.eliminar` | `consignaciones.crear` | `consignaciones.editar` | `consignaciones.eliminar` |
+| `consignacion_detalle` | `consignaciones.ver` O `consignaciones.crear` O `consignaciones.editar` | `consignaciones.crear` | `consignaciones.editar` | `consignaciones.eliminar` |
+| `consignacion_revendedora` | `revendedoras.ver` O `revendedoras.crear` O `revendedoras.editar` O `revendedoras.eliminar` | `revendedoras.crear` | `revendedoras.editar` | `revendedoras.eliminar` |
+| `consignacion_revendedora_detalle` | `revendedoras.ver` O `revendedoras.crear` O `revendedoras.editar` O `ventas.crear` | `revendedoras.crear` | `revendedoras.editar` O `ventas.crear` | `revendedoras.eliminar` |
+| `declaracion_venta_revendedora` | `revendedoras.ver` O `revendedoras.crear` O `revendedoras.declarar` | `revendedoras.declarar` | `revendedoras.editar` | `revendedoras.editar` O `revendedoras.declarar` |
+| `liquidacion_revendedora` | `revendedoras.ver` O `revendedoras.liquidar` | `revendedoras.liquidar` | `revendedoras.liquidar` | `revendedoras.eliminar` |
+| `revendedora` | `revendedoras.ver` O `revendedoras.crear` O `revendedoras.editar` O `revendedoras.eliminar` O `revendedoras.liquidar` O `ventas.crear` | `revendedoras.crear` | `revendedoras.editar` | `revendedoras.eliminar` |
+| `regla_comision` | `revendedoras.ver` O `revendedoras.editar` | `revendedoras.crear` | `revendedoras.editar` | `revendedoras.eliminar` |
 | `producto` | `todo_el_tenant` | `inventario.crear` | `inventario.editar` | `inventario.eliminar` |
 | `categoria` | `todo_el_tenant` | `inventario.crear` | `inventario.editar` | `inventario.eliminar` |
 | `plan_cuotas` | `todo_el_tenant` | `precios.crear` | `precios.editar` | `precios.eliminar` |
@@ -124,7 +183,7 @@ Debe existir una suite de tests automatizada que verifique mecánicamente la inv
 | `configuracion` | `todo_el_tenant` | `administracion.crear` | `administracion.editar` | *solo DEFINER* |
 | `tenant` | `todo_el_tenant` | *solo DEFINER* | `administracion.editar` | *solo DEFINER* |
 | `costo_producto` | `inventario.ver_costos` | `inventario.cargar_costos` | `inventario.cargar_costos` | `inventario.eliminar` |
-| `regla_precio` | `tipo <> 'margen'` O `precios.ver_margenes` | `precios.crear` | `precios.editar` | `precios.eliminar` |
+| `regla_precio` | `(tipo <> 'margen' O precios.ver_margenes) Y (precios.ver O precios.crear O precios.editar)` | `precios.crear` | `precios.editar` | `precios.eliminar` |
 
 ---
 
@@ -135,18 +194,7 @@ Este cambio de seguridad **NO** modifica fórmulas financieras, montos devengado
 
 ## 4. INVOKER contra RLS Restrictiva
 
-En PostgreSQL, `RETURNING` y `SELECT ... FOR UPDATE` ejecutados por funciones `SECURITY INVOKER` evalúan la policy de `SELECT` de la tabla destino con las credenciales de quien llama:
-
-1. **`sp_registrar_venta`** hace `FOR UPDATE` en `item_producto`:
-   - *Solución*: La policy de `SELECT` de `item_producto` incluye `ventas.crear` (o es `todo_el_tenant`).
-2. **`sp_anular_venta`** hace `FOR UPDATE` en `venta` y `detalle_venta`, y `RETURNING` en `cuota_financiada`:
-   - *Solución*: Quien anula (`ventas.eliminar`) tiene acceso a SELECT en `venta`, `detalle_venta` y `cuota_financiada`.
-3. **`sp_cobrar_cuota`** hace `FOR UPDATE` en `cuota_financiada` y `RETURNING` en `pago_venta`:
-   - *Solución*: Quien cobra (`ventas.editar`) tiene acceso a SELECT en `cuota_financiada` y `pago_venta`.
-4. **`sp_confirmar_ingreso`** hace `FOR UPDATE` en `ingreso_mercaderia` y `RETURNING` en `item_producto`:
-   - *Solución*: Quien ingresa (`inventario.crear`) tiene acceso a SELECT en `ingreso_mercaderia` e `item_producto`.
-5. **`sp_generar_liquidacion`** hace `FOR UPDATE` en `detalle_venta` y `revendedora`:
-   - *Solución*: Quien liquida (`revendedoras.liquidar`) tiene acceso a SELECT en `detalle_venta` y `revendedora`.
+En PostgreSQL, `RETURNING` y `SELECT ... FOR UPDATE` ejecutados por funciones `SECURITY INVOKER` evalúan la policy de `SELECT` de la tabla destino con las credenciales de quien llama. La matriz anterior garantiza matemáticamente que todo permiso exigido por un SP INVOKER para interactuar con una tabla forma parte del OR de SELECT de dicha tabla.
 
 ---
 
@@ -164,5 +212,5 @@ En PostgreSQL, `RETURNING` y `SELECT ... FOR UPDATE` ejecutados por funciones `S
 | --- | --- | --- |
 | `lib/seguridad/permisos-tablas.ts` | Test guardián, DAL y documentación | Catálogo canónico de políticas RLS por tabla y comando tipado en TypeScript. |
 | `tests/db/rls-guardian.test.ts` | Suite de tests de arquitectura (`pnpm gate:db`) | Test guardián que audita `pg_tables`, `pg_policies`, `has_table_privilege` y `security_invoker`. |
-| `tests/db/rls-cerrado-por-defecto.test.ts` | Suite de integración en base de datos | Casos negativos de PostgREST y RPC para usuarios con roles limitados. |
+| `tests/db/rls-cerrado-por-defecto.test.ts` | Suite de integración en base de datos | Casos negativos y positivos por flujo para roles limitados del seed. |
 | `supabase/migrations/NNNNN_*.sql` | Motor de base de datos | Migraciones incrementales con policies restrictivas y revocación de grants. |
