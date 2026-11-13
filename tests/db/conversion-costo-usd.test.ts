@@ -148,14 +148,19 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
           id_ingreso: idIngreso,
           id_producto: prod!.id_producto,
           cantidad: 10,
-          costo_unitario: 75000.0,
           talle: 'L',
-          costo_original_usd: 50.0,
-          cotizacion_aplicada: 1500.0,
-          cotizacion_fecha_valor: t.hoy,
         })
         .select('id_detalle')
         .single()
+
+      await serviceRole.from('ingreso_detalle_costo').insert({
+        id_detalle: idDetalle!.id_detalle,
+        id_tenant: t.tenantId,
+        costo_unitario: 75000.0,
+        costo_original_usd: 50.0,
+        cotizacion_aplicada: 1500.0,
+        cotizacion_fecha_valor: t.hoy,
+      })
 
       // Confirmar ingreso
       const { error: errConf } = await t.authAdmin.rpc('sp_confirmar_ingreso', {
@@ -164,9 +169,9 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       })
       expect(errConf).toBeNull()
 
-      // Verificar detalle persistido con metadatos
+      // Verificar detalle persistido con metadatos en satélite
       const { data: detalle } = await serviceRole
-        .from('ingreso_mercaderia_detalle')
+        .from('ingreso_detalle_costo')
         .select('*')
         .eq('id_detalle', idDetalle!.id_detalle)
         .single()
@@ -239,17 +244,23 @@ describe.skipIf(!hasTestDb)('Slice 4 — Conversión en carga de productos, ingr
       expect(Number(cp!.cotizacion_aplicada)).toBe(1500.0)
       expect(cp!.cotizacion_fecha_valor).toBe(t.hoy)
 
-      // Verificar ingreso_mercaderia_detalle
+      // Verificar ingreso_mercaderia_detalle e ingreso_detalle_costo
       const { data: imd } = await serviceRole
         .from('ingreso_mercaderia_detalle')
-        .select('*')
+        .select('id_detalle')
         .eq('id_ingreso', ing!.id_ingreso)
         .single()
 
-      expect(Number(imd!.costo_unitario)).toBe(75000.0)
-      expect(Number(imd!.costo_original_usd)).toBe(50.0)
-      expect(Number(imd!.cotizacion_aplicada)).toBe(1500.0)
-      expect(imd!.cotizacion_fecha_valor).toBe(t.hoy)
+      const { data: imdc } = await serviceRole
+        .from('ingreso_detalle_costo')
+        .select('*')
+        .eq('id_detalle', imd!.id_detalle)
+        .single()
+
+      expect(Number(imdc!.costo_unitario)).toBe(75000.0)
+      expect(Number(imdc!.costo_original_usd)).toBe(50.0)
+      expect(Number(imdc!.cotizacion_aplicada)).toBe(1500.0)
+      expect(imdc!.cotizacion_fecha_valor).toBe(t.hoy)
     })
   })
 

@@ -1032,11 +1032,18 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 10,
-        costo_unitario: 1200,
         talle: 'M',
       })
       .select('id_detalle')
       .single()
+
+    await fixture.serviceRole
+      .from('ingreso_detalle_costo')
+      .insert({
+        id_detalle: detIni!.id_detalle,
+        id_tenant: fixture.tenantId,
+        costo_unitario: 1200,
+      })
 
     // 1. SELECT con inventario.ver
     const clientInvVer = await createClientWithPermisos(fixture, 'InvVerDet', { inventario: ['ver'] })
@@ -1057,7 +1064,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
       id_ingreso: ing!.id_ingreso,
       id_producto: prod!.id_producto,
       cantidad: 5,
-      costo_unitario: 1500,
       talle: 'L',
     })
     expect(insErr).toBeNull()
@@ -1084,7 +1090,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 3,
-        costo_unitario: 800,
         talle: 'S',
       })
       .select('id_detalle')
@@ -1178,9 +1183,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 7,
-        // Sin costo: con costo y sin cargar_costos, la policy de insert de 00153
-        // corta antes que la de select que este caso documenta.
-        costo_unitario: null,
         talle: 'U',
       })
       .select()
@@ -1201,9 +1203,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 7,
-        // Sin costo: con costo y sin cargar_costos, la policy de insert de 00153
-        // corta antes que la de select que este caso documenta.
-        costo_unitario: null,
         talle: 'U',
       })
     expect(errPuro).toBeNull()
@@ -1250,7 +1249,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
         id_ingreso: ing!.id_ingreso,
         id_producto: prod!.id_producto,
         cantidad: 15,
-        costo_unitario: 700,
         talle: 'M',
       })
       .select('id_detalle')
@@ -1267,7 +1265,6 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-05 - ingreso_mercaderia_detalle', () => {
       id_ingreso: ing!.id_ingreso,
       id_producto: prod!.id_producto,
       cantidad: 1,
-      costo_unitario: 100,
     })
     expect(errIns).not.toBeNull()
     expect(errIns?.code).toBe('42501')
@@ -1381,7 +1378,6 @@ describe.skipIf(!hasTestDb)('Aislamiento transversal revendedora y otro tenant e
       id_ingreso: ing!.id_ingreso,
       id_producto: prod!.id_producto,
       cantidad: 2,
-      costo_unitario: 500,
     })
 
     // 1. Revendedora en tenant A

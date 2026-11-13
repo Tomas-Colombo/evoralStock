@@ -65,6 +65,18 @@ async function tenantConUnIngresoConfirmado() {
         id_ingreso: ingreso.id_ingreso,
         id_producto: producto.id_producto,
         cantidad: 1,
+      })
+      .select('id_detalle')
+      .single(),
+  )
+
+  unwrapFixture(
+    'detalle costo insert',
+    await serviceRole
+      .from('ingreso_detalle_costo')
+      .insert({
+        id_detalle: detalle.id_detalle,
+        id_tenant: tenant.id_tenant,
         costo_unitario: 100,
       })
       .select('id_detalle')

@@ -28,6 +28,7 @@ const TABLAS_CON_COSTO = [
   'detalle_venta_costo',
   'detalle_venta_rendicion',
   'devolucion_venta_costo',
+  'ingreso_detalle_costo',
 ]
 
 function archivos(dir: string): string[] {

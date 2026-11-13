@@ -117,13 +117,22 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       .select('id_ingreso')
       .single()
 
-    await serviceRole.from('ingreso_mercaderia_detalle').insert({
+    const { data: detIng1 } = await serviceRole
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: t.tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: idProd,
+        cantidad: 2,
+        talle: 'M',
+      })
+      .select('id_detalle')
+      .single()
+
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: detIng1!.id_detalle,
       id_tenant: t.tenantId,
-      id_ingreso: ing!.id_ingreso,
-      id_producto: idProd,
-      cantidad: 2,
       costo_unitario: 1000,
-      talle: 'M',
     })
 
     const { data: count, error: errConf } = await t.authAdmin.rpc('sp_confirmar_ingreso', {
@@ -190,13 +199,17 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
         id_ingreso: ing!.id_ingreso,
         id_producto: idProd,
         cantidad: 3,
-        costo_unitario: null,
         talle: 'L',
       })
-      .select('id_detalle, costo_unitario')
+      .select('id_detalle')
       .single()
 
-    expect(det!.costo_unitario).toBeNull()
+    const { data: detCostoPre } = await serviceRole
+      .from('ingreso_detalle_costo')
+      .select('costo_unitario')
+      .eq('id_detalle', det!.id_detalle)
+      .maybeSingle()
+    expect(detCostoPre).toBeNull()
 
     const { data: count, error: errConf } = await t.authAdmin.rpc('sp_confirmar_ingreso', {
       p_id_ingreso: ing!.id_ingreso,
@@ -213,13 +226,13 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
     expect(items).toHaveLength(3)
     expect(items?.every((i) => costoDe(i) === 2000)).toBe(true)
 
-    // La línea del detalle permanece null
+    // La línea del detalle permanece sin fila en el satélite
     const { data: detDespues } = await serviceRole
-      .from('ingreso_mercaderia_detalle')
+      .from('ingreso_detalle_costo')
       .select('costo_unitario')
       .eq('id_detalle', det!.id_detalle)
-      .single()
-    expect(detDespues!.costo_unitario).toBeNull()
+      .maybeSingle()
+    expect(detDespues).toBeNull()
 
     // costo_producto NO cambia (misma fila vigente, no se crearon filas nuevas)
     const { data: vigentesDespues } = await serviceRole
@@ -254,7 +267,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       id_ingreso: ing!.id_ingreso,
       id_producto: idProd,
       cantidad: 2,
-      costo_unitario: null,
       talle: 'S',
     })
 
@@ -303,7 +315,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       id_ingreso: ing!.id_ingreso,
       id_producto: idProd,
       cantidad: 1,
-      costo_unitario: null,
       talle: 'M',
     })
 
@@ -365,7 +376,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
         id_ingreso: ing!.id_ingreso,
         id_producto: idProd,
         cantidad: 2,
-        costo_unitario: null,
         talle: 'L',
       })
       .select('id_detalle')
@@ -413,9 +423,9 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       .single()
     expect(costoDe(itemVendido)).toBe(600)
 
-    // La línea del detalle se completó con 1500
+    // La línea del detalle se completó con 1500 en el satélite
     const { data: detFinal } = await serviceRole
-      .from('ingreso_mercaderia_detalle')
+      .from('ingreso_detalle_costo')
       .select('costo_unitario')
       .eq('id_detalle', det!.id_detalle)
       .single()
@@ -451,26 +461,30 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       .select('id_ingreso')
       .single()
 
-    // Intento 1: insertar línea CON costo → Rechazado por policy restrictiva
-    const { error: errConCosto } = await clientSinCargar.from('ingreso_mercaderia_detalle').insert({
+    // Intento 1: insertar costo en satélite → Rechazado por policy restrictiva
+    const { data: detConCosto } = await clientSinCargar.from('ingreso_mercaderia_detalle').insert({
       id_tenant: t.tenantId,
       id_ingreso: ing!.id_ingreso,
       id_producto: idProd,
       cantidad: 5,
-      costo_unitario: 800,
       talle: 'U',
+    }).select('id_detalle').single()
+
+    const { error: errConCosto } = await clientSinCargar.from('ingreso_detalle_costo').insert({
+      id_detalle: detConCosto!.id_detalle,
+      id_tenant: t.tenantId,
+      costo_unitario: 800,
     })
 
     expect(errConCosto).not.toBeNull()
     expect(errConCosto?.code).toBe('42501')
 
-    // Intento 2: insertar línea SIN costo (null) → Permitido por policy
+    // Intento 2: insertar línea SIN costo → Permitido por policy
     const { error: errSinCosto } = await clientSinCargar.from('ingreso_mercaderia_detalle').insert({
       id_tenant: t.tenantId,
       id_ingreso: ing!.id_ingreso,
       id_producto: idProd,
       cantidad: 5,
-      costo_unitario: null,
       talle: 'U',
     })
 
@@ -521,13 +535,12 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
         id_ingreso: ing!.id_ingreso,
         id_producto: idProd,
         cantidad: 4,
-        costo_unitario: null,
       })
       .select('id_detalle')
       .single()
 
     // Intento de UPDATE directo sobre 'cantidad' con rol que tiene 'cargar_costos':
-    // Falla por permisos de columna de PostgreSQL (solo se concedió update (costo_unitario))
+    // Falla por permisos de PostgreSQL (UPDATE revocado en ingreso_mercaderia_detalle)
     const { error: errUpdateCantidad } = await clientCargarCostos
       .from('ingreso_mercaderia_detalle')
       .update({ cantidad: 10 })
@@ -577,11 +590,15 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
       .select('id_ingreso')
       .single()
-    await serviceRole.from('ingreso_mercaderia_detalle').insert({
+    const { data: det1 } = await serviceRole.from('ingreso_mercaderia_detalle').insert({
       id_tenant: t.tenantId,
       id_ingreso: ing1!.id_ingreso,
       id_producto: idProd,
       cantidad: 1,
+    }).select('id_detalle').single()
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det1!.id_detalle,
+      id_tenant: t.tenantId,
       costo_unitario: 1000,
     })
     await t.authAdmin.rpc('sp_confirmar_ingreso', { p_id_ingreso: ing1!.id_ingreso })
@@ -599,7 +616,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
         id_ingreso: ing2!.id_ingreso,
         id_producto: idProd,
         cantidad: 1,
-        costo_unitario: null,
       })
       .select('id_detalle')
       .single()
@@ -617,11 +633,15 @@ describe.skipIf(!hasTestDb)('CPC Fase 3C.1 — costo pendiente en SQL (REQ-CPC-0
       .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
       .select('id_ingreso')
       .single()
-    await serviceRole.from('ingreso_mercaderia_detalle').insert({
+    const { data: det3 } = await serviceRole.from('ingreso_mercaderia_detalle').insert({
       id_tenant: t.tenantId,
       id_ingreso: ing3!.id_ingreso,
       id_producto: idProd,
       cantidad: 1,
+    }).select('id_detalle').single()
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det3!.id_detalle,
+      id_tenant: t.tenantId,
       costo_unitario: 1500,
     })
     await t.authAdmin.rpc('sp_confirmar_ingreso', { p_id_ingreso: ing3!.id_ingreso })

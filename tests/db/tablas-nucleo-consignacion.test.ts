@@ -183,14 +183,27 @@ describe.skipIf(!hasTestDb)('Tablas del núcleo extendidas por consignación —
         .single()
 
       // Detalle del ingreso
-      await serviceRole.from('ingreso_mercaderia_detalle').insert({
-        id_ingreso: ingreso!.id_ingreso,
-        id_tenant: tenant.tenantId,
-        id_producto: prod!.id_producto,
-        cantidad: 2,
-        costo_unitario: 500,
-        talle: 'L',
-      })
+      const { data: det, error: detErr } = await serviceRole
+        .from('ingreso_mercaderia_detalle')
+        .insert({
+          id_ingreso: ingreso!.id_ingreso,
+          id_tenant: tenant.tenantId,
+          id_producto: prod!.id_producto,
+          cantidad: 2,
+          talle: 'L',
+        })
+        .select('id_detalle')
+        .single()
+      expect(detErr).toBeNull()
+
+      const { error: detCostoErr } = await serviceRole
+        .from('ingreso_detalle_costo')
+        .insert({
+          id_detalle: det!.id_detalle,
+          id_tenant: tenant.tenantId,
+          costo_unitario: 500,
+        })
+      expect(detCostoErr).toBeNull()
 
       // 2. Apagar paquete (sin ítems generados no hay estado vivo, pasa ok)
       const { error: errApagar } = await deshabilitarPaqueteConsignacion(tenant.tenantId)

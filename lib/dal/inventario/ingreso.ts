@@ -36,7 +36,7 @@ export async function listIngresosConResumen(opts?: {
       `
       *,
       proveedor:proveedor(id_proveedor, nombre),
-      detalle:ingreso_mercaderia_detalle(cantidad, costo_unitario)
+      detalle:ingreso_mercaderia_detalle(cantidad, ingreso_detalle_costo(costo_unitario))
     `,
       { count: 'exact' },
     )
@@ -50,10 +50,20 @@ export async function listIngresosConResumen(opts?: {
   const rows = ((data ?? []) as Array<
     IngresoMercaderiaRow & {
       proveedor: Pick<ProveedorRow, 'id_proveedor' | 'nombre'> | null
-      detalle: Array<{ cantidad: number; costo_unitario: number | null }>
+      detalle: Array<{
+        cantidad: number
+        ingreso_detalle_costo?: { costo_unitario?: number | string | null } | Array<{ costo_unitario?: number | string | null }> | null
+      }>
     }
   >).map((row) => {
-    const detalle = row.detalle ?? []
+    const detalle = (row.detalle ?? []).map((d) => {
+      const embed = Array.isArray(d.ingreso_detalle_costo) ? d.ingreso_detalle_costo[0] : d.ingreso_detalle_costo
+      const raw = embed?.costo_unitario
+      return {
+        cantidad: d.cantidad,
+        costo_unitario: raw != null ? Number(raw) : null,
+      }
+    })
     const total_cantidad = detalle.reduce((acc, d) => acc + Number(d.cantidad), 0)
     const costo_pendiente = detalle.some((d) => d.costo_unitario == null)
     const total_costo = costo_pendiente
@@ -92,7 +102,7 @@ export async function listIngresosDeProveedor(
       `
       *,
       proveedor:proveedor(id_proveedor, nombre),
-      detalle:ingreso_mercaderia_detalle(cantidad, costo_unitario)
+      detalle:ingreso_mercaderia_detalle(cantidad, ingreso_detalle_costo(costo_unitario))
     `,
     )
     .eq('id_proveedor', idProveedor)
@@ -103,10 +113,20 @@ export async function listIngresosDeProveedor(
   return ((data ?? []) as Array<
     IngresoMercaderiaRow & {
       proveedor: Pick<ProveedorRow, 'id_proveedor' | 'nombre'> | null
-      detalle: Array<{ cantidad: number; costo_unitario: number | null }>
+      detalle: Array<{
+        cantidad: number
+        ingreso_detalle_costo?: { costo_unitario?: number | string | null } | Array<{ costo_unitario?: number | string | null }> | null
+      }>
     }
   >).map((row) => {
-    const detalle = row.detalle ?? []
+    const detalle = (row.detalle ?? []).map((d) => {
+      const embed = Array.isArray(d.ingreso_detalle_costo) ? d.ingreso_detalle_costo[0] : d.ingreso_detalle_costo
+      const raw = embed?.costo_unitario
+      return {
+        cantidad: d.cantidad,
+        costo_unitario: raw != null ? Number(raw) : null,
+      }
+    })
     const total_cantidad = detalle.reduce((acc, d) => acc + Number(d.cantidad), 0)
     const costo_pendiente = detalle.some((d) => d.costo_unitario == null)
     const total_costo = costo_pendiente
@@ -141,13 +161,48 @@ export async function getIngreso(id: string): Promise<
       *,
       proveedor:proveedor(id_proveedor, nombre, telefono),
       detalle:ingreso_mercaderia_detalle(id_detalle, id_tenant, id_ingreso, id_producto,
-        cantidad, costo_unitario, talle, created_at)
+        cantidad, talle, created_at,
+        ingreso_detalle_costo(costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor))
     `)
     .eq('id_ingreso', id)
     .maybeSingle()
   if (error) throw new Error(`getIngreso: ${error.message}`)
   if (!data) return null
-  return data as unknown as Awaited<ReturnType<typeof getIngreso>>
+
+  const row = data as unknown as {
+    detalle?: Array<
+      Omit<IngresoMercaderiaDetalleRow, 'costo_unitario'> & {
+        ingreso_detalle_costo?: {
+          costo_unitario?: number | string | null
+          costo_original_usd?: number | string | null
+          cotizacion_aplicada?: number | string | null
+          cotizacion_fecha_valor?: string | null
+        } | Array<{
+          costo_unitario?: number | string | null
+          costo_original_usd?: number | string | null
+          cotizacion_aplicada?: number | string | null
+          cotizacion_fecha_valor?: string | null
+        }> | null
+      }
+    >
+    [k: string]: unknown
+  }
+
+  const detalleAplanado = (row.detalle ?? []).map((d) => {
+    const embed = Array.isArray(d.ingreso_detalle_costo) ? d.ingreso_detalle_costo[0] : d.ingreso_detalle_costo
+    const rawCosto = embed?.costo_unitario
+    const { ingreso_detalle_costo: _drop, ...rest } = d
+    void _drop
+    return {
+      ...rest,
+      costo_unitario: rawCosto != null ? Number(rawCosto) : null,
+    }
+  })
+
+  return {
+    ...row,
+    detalle: detalleAplanado,
+  } as unknown as Awaited<ReturnType<typeof getIngreso>>
 }
 
 /**
@@ -224,16 +279,28 @@ export async function addIngresoDetalle(input: {
       id_ingreso: input.idIngreso,
       id_producto: input.idProducto,
       cantidad: input.cantidad,
-      costo_unitario: input.costoUnitario ?? null,
       talle: input.talle ?? null,
-      costo_original_usd: input.costoOriginalUsd ?? null,
-      cotizacion_aplicada: input.cotizacionAplicada ?? null,
-      cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
     })
     .select('id_detalle')
     .single()
   if (error) throw new Error(`addIngresoDetalle: ${error.message}`)
-  return (data as { id_detalle: string }).id_detalle
+  const idDetalle = (data as { id_detalle: string }).id_detalle
+
+  if (input.costoUnitario != null) {
+    const { error: errCosto } = await supabase
+      .from('ingreso_detalle_costo')
+      .insert({
+        id_detalle: idDetalle,
+        id_tenant: input.tenantId,
+        costo_unitario: input.costoUnitario,
+        costo_original_usd: input.costoOriginalUsd ?? null,
+        cotizacion_aplicada: input.cotizacionAplicada ?? null,
+        cotizacion_fecha_valor: input.cotizacionFechaValor ?? null,
+      })
+    if (errCosto) throw new Error(`addIngresoDetalle (costo): ${errCosto.message}`)
+  }
+
+  return idDetalle
 }
 
 export type DetalleImportado = {

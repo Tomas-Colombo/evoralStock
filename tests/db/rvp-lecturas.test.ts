@@ -481,6 +481,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'fn_sellar_costo_venta', // sellador de costo/rendición en venta (00156, REQ-CPC §6.1)
       'fn_sellar_costo_cambio', // sellador de costo/rendición en cambio (00156, REQ-CPC §6.1)
       'fn_sellar_costo_devolucion', // sellador de costo recuperado en devolución (00156, REQ-CPC §6.1)
+      'fn_sellar_costo_ingreso', // sellador de costo en ingreso (00157, REQ-CPC §6.1)
     ]
 
     for (const p of defProcs) {

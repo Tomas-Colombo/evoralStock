@@ -414,13 +414,20 @@ describe('rf_finanzas_resultados y rf_finanzas_flujo', () => {
     }).select('id_ingreso').single()
 
     // Detalle
-    await f.serviceRole.from('ingreso_mercaderia_detalle').insert({
+    const { data: det, error: errDet } = await f.serviceRole.from('ingreso_mercaderia_detalle').insert({
       id_tenant: f.tenantId,
       id_ingreso: ing!.id_ingreso,
       id_producto: f.idProducto,
       cantidad: 5,
-      costo_unitario: 1000 // 5000 total
+    }).select('id_detalle').single()
+    expect(errDet).toBeNull()
+
+    const { error: errCosto } = await f.serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det!.id_detalle,
+      id_tenant: f.tenantId,
+      costo_unitario: 1000, // 5000 total
     })
+    expect(errCosto).toBeNull()
 
     // Confirmamos el ingreso con sp_confirmar_ingreso
     const { error: errConf } = await f.authenticated.rpc('sp_confirmar_ingreso', {

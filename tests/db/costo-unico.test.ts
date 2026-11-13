@@ -141,17 +141,29 @@ describe.skipIf(!hasTestDb)('costo-unico — Escenario dorado y casos negativos 
       .single()
     expect(errIngreso).toBeNull()
 
-    const { error: errDet } = await serviceRole
+    const { data: det, error: errDet } = await serviceRole
       .from('ingreso_mercaderia_detalle')
       .insert({
         id_tenant: tenantId,
         id_ingreso: ingreso!.id_ingreso,
         id_producto: idProducto,
         cantidad,
-        costo_unitario: costoUnitario,
         talle: 'U',
       })
+      .select('id_detalle')
+      .single()
     expect(errDet).toBeNull()
+
+    if (costoUnitario != null) {
+      const { error: errCosto } = await serviceRole
+        .from('ingreso_detalle_costo')
+        .insert({
+          id_detalle: det!.id_detalle,
+          id_tenant: tenantId,
+          costo_unitario: costoUnitario,
+        })
+      expect(errCosto).toBeNull()
+    }
 
     const { error: errConf } = await authAdmin.rpc('sp_confirmar_ingreso', {
       p_id_ingreso: ingreso!.id_ingreso,

@@ -326,7 +326,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.1 — segregación RLS, sellador de her
       id_ingreso: ing!.id_ingreso,
       id_producto: t.idProd,
       cantidad: 1,
-      costo_unitario: null,
       talle: 'L',
     })
 
@@ -779,7 +778,6 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.2 — satélites item_costo, detalle_ve
       id_ingreso: ing!.id_ingreso,
       id_producto: t.idProd,
       cantidad: 1,
-      costo_unitario: null,
       talle: 'M',
     })
     expect(detErr).toBeNull()
@@ -1003,15 +1001,27 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.2 — satélites item_costo, detalle_ve
       .single()
     expect(ingErr).toBeNull()
 
-    const { error: detIngErr } = await serviceRole.from('ingreso_mercaderia_detalle').insert({
-      id_tenant: t.tenantId,
-      id_ingreso: ing!.id_ingreso,
-      id_producto: t.idProd,
-      cantidad: 1,
-      costo_unitario: 1000,
-      talle: 'M',
-    })
+    const { data: detIng, error: detIngErr } = await serviceRole
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: t.tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: t.idProd,
+        cantidad: 1,
+        talle: 'M',
+      })
+      .select('id_detalle')
+      .single()
     expect(detIngErr).toBeNull()
+
+    const { error: detCostoErr } = await serviceRole
+      .from('ingreso_detalle_costo')
+      .insert({
+        id_detalle: detIng!.id_detalle,
+        id_tenant: t.tenantId,
+        costo_unitario: 1000,
+      })
+    expect(detCostoErr).toBeNull()
 
     const { error: confErr } = await t.authAdmin.rpc('sp_confirmar_ingreso', {
       p_id_ingreso: ing!.id_ingreso,
@@ -1134,5 +1144,253 @@ describe.skipIf(!hasTestDb)('CPC Fase 3E.2 — satélites item_costo, detalle_ve
       .eq('id_tenant', t.tenantId)
     expect(cntDvc).toBe(cntDv)
     expect(cntDvr).toBe(cntDv)
+  })
+})
+
+describe.skipIf(!hasTestDb)('CPC Fase 3E.3 — satélite ingreso_detalle_costo', () => {
+  const serviceRole = createServiceRoleTestClient()
+
+  async function createClientWithPermisos(
+    fixture: TenantFixture,
+    nombreRol: string,
+    permisos: Record<string, string[]>,
+  ) {
+    const { data: rol, error: rolErr } = await fixture.serviceRole
+      .from('rol')
+      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant(nombreRol), permisos })
+      .select('id_rol')
+      .single()
+    if (rolErr || !rol) throw new Error(`createClientWithPermisos rol failed: ${rolErr?.message}`)
+
+    const email = `${withScopedTenant(nombreRol)}@example.com`
+    const password = 'Fixture-Password-1!'
+    const { data: authUser, error: authErr } = await fixture.serviceRole.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+    if (authErr || !authUser?.user) throw new Error(`createClientWithPermisos auth failed: ${authErr?.message}`)
+
+    const { error: usrErr } = await fixture.serviceRole.from('usuario').insert({
+      id_usuario: authUser.user.id,
+      id_tenant: fixture.tenantId,
+      email,
+      nombre_completo: `Usuario ${nombreRol}`,
+      id_rol: rol.id_rol,
+      estado_usuario: 'activo',
+    })
+    if (usrErr) throw new Error(`createClientWithPermisos usuario failed: ${usrErr.message}`)
+
+    return signInAs({ email, password })
+  }
+
+  async function setup3E3(prefix: string) {
+    const fixture = await createTenantWithUser(withScopedTenant(prefix))
+    const authAdmin = await signInAs(fixture)
+
+    const categoria = unwrapFixture(
+      'categoria insert',
+      await serviceRole
+        .from('categoria')
+        .insert({ id_tenant: fixture.tenantId, nombre: 'Indumentaria 3E3' })
+        .select('id_categoria')
+        .single(),
+    )
+
+    const producto = unwrapFixture(
+      'producto insert',
+      await serviceRole
+        .from('producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_categoria: categoria.id_categoria,
+          nombre: 'Remera 3E3',
+          sku: `R3E3-${Date.now().toString().slice(-4)}`,
+          precio_venta: 2000,
+        })
+        .select('id_producto')
+        .single(),
+    )
+
+    return {
+      ...fixture,
+      authAdmin,
+      idCat: categoria.id_categoria,
+      idProd: producto.id_producto,
+    }
+  }
+
+  it('1. Rol sin ver_costos consulta ingreso_detalle_costo por PostgREST -> 0 filas', async () => {
+    const t = await setup3E3('3e3-r1')
+    const operadora = await createClientWithPermisos(t, 'operadora-sin-ver-costos', {
+      inventario: ['ver', 'crear'],
+    })
+
+    const { data: ing } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const { data: det } = await serviceRole
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: t.tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: t.idProd,
+        cantidad: 2,
+        talle: 'M',
+      })
+      .select('id_detalle')
+      .single()
+
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det!.id_detalle,
+      id_tenant: t.tenantId,
+      costo_unitario: 1200,
+    })
+
+    // Rol sin ver_costos consulta ingreso_detalle_costo -> 0 filas
+    const { data: idc, error } = await operadora.from('ingreso_detalle_costo').select('*')
+    expect(error).toBeNull()
+    expect(idc).toEqual([])
+  })
+
+  it('2. Rol sin cargar_costos importa remito con costo -> 42501; sin costo -> éxito', async () => {
+    const t = await setup3E3('3e3-r2')
+    const operadora = await createClientWithPermisos(t, 'operadora-sin-cargar-costos', {
+      inventario: ['ver', 'crear'],
+    })
+
+    const { data: ing } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    // 2.a: Con costo -> 42501
+    const { error: errConCosto } = await operadora.rpc('sp_importar_remito', {
+      p_id_ingreso: ing!.id_ingreso,
+      p_lineas: [
+        {
+          esNuevo: false,
+          idProducto: t.idProd,
+          nombre: 'Remera 3E3',
+          costoUnitario: 1500,
+          partes: [{ talle: 'L', cantidad: 3 }],
+        },
+      ],
+    })
+    expect(errConCosto).not.toBeNull()
+    expect(errConCosto?.code).toBe('42501')
+
+    // 2.b: Sin costo -> éxito
+    const { data: resSinCosto, error: errSinCosto } = await operadora.rpc('sp_importar_remito', {
+      p_id_ingreso: ing!.id_ingreso,
+      p_lineas: [
+        {
+          esNuevo: false,
+          idProducto: t.idProd,
+          nombre: 'Remera 3E3',
+          costoUnitario: null,
+          partes: [{ talle: 'L', cantidad: 3 }],
+        },
+      ],
+    })
+    expect(errSinCosto).toBeNull()
+    expect(resSinCosto).toBeDefined()
+  })
+
+  it('3. Administrador lee ingreso_detalle_costo normalmente', async () => {
+    const t = await setup3E3('3e3-r3')
+
+    const { data: ing } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const { data: det } = await serviceRole
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: t.tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: t.idProd,
+        cantidad: 5,
+        talle: 'S',
+      })
+      .select('id_detalle')
+      .single()
+
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det!.id_detalle,
+      id_tenant: t.tenantId,
+      costo_unitario: 1750,
+      costo_original_usd: 1.75,
+      cotizacion_aplicada: 1000,
+      cotizacion_fecha_valor: '2026-11-12',
+    })
+
+    const { data: idc, error } = await t.authAdmin
+      .from('ingreso_detalle_costo')
+      .select('costo_unitario, costo_original_usd, cotizacion_aplicada, cotizacion_fecha_valor')
+      .eq('id_detalle', det!.id_detalle)
+      .single()
+
+    expect(error).toBeNull()
+    expect(Number(idc!.costo_unitario)).toBe(1750)
+    expect(Number(idc!.costo_original_usd)).toBe(1.75)
+    expect(Number(idc!.cotizacion_aplicada)).toBe(1000)
+    expect(idc!.cotizacion_fecha_valor).toBe('2026-11-12')
+  })
+
+  it('4. Rol con inventario.crear sin ver_costos confirma un ingreso con costo -> ítem queda con fila en item_costo', async () => {
+    const t = await setup3E3('3e3-r4')
+    const operadora = await createClientWithPermisos(t, 'operadora-confirma-con-costo', {
+      inventario: ['ver', 'crear'],
+    })
+
+    // Remito cargado por Admin con costo
+    const { data: ing } = await serviceRole
+      .from('ingreso_mercaderia')
+      .insert({ id_tenant: t.tenantId, tipo_ingreso: 'compra', confirmado: false })
+      .select('id_ingreso')
+      .single()
+
+    const { data: det } = await serviceRole
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: t.tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: t.idProd,
+        cantidad: 2,
+        talle: 'XL',
+      })
+      .select('id_detalle')
+      .single()
+
+    await serviceRole.from('ingreso_detalle_costo').insert({
+      id_detalle: det!.id_detalle,
+      id_tenant: t.tenantId,
+      costo_unitario: 3400,
+    })
+
+    // Operadora (sin ver_costos / sin cargar_costos) confirma el remito
+    const { error: confErr } = await operadora.rpc('sp_confirmar_ingreso', {
+      p_id_ingreso: ing!.id_ingreso,
+    })
+    expect(confErr).toBeNull()
+
+    // Los ítems generados quedaron con su fila en item_costo sellada con costo_ingreso = 3400
+    const { data: items } = await serviceRole
+      .from('item_producto')
+      .select('id_item, item_costo(costo_ingreso)')
+      .eq('id_ingreso', ing!.id_ingreso)
+
+    expect(items).toHaveLength(2)
+    for (const item of items!) {
+      const ic = Array.isArray(item.item_costo) ? item.item_costo[0] : item.item_costo
+      expect(Number((ic as { costo_ingreso: number }).costo_ingreso)).toBe(3400)
+    }
   })
 })

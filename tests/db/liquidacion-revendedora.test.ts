@@ -80,13 +80,24 @@ describe.skipIf(!hasTestDb)('Liquidación de revendedoras — Slice 7a (REQ-RV-D
       .select('id_ingreso')
       .single()
 
-    await sr.from('ingreso_mercaderia_detalle').insert({
+    const { data: det, error: detErr } = await sr
+      .from('ingreso_mercaderia_detalle')
+      .insert({
+        id_tenant: tenantId,
+        id_ingreso: ing!.id_ingreso,
+        id_producto: prod.id_producto,
+        cantidad: 4,
+      })
+      .select('id_detalle')
+      .single()
+    expect(detErr).toBeNull()
+
+    const { error: detCostoErr } = await sr.from('ingreso_detalle_costo').insert({
+      id_detalle: det!.id_detalle,
       id_tenant: tenantId,
-      id_ingreso: ing!.id_ingreso,
-      id_producto: prod.id_producto,
-      cantidad: 4,
       costo_unitario: COSTO_P1,
     })
+    expect(detCostoErr).toBeNull()
 
     await authenticated.rpc('sp_confirmar_ingreso', { p_id_ingreso: ing!.id_ingreso })
 
