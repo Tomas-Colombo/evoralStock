@@ -484,14 +484,12 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'fn_sellar_costo_ingreso', // sellador de costo en ingreso (00157, REQ-CPC §6.1)
     ]
 
-    for (const p of defProcs) {
-      const name = p.proname
-      if (name.startsWith('rvp_')) continue
-      expect(
-        PERMITTED_NON_RVP_DEFINER,
-        `Función SECURITY DEFINER no autorizada en public: ${name}`
-      ).toContain(name)
-    }
+    const actualNonRvp = defProcs
+      .map((p) => p.proname)
+      .filter((name) => !name.startsWith('rvp_'))
+      .sort()
+
+    expect(actualNonRvp).toEqual([...PERMITTED_NON_RVP_DEFINER].sort())
   })
 
   test('9. rvp_mi_cuenta: proximo_tramo_comision solo expone tramos de su regla cuando tiene regla con escala (DR-13)', async () => {

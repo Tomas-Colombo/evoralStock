@@ -7,16 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # What this is
 
 Utopía: multi-tenant SaaS to run a clothing store (inventory, pricing, sales,
-instalments, consignment, expenses). Resold product: nothing hardcoded to one
-store. Next.js 16 App Router + React 19 + TS 5 + Tailwind 4 + Supabase
-(Postgres + RLS). Package manager **pnpm**. Windows host: only `rg` installed
-(no `bat`, `fd`, `sd`, `eza`, `jq`, `brew`).
+instalments, consignment, expenses). Resold product: nothing hardcoded to one store.
+Next.js 16 App Router + React 19 + TS 5 + Tailwind 4 + Supabase (Postgres + RLS).
+Package manager **pnpm**. Windows host: only `rg` installed (no `bat`, `fd`, `sd`, `eza`, `jq`, `brew`).
 
-This file is the single source of truth for every agent (Claude, Codex,
-Copilot). Personal preferences live in the provider's memory, never here.
-`CLAUDE.md` is only `@AGENTS.md`. Where docs disagree with code, the code wins.
-The working procedure (roles, prompt, report, when to stop) is in
-`docs/protocolo-agentes.md`.
+This file is the single source of truth for every agent (Claude, Codex, Copilot).
+Personal preferences live in provider memory, never here. `CLAUDE.md` is only `@AGENTS.md`.
+Where docs disagree with code, code wins. Protocol: `docs/protocolo-agentes.md`.
 
 # Commands
 
@@ -32,10 +29,9 @@ The working procedure (roles, prompt, report, when to stop) is in
 | E2E | `pnpm test:e2e` | dev server + DB |
 | New customer | `pnpm provision-tenant` | `.env.local` |
 
-Run `pnpm gate` (fast), `pnpm gate:db` (touching SQL) or `pnpm gate:full`
-(closing a slice). Report only the content of `.gate/report.txt`. Exit code 2
-means "not verified" (no Docker, Supabase stopped, DB suites skipped): report
-it as such, never as passing.
+Run `pnpm gate` (fast), `pnpm gate:db` (touching SQL) or `pnpm gate:full` (closing a slice).
+Report only the content of `.gate/report.txt`. Exit code 2 means "not verified"
+(no Docker, Supabase stopped, DB suites skipped): report it as such, never as passing.
 
 # Architecture (non-negotiable)
 
@@ -55,11 +51,15 @@ supabase/      migrations + stored procedures  — business invariants live here
   a new Action on one widens that OR. Detail: `supabase/README.md`.
 - **Writes go through `sp_*` stored procedures** called from `lib/dal`. A
   multi-table write assembled in TypeScript breaks between two awaits.
-- **INVOKER / DEFINER**: writes and reads are always INVOKER. DEFINER only for
-  the `rvp_*` portal reads (identity from `auth_revendedora_id()`, column
-  whitelist without costs/margins) and the two listed exceptions
-  `fn_auto_crear_rol_revendedora`, `sp_enlazar_revendedora_usuario`. Enforced
-  by `tests/db/rvp-lecturas.test.ts`.
+- **INVOKER / DEFINER**: writes/reads are INVOKER. DEFINER only for `rvp_*` portal
+  reads, the 2 revendedoras exceptions (`fn_auto_crear_rol_revendedora`,
+  `sp_enlazar_revendedora_usuario`) and selladores `fn_sellar_costo_*` (void, sin
+  montos por parámetro, permiso = OR de llamadores). Enforced by `tests/db/rvp-lecturas.test.ts`.
+- **Regla de satélites**: costo, margen o monto a proveedor vive SOLO en satélites
+  (`item_costo`, `detalle_venta_costo`, `detalle_venta_rendicion`, `devolucion_venta_costo`,
+  `ingreso_detalle_costo`) o `costo_producto`, con policy restrictiva de select por
+  permiso; pendiente = sin fila, nunca 0; reportes sin permiso devuelven null (D-CPC-08);
+  escritores INVOKER no leen satélites: sellan vía `fn_sellar_costo_*`. Detalle: `supabase/README.md`.
 - Allowed SQL outside `lib/dal`: auth (`app/(auth)/login/actions.ts`,
   `logoutAction`) and `proxy.ts`. **Known debt, do not add to it**:
   `components/theming/persistThemePreference.ts`.
@@ -76,9 +76,8 @@ It is a public POST endpoint; TS types are erased at runtime. In order:
 
 1. **Authorize**: `requireModuleRole(session, '<modulo>', '<accion>')`. The
    route `layout.tsx` gates `ver` only and is not a boundary for actions.
-2. **Validate**: zod schema from `lib/validation/**`, `safeParse`,
-   `strictObject`, built from the domain catalogue (e.g. `permisosSchema` from
-   `CATALOGO_PERMISOS`) so there are never two lists.
+2. **Validate**: zod schema from `lib/validation/**`, `safeParse`, `strictObject`,
+   built from domain catalogue (e.g. `permisosSchema` from `CATALOGO_PERMISOS`).
 3. **Call the DAL** with `parsed.data`, never the raw input.
 
 Return `{ ok: true } | { ok: false, reason }`; `reason` is a kebab-case slug,

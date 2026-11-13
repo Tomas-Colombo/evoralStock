@@ -412,7 +412,7 @@ Se propone implementar un primer slice puramente en TypeScript/Next.js antes de 
 
 ## 6. Funciones DEFINER nuevas (Lista Cerrada propuesta y Test de Guard)
 
-Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las funciones principales de negocio (`sp_registrar_venta`, `sp_registrar_cambio`, `sp_registrar_devolucion_cliente`, `sp_confirmar_ingreso`, `sp_crear_stock_directo`, `sp_recalcular_precio_venta`) **permanecen `SECURITY INVOKER`**. La lista cerrada de excepciones `SECURITY DEFINER` se compone exclusivamente de **4 selladores chicos que retornan `void`**:
+Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las funciones principales de negocio (`sp_registrar_venta`, `sp_registrar_cambio`, `sp_registrar_devolucion_cliente`, `sp_confirmar_ingreso`, `sp_crear_stock_directo`, `sp_recalcular_precio_venta`) **permanecen `SECURITY INVOKER`**. La lista cerrada de excepciones `SECURITY DEFINER` se compone exclusivamente de **5 selladores chicos que retornan `void`**:
 
 ### 6.1. Contratos y firmas de los Selladores DEFINER chicos (Enfoque B)
 
@@ -450,10 +450,19 @@ Bajo el modelo arquitectónico de **Enfoque B (Tablas Satélites con RLS)**, las
      - Si `devolucion_venta_costo` ya fue registrado para esa devolución, no hace nada (`ON CONFLICT (id_devolucion) DO NOTHING`).
      - Lee `costo_snapshot` de `detalle_venta_costo` correspondiente a la prenda devuelta e inserta `costo_recuperado` en `devolucion_venta_costo`. Retorna `void`.
 
+5. **`fn_sellar_costo_ingreso(p_id_ingreso uuid) RETURNS void`** *(3E.3)*:
+   - **Modo**: `SECURITY DEFINER set search_path = public, extensions, pg_temp`
+   - **Permiso**: Exige `auth_tiene_permiso('inventario', 'crear')`. Valida `auth_tenant_id()` y rechaza `auth_revendedora_id() is not null`.
+   - **Contrato / Idempotencia**:
+     - Verifica tenant y existencia de `p_id_ingreso`.
+     - Valida consistencia D3 (rechaza con `costos-distintos-mismo-producto` si dos líneas del mismo producto traen costos distintos o mezcla de valor y null en `ingreso_detalle_costo`).
+     - Para líneas con costo en `ingreso_detalle_costo`, traslada `costo_unitario` a `item_costo` (`ON CONFLICT (id_item) DO NOTHING`).
+     - Para líneas sin costo en `ingreso_detalle_costo`, hereda el costo vigente de `costo_producto` a `item_costo` (`ON CONFLICT (id_item) DO NOTHING`). Retorna `void`.
+
 > [!NOTE]
 > **`sp_recalcular_precio_venta` (D-CPC-06 resuelto)**: Permanece `SECURITY INVOKER` y exige `precios.editar` + `inventario.ver_costos` + `precios.ver_margenes` (`proposal.md §7`). No integra esta lista DEFINER.
 
-**Recuento total de DEFINER en Enfoque B**: **4 selladores chicos** (`RETURNS void`). **CERO (0) funciones DEFINER de lectura**.
+**Recuento total de DEFINER en Enfoque B**: **5 selladores chicos** (`RETURNS void`). **CERO (0) funciones DEFINER de lectura**.
 
 ### 6.2. Reglas de blindaje obligatorio para las funciones DEFINER
 
@@ -740,7 +749,7 @@ Se ejecutará una migración idempotente de actualización de roles en la tabla 
 
 ##### Sub-fase 3E.4 — Cierre: whitelist final y reglas de arquitectura
 - **Migración SQL**: Ninguna.
-- **Cambios en repo**: Verificar whitelist cerrada en `tests/db/rvp-lecturas.test.ts` (exactamente los 4 selladores `RETURNS void` de §6.1), documentar la regla de tablas satélite de costo en `AGENTS.md` y `supabase/README.md`, y correr `pnpm gate:full`.
+- **Cambios en repo**: Verificar whitelist cerrada en `tests/db/rvp-lecturas.test.ts` (exactamente los 5 selladores `RETURNS void` de §6.1: `fn_sellar_costo_herencia_items`, `fn_sellar_costo_venta`, `fn_sellar_costo_cambio`, `fn_sellar_costo_devolucion`, `fn_sellar_costo_ingreso`), documentar la regla de tablas satélite de costo en `AGENTS.md` y `supabase/README.md`, y correr `pnpm gate:full`.
 - **Tests**: Suite completa (`pnpm gate:full`) confirmando 0 referencias a columnas eliminadas y whitelist DEFINER cerrada.
 
 ---

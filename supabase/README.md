@@ -98,4 +98,28 @@ At the top of each `sp_*` body, check permissions via:
 - **Identity comparisons**: use `is distinct from auth.uid()`, because `<>` fails silently on `null`.
 - **DAL errors**: parse RPC errors with `errorDeRpc` (`lib/dal/errors.ts`), never with `extraerSlugRpc` which drops details.
 - **Restrictive policies (00142)**: cross-module reads return 0 rows without error.
+
+## Satélites de costo y selladores DEFINER
+
+Las columnas de costo de mercadería, margen o monto a proveedor viven EXCLUSIVAMENTE en tablas satélite (`item_costo`, `detalle_venta_costo`, `detalle_venta_rendicion`, `devolucion_venta_costo`, `ingreso_detalle_costo`) o en `costo_producto`.
+
+### Por qué no viven en tablas principales ni las leen escritores INVOKER
+En PostgreSQL, las cláusulas `RETURNING` y `SELECT ... FOR UPDATE` ejecutadas por funciones `SECURITY INVOKER` evalúan las policies de `SELECT` de la tabla. Si una tabla comercial o de stock tuviera columnas de costo protegidas por RLS o si un escritor INVOKER intentara leer/actualizar una tabla con policy restrictiva de costo sin tener el permiso (`inventario.ver_costos` / `precios.ver_margenes` / `rendiciones.ver`), la transacción fallaría con error de permisos o retornaría 0 filas, rompiendo operaciones legítimas de usuarios que pueden operar (vender, cambiar, ingresar) sin ver costos.
+
+Por lo tanto:
+1. Las tablas comerciales y de stock (`item_producto`, `detalle_venta`, `ingreso_mercaderia_detalle`, `devolucion_venta`) permanecen públicas para los roles operativos.
+2. Los costos residen en satélites con policy restrictiva de `SELECT` por permiso.
+3. Los escritores de negocio permanecen `SECURITY INVOKER` y delegan la escritura de costos a selladores `SECURITY DEFINER` chicos (`fn_sellar_costo_*`) que retornan `void`, no reciben montos por parámetro, filtran por tenant, rechazan revendedoras y validan que el llamador tenga los permisos requeridos.
+4. Estado pendiente: la ausencia de costo se modela como ausencia de fila en la satélite, NUNCA con valor `0` (D-CPC-03).
+5. Reportes: sin permiso de costo devuelven `null`, nunca `0` (D-CPC-08).
+
+### Cómo agregar un satélite nuevo
+1. Crear la tabla satélite con clave primaria que sea FK a la tabla base (`id_entidad PK/FK`, `id_tenant`).
+2. Habilitar RLS (`alter table <satelite> enable row level security;`).
+3. Crear policy de aislamiento tenant (`as restrictive for all using (id_tenant = auth_tenant_id())`).
+4. Crear policy restrictiva de `SELECT` condicionada al permiso (`as restrictive for select using (auth_tiene_permiso('<modulo>', '<accion>'))`).
+5. NO crear policies de `INSERT`/`UPDATE` para `authenticated`: la escritura se efectúa mediante un sellador `SECURITY DEFINER` chico `fn_sellar_costo_<entidad>` (`returns void`, `set search_path = public, extensions, pg_temp`, `auth_revendedora_id() is null`, idempotente con `on conflict ... do nothing`).
+6. Si la columna tiene nombre relacionado con costos, registrar la tabla en la whitelist de `tests/db/satelites-costo.test.ts`.
+7. Actualizar la whitelist de `tests/db/rvp-lecturas.test.ts` si se introduce un sellador DEFINER nuevo (aprobado por spec).
+
 - **Unchecked SPs**: every live `sp_*` without a check must be listed with an explicit reason in `SP_SIN_CHEQUEO` (`tests/arquitectura-sp-permisos.test.ts`).

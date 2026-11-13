@@ -58,8 +58,8 @@ La define la Fase 2. Cada fase: migración nueva con `-- DOWN:`, partiendo de
 corrido por la persona antes de commitear la migración (así se ejecuta su DOWN).
 
 Cierre:
-- [ ] `AGENTS.md` y `supabase/README.md` documentan la regla nueva, con un test que la haga cumplir.
-- [ ] `pnpm gate:full`.
+- [x] `AGENTS.md` y `supabase/README.md` documentan la regla nueva, con un test que la haga cumplir.
+- [x] `pnpm gate:full`.
 
 ### Gate humano
 - [ ] Cambio verificado por la persona en pantalla, con un rol limitado y con Administrador.
