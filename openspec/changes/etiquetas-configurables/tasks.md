@@ -41,7 +41,7 @@
 
 - [ ] 6.1 Guía de ayuda (§8): repartida por fase (F3 administración, F5 lectura, F4 impresión); acá solo confirmar `cobertura.test.ts` en verde.
 - [ ] 6.2 E2E de `imprimir-etiquetas`.
-- [ ] 6.3 `supabase/README.md`: nota de `codigo_ean` y del trigger.
+- [x] 6.3 `supabase/README.md`: nota de `codigo_ean` y del trigger.
 
 ## Gates humanos
 

@@ -123,3 +123,29 @@ Por lo tanto:
 7. Actualizar la whitelist de `tests/db/rvp-lecturas.test.ts` si se introduce un sellador DEFINER nuevo (aprobado por spec).
 
 - **Unchecked SPs**: every live `sp_*` without a check must be listed with an explicit reason in `SP_SIN_CHEQUEO` (`tests/arquitectura-sp-permisos.test.ts`).
+
+## Código EAN interno y configuración de etiquetas (00162–00164)
+
+### Formato e inmutabilidad de `item_producto.codigo_ean`
+Cada unidad física en `item_producto` posee un identificador EAN-13 interno (`codigo_ean` NOT NULL) con formato `'20'` + contador de 10 dígitos correlativo por tenant + dígito verificador GS1 calculado mediante `fn_ean13_digito(text)` (constraint `item_producto_codigo_ean_format_check` con regex `^20[0-9]{11}$`). La unicidad está garantizada por tenant mediante el índice único `item_producto_tenant_codigo_ean_uk` sobre `(id_tenant, codigo_ean)`.
+El valor es estrictamente inmutable: un `UPDATE` que intente modificarlo dispara el error `codigo-ean-inmutable`.
+
+### Asignación atómica mediante trigger INVOKER
+El trigger `item_producto_codigo_ean_tr` (`BEFORE INSERT OR UPDATE`, INVOKER) ejecuta `fn_asignar_codigo_ean()`. Al insertar:
+1. **Ignora cualquier valor recibido**: si un caller pudiera inyectar un EAN arbitrario, ocuparía números futuros del contador del tenant y provocaría colisiones o bloqueos en altas posteriores.
+2. **Bloqueo concurrente de secuencia**: incrementa el contador correlativo en la tabla `item_ean_seq` de forma atómica con:
+   ```sql
+   insert into item_ean_seq (id_tenant, ultimo)
+   values (NEW.id_tenant, 1)
+   on conflict (id_tenant)
+   do update set ultimo = item_ean_seq.ultimo + 1
+   returning ultimo into v_seq;
+   ```
+3. **Policies de `item_ean_seq`**: como la función es INVOKER, la cláusula `insert ... on conflict do update ... returning` evalúa las policies restrictivas de `SELECT`, `INSERT` y `UPDATE` de quien llama. Por eso, las tres policies (`item_ean_seq_rlsp_select`, `item_ean_seq_rlsp_insert`, `item_ean_seq_rlsp_update`) exigen el OR de quienes insertan `item_producto` (hoy `inventario.crear`, llamadores de `sp_confirmar_ingreso` y `sp_crear_stock_directo`).
+
+### Migración de configuración a `etiqueta_config` y `etiqueta_plantilla` (D-ETQ-03)
+La configuración de etiquetas dejó de almacenarse en `configuracion` (se migraron y eliminaron las claves `qr_lado_mm`, `impresora_ancho_mm` e `impresora_alto_mm`, retirando `sp_set_configuracion_qr_lado_mm` y `sp_set_configuracion_impresora`) para residir en dos tablas dedicadas con RLS cerrada:
+- `etiqueta_config`: 1 fila por tenant con el método de identificación activo (`qr`, `datamatrix`, `code128`, `ean13`) y el perfil de impresora (`hoja` o `rollo`, márgenes, separación, columnas, offsets).
+- `etiqueta_plantilla`: N plantillas de medidas y campos por tenant, con exactamente una predeterminada asegurada por índice único parcial.
+Esto desacopla etiquetas de la tabla genérica y elimina la necesidad de `DELETE` INVOKER sobre `configuracion`, alineándose con RLS Cerrado por Defecto (RCD).
+
