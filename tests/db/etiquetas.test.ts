@@ -1,6 +1,7 @@
 import { describe, expect, it, afterAll } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { execSync } from 'node:child_process'
+import { esEan13Valido } from '@/lib/etiquetas/ean13'
 import { createAnonTestClient, createServiceRoleTestClient } from '@/lib/dal/supabase-test'
 import {
   hasTestDb,
@@ -273,24 +274,67 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
       expect(errUpdate?.message).toContain('codigo-ean-inmutable')
     })
 
-    it('REQ-ETQ-02 N4: backfill deja todos los ítems con EAN y el contador sincronizado', async () => {
+    it('REQ-ETQ-02 N4: después de crear N ítems, item_ean_seq.ultimo coincide con el max contador y los EAN son válidos', async () => {
       const fixture = await createFixtureWithPermisos('etq_02_n4', {
-        inventario: ['ver'],
+        inventario: ['ver', 'crear'],
       })
 
-      const { data: seq } = await fixture.serviceRole
+      const { data: cat } = await fixture.serviceRole
+        .from('categoria')
+        .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatN4') })
+        .select('id_categoria')
+        .single()
+
+      const { data: prod } = await fixture.serviceRole
+        .from('producto')
+        .insert({
+          id_tenant: fixture.tenantId,
+          id_categoria: cat!.id_categoria,
+          nombre: 'Prod N4',
+          sku: 'N4-0001',
+        })
+        .select('id_producto')
+        .single()
+
+      // Alta de 4 ítems
+      const { data: count, error: errCrear } = await fixture.client.rpc('sp_crear_stock_directo', {
+        p_id_producto: prod!.id_producto,
+        p_costo: null,
+        p_tipo_ingreso: 'compra',
+        p_items: [
+          { talle: 'S', cantidad: 2 },
+          { talle: 'M', cantidad: 2 },
+        ],
+      })
+      expect(errCrear).toBeNull()
+      expect(count).toBe(4)
+
+      const { data: items, error: errItems } = await fixture.serviceRole
+        .from('item_producto')
+        .select('codigo_ean')
+        .eq('id_tenant', fixture.tenantId)
+
+      expect(errItems).toBeNull()
+      expect(items).toHaveLength(4)
+
+      const { data: seq, error: errSeq } = await fixture.serviceRole
         .from('item_ean_seq')
         .select('ultimo')
         .eq('id_tenant', fixture.tenantId)
-        .maybeSingle()
+        .single()
 
-      // La secuencia existe o no tiene ítems null
-      const { data: sinEan } = await fixture.serviceRole
-        .from('item_producto')
-        .select('id_item')
-        .is('codigo_ean', null)
+      expect(errSeq).toBeNull()
+      expect(seq).not.toBeNull()
 
-      expect(sinEan ?? []).toHaveLength(0)
+      // Invariante: item_ean_seq.ultimo == max(contador de los codigo_ean del tenant)
+      const contadores = items!.map((it) => parseInt(it.codigo_ean.slice(2, 12), 10))
+      const maxContador = Math.max(...contadores)
+      expect(Number(seq!.ultimo)).toBe(maxContador)
+
+      // Invariante: todos los EAN tienen dígito verificador válido según lib/etiquetas/ean13.ts
+      for (const it of items!) {
+        expect(esEan13Valido(it.codigo_ean)).toBe(true)
+      }
     })
 
     it('REQ-ETQ-02 N5: insert de rol sin permiso de inventario.crear es rechazado antes de tocar item_ean_seq', async () => {
@@ -769,23 +813,66 @@ describe.skipIf(!hasTestDb)('F1 — Identificación, plantillas e impresión (RE
         p_separacion_mm: 2,
       })
 
-      // Intento de DELETE directo
+      // Precondición: verificar que etiqueta_config existe antes del delete
+      const { data: cfgPre, error: errCfgPre } = await fixtureAdmin.serviceRole
+        .from('etiqueta_config')
+        .select('id_tenant')
+        .eq('id_tenant', fixtureAdmin.tenantId)
+        .single()
+      expect(errCfgPre).toBeNull()
+      expect(cfgPre).not.toBeNull()
+
+      // Asegurar que item_ean_seq existe y verificar precondición
+      const { error: errInsSeq } = await fixtureAdmin.serviceRole
+        .from('item_ean_seq')
+        .insert({ id_tenant: fixtureAdmin.tenantId, ultimo: 1 })
+      expect(errInsSeq).toBeNull()
+
+      const { data: seqPre, error: errSeqPre } = await fixtureAdmin.serviceRole
+        .from('item_ean_seq')
+        .select('id_tenant')
+        .eq('id_tenant', fixtureAdmin.tenantId)
+        .single()
+      expect(errSeqPre).toBeNull()
+      expect(seqPre).not.toBeNull()
+
+      // Intento de DELETE directo en etiqueta_config
       const { data: delCfg, error: errDelCfg } = await fixtureAdmin.client
         .from('etiqueta_config')
         .delete()
         .eq('id_tenant', fixtureAdmin.tenantId)
         .select()
 
-      // La policy delete restrictiva using (false) hace que no borre ninguna fila (0 filas afectadas)
+      expect(errDelCfg === null || errDelCfg.code === '42501').toBe(true)
       expect(delCfg ?? []).toHaveLength(0)
 
+      // Releer con serviceRole que la fila SIGUE existiendo
+      const { data: cfgPost, error: errCfgPost } = await fixtureAdmin.serviceRole
+        .from('etiqueta_config')
+        .select('id_tenant')
+        .eq('id_tenant', fixtureAdmin.tenantId)
+        .single()
+      expect(errCfgPost).toBeNull()
+      expect(cfgPost).not.toBeNull()
+
+      // Intento de DELETE directo en item_ean_seq
       const { data: delSeq, error: errDelSeq } = await fixtureAdmin.client
         .from('item_ean_seq')
         .delete()
         .eq('id_tenant', fixtureAdmin.tenantId)
         .select()
 
+      expect(errDelSeq === null || errDelSeq.code === '42501').toBe(true)
       expect(delSeq ?? []).toHaveLength(0)
+
+      // Releer con serviceRole que la fila SIGUE existiendo
+      const { data: seqPost, error: errSeqPost } = await fixtureAdmin.serviceRole
+        .from('item_ean_seq')
+        .select('id_tenant')
+        .eq('id_tenant', fixtureAdmin.tenantId)
+        .single()
+      expect(errSeqPost).toBeNull()
+      expect(seqPost).not.toBeNull()
     })
   })
 })
