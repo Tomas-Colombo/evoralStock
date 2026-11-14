@@ -3,7 +3,7 @@ import { AuthorizationError } from '@/lib/dal/errors'
 import { hasModuleAccess, requireModuleRole } from '@/lib/dal/guard'
 import { proyectarLookupConsignacionItem } from '@/lib/inventario/proyeccion-costos'
 import { verifySession } from '@/lib/dal/session'
-import { findItemByQr } from '@/lib/dal/inventario/item'
+import { resolverCodigo } from '@/lib/dal/inventario/codigo'
 import { createServerClient } from '@/lib/dal/supabase'
 
 /**
@@ -33,14 +33,15 @@ export async function GET(req: NextRequest) {
     throw e
   }
 
-  const qr = req.nextUrl.searchParams.get('qr')?.trim()
+  const code = (req.nextUrl.searchParams.get('code') || req.nextUrl.searchParams.get('qr'))?.trim()
   const idProveedor = req.nextUrl.searchParams.get('id_proveedor')?.trim()
 
-  if (!qr) return NextResponse.json({ ok: false, reason: 'qr-vacio' }, { status: 400 })
+  if (!code) return NextResponse.json({ ok: false, reason: 'qr-vacio' }, { status: 400 })
   if (!idProveedor)
     return NextResponse.json({ ok: false, reason: 'proveedor-vacio' }, { status: 400 })
 
-  const item = await findItemByQr(qr)
+  const resuelto = await resolverCodigo(code)
+  const item = resuelto?.tipo === 'item' ? resuelto.item : null
   if (!item) return NextResponse.json({ ok: false, reason: 'item-not-found' })
   if (item.estado_item !== 'disponible') {
     return NextResponse.json({

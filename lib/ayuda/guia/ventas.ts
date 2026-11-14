@@ -21,7 +21,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     permisos: ['ventas.ver', 'ventas.crear'],
     pasos: [
       'Ingresá a Ventas y hacé clic en "Nueva venta" para abrir el mostrador.',
-      'Escaneá el código QR del producto o buscalo manualmente por nombre o código para sumarlo a la lista.',
+      'Escaneá el código del producto o buscalo manualmente por nombre o código para sumarlo a la lista.',
       'Seleccioná el cliente si deseás asociar la compra o si vas a financiar en cuotas.',
       'Elegí la forma de pago principal entre efectivo, débito, crédito, transferencia o cuotas.',
       'Hacé clic en "Continuar al cobro" para desglosar importes, medios de pago y cuentas de destino.',
@@ -83,7 +83,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     pasos: [
       'Desde el listado de Ventas, hacé clic en "Ver" sobre la venta original.',
       'En la tabla de líneas de venta, buscá el ítem a cambiar y hacé clic en "Cambiar".',
-      'Escaneá el código QR o ingresá el código del producto entregado en reemplazo.',
+      'Escaneá el código o ingresá el código del producto entregado en reemplazo.',
       'Si el artículo nuevo tiene variantes, seleccioná el talle a entregar.',
       'Si hay diferencia de precio a favor del local, seleccioná el medio de cobro y la cuenta de destino.',
       'Hacé clic en "Confirmar cambio" para actualizar los ítems y asentar el cobro de la diferencia.',
@@ -149,7 +149,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     permisos: ['ventas.ver', 'ventas.crear'],
     pasos: [
       'Desde el listado de Reservas, hacé clic en "Nueva reserva".',
-      'Escaneá el código QR de cada ítem o buscalo por código para sumarlo a la reserva.',
+      'Escaneá el código de cada ítem o buscalo por código para sumarlo a la reserva.',
       'Seleccioná el cliente en el desplegable, o hacé clic en "+ Nuevo" para darlo de alta en el momento.',
       'Ingresá la fecha de vencimiento hasta la cual se guardarán los productos.',
       'Escribí observaciones opcionales si necesitás dejar constancia de algún detalle.',

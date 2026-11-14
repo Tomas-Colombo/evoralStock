@@ -130,7 +130,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     pasos: [
       'Desde la lista de Revendedoras, abrí la ficha de la colaboradora y entrá en la pestaña "Consignaciones".',
       'Hacé clic en "Nueva consignación".',
-      'Buscá los productos disponibles en el local por nombre o escaneá sus códigos QR y seleccioná los talles.',
+      'Buscá los productos disponibles en el local por nombre o escaneá sus códigos y seleccioná los talles.',
       'Opcionalmente definí las fechas del período y anotá observaciones.',
       'Hacé clic en "Guardar" y luego en "Confirmar" en la ventana para transferir los artículos a su poder.',
     ],

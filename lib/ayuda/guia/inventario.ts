@@ -53,7 +53,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Consultá en la cabecera los indicadores de stock disponible, stock total, stock mínimo y precio de venta.',
       'Revisá la tabla de stock por talle para verificar cantidades disponibles, reservadas y vendidas.',
       'Si necesitás analizar un período histórico puntual, ajustá los filtros de fecha Desde y Hasta.',
-      'Consultá el listado de códigos QR individuales para reimprimir etiquetas o rastrear unidades.',
+      'Consultá el listado de códigos individuales para reimprimir etiquetas o rastrear unidades.',
     ],
   },
   {
@@ -103,7 +103,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'En la cabecera de la ficha, hacé clic en el botón "Restock".',
       'El sistema abrirá la pantalla de nuevo ingreso con el producto, su proveedor habitual y su costo anterior ya cargados.',
       'Ingresá la cantidad de unidades recibidas y desglosá las cantidades por talle en "Cargar talles".',
-      'Hacé clic en "Guardar" y confirmá la operación para generar los ítems con sus códigos QR.',
+      'Hacé clic en "Guardar" y confirmá la operación para generar los ítems con sus códigos.',
     ],
     detalles: [
       {
@@ -203,8 +203,8 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver'],
     pasos: [
-      'Desde Inventario, hacé clic en "Escanear QR" (o ingresá a la pantalla Escanear ítem).',
-      'Apuntá la cámara al código QR de la etiqueta para leerlo automáticamente.',
+      'Desde Inventario, hacé clic en "Escanear código" (o ingresá a la pantalla Escanear ítem).',
+      'Apuntá la cámara al código de la etiqueta para leerlo automáticamente.',
       'Si no tenés cámara, ingresá el nombre o código en el campo "Buscar por nombre o código" y hacé clic en "Buscar ítem".',
       'El sistema abrirá la ficha del ítem mostrando su producto, talle, estado actual, proveedor e historial.',
     ],
@@ -221,7 +221,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver', 'inventario.editar'],
     pasos: [
-      'Accedé a la ficha del ítem escaneando su QR o buscándolo por código.',
+      'Accedé a la ficha del ítem escaneando su código o buscándolo por código.',
       'En la sección "Acciones", hacé clic en el botón según el estado ("Devolver al proveedor", "Dar de baja", "Liberar reserva" o "Reponer a disponible").',
       'Si la acción requiere confirmación, leé la advertencia y hacé clic en "Sí, continuar".',
       'El sistema actualizará el estado del ítem y registrará el movimiento correspondiente en el Historial.',
@@ -243,7 +243,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver', 'inventario.editar'],
     pasos: [
-      'Ingresá a la ficha del ítem escaneando su código QR.',
+      'Ingresá a la ficha del ítem escaneando su código.',
       'En la tarjeta "Ajuste de inventario", hacé clic en el botón "Ajuste de inventario".',
       'Revisá la Cantidad en sistema e ingresá la Cantidad contada según el relevamiento físico.',
       'Si el ítem físico no se encuentra, marcá la opción "Dar de baja el ítem".',
@@ -319,7 +319,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Ingresá opcionalmente el Número de remito y las Observaciones.',
       'Si tenés el remito en PDF, hacé clic en "Importar PDF", o hacé clic en "+ Agregar producto" para cargar líneas a mano.',
       'En cada línea definí si el producto es nuevo o del inventario, su talle, cantidad y costo unitario.',
-      'Hacé clic en "Guardar" y luego en "Confirmar" en el diálogo para generar los ítems físicos con código QR único.',
+      'Hacé clic en "Guardar" y luego en "Confirmar" en el diálogo para generar los ítems físicos con código único.',
     ],
     detalles: [
       {
@@ -343,7 +343,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'En Tipo de ingreso elegí "Consignación (paga al vender)".',
       'Completá el número de remito opcional y cargá los productos a ingresar con sus cantidades, talles y costos pactados.',
       'Hacé clic en "Guardar".',
-      'En el diálogo de confirmación, hacé clic en "Confirmar" para asentar el ingreso y generar los códigos QR.',
+      'En el diálogo de confirmación, hacé clic en "Confirmar" para asentar el ingreso y generar los códigos.',
     ],
     detalles: [
       {
@@ -390,7 +390,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Verificá que todas las líneas de productos, talles y costos estén correctamente cargadas.',
       'En la tarjeta inferior, hacé clic en "Confirmar ingreso".',
       'En el diálogo de confirmación, hacé clic en "Confirmar".',
-      'El sistema generará los ítems con QR único y el ingreso pasará a estado Confirmado.',
+      'El sistema generará los ítems con código único y el ingreso pasará a estado Confirmado.',
     ],
     detalles: [
       {

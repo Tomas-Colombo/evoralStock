@@ -241,13 +241,11 @@ export function ProductosTableClient({
   // como un código (QR) y vamos a la ficha; si no hay ruta de escaneo,
   // caemos al filtro server por nombre/SKU.
   function buscarLibre(texto: string) {
-    if (scanHref) {
-      startTransition(() => {
-        router.push(`${scanHref}/${encodeURIComponent(texto)}`)
-      })
-      return
-    }
-    applyFilters(texto)
+    const valor = texto.trim()
+    if (!valor) return
+    startTransition(() => {
+      router.push(`/inventario/buscar/${encodeURIComponent(valor)}`)
+    })
   }
 
   return (

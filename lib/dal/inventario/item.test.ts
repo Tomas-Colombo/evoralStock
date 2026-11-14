@@ -13,6 +13,81 @@ vi.mock('@/lib/dal/reservas/reserva', () => ({
   getReservasActivasDeItems: getReservasActivasDeItemsMock,
 }))
 
+describe('findItemByEan', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('consulta item_producto con columnas explicitas y eq codigo_ean', async () => {
+    let selectedCols = ''
+    let eqCol = ''
+    let eqVal = ''
+
+    const builder = {
+      select: (cols: string) => {
+        selectedCols = cols
+        return builder
+      },
+      eq: (col: string, val: string) => {
+        eqCol = col
+        eqVal = val
+        return builder
+      },
+      maybeSingle: async () => ({
+        data: {
+          id_item: 'it-1',
+          id_tenant: 'ten-1',
+          id_producto: 'p-1',
+          id_ingreso: null,
+          id_ingreso_detalle: null,
+          qr_code: 'QR123',
+          codigo_ean: '2000000000015',
+          estado_item: 'disponible',
+          talle: 'M',
+          tipo_ingreso: 'compra',
+          fecha_ingreso: '2026-01-01',
+          fecha_venta: null,
+          fecha_devolucion: null,
+          created_at: '2026-01-01',
+          updated_at: '2026-01-01',
+          item_costo: [{ costo_ingreso: 500 }],
+        },
+        error: null,
+      }),
+    }
+
+    createServerClientMock.mockResolvedValue({
+      from: () => builder,
+    })
+
+    const { findItemByEan } = await import('./item')
+    const res = await findItemByEan('2000000000015')
+
+    expect(selectedCols).toContain('codigo_ean')
+    expect(selectedCols).toContain('qr_code')
+    expect(eqCol).toBe('codigo_ean')
+    expect(eqVal).toBe('2000000000015')
+    expect(res).toEqual({
+      id_item: 'it-1',
+      id_tenant: 'ten-1',
+      id_producto: 'p-1',
+      id_ingreso: null,
+      id_ingreso_detalle: null,
+      qr_code: 'QR123',
+      codigo_ean: '2000000000015',
+      estado_item: 'disponible',
+      talle: 'M',
+      tipo_ingreso: 'compra',
+      fecha_ingreso: '2026-01-01',
+      fecha_venta: null,
+      fecha_devolucion: null,
+      created_at: '2026-01-01',
+      updated_at: '2026-01-01',
+      costo_ingreso: 500,
+    })
+  })
+})
+
 describe('listItemsParaEtiquetas', () => {
   beforeEach(() => {
     vi.clearAllMocks()

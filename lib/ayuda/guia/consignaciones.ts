@@ -28,7 +28,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     pasos: [
       'En Consignaciones, hacé clic en "Nueva devolución".',
       'Seleccioná el proveedor destinatario en el menú desplegable.',
-      'Buscá los productos en consignación a devolver o escaneá sus códigos QR para sumarlos al lote.',
+      'Buscá los productos en consignación a devolver o escaneá sus códigos para sumarlos al lote.',
       'Ingresá opcionalmente el motivo y observaciones del lote.',
       'Hacé clic en "Devolver productos" para asentar la operación con los ítems en estado pendiente.',
     ],
@@ -64,7 +64,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" sobre el lote deseado.',
-      'En la sección "Apartar ítem", escaneá el código QR o buscá el producto por nombre.',
+      'En la sección "Apartar ítem", escaneá el código o buscá el producto por nombre.',
       'Escribí opcionalmente el motivo en "Motivo (aplica al próximo)".',
       'Hacé clic en "Apartar" para incorporar la unidad en estado pendiente.',
     ],

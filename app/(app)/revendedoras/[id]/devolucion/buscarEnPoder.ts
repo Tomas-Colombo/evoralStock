@@ -5,6 +5,7 @@ export interface ItemEnPoderBuscable {
   nombre_producto: string
   sku: string
   qr_code: string | null
+  codigo_ean?: string | null
 }
 
 export type ResultadoBusquedaEnPoder =
@@ -25,11 +26,11 @@ export function buscarEnPoder(
   const q = texto.trim()
   if (!q) return { ok: false, reason: 'qr-vacio' }
 
-  const porQr = items.find((i) => i.qr_code !== null && i.qr_code === q)
-  if (porQr) {
-    return elegidos.has(porQr.id_item)
+  const porCodigo = items.find((i) => (i.qr_code !== null && i.qr_code === q) || (i.codigo_ean != null && i.codigo_ean === q))
+  if (porCodigo) {
+    return elegidos.has(porCodigo.id_item)
       ? { ok: false, reason: 'item-ya-marcado' }
-      : { ok: true, idItem: porQr.id_item }
+      : { ok: true, idItem: porCodigo.id_item }
   }
 
   const conNombre = (lista: ItemEnPoderBuscable[]) =>

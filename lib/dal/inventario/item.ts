@@ -13,7 +13,7 @@ import type {
 // tablas satélite. Con '*' la columna desaparecería en silencio y el lector
 // recibiría undefined; nombrada, PostgREST falla (42703) y rg encuentra a todos.
 const COLUMNAS_ITEM =
-  'id_item, id_tenant, id_producto, id_ingreso, id_ingreso_detalle, qr_code, estado_item, talle, tipo_ingreso, fecha_ingreso, fecha_venta, fecha_devolucion, created_at, updated_at, item_costo(costo_ingreso)'
+  'id_item, id_tenant, id_producto, id_ingreso, id_ingreso_detalle, qr_code, codigo_ean, estado_item, talle, tipo_ingreso, fecha_ingreso, fecha_venta, fecha_devolucion, created_at, updated_at, item_costo(costo_ingreso)'
 
 function extraerCostoItem(embed: unknown): number | null {
   const row = Array.isArray(embed) ? embed[0] : embed
@@ -30,6 +30,20 @@ function aplanarItem<T extends Record<string, unknown>>(row: T): Omit<T, 'item_c
 }
 
 export { ESTADOS_IMPRIMIBLES, ETIQUETAS_MAX }
+
+/**
+ * Buscar item por código EAN-13 (flujo de escaneo — REQ-ETQ-06). RLS scope-ea
+ * automáticamente al tenant actual. Devuelve null si no existe o si existe
+ * pero pertenece a otro tenant (RLS lo oculta).
+ */
+export async function findItemByEan(ean: string): Promise<ItemProductoRow | null> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('item_producto').select(COLUMNAS_ITEM).eq('codigo_ean', ean).maybeSingle()
+  if (error) throw new Error(`findItemByEan: ${error.message}`)
+  if (!data) return null
+  return aplanarItem(data as unknown as Record<string, unknown>) as unknown as ItemProductoRow
+}
 
 /**
  * Buscar item por QR (flujo de escaneo — anexo §5, punto 5). RLS scope-ea

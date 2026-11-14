@@ -1,7 +1,8 @@
 import { createServerClient } from '../supabase'
 import { escaparPatronLike, parsearSku } from '../../inventario/codigo'
+import { esEan13Valido } from '../../etiquetas/ean13'
 import type { ItemProductoRow } from '../../types/inventario'
-import { findItemByQr } from './item'
+import { findItemByEan, findItemByQr } from './item'
 import { findProductoBySku, type ProductoRowConCategoria } from './producto'
 
 export type CodigoResuelto =
@@ -10,8 +11,11 @@ export type CodigoResuelto =
 
 /**
  * Único resolvedor de "lo que se escaneó o tipeó" en un buscador de ítem.
- * Orden: QR exacto (una unidad), SKU con talle opcional (un producto) y, si
- * el llamador lo pide, nombre de producto.
+ * Orden (REQ-ETQ-06):
+ *   1. QR exacto (una unidad física)
+ *   2. EAN-13 (si esEan13Valido, busca codigo_ean en el tenant)
+ *   3. SKU con talle opcional (un producto)
+ *   4. Nombre de producto (si el llamador lo pide)
  *
  * Qué unidad se toma de un producto lo decide cada flujo (venta, consignación,
  * revendedora), porque cada uno tiene su propia idea de "disponible".
@@ -23,9 +27,9 @@ export type CodigoResuelto =
 export async function resolverCodigo(
   codigo: string,
   opts: {
-    /** `false` = sólo QR exacto (el refresco de precios del carrito). */
+    /** `false` = sólo código exacto de unidad física (QR o EAN). */
     sku?: boolean
-    /** Buscar también por nombre de producto si no fue QR ni SKU. */
+    /** Buscar también por nombre de producto si no fue código ni SKU. */
     nombre?: boolean
   } = {},
 ): Promise<CodigoResuelto | null> {
@@ -34,6 +38,12 @@ export async function resolverCodigo(
 
   const item = await findItemByQr(texto)
   if (item) return { tipo: 'item', item }
+
+  if (esEan13Valido(texto)) {
+    const itemEan = await findItemByEan(texto)
+    if (itemEan) return { tipo: 'item', item: itemEan }
+  }
+
   if (opts.sku === false) return null
 
   const { baseSku, talle } = parsearSku(texto)

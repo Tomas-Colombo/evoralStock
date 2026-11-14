@@ -3,8 +3,8 @@ import { buscarEnPoder, type ItemEnPoderBuscable } from './buscarEnPoder'
 
 const items: ItemEnPoderBuscable[] = [
   { id_item: 'a1', nombre_producto: 'Anillo plata', sku: 'ANI-01', qr_code: 'QR-A1' },
-  { id_item: 'a2', nombre_producto: 'Anillo plata', sku: 'ANI-01', qr_code: 'QR-A2' },
-  { id_item: 'c1', nombre_producto: 'Collar perlas', sku: 'COL-07', qr_code: null },
+  { id_item: 'a2', nombre_producto: 'Anillo plata', sku: 'ANI-01', qr_code: 'QR-A2', codigo_ean: '2000000000015' },
+  { id_item: 'c1', nombre_producto: 'Collar perlas', sku: 'COL-07', qr_code: null, codigo_ean: '2000000000022' },
 ]
 
 describe('buscarEnPoder', () => {
@@ -12,8 +12,16 @@ describe('buscarEnPoder', () => {
     expect(buscarEnPoder(items, ' QR-A2 ', new Set())).toEqual({ ok: true, idItem: 'a2' })
   })
 
+  it('el EAN marca esa unidad exacta', () => {
+    expect(buscarEnPoder(items, '2000000000015', new Set())).toEqual({ ok: true, idItem: 'a2' })
+  })
+
   it('un QR ya marcado no elige otra unidad', () => {
     expect(buscarEnPoder(items, 'QR-A2', new Set(['a2']))).toEqual({ ok: false, reason: 'item-ya-marcado' })
+  })
+
+  it('un EAN ya marcado no elige otra unidad', () => {
+    expect(buscarEnPoder(items, '2000000000015', new Set(['a2']))).toEqual({ ok: false, reason: 'item-ya-marcado' })
   })
 
   it('escanear el mismo SKU dos veces marca dos unidades distintas', () => {

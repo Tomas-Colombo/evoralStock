@@ -110,6 +110,7 @@ export interface ItemElegibleConsignacion {
   id_item: string
   id_producto: string
   qr_code: string
+  codigo_ean: string | null
   producto_nombre: string
   sku: string | null
   talle: string | null
@@ -133,7 +134,7 @@ export async function listItemsElegiblesConsignacion(
   const { data, error } = await supabase
     .from('item_producto')
     .select(
-      'id_item, id_producto, qr_code, talle, producto:producto(nombre, sku), ingreso:ingreso_mercaderia!inner(id_proveedor)',
+      'id_item, id_producto, qr_code, codigo_ean, talle, producto:producto(nombre, sku), ingreso:ingreso_mercaderia!inner(id_proveedor)',
     )
     .eq('estado_item', 'disponible')
     .eq('tipo_ingreso', 'consignacion')
@@ -146,6 +147,7 @@ export async function listItemsElegiblesConsignacion(
     id_item: string
     id_producto: string
     qr_code: string
+    codigo_ean: string | null
     talle: string | null
     producto: { nombre: string; sku: string | null } | null
   }>
@@ -176,6 +178,7 @@ export async function listItemsElegiblesConsignacion(
       id_item: r.id_item,
       id_producto: r.id_producto,
       qr_code: r.qr_code,
+      codigo_ean: r.codigo_ean ?? null,
       producto_nombre: r.producto?.nombre ?? '(sin nombre)',
       sku: r.producto?.sku ?? null,
       talle: r.talle,

@@ -31,10 +31,10 @@
 
 ## F5 — Lectura
 
-- [ ] 5.1 `findItemByEan` + `resolverCodigo` con EAN (REQ-ETQ-06).
-- [ ] 5.2 Pasar por el resolver: `api/consignaciones/lookup-item`, `ficha/[qr]`, `ProductosTableClient:243` (a `/inventario/buscar/`).
-- [ ] 5.3 Revisar las suposiciones de "24 hex": `NuevaVentaView:241`, `buscar/[codigo]/page.tsx:27`, `inventario/actions.ts:398`.
-- [ ] 5.4 Texto de `QrScanner`: "Escaneá el código".
+- [x] 5.1 `findItemByEan` + `resolverCodigo` con EAN (REQ-ETQ-06).
+- [x] 5.2 Pasar por el resolver: `api/consignaciones/lookup-item`, `ficha/[qr]`, `ProductosTableClient:243` (a `/inventario/buscar/`).
+- [x] 5.3 Revisar las suposiciones de "24 hex": `NuevaVentaView:241`, `buscar/[codigo]/page.tsx:27`, `inventario/actions.ts:398`.
+- [x] 5.4 Texto de `QrScanner`: "Escaneá el código".
 
 ## F6 — Cierre (`pnpm gate:full`)
 

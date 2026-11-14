@@ -395,11 +395,9 @@ export async function asignarTallesProductoAction(input: {
 export async function transicionItemAction(input: {
   idItem: string
   /**
-   * QR del ítem, tal como viene en la URL (sin decodificar). Es la clave de la
-   * ruta de la ficha, y `revalidatePath` trabaja sobre el pathname, no sobre el
-   * `id_item`. Los QR son 24 chars hex (`gen_random_bytes(12)`), así que crudo
-   * y decodificado coinciden; se pasa crudo para que el path sea exactamente el
-   * que la cache tiene indexado.
+   * QR del ítem, tal como viene en la URL canónica de la ficha (/inventario/ficha/[qr]).
+   * Es la clave de la ruta de la ficha y `revalidatePath` trabaja sobre el pathname,
+   * no sobre el `id_item`. La ficha siempre redirige al qr_code canónico de la unidad.
    */
   qr: string
   estadoHasta: EstadoItem

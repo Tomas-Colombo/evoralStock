@@ -238,9 +238,9 @@ export function NuevaVentaView({
    * lo que empieza con lo tipeado, y al final las coincidencias en el medio.
    * Así tipear un SKU deja el producto correcto arriba de todo.
    *
-   * No hay riesgo de que un QR escaneado matchee acá: el QR son 24 chars hex
-   * (`gen_random_bytes(12)`), más largo que cualquier SKU, y el test es
-   * "el SKU/nombre contiene lo tipeado" — nunca al revés.
+   * No hay riesgo de que un código escaneado (QR o EAN) matchee acá: el QR son 24 chars hex
+   * (`gen_random_bytes(12)`) y el EAN son 13 dígitos, más largos que cualquier SKU autogenerado,
+   * y el test es "el SKU/nombre contiene lo tipeado" — nunca al revés.
    */
   const sugerencias = useMemo(() => rankearProductos(productos, qrInput), [productos, qrInput])
 

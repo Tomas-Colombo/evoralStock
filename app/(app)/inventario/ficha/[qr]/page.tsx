@@ -1,9 +1,11 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { AjusteInventarioAction } from './AjusteInventarioAction'
 import { QrDisplay } from '@/components/inventario/QrDisplay'
 import { verifySession } from '@/lib/dal/session'
+import { resolverCodigo } from '@/lib/dal/inventario/codigo'
 import { findItemByQr, getItemConDetalle } from '@/lib/dal/inventario/item'
 import { ESTADO_ITEM_LABEL, ESTADO_ITEM_VARIANT } from '@/lib/types/inventario'
 import { EscanearOtro } from './EscanearOtro'
@@ -21,6 +23,12 @@ export default async function FichaItemPage(props: {
   const decoded = decodeURIComponent(qr)
 
   const base = await findItemByQr(decoded)
+  if (!base) {
+    const resuelto = await resolverCodigo(decoded)
+    if (resuelto?.tipo === 'item') {
+      redirect(`/inventario/ficha/${encodeURIComponent(resuelto.item.qr_code)}`)
+    }
+  }
 
   if (!base) {
     return (
@@ -51,7 +59,7 @@ export default async function FichaItemPage(props: {
   if (!detalle) return null // RLS could hide between calls
 
   const puedeVerRevendedoras = hasModuleAccess(session, 'revendedoras', 'ver')
-  const quienTieneRes = puedeVerRevendedoras ? await quienTieneItem(decoded) : null
+  const quienTieneRes = puedeVerRevendedoras ? await quienTieneItem(base.qr_code) : null
   const enPoderDe = quienTieneRes?.ok ? quienTieneRes.data : null
   const puedeImprimirEtiqueta =
     detalle.estado_item === 'disponible' || detalle.estado_item === 'reservado'

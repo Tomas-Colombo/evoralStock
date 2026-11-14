@@ -88,7 +88,7 @@ export function QrScanner({
         </p>
       ) : (
         <p className="text-center text-xs text-muted">
-          Apuntá al QR del ítem. {ultimo && <>Último: <span className="font-mono">{ultimo}</span></>}
+          Escaneá el código. {ultimo && <>Último: <span className="font-mono">{ultimo}</span></>}
         </p>
       )}
 

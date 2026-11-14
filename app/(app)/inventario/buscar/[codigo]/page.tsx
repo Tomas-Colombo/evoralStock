@@ -24,7 +24,7 @@ export default async function BuscarCodigoPage(props: {
   const { codigo } = await props.params
   const decoded = decodeURIComponent(codigo).trim()
 
-  // QR exacto → ficha del ítem (los QR son 24 hex, nunca chocan con un SKU).
+  // Unidad física (QR o EAN) → ficha del ítem (no chocan con un SKU autogenerado).
   const resuelto = await resolverCodigo(decoded)
   if (resuelto?.tipo === 'item') {
     redirect(`/inventario/ficha/${encodeURIComponent(resuelto.item.qr_code)}`)
@@ -39,7 +39,7 @@ export default async function BuscarCodigoPage(props: {
           <Card padding="none" className="mx-auto max-w-md p-6 text-center">
             <p className="font-display text-lg mb-2">Nada coincide</p>
             <p className="text-sm text-muted mb-4">
-              No hay un ítem con ese QR ni un producto con SKU{' '}
+              No hay un ítem con ese código ni un producto con SKU{' '}
               <span className="font-mono">{baseSku}</span> en este tenant.
             </p>
             <Link

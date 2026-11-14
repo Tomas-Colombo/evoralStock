@@ -70,6 +70,25 @@ describe('GET /api/ventas/lookup-item con soporte de cantidad', () => {
     })
   })
 
+  it('resuelve item físico por código EAN a través de resolverCodigo', async () => {
+    resolverCodigoMock.mockResolvedValue({
+      tipo: 'item',
+      item: { id_item: 'it-ean-1', id_producto: 'prod-1', qr_code: 'QR-EAN-1', talle: 'M', estado_item: 'disponible' },
+    })
+    getReservasActivasDeItemsMock.mockResolvedValue(new Map())
+
+    const { GET } = await import('./route')
+    const req = new NextRequest(
+      'http://localhost:3000/api/ventas/lookup-item?code=2000000000015',
+    )
+    const res = await GET(req)
+    const json = await res.json()
+
+    expect(resolverCodigoMock).toHaveBeenCalledWith('2000000000015', { sku: true })
+    expect(json.ok).toBe(true)
+    expect(json.linea.id_item).toBe('it-ean-1')
+  })
+
   it('devuelve N líneas en un solo pedido calculando el snapshot 1 sola vez', async () => {
     listItemsDisponiblesMock.mockResolvedValue([
       { id_item: 'it-1', id_producto: 'prod-1', qr_code: 'QR-1', talle: 'M' },

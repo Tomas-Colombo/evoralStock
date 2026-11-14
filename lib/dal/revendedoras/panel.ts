@@ -1,5 +1,6 @@
 import { createServerClient } from '../supabase'
 import { extractErrorSlug } from './slug-error'
+import { resolverCodigo } from '../inventario/codigo'
 import type {
   PanelRevendedoraRow,
   PanelRevendedorasResponse,
@@ -85,9 +86,18 @@ export async function obtenerPanelRevendedoras(
 export async function quienTieneItem(
   identificador: string,
 ): Promise<{ ok: true; data: QuienTieneItemResponse | null } | { ok: false; reason: string }> {
+  let codigoParaRpc = identificador.trim()
+  const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codigoParaRpc)
+  if (!esUuid) {
+    const resuelto = await resolverCodigo(codigoParaRpc)
+    if (resuelto?.tipo === 'item') {
+      codigoParaRpc = resuelto.item.qr_code
+    }
+  }
+
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('rf_quien_tiene_item', {
-    p_identificador: identificador,
+    p_identificador: codigoParaRpc,
   })
 
   if (error) {
@@ -105,6 +115,7 @@ export interface ItemEnPoderRevendedoraRow {
   sku: string
   /** QR de la unidad: la devolución lo usa para reconocer el escaneo. */
   qr_code: string | null
+  codigo_ean: string | null
   talle: string | null
   precio_venta: number
   fecha_entrega: string
@@ -129,6 +140,7 @@ export async function listarItemsEnPoderRevendedora(
       ),
       item_producto (
         qr_code,
+        codigo_ean,
         talle
       ),
       consignacion_revendedora!inner (
@@ -152,7 +164,7 @@ export async function listarItemsEnPoderRevendedora(
     fecha_entrega: string | null
     created_at: string
     producto: { nombre: string; sku: string; precio_venta: number } | null
-    item_producto: { qr_code: string | null; talle: string | null } | null
+    item_producto: { qr_code: string | null; codigo_ean: string | null; talle: string | null } | null
   }
 
   const rawList = (data as unknown as DetalleRaw[]) ?? []
@@ -162,6 +174,7 @@ export async function listarItemsEnPoderRevendedora(
     nombre_producto: d.producto?.nombre ?? 'Producto',
     sku: d.producto?.sku ?? '',
     qr_code: d.item_producto?.qr_code ?? null,
+    codigo_ean: d.item_producto?.codigo_ean ?? null,
     talle: d.item_producto?.talle ?? null,
     precio_venta: Number(d.producto?.precio_venta ?? 0),
     fecha_entrega: d.fecha_entrega ?? d.created_at,

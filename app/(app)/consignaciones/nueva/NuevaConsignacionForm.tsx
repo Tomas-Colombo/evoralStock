@@ -252,13 +252,19 @@ export function NuevaConsignacionForm({
     cerrarSelector()
   }
 
-  /** Alta por QR tipeado/escaneado: match exacto sobre la unidad. */
+  /** Alta por código (QR o EAN) tipeado/escaneado: match exacto sobre la unidad. */
   function agregarPorTexto(texto: string) {
     const term = normalizar(texto)
     if (!term) return
-    const exacto = libres.find((it) => normalizar(it.qr_code) === term)
+    const exacto = libres.find(
+      (it) => normalizar(it.qr_code) === term || (it.codigo_ean && normalizar(it.codigo_ean) === term),
+    )
     if (exacto) return agregar(exacto)
-    if (elegibles.some((it) => normalizar(it.qr_code) === term)) {
+    if (
+      elegibles.some(
+        (it) => normalizar(it.qr_code) === term || (it.codigo_ean && normalizar(it.codigo_ean) === term),
+      )
+    ) {
       return setErrorItem('Ese ítem ya está en el lote.')
     }
     if (sugerencias.length === 1) return elegirProducto(sugerencias[0].id)

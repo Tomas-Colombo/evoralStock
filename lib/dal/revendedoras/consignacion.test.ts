@@ -68,6 +68,7 @@ function makeItem(id: string, qr: string, talle: string | null = 'M'): ItemProdu
     id_ingreso: null,
     id_ingreso_detalle: null,
     qr_code: qr,
+    codigo_ean: '2000000000015',
     estado_item: 'disponible',
     talle,
     costo_ingreso: 8000,
@@ -87,6 +88,17 @@ function mockSupabase(opts?: {
 }) {
   createServerClientMock.mockResolvedValue({
     from: (table: string) => {
+      if (table === 'producto') {
+        const b = {
+          select: () => b,
+          eq: () => b,
+          maybeSingle: async () => ({
+            data: { nombre: 'Remera Básica', sku: 'REM-0001', precio_venta: 15000 },
+            error: null,
+          }),
+        }
+        return b
+      }
       if (table === 'revendedora') {
         const b = {
           select: () => b,
@@ -136,6 +148,22 @@ describe('lookupItemParaConsignacionRevendedora', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabase()
+  })
+
+  it('resuelve unidad por EAN a través de resolverCodigo', async () => {
+    resolverCodigoMock.mockResolvedValue({
+      tipo: 'item',
+      item: makeItem('item-ean-1', 'UTP-EAN-1', 'M'),
+    })
+
+    const { lookupItemParaConsignacionRevendedora } = await import('./consignacion')
+    const res = await lookupItemParaConsignacionRevendedora('2000000000015', 'rev-1')
+
+    expect(resolverCodigoMock).toHaveBeenCalledWith('2000000000015', { nombre: true })
+    expect(res.ok).toBe(true)
+    if (res.ok) {
+      expect(res.data.id_item).toBe('item-ean-1')
+    }
   })
 
   it('saltea las unidades presentes en excluir y devuelve la siguiente unidad FIFO disponible cuando viene SKU con talle', async () => {

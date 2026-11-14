@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { obtenerPanelRevendedoras, quienTieneItem } from './panel'
 import * as supabaseModule from '../supabase'
+import * as codigoModule from '../inventario/codigo'
+import type { ItemProductoRow } from '@/lib/types/inventario'
 
 describe('DAL Panel Revendedoras — Slice 4b', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('con 200 revendedoras realiza UNA SOLA llamada rpc a la base de datos', async () => {
     const mockRows = Array.from({ length: 200 }, (_, i) => ({
       id_revendedora: `rev-${i}`,
@@ -75,6 +81,10 @@ describe('DAL Panel Revendedoras — Slice 4b', () => {
     vi.spyOn(supabaseModule, 'createServerClient').mockResolvedValue(
       mockSupabase as unknown as Awaited<ReturnType<typeof supabaseModule.createServerClient>>,
     )
+    vi.spyOn(codigoModule, 'resolverCodigo').mockResolvedValue({
+      tipo: 'item',
+      item: { qr_code: 'QR-TEST-01' } as unknown as ItemProductoRow,
+    })
 
     const res = await quienTieneItem('QR-TEST-01')
     expect(rpcSpy).toHaveBeenCalledTimes(1)
@@ -84,5 +94,35 @@ describe('DAL Panel Revendedoras — Slice 4b', () => {
       expect(res.data?.nombre).toBe('Valeria')
       expect(res.data?.id_consignacion).toBe('consig-1')
     }
+  })
+
+  it('quienTieneItem resuelve EAN con resolverCodigo y pasa el qr_code a rf_quien_tiene_item', async () => {
+    const rpcSpy = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockSupabase = { rpc: rpcSpy }
+    vi.spyOn(supabaseModule, 'createServerClient').mockResolvedValue(
+      mockSupabase as unknown as Awaited<ReturnType<typeof supabaseModule.createServerClient>>,
+    )
+    const resolverSpy = vi.spyOn(codigoModule, 'resolverCodigo').mockResolvedValue({
+      tipo: 'item',
+      item: { qr_code: 'QR-RESOLVED-123' } as unknown as ItemProductoRow,
+    })
+
+    await quienTieneItem('2000000000015')
+    expect(resolverSpy).toHaveBeenCalledWith('2000000000015')
+    expect(rpcSpy).toHaveBeenCalledWith('rf_quien_tiene_item', { p_identificador: 'QR-RESOLVED-123' })
+  })
+
+  it('quienTieneItem con UUID no llama a resolverCodigo y lo pasa directo a rf_quien_tiene_item', async () => {
+    const uuid = 'a0000000-0000-0000-0000-000000000001'
+    const rpcSpy = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockSupabase = { rpc: rpcSpy }
+    vi.spyOn(supabaseModule, 'createServerClient').mockResolvedValue(
+      mockSupabase as unknown as Awaited<ReturnType<typeof supabaseModule.createServerClient>>,
+    )
+    const resolverSpy = vi.spyOn(codigoModule, 'resolverCodigo')
+
+    await quienTieneItem(uuid)
+    expect(resolverSpy).not.toHaveBeenCalled()
+    expect(rpcSpy).toHaveBeenCalledWith('rf_quien_tiene_item', { p_identificador: uuid })
   })
 })

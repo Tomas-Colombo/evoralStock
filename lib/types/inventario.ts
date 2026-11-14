@@ -158,6 +158,7 @@ export interface ItemProductoRow {
   id_ingreso: string | null
   id_ingreso_detalle: string | null
   qr_code: string
+  codigo_ean: string
   estado_item: EstadoItem
   // 00032: talle de la unidad; null = producto sin talle.
   talle: string | null
