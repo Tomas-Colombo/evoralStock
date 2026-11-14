@@ -226,6 +226,32 @@ export async function provisionTenant(): Promise<SeedData> {
     .insert({ id_tenant: tenantId, seccion: 'perfil', clave: 'theme', valor: 'light', tipo: 'string' })
   if (cfgError) throw new Error(`configuracion: ${cfgError.message}`)
 
+  const { error: plantillaError } = await db.from('etiqueta_plantilla').insert([
+    {
+      id_tenant: tenantId,
+      nombre: 'Predeterminada',
+      ancho_mm: 50,
+      alto_mm: 47,
+      mostrar_nombre: true,
+      mostrar_talle: true,
+      mostrar_sku: false,
+      mostrar_texto_codigo: false,
+      predeterminada: true,
+    },
+    {
+      id_tenant: tenantId,
+      nombre: 'Chica 30x20',
+      ancho_mm: 30,
+      alto_mm: 20,
+      mostrar_nombre: true,
+      mostrar_talle: true,
+      mostrar_sku: false,
+      mostrar_texto_codigo: false,
+      predeterminada: false,
+    },
+  ])
+  if (plantillaError) throw new Error(`etiqueta_plantilla: ${plantillaError.message}`)
+
   await crearUsuario(ADMIN, tenantId, rolAdminId)
   await crearUsuario(VENDEDOR, tenantId, rolVendedorId)
   await crearUsuario(PASSWORD_USER, tenantId, rolVendedorId)
