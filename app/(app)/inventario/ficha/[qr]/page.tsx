@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { AjusteInventarioAction } from './AjusteInventarioAction'
-import { QrDisplay } from '@/components/inventario/QrDisplay'
+import { CodigoEtiqueta } from '@/components/etiquetas/CodigoEtiqueta'
 import { verifySession } from '@/lib/dal/session'
 import { resolverCodigo } from '@/lib/dal/inventario/codigo'
 import { getItemConDetalle } from '@/lib/dal/inventario/item'
+import { getEtiquetaConfig } from '@/lib/dal/etiquetas/etiquetas'
 import { ESTADO_ITEM_LABEL, ESTADO_ITEM_VARIANT } from '@/lib/types/inventario'
 import { EscanearOtro } from './EscanearOtro'
 import { FichaActions } from './FichaActions'
@@ -53,7 +54,10 @@ export default async function FichaItemPage(props: {
   const base = resuelto.item
 
   const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
-  const detalleRaw = await getItemConDetalle(base.id_item)
+  const [detalleRaw, config] = await Promise.all([
+    getItemConDetalle(base.id_item),
+    getEtiquetaConfig(),
+  ])
   const detalle = proyectarItemConDetalle(detalleRaw, puedeVerCostos)
   if (!detalle) return null // RLS could hide between calls
 
@@ -63,15 +67,31 @@ export default async function FichaItemPage(props: {
   const puedeImprimirEtiqueta =
     detalle.estado_item === 'disponible' || detalle.estado_item === 'reservado'
 
+  const textoCodigo =
+    config.metodo === 'ean13' || config.metodo === 'code128'
+      ? detalle.codigo_ean
+      : detalle.qr_code
+
   return (
     <>
       <Topbar title="Ficha de ítem" session={session} backHref="/inventario/ficha" />
       <main className="flex-1 p-4 sm:p-6">
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[280px_minmax(0,1fr)]">
-          {/* QR + estado */}
-          <aside className="rounded-lg border border-border bg-card p-4">
-            <QrDisplay value={detalle.qr_code} size={220} />
-            <div className="mt-4 flex flex-col items-center gap-3">
+          {/* Código + estado */}
+          <aside className="rounded-lg border border-border bg-card p-4 flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center rounded-md border border-border bg-white p-3 w-full max-w-[240px]">
+              <CodigoEtiqueta
+                simbologia={config.metodo}
+                qrCode={detalle.qr_code}
+                codigoEan={detalle.codigo_ean}
+                anchoMm={50}
+                altoMm={50}
+              />
+              <span className="mt-2 font-mono text-xs text-black select-all">
+                {textoCodigo}
+              </span>
+            </div>
+            <div className="mt-4 flex flex-col items-center gap-3 w-full">
               <Badge variant={ESTADO_ITEM_VARIANT[detalle.estado_item]}>
                 {ESTADO_ITEM_LABEL[detalle.estado_item]}
               </Badge>

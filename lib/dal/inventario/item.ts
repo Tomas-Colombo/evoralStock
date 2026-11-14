@@ -181,6 +181,7 @@ export async function spAsignarTallesAProducto(input: {
 /** Lo único que necesita una etiqueta física: el código y qué producto es. */
 export interface ItemParaEtiqueta {
   qr_code: string
+  codigo_ean: string
   talle: string | null
   nombre: string
   sku: string | null
@@ -211,13 +212,14 @@ export async function listItemsParaEtiquetas(qrs: string[]): Promise<ItemParaEti
   const supabase = await createServerClient()
   const { data, error } = await supabase
     .from('item_producto')
-    .select('qr_code, talle, producto:producto(nombre, sku, descripcion)')
+    .select('qr_code, codigo_ean, talle, producto:producto(nombre, sku, descripcion)')
     .in('qr_code', qrs.slice(0, ETIQUETAS_MAX))
     .in('estado_item', [...ESTADOS_IMPRIMIBLES])
   if (error) throw new Error(`listItemsParaEtiquetas: ${error.message}`)
 
   const filas = (data ?? []) as unknown as Array<{
     qr_code: string
+    codigo_ean: string
     talle: string | null
     producto: { nombre: string; sku: string | null; descripcion?: string | null } | null
   }>
@@ -230,6 +232,7 @@ export async function listItemsParaEtiquetas(qrs: string[]): Promise<ItemParaEti
     .filter((f): f is (typeof filas)[number] => f !== undefined && f.producto !== null)
     .map((f) => ({
       qr_code: f.qr_code,
+      codigo_ean: f.codigo_ean,
       talle: f.talle,
       nombre: f.producto!.nombre,
       sku: f.producto!.sku,
@@ -277,7 +280,7 @@ export async function listItemsParaEtiquetasPorOrigen(
 
   let query = supabase
     .from('item_producto')
-    .select('qr_code, talle, producto:producto(nombre, sku, descripcion)', { count: 'exact' })
+    .select('qr_code, codigo_ean, talle, producto:producto(nombre, sku, descripcion)', { count: 'exact' })
 
   if (origen.tipo === 'ingreso') {
     query = query
@@ -305,6 +308,7 @@ export async function listItemsParaEtiquetasPorOrigen(
   const total = count ?? 0
   const filas = (data ?? []) as unknown as Array<{
     qr_code: string
+    codigo_ean: string
     talle: string | null
     producto: { nombre: string; sku: string | null; descripcion?: string | null } | null
   }>
@@ -313,6 +317,7 @@ export async function listItemsParaEtiquetasPorOrigen(
     .filter((f) => f.producto !== null)
     .map((f) => ({
       qr_code: f.qr_code,
+      codigo_ean: f.codigo_ean,
       talle: f.talle,
       nombre: f.producto!.nombre,
       sku: f.producto!.sku,

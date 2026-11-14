@@ -25,9 +25,10 @@
 
 ## F4 — Impresión y ficha
 
-- [ ] 4.1 `listItemsParaEtiquetas*` devuelven `codigo_ean`.
-- [ ] 4.2 `SelectorPlantilla` (`components/ui/Select`) + `?plantilla=` + `ImprimirEtiquetasClient` sobre `layout`/`Etiqueta`.
-- [ ] 4.3 La ficha del ítem usa `CodigoEtiqueta` con el método del tenant; borrar `QrDisplay` y `qrcode`.
+- [x] 4.1 `listItemsParaEtiquetas*` devuelven `codigo_ean`.
+- [x] 4.2 `SelectorPlantilla` (`components/ui/Select`) + `?plantilla=` + `ImprimirEtiquetasClient` sobre `layout`/`Etiqueta`.
+- [x] 4.3 La ficha del ítem usa `CodigoEtiqueta` con el método del tenant; borrar `QrDisplay` y `qrcode`.
+- [x] 4.4 Borrar `getConfiguracionQrLadoMm` / `getConfiguracionImpresora` (+ sus tests) y la guía `inventario-etiquetas-imprimir` (selector de plantilla).
 
 ## F5 — Lectura
 
@@ -38,7 +39,7 @@
 
 ## F6 — Cierre (`pnpm gate:full`)
 
-- [ ] 6.1 Guía de ayuda (§8); `cobertura.test.ts` en verde.
+- [ ] 6.1 Guía de ayuda (§8): repartida por fase (F3 administración, F5 lectura, F4 impresión); acá solo confirmar `cobertura.test.ts` en verde.
 - [ ] 6.2 E2E de `imprimir-etiquetas`.
 - [ ] 6.3 `supabase/README.md`: nota de `codigo_ean` y del trigger.
 

@@ -259,13 +259,13 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
   },
   {
     id: 'inventario-etiquetas-imprimir',
-    titulo: 'Cómo imprimir etiquetas con código QR',
+    titulo: 'Cómo imprimir etiquetas de productos',
     ruta: '/inventario/imprimir-etiquetas',
     permisos: ['inventario.ver'],
     pasos: [
       'Accedé a la pantalla de impresión desde un ingreso confirmado ("Imprimir etiquetas") o desde la ficha de un producto o ítem.',
       'Si la cantidad de etiquetas supera el límite por tanda, navegá entre tandas con "← Anterior" o "Siguiente →".',
-      'Verificá que los códigos QR hayan terminado de generarse en pantalla.',
+      'Elegí la plantilla de etiqueta adecuada en el selector de plantillas.',
       'Hacé clic en "Imprimir" para enviar la tanda a la impresora.',
     ],
     detalles: [
@@ -278,12 +278,12 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         texto: 'Solo se generan etiquetas para unidades en estado disponible o reservado.',
       },
       {
-        tema: 'Medida de página',
-        texto: 'Si en Administración se configuró la impresora de etiquetas, el PDF sale con ese ancho y alto, con las etiquetas una al lado de la otra.',
+        tema: 'Perfil de impresora',
+        texto: 'La impresión se adapta automáticamente al perfil configurado (hoja A4 en grilla o rollo continuo con una etiqueta por página).',
       },
       {
-        tema: 'Contenido de la etiqueta',
-        texto: 'Cada etiqueta lleva el QR, el nombre del producto (hasta 10 caracteres) y el talle. Con un QR de menos de 2 cm solo se imprime el talle.',
+        tema: 'Selector de plantilla',
+        texto: 'Permite seleccionar el tamaño y los campos visibles (nombre, talle, SKU o código legible) según las plantillas configuradas.',
       },
     ],
   },

@@ -14,28 +14,11 @@ export const MAX_UNIDADES_LINEA = 1000
 /** Unidades máximas que puede generar UNA operación (alta o ingreso completo). */
 export const MAX_UNIDADES_OPERACION = 5000
 
-/** Tope de etiquetas QR por tanda de impresión. */
+/** Tope de etiquetas por tanda de impresión. */
 export const ETIQUETAS_MAX = 200
 
-/** Lado mínimo (en mm) permitido para el código QR impreso en etiquetas. */
-export const QR_LADO_MM_MIN = 15
-
-/** Lado máximo (en mm) permitido para el código QR impreso en etiquetas. */
-export const QR_LADO_MM_MAX = 100
-
-/** Lado por defecto (en mm) del código QR impreso en etiquetas (~132 px a 96 DPI). */
-export const QR_LADO_MM_DEFAULT = 35
-
-/** Rango (en mm) aceptado para el ancho y el alto de página de la impresora de etiquetas. */
-export const IMPRESORA_MM_MIN = 20
-export const IMPRESORA_MM_MAX = 300
-
-/** Margen de página y separación entre etiquetas (en mm) al imprimir con medida de impresora. */
-export const IMPRESORA_MARGEN_MM = 2
-export const IMPRESORA_SEPARACION_MM = 2
-
 /**
- * Estados de `item_producto` que admiten impresión o reimpresión de etiqueta QR.
+ * Estados de `item_producto` que admiten impresión o reimpresión de etiqueta.
  * Los ítems vendidos, dados de baja, devueltos o en poder de revendedora nunca
  * deben volver a etiquetarse en el local.
  */

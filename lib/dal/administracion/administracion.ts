@@ -3,13 +3,6 @@ import { errorDeRpc } from '@/lib/dal/errors'
 import { randomUUID } from 'node:crypto'
 import { createServerClient, createServiceClient } from '@/lib/dal/supabase'
 import { detectarFormatoImagen, EXTENSION_LOGO, LOGO_BUCKET } from '@/lib/tenant/logo'
-import {
-  IMPRESORA_MM_MAX,
-  IMPRESORA_MM_MIN,
-  QR_LADO_MM_DEFAULT,
-  QR_LADO_MM_MAX,
-  QR_LADO_MM_MIN,
-} from '@/lib/inventario/limites'
 import type {
   AuditoriaConActor,
   AuditoriaRow,
@@ -164,28 +157,7 @@ export async function spDeleteRol(idRol: string): Promise<void> {
   if (error) throw new Error(errorDeRpc('sp_delete_rol', error))
 }
 
-// ─── Configuración de etiquetas QR ───────────────────────────────────
-
-/**
- * Medida en milímetros del lado del código QR para las hojas de etiquetas del
- * tenant actual. Si todavía no fue configurada (o el valor guardado quedó
- * fuera de rango), devuelve `QR_LADO_MM_DEFAULT` (35 mm).
- */
-export async function getConfiguracionQrLadoMm(): Promise<number> {
-  const supabase = await createServerClient()
-  const { data, error } = await supabase
-    .from('configuracion')
-    .select('valor')
-    .eq('seccion', 'etiquetas')
-    .eq('clave', 'qr_lado_mm')
-    .maybeSingle()
-  if (error || !data) return QR_LADO_MM_DEFAULT
-  const n = Number((data as { valor: unknown }).valor)
-  if (!Number.isFinite(n) || n < QR_LADO_MM_MIN || n > QR_LADO_MM_MAX) {
-    return QR_LADO_MM_DEFAULT
-  }
-  return Math.round(n)
-}
+// ─── Tenant Logo ─────────────────────────────────────────────────────
 
 export async function spSetTenantLogo(
   logoUrl: string | null,
@@ -333,25 +305,3 @@ export async function listEntidadesAuditoria(): Promise<string[]> {
   for (const r of data ?? []) if (r.entidad) set.add(r.entidad as string)
   return Array.from(set).sort()
 }
-
-export type ConfiguracionImpresora = { anchoMm: number | null; altoMm: number | null }
-
-/**
- * Medida de página de la impresora de etiquetas. Cada dimensión es opcional:
- * null (o un valor guardado fuera de rango) significa «la de una hoja A4».
- */
-export async function getConfiguracionImpresora(): Promise<ConfiguracionImpresora> {
-  const supabase = await createServerClient()
-  const { data, error } = await supabase
-    .from('configuracion')
-    .select('clave, valor')
-    .eq('seccion', 'etiquetas')
-    .in('clave', ['impresora_ancho_mm', 'impresora_alto_mm'])
-  const filas = error || !data ? [] : (data as { clave: string; valor: unknown }[])
-  const leer = (clave: string): number | null => {
-    const n = Number(filas.find((f) => f.clave === clave)?.valor)
-    return Number.isFinite(n) && n >= IMPRESORA_MM_MIN && n <= IMPRESORA_MM_MAX ? Math.round(n) : null
-  }
-  return { anchoMm: leer('impresora_ancho_mm'), altoMm: leer('impresora_alto_mm') }
-}
-

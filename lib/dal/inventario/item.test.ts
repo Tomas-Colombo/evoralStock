@@ -93,7 +93,7 @@ describe('listItemsParaEtiquetas', () => {
     vi.clearAllMocks()
   })
 
-  it('selecciona descripcion, filtra solo estados imprimibles y devuelve las etiquetas en el orden pedido', async () => {
+  it('selecciona codigo_ean y descripcion, filtra solo estados imprimibles y devuelve las etiquetas en el orden pedido', async () => {
     let selectedCols = ''
     const inCalls: Array<{ col: string; values: unknown[] }> = []
 
@@ -111,11 +111,13 @@ describe('listItemsParaEtiquetas', () => {
           data: [
             {
               qr_code: 'QR-002',
+              codigo_ean: '2000000000022',
               talle: 'M',
               producto: { nombre: 'Remera Básica', sku: 'REM-01', descripcion: 'Color negro, cuello redondo' },
             },
             {
               qr_code: 'QR-001',
+              codigo_ean: '2000000000015',
               talle: null,
               producto: { nombre: 'Gorra Lisa', sku: null, descripcion: null },
             },
@@ -131,6 +133,7 @@ describe('listItemsParaEtiquetas', () => {
     const { listItemsParaEtiquetas } = await import('./item')
     const res = await listItemsParaEtiquetas(['QR-001', 'QR-002'])
 
+    expect(selectedCols).toContain('codigo_ean')
     expect(selectedCols).toContain('descripcion')
     expect(inCalls).toEqual([
       { col: 'qr_code', values: ['QR-001', 'QR-002'] },
@@ -139,6 +142,7 @@ describe('listItemsParaEtiquetas', () => {
     expect(res).toEqual([
       {
         qr_code: 'QR-001',
+        codigo_ean: '2000000000015',
         talle: null,
         nombre: 'Gorra Lisa',
         sku: null,
@@ -146,6 +150,7 @@ describe('listItemsParaEtiquetas', () => {
       },
       {
         qr_code: 'QR-002',
+        codigo_ean: '2000000000022',
         talle: 'M',
         nombre: 'Remera Básica',
         sku: 'REM-01',
@@ -208,13 +213,17 @@ describe('listItemsParaEtiquetasPorOrigen', () => {
     vi.clearAllMocks()
   })
 
-  it('consulta origen producto con paginación determinista y filtro de talle', async () => {
+  it('consulta origen producto con paginación determinista, codigo_ean y filtro de talle', async () => {
+    let selectedCols = ''
     const eqCalls: Array<{ col: string; val: unknown }> = []
     const inCalls: Array<{ col: string; values: unknown[] }> = []
     let rangeArgs: [number, number] | null = null
 
     const builder = {
-      select: () => builder,
+      select: (cols: string) => {
+        selectedCols = cols
+        return builder
+      },
       eq: (col: string, val: unknown) => {
         eqCalls.push({ col, val })
         return builder
@@ -233,6 +242,7 @@ describe('listItemsParaEtiquetasPorOrigen', () => {
           data: [
             {
               qr_code: 'UTP-PR-1',
+              codigo_ean: '2000000000039',
               talle: 'L',
               producto: { nombre: 'Buzo Friza', sku: 'BUZ-1', descripcion: 'Negro' },
             },
@@ -255,6 +265,7 @@ describe('listItemsParaEtiquetasPorOrigen', () => {
       tanda: 2,
     })
 
+    expect(selectedCols).toContain('codigo_ean')
     expect(eqCalls).toEqual([
       { col: 'id_producto', val: 'prod-456' },
       { col: 'talle', val: 'L' },
@@ -264,6 +275,7 @@ describe('listItemsParaEtiquetasPorOrigen', () => {
     expect(res.total).toBe(250)
     expect(res.items).toHaveLength(1)
     expect(res.items[0].qr_code).toBe('UTP-PR-1')
+    expect(res.items[0].codigo_ean).toBe('2000000000039')
   })
 })
 
