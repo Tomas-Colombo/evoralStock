@@ -80,3 +80,37 @@ export function esSimbologiaId(valor: unknown): valor is SimbologiaId {
 export function obtenerSimbologia(id: SimbologiaId | string): Simbologia | undefined {
   return SIMBOLOGIAS_POR_ID.get(id as SimbologiaId)
 }
+
+/**
+ * Determina el campo del catálogo ('qr_code' | 'codigo_ean') correspondiente a la simbología (D-ETQ-01).
+ * Si la simbología no existe o no se provee, asume el default 'qr'.
+ */
+export function campoValorSimbologia(id: SimbologiaId | string | undefined): ValorSimbologia {
+  const sim = (id ? obtenerSimbologia(id) : undefined) ?? obtenerSimbologia('qr')!
+  return sim.valor
+}
+
+export interface CodigosItemSimbologia {
+  qr_code?: string | null
+  codigo_ean?: string | null
+  qrCode?: string | null
+  codigoEan?: string | null
+}
+
+/**
+ * Resuelve el texto o código del ítem a codificar o mostrar según la simbología activa.
+ *
+ * D-ETQ-01:
+ * - Simbologías con valor 'qr_code' (2D: qr, datamatrix) obtienen `qr_code` (o `qrCode`).
+ * - Simbologías con valor 'codigo_ean' (1D: code128, ean13) obtienen `codigo_ean` (o `codigoEan`).
+ */
+export function resolverValorSimbologia(
+  simbologia: SimbologiaId | string | undefined,
+  codigos: CodigosItemSimbologia,
+): string {
+  const campo = campoValorSimbologia(simbologia)
+  if (campo === 'codigo_ean') {
+    return codigos.codigo_ean ?? codigos.codigoEan ?? ''
+  }
+  return codigos.qr_code ?? codigos.qrCode ?? ''
+}

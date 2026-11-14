@@ -1,6 +1,7 @@
 import bwipjs from 'bwip-js/browser'
 import {
   obtenerSimbologia,
+  resolverValorSimbologia,
   type SimbologiaId,
 } from '@/lib/etiquetas/simbologias'
 
@@ -42,9 +43,9 @@ export function CodigoEtiqueta({
 }: CodigoEtiquetaProps) {
   const sim = obtenerSimbologia(simbologia) ?? obtenerSimbologia('qr')!
 
-  // D-ETQ-01: selección del valor según dimensión de la simbología si no se pasó valor explícito
+  // D-ETQ-01: selección del valor según catálogo de simbología si no se pasó valor explícito
   const textoACodificar =
-    valor ?? (sim.dimension === '2d' ? qrCode : codigoEan) ?? ''
+    valor ?? resolverValorSimbologia(simbologia, { qrCode, codigoEan })
 
   let svgHtml: string | null = null
   let errorMsg: string | null = null

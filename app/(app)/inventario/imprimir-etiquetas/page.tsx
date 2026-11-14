@@ -96,12 +96,21 @@ export default async function ImprimirEtiquetasPage(props: {
     listEtiquetaPlantillas(),
   ])
 
+  // REQ-ETQ-07 N2 garantiza que todo tenant tiene al menos una plantilla
+  // predeterminada (creada en la provisión inicial o en la migración de esquema).
+  // PLANTILLA_FALLBACK existe únicamente como salvaguarda defensiva ante estados
+  // inconsistentes o tests con base vacía, para que la UI de impresión nunca falle.
+  // Si se recurre a ella, se pasa la lista [PLANTILLA_FALLBACK] al SelectorPlantilla
+  // para que el valor seleccionado en el Select exista entre las opciones renderizadas.
+  const usaFallback = plantillas.length === 0
+  const plantillasDisponibles = usaFallback ? [PLANTILLA_FALLBACK] : plantillas
+
   const predeterminada =
-    plantillas.find((p) => p.predeterminada) ?? plantillas[0] ?? PLANTILLA_FALLBACK
+    plantillasDisponibles.find((p) => p.predeterminada) ?? plantillasDisponibles[0]
 
   let plantillaSeleccionada = predeterminada
   if (rawParams.plantilla && UUID_RE.test(rawParams.plantilla)) {
-    const encontrada = plantillas.find((p) => p.id_plantilla === rawParams.plantilla)
+    const encontrada = plantillasDisponibles.find((p) => p.id_plantilla === rawParams.plantilla)
     if (encontrada) {
       plantillaSeleccionada = encontrada
     }
@@ -118,7 +127,7 @@ export default async function ImprimirEtiquetasPage(props: {
         <Topbar title="Imprimir etiquetas" session={session} backHref="/inventario" />
         <ImprimirEtiquetasClient
           items={items}
-          plantillas={plantillas.length > 0 ? plantillas : [plantillaSeleccionada]}
+          plantillas={plantillasDisponibles}
           plantillaSeleccionada={plantillaSeleccionada}
           config={config}
           noEncontrados={noEncontrados}
@@ -171,7 +180,7 @@ export default async function ImprimirEtiquetasPage(props: {
       <Topbar title="Imprimir etiquetas" session={session} backHref="/inventario" />
       <ImprimirEtiquetasClient
         items={items}
-        plantillas={plantillas.length > 0 ? plantillas : [plantillaSeleccionada]}
+        plantillas={plantillasDisponibles}
         plantillaSeleccionada={plantillaSeleccionada}
         config={config}
         noEncontrados={[]}

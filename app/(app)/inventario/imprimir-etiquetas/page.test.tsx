@@ -22,6 +22,7 @@ vi.mock('@/lib/dal/inventario/item', () => ({
 
 vi.mock('./ImprimirEtiquetasClient', () => ({
   ImprimirEtiquetasClient: (props: {
+    plantillas: { id_plantilla: string; nombre: string }[]
     plantillaSeleccionada: { id_plantilla: string; nombre: string }
     items: unknown[]
   }) => (
@@ -29,6 +30,7 @@ vi.mock('./ImprimirEtiquetasClient', () => ({
       data-testid="imprimir-client-mock"
       data-plantilla-id={props.plantillaSeleccionada.id_plantilla}
       data-plantilla-nombre={props.plantillaSeleccionada.nombre}
+      data-plantillas-ids={props.plantillas.map((p) => p.id_plantilla).join(',')}
       data-items-count={props.items.length}
     />
   ),
@@ -154,5 +156,22 @@ describe('ImprimirEtiquetasPage (REQ-ETQ-05)', () => {
 
     expect(screen.getByText('No hay códigos para imprimir')).toBeInTheDocument()
     expect(screen.queryByTestId('imprimir-client-mock')).not.toBeInTheDocument()
+  })
+
+  it('si no hay plantillas en base (defensivo) → usa PLANTILLA_FALLBACK y la incluye en las opciones del selector', async () => {
+    vi.mocked(etiquetasDal.listEtiquetaPlantillas).mockResolvedValue([])
+
+    const jsx = await ImprimirEtiquetasPage({
+      searchParams: Promise.resolve({
+        qrs: 'abcdef1234567890abcdef12',
+      }),
+    })
+
+    render(jsx)
+
+    const el = screen.getByTestId('imprimir-client-mock')
+    expect(el).toHaveAttribute('data-plantilla-id', '00000000-0000-0000-0000-000000000000')
+    expect(el).toHaveAttribute('data-plantilla-nombre', 'Predeterminada')
+    expect(el).toHaveAttribute('data-plantillas-ids', '00000000-0000-0000-0000-000000000000')
   })
 })

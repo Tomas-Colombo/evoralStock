@@ -125,11 +125,21 @@ describe('ImprimirEtiquetasClient', () => {
 
     const hoja = container.querySelector('[data-hoja-etiquetas]')
     expect(hoja).toHaveClass('flex-col')
+    expect(hoja).not.toHaveStyle({ transform: expect.anything() })
+
+    // El offset debe estar en cada una de las etiquetas (al menos 2) y no en el contenedor
+    const wraps = container.querySelectorAll('[data-etiqueta-wrap]')
+    expect(wraps.length).toBeGreaterThanOrEqual(2)
+    wraps.forEach((wrap) => {
+      expect(wrap).toHaveStyle({ transform: 'translate(1.5mm, -2mm)' })
+    })
 
     const styleEl = container.querySelector('style')
     expect(styleEl?.innerHTML).toContain('size: 50mm 30mm; margin: 0;')
-    expect(styleEl?.innerHTML).toContain('left: 1.5mm;')
-    expect(styleEl?.innerHTML).toContain('top: -2mm;')
+    expect(styleEl?.innerHTML).toContain('left: 0;')
+    expect(styleEl?.innerHTML).toContain('top: 0;')
+    expect(styleEl?.innerHTML).not.toContain('left: 1.5mm;')
+    expect(styleEl?.innerHTML).not.toContain('top: -2mm;')
     expect(styleEl?.innerHTML).toContain('break-after: page;')
 
     expect(screen.getByRole('button', { name: 'Imprimir (2)' })).toBeEnabled()

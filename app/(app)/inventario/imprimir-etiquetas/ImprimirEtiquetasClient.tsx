@@ -17,14 +17,29 @@ export interface PaginacionTandaClient {
   siguienteHref?: string | null
 }
 
-const cssImpresion = (reglaPage: string, impresoraTipo: string, offsets: { xMm: number; yMm: number }) => `
+/**
+ * CSS de impresión.
+ *
+ * Está anclado a `[data-hoja-etiquetas]` y NO a `.grid`, que es una utility de
+ * Tailwind usada en cuarenta y cinco archivos: la regla es global al documento
+ * mientras esta página está montada, así que apuntarla a una utility significa
+ * que el día que alguien ponga un `grid` en el shell o en un modal, la
+ * impresión se rompe sin que nadie sepa por qué.
+ *
+ * El `visibility: hidden` + `position: absolute` es el patrón conocido para
+ * imprimir un subárbol que vive dentro de un shell: la hoja no es hija directa
+ * de `body`, así que no se la puede aislar con `display: none` sobre sus
+ * hermanos. Oculta todo, vuelve a mostrar la hoja, y la saca del offset que le
+ * impone el sidebar.
+ */
+const cssImpresion = (reglaPage: string, impresoraTipo: string) => `
 @media print {
   body * { visibility: hidden; }
   [data-hoja-etiquetas], [data-hoja-etiquetas] * { visibility: visible; }
   [data-hoja-etiquetas] {
     position: absolute;
-    left: ${impresoraTipo === 'rollo' ? offsets.xMm : 0}mm;
-    top: ${impresoraTipo === 'rollo' ? offsets.yMm : 0}mm;
+    left: 0;
+    top: 0;
     width: 100%;
   }
   @page { ${reglaPage} }
@@ -184,6 +199,11 @@ export function ImprimirEtiquetasClient({
             <div
               key={item.qr_code}
               data-etiqueta-wrap
+              style={
+                layout.impresoraTipo === 'rollo'
+                  ? { transform: `translate(${layout.offsets.xMm}mm, ${layout.offsets.yMm}mm)` }
+                  : undefined
+              }
               className={`break-inside-avoid ${layout.impresoraTipo === 'rollo' ? 'print:break-after-page' : ''}`}
             >
               <Etiqueta
@@ -200,7 +220,7 @@ export function ImprimirEtiquetasClient({
 
       <style
         dangerouslySetInnerHTML={{
-          __html: cssImpresion(layout.reglaPage, layout.impresoraTipo, layout.offsets),
+          __html: cssImpresion(layout.reglaPage, layout.impresoraTipo),
         }}
       />
     </main>

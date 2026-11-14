@@ -4,6 +4,7 @@ import { Topbar } from '@/components/shell/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { AjusteInventarioAction } from './AjusteInventarioAction'
 import { CodigoEtiqueta } from '@/components/etiquetas/CodigoEtiqueta'
+import { resolverValorSimbologia } from '@/lib/etiquetas/simbologias'
 import { verifySession } from '@/lib/dal/session'
 import { resolverCodigo } from '@/lib/dal/inventario/codigo'
 import { getItemConDetalle } from '@/lib/dal/inventario/item'
@@ -67,10 +68,7 @@ export default async function FichaItemPage(props: {
   const puedeImprimirEtiqueta =
     detalle.estado_item === 'disponible' || detalle.estado_item === 'reservado'
 
-  const textoCodigo =
-    config.metodo === 'ean13' || config.metodo === 'code128'
-      ? detalle.codigo_ean
-      : detalle.qr_code
+  const textoCodigo = resolverValorSimbologia(config.metodo, detalle)
 
   return (
     <>

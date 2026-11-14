@@ -1,6 +1,10 @@
 import { PADDING_ETIQUETA_MM } from '@/lib/etiquetas/limites'
 import { calcularLayout, type TamanoCodigo } from '@/lib/etiquetas/layout'
-import { obtenerSimbologia, type SimbologiaId } from '@/lib/etiquetas/simbologias'
+import {
+  obtenerSimbologia,
+  resolverValorSimbologia,
+  type SimbologiaId,
+} from '@/lib/etiquetas/simbologias'
 import { CodigoEtiqueta } from './CodigoEtiqueta'
 
 export interface ItemEtiqueta {
@@ -51,7 +55,7 @@ export function Etiqueta({
       simbologia: sim.id,
     }).tamanoCodigo
 
-  const textoCodigo = sim.dimension === '2d' ? item.qr_code : item.codigo_ean
+  const textoCodigo = resolverValorSimbologia(sim.id, item)
 
   return (
     <div
