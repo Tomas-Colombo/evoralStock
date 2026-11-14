@@ -34,7 +34,7 @@ export function NuevaReglaForm({
   productos: Ref[]
   puedeVerMargenes?: boolean
   /** Set when the form runs inside a modal: closes it instead of navigating. */
-  onSuccess?: () => void
+  onSuccess?: (regla: { id: string; tipoRegla: TipoRegla }) => void | Promise<void>
   onCancel?: () => void
 }) {
   const router = useRouter()
@@ -71,6 +71,7 @@ export function NuevaReglaForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (pending) return
     setError(null)
 
     if (nombre.trim().length < 2) return setError('Ponele un nombre descriptivo (min 2 chars)')
@@ -111,10 +112,13 @@ export function NuevaReglaForm({
         fecha_hasta: fechaHasta || null,
       })
       if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
-      toast.success('Regla creada')
-      if (onSuccess) onSuccess()
-      else router.push('/precios/reglas')
-      router.refresh()
+      if (onSuccess) {
+        await onSuccess({ id: res.data!.id, tipoRegla })
+      } else {
+        toast.success('Regla creada')
+        router.push('/precios/reglas')
+        router.refresh()
+      }
     })
   }
 

@@ -6,6 +6,7 @@ describe('proyectarControlDePrecios', () => {
   const baseRows: ProductoConPrecioStatus[] = [
     {
       id_producto: 'p1',
+      id_categoria: 'c1',
       nombre: 'Pantalón Cargo',
       sku: 'PAN-01',
       categoria_nombre: 'Pantalones',
@@ -14,6 +15,7 @@ describe('proyectarControlDePrecios', () => {
       precio_venta_resuelto_at: '2026-01-01',
       precio_venta_desactualizado: false,
       regla_margen_nombre: 'Margen 75%',
+      id_regla_margen_resuelta: 'r1',
       precio_proyectado: 35000,
       diferencia_pct: 0,
     },
@@ -26,6 +28,7 @@ describe('proyectarControlDePrecios', () => {
     })
     expect(res[0].costo_vigente).toBe(20000)
     expect(res[0].regla_margen_nombre).toBe('Margen 75%')
+    expect(res[0].id_regla_margen_resuelta).toBe('r1')
     expect(res[0].precio_proyectado).toBe(35000)
     expect(res[0].diferencia_pct).toBe(0)
   })
@@ -37,18 +40,20 @@ describe('proyectarControlDePrecios', () => {
     })
     expect(res[0].costo_vigente).toBeNull()
     expect(res[0].regla_margen_nombre).toBe('Margen 75%')
+    expect(res[0].id_regla_margen_resuelta).toBe('r1')
     expect(res[0].precio_proyectado).toBeNull()
     expect(res[0].diferencia_pct).toBeNull()
     expect(res[0].precio_venta).toBe(35000)
   })
 
-  it('anula regla_margen_nombre, precio_proyectado y diferencia_pct sin permiso de márgenes', () => {
+  it('anula regla_margen_nombre, id_regla_margen_resuelta, precio_proyectado y diferencia_pct sin permiso de márgenes', () => {
     const res = proyectarControlDePrecios(baseRows, {
       puedeVerCostos: true,
       puedeVerMargenes: false,
     })
     expect(res[0].costo_vigente).toBe(20000)
     expect(res[0].regla_margen_nombre).toBeNull()
+    expect(res[0].id_regla_margen_resuelta).toBeNull()
     expect(res[0].precio_proyectado).toBeNull()
     expect(res[0].diferencia_pct).toBeNull()
     expect(res[0].precio_venta).toBe(35000)
@@ -61,6 +66,7 @@ describe('proyectarControlDePrecios', () => {
     })
     expect(res[0].costo_vigente).toBeNull()
     expect(res[0].regla_margen_nombre).toBeNull()
+    expect(res[0].id_regla_margen_resuelta).toBeNull()
     expect(res[0].precio_proyectado).toBeNull()
     expect(res[0].diferencia_pct).toBeNull()
     expect(res[0].precio_venta).toBe(35000)

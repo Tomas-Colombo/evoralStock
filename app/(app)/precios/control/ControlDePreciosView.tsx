@@ -8,12 +8,13 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { useToast } from '@/components/ui/Toast'
 import type { ProductoConPrecioStatus } from '@/lib/types/precios'
-import { recalcularBatchAction, recalcularPrecioAction } from '../actions'
+import { aplicarReglaAction, recalcularBatchAction, recalcularPrecioAction } from '../actions'
 import { revaluarCostosUsdAction } from '../cotizacion/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Select } from '@/components/ui/Select'
+import { agruparPorCategoria } from '@/lib/precios/agrupar'
 
 type Filter = 'todos' | 'desactualizados' | 'sin-precio' | 'sin-regla'
 
@@ -25,18 +26,31 @@ export function ControlDePreciosView({
   cantidadUsd = 0,
   puedeVerCostos,
   puedeVerMargenes = true,
+  puedeAplicar = false,
+  regla,
+  aviso,
 }: {
   initial: ProductoConPrecioStatus[]
   canRevaluar?: boolean
   cantidadUsd?: CantidadUsdProp
   puedeVerCostos: boolean
   puedeVerMargenes?: boolean
+  puedeAplicar?: boolean
+  regla?: { id: string; nombre: string }
+  aviso?: string
 }) {
   const router = useRouter()
   const toast = useToast()
   const [rows, setRows] = useState(initial)
+  const [prevInitial, setPrevInitial] = useState(initial)
+
+  if (initial !== prevInitial) {
+    setPrevInitial(initial)
+    setRows(initial)
+  }
+
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<Filter>('desactualizados')
+  const [filter, setFilter] = useState<Filter>(regla ? 'todos' : 'desactualizados')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
   const [confirmRevaluarOpen, setConfirmRevaluarOpen] = useState(false)
@@ -59,6 +73,8 @@ export function ControlDePreciosView({
       return true
     })
   }, [rows, q, filter])
+
+  const grupos = useMemo(() => agruparPorCategoria(filtered), [filtered])
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -140,6 +156,20 @@ export function ControlDePreciosView({
     })
   }
 
+  function handleAplicarATodos() {
+    if (!regla || pending) return
+    start(async () => {
+      const res = await aplicarReglaAction(regla.id)
+      if (!res.ok) {
+        toast.error('No se pudo aplicar', mensajeDeError(res.reason))
+        return
+      }
+      const count = res.data?.recalculados ?? 0
+      toast.success(`${count} ${count === 1 ? 'producto recalculado' : 'productos recalculados'}`)
+      router.refresh()
+    })
+  }
+
   const fmt = (n: number | null) =>
     n == null ? '—' : `$ ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
@@ -152,8 +182,24 @@ export function ControlDePreciosView({
       ? `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD (${omitidas} omitido(s) por no tener costo original en USD registrado).`
       : `Esta acción revalúa los costos en dólares al tipo de cambio oficial vigente y marca los precios de venta como desactualizados. Afecta a ${revaluables} producto(s) con costo en USD.`
 
+  const mostrarAplicarATodos = Boolean(regla && puedeAplicar && rows.length > 0)
+
   return (
     <div className="space-y-4">
+      {/* Aviso arriba si viene de page.tsx */}
+      {aviso && (
+        <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted">
+          {aviso}
+        </div>
+      )}
+
+      {/* Título contextual si está filtrado por regla */}
+      {regla && (
+        <div className="rounded-lg border border-border bg-card p-4 text-sm font-medium">
+          Productos de la regla {regla.nombre}
+        </div>
+      )}
+
       {/* Banner de resultado de revaluación */}
       {resultadoRevaluacion && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
@@ -232,6 +278,11 @@ export function ControlDePreciosView({
                 : 'Revaluar costos USD al dólar vigente'}
             </Button>
           )}
+          {mostrarAplicarATodos && (
+            <Button onClick={handleAplicarATodos} disabled={pending}>
+              {pending ? 'Aplicando…' : 'Aplicar a todos'}
+            </Button>
+          )}
           <span className="text-sm text-muted">{selected.size} seleccionados</span>
           <Button
             variant="secondary"
@@ -255,110 +306,119 @@ export function ControlDePreciosView({
         </div>
       </div>
 
-      <TableFrame>
-        <DataTable>
-          <THead>
-            <Th className="px-3 py-3 w-8"></Th>
-            <Th className="px-3 py-3">Producto</Th>
-            <Th className="px-3 py-3">Categoría</Th>
-            {puedeVerMargenes && <Th className="px-3 py-3">Regla margen</Th>}
-            {puedeVerCostos && <Th align="right" className="px-3 py-3">Costo</Th>}
-            <Th align="right" className="px-3 py-3">Precio actual</Th>
-            {puedeVerMargenes && <Th align="right" className="px-3 py-3">Precio proyectado</Th>}
-            {puedeVerMargenes && <Th align="right" className="px-3 py-3">Δ%</Th>}
-            <Th className="px-3 py-3">Estado</Th>
-            <Th className="px-3 py-3"></Th>
-          </THead>
-          <TBody>
-            {filtered.length === 0 ? (
+      {grupos.length === 0 ? (
+        <TableFrame>
+          <DataTable>
+            <ControlTableHead puedeVerCostos={puedeVerCostos} puedeVerMargenes={puedeVerMargenes} />
+            <TBody>
               <Tr>
-                <Td align="center" colSpan={10 - (puedeVerCostos ? 0 : 1) - (puedeVerMargenes ? 0 : 3)} className="px-3 py-6 text-muted">
+                <Td
+                  align="center"
+                  colSpan={10 - (puedeVerCostos ? 0 : 1) - (puedeVerMargenes ? 0 : 3)}
+                  className="px-3 py-6 text-muted"
+                >
                   Nada para mostrar con los filtros actuales.
                 </Td>
               </Tr>
-            ) : (
-              filtered.map((r) => {
-                const desactualizado = r.precio_venta_desactualizado
-                const sinPrecio = r.precio_venta == null
-                return (
-                  <Tr
-                    key={r.id_producto}
-                    className={selected.has(r.id_producto) ? 'bg-line/60' : ''}
-                  >
-                    <Td className="px-3 py-3">
-                      <Checkbox
-                        aria-label={`Seleccionar ${r.nombre}`}
-                        checked={selected.has(r.id_producto)}
-                        onChange={() => toggleSelected(r.id_producto)}
-                      />
-                    </Td>
-                    <Td className="px-3 py-3">
-                      <div className="font-medium">{r.nombre}</div>
-                      {r.sku && <div className="font-mono text-xs text-muted">{r.sku}</div>}
-                    </Td>
-                    <Td className="px-3 py-3">
-                      {r.categoria_nombre ?? <span className="text-muted">—</span>}
-                    </Td>
-                    {puedeVerMargenes && (
-                      <Td className="px-3 py-3 text-xs">
-                        {r.regla_margen_nombre ?? (
-                          <span className="text-muted italic">Sin regla → costo</span>
-                        )}
-                      </Td>
-                    )}
-                    {puedeVerCostos && (
-                      <Td align="right" className="px-3 py-3 font-mono">{fmt(r.costo_vigente)}</Td>
-                    )}
-                    <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_venta)}</Td>
-                    {puedeVerMargenes && (
-                      <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_proyectado)}</Td>
-                    )}
-                    {puedeVerMargenes && (
-                      <Td align="right" className="px-3 py-3 font-mono">
-                        {r.diferencia_pct == null ? (
-                          <span className="text-muted">—</span>
-                        ) : (
-                          <span
-                            className={
-                              r.diferencia_pct > 0
-                                ? 'text-success'
-                                : r.diferencia_pct < 0
-                                  ? 'text-alerta-ink'
-                                  : ''
-                            }
-                          >
-                            {r.diferencia_pct > 0 ? '+' : ''}
-                            {r.diferencia_pct}%
-                          </span>
-                        )}
-                      </Td>
-                    )}
-                    <Td className="px-3 py-3">
-                      {sinPrecio ? (
-                        <Badge variant="danger">Sin precio</Badge>
-                      ) : desactualizado ? (
-                        <Badge variant="warning">Desactualizado</Badge>
-                      ) : (
-                        <Badge variant="success">OK</Badge>
-                      )}
-                    </Td>
-                    <Td align="right" className="px-3 py-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => recalcularUno(r.id_producto)}
-                        disabled={pending || r.costo_vigente == null}
-                      >
-                        Recalcular
-                      </Button>
-                    </Td>
-                  </Tr>
-                )
-              })
-            )}
-          </TBody>
-        </DataTable>
-      </TableFrame>
+            </TBody>
+          </DataTable>
+        </TableFrame>
+      ) : (
+        <div className="space-y-6">
+          {grupos.map((grupo) => (
+            <div key={grupo.idCategoria ?? '__sin_categoria__'} className="space-y-2">
+              <h3 className="text-sm font-semibold">
+                {grupo.nombre} ({grupo.filas.length})
+              </h3>
+              <TableFrame>
+                <DataTable>
+                  <ControlTableHead puedeVerCostos={puedeVerCostos} puedeVerMargenes={puedeVerMargenes} />
+                  <TBody>
+                    {grupo.filas.map((r) => {
+                      const desactualizado = r.precio_venta_desactualizado
+                      const sinPrecio = r.precio_venta == null
+                      return (
+                        <Tr
+                          key={r.id_producto}
+                          className={selected.has(r.id_producto) ? 'bg-line/60' : ''}
+                        >
+                          <Td className="px-3 py-3">
+                            <Checkbox
+                              aria-label={`Seleccionar ${r.nombre}`}
+                              checked={selected.has(r.id_producto)}
+                              onChange={() => toggleSelected(r.id_producto)}
+                            />
+                          </Td>
+                          <Td className="px-3 py-3">
+                            <div className="font-medium">{r.nombre}</div>
+                            {r.sku && <div className="font-mono text-xs text-muted">{r.sku}</div>}
+                          </Td>
+                          <Td className="px-3 py-3">
+                            {r.categoria_nombre ?? <span className="text-muted">—</span>}
+                          </Td>
+                          {puedeVerMargenes && (
+                            <Td className="px-3 py-3 text-xs">
+                              {r.regla_margen_nombre ?? (
+                                <span className="text-muted italic">Sin regla → costo</span>
+                              )}
+                            </Td>
+                          )}
+                          {puedeVerCostos && (
+                            <Td align="right" className="px-3 py-3 font-mono">{fmt(r.costo_vigente)}</Td>
+                          )}
+                          <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_venta)}</Td>
+                          {puedeVerMargenes && (
+                            <Td align="right" className="px-3 py-3 font-mono">{fmt(r.precio_proyectado)}</Td>
+                          )}
+                          {puedeVerMargenes && (
+                            <Td align="right" className="px-3 py-3 font-mono">
+                              {r.diferencia_pct == null ? (
+                                <span className="text-muted">—</span>
+                              ) : (
+                                <span
+                                  className={
+                                    r.diferencia_pct > 0
+                                      ? 'text-success'
+                                      : r.diferencia_pct < 0
+                                        ? 'text-alerta-ink'
+                                        : ''
+                                  }
+                                >
+                                  {r.diferencia_pct > 0 ? '+' : ''}
+                                  {r.diferencia_pct}%
+                                </span>
+                              )}
+                            </Td>
+                          )}
+                          <Td className="px-3 py-3">
+                            {sinPrecio ? (
+                              <Badge variant="danger">Sin precio</Badge>
+                            ) : desactualizado ? (
+                              <Badge variant="warning">Desactualizado</Badge>
+                            ) : (
+                              <Badge variant="success">OK</Badge>
+                            )}
+                          </Td>
+                          <Td align="right" className="px-3 py-3">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => recalcularUno(r.id_producto)}
+                              disabled={pending || r.costo_vigente == null}
+                            >
+                              Recalcular
+                            </Button>
+                          </Td>
+                        </Tr>
+                      )
+                    })}
+                  </TBody>
+                </DataTable>
+              </TableFrame>
+            </div>
+          ))}
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmRevaluarOpen}
@@ -370,5 +430,28 @@ export function ControlDePreciosView({
         onCancel={() => setConfirmRevaluarOpen(false)}
       />
     </div>
+  )
+}
+
+function ControlTableHead({
+  puedeVerCostos,
+  puedeVerMargenes,
+}: {
+  puedeVerCostos: boolean
+  puedeVerMargenes: boolean
+}) {
+  return (
+    <THead>
+      <Th className="px-3 py-3 w-8"></Th>
+      <Th className="px-3 py-3">Producto</Th>
+      <Th className="px-3 py-3">Categoría</Th>
+      {puedeVerMargenes && <Th className="px-3 py-3">Regla margen</Th>}
+      {puedeVerCostos && <Th align="right" className="px-3 py-3">Costo</Th>}
+      <Th align="right" className="px-3 py-3">Precio actual</Th>
+      {puedeVerMargenes && <Th align="right" className="px-3 py-3">Precio proyectado</Th>}
+      {puedeVerMargenes && <Th align="right" className="px-3 py-3">Δ%</Th>}
+      <Th className="px-3 py-3">Estado</Th>
+      <Th className="px-3 py-3"></Th>
+    </THead>
   )
 }

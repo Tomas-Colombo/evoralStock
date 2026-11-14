@@ -229,10 +229,25 @@ export interface PreciosResumen {
 }
 
 /**
+ * Resumen de impacto de una regla de margen por categoría (REQ-CIR-01).
+ * Columnas devueltas por `sp_impacto_regla_margen`.
+ */
+export interface ImpactoReglaCategoria {
+  id_categoria: string | null
+  categoria_nombre: string
+  productos: number
+  cambian: number | null
+  suben: number | null
+  bajan: number | null
+  sin_costo: number | null
+}
+
+/**
  * Estado del producto respecto a su precio (Control de precios).
  */
 export interface ProductoConPrecioStatus {
   id_producto: string
+  id_categoria?: string | null
   nombre: string
   sku: string | null
   categoria_nombre: string | null
@@ -241,6 +256,7 @@ export interface ProductoConPrecioStatus {
   precio_venta_resuelto_at: string | null
   precio_venta_desactualizado: boolean
   regla_margen_nombre: string | null
+  id_regla_margen_resuelta?: string | null
   /** Precio proyectado si se recalcula ahora (útil para preview). */
   precio_proyectado: number | null
   /** Diferencia % vs precio actual. Null si no hay precio actual. */

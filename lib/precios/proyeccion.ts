@@ -13,6 +13,7 @@ export interface PermisosControlDePrecios {
  *
  * Sin precios.ver_margenes:
  *   - regla_margen_nombre es null.
+ *   - id_regla_margen_resuelta es null.
  *   - precio_proyectado es null.
  *   - diferencia_pct es null.
  *
@@ -27,6 +28,7 @@ export function proyectarControlDePrecios(
     ...r,
     costo_vigente: puedeVerCostos ? r.costo_vigente : null,
     regla_margen_nombre: puedeVerMargenes ? r.regla_margen_nombre : null,
+    id_regla_margen_resuelta: puedeVerMargenes ? r.id_regla_margen_resuelta : null,
     precio_proyectado: puedeVerCostos && puedeVerMargenes ? r.precio_proyectado : null,
     diferencia_pct: puedeVerCostos && puedeVerMargenes ? r.diferencia_pct : null,
   }))

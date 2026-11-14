@@ -1,16 +1,20 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { GuiaReglas } from '@/components/precios/GuiaReglas'
 import { verifySession } from '@/lib/dal/session'
-import { hasModuleAccess } from '@/lib/dal/guard'
+import { hasModuleAccess, hasPermission } from '@/lib/dal/guard'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
 import { listProveedoresActivos } from '@/lib/dal/inventario/proveedor'
 import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
-import { NuevaReglaForm } from '../NuevaReglaForm'
-import { Card } from '@/components/ui/Card'
+import { NuevaReglaView } from './NuevaReglaView'
 
 export default async function NuevaReglaPage() {
   const session = await verifySession()
   const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const puedeEditarPrecios = hasPermission(session, 'precios', 'editar')
+  const puedeEliminarPrecios = hasPermission(session, 'precios', 'eliminar')
+  const puedeAplicar = puedeEditarPrecios && puedeVerCostos && puedeVerMargenes
+  const puedeDeshacer = puedeEliminarPrecios
   const [categorias, proveedores, productos] = await Promise.all([
     listCategoriasActivas(),
     listProveedoresActivos(),
@@ -32,18 +36,19 @@ export default async function NuevaReglaPage() {
           </div>
         </details>
 
-        <Card padding="none" className="max-w-2xl p-6">
-          <NuevaReglaForm
-            categorias={categorias.map((c) => ({ id: c.id_categoria, nombre: c.nombre }))}
-            proveedores={proveedores.map((p) => ({ id: p.id_proveedor, nombre: p.nombre }))}
-            productos={productos.map((p) => ({
-              id: p.id_producto,
-              nombre: p.nombre,
-              sku: p.sku,
-            }))}
-            puedeVerMargenes={puedeVerMargenes}
-          />
-        </Card>
+        <NuevaReglaView
+          categorias={categorias.map((c) => ({ id: c.id_categoria, nombre: c.nombre }))}
+          proveedores={proveedores.map((p) => ({ id: p.id_proveedor, nombre: p.nombre }))}
+          productos={productos.map((p) => ({
+            id: p.id_producto,
+            nombre: p.nombre,
+            sku: p.sku,
+          }))}
+          puedeVerMargenes={puedeVerMargenes}
+          puedeAplicar={puedeAplicar}
+          puedeDeshacer={puedeDeshacer}
+          puedeVerCostos={puedeVerCostos}
+        />
       </main>
     </>
   )

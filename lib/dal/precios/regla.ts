@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/dal/supabase'
 import type {
   AlcanceRegla,
   FormaPago,
+  ImpactoReglaCategoria,
   ReglaPrecioInsert,
   ReglaPrecioRow,
   TipoRegla,
@@ -75,6 +76,54 @@ export async function spCreateReglaPrecio(input: ReglaPrecioInsert): Promise<str
   })
   if (error) throw new Error(errorDeRpc('sp_create_regla_precio', error))
   return data as string
+}
+
+/**
+ * Consulta el impacto de una regla de margen por categoría (REQ-CIR-01).
+ * Devuelve filas agrupadas por categoría (categoría null = "Sin categoría").
+ * Columnas sensibles de precios (cambian, suben, bajan, sin_costo) vienen en null
+ * si el usuario no posee inventario.ver_costos.
+ */
+export async function spImpactoReglaMargen(
+  idRegla: string,
+): Promise<ImpactoReglaCategoria[]> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('sp_impacto_regla_margen', {
+    p_id_regla: idRegla,
+  })
+  if (error) throw new Error(errorDeRpc('sp_impacto_regla_margen', error))
+
+  return ((data ?? []) as Array<{
+    id_categoria: string | null
+    categoria_nombre: string
+    productos: number | string
+    cambian: number | string | null
+    suben: number | string | null
+    bajan: number | string | null
+    sin_costo: number | string | null
+  }>).map((r) => ({
+    id_categoria: r.id_categoria,
+    categoria_nombre: r.categoria_nombre,
+    productos: Number(r.productos),
+    cambian: r.cambian == null ? null : Number(r.cambian),
+    suben: r.suben == null ? null : Number(r.suben),
+    bajan: r.bajan == null ? null : Number(r.bajan),
+    sin_costo: r.sin_costo == null ? null : Number(r.sin_costo),
+  }))
+}
+
+/**
+ * Aplica una regla de margen recalculando masivamente en el servidor todos los
+ * productos activos que la ganan y poseen costo vigente (REQ-CIR-02).
+ * Devuelve la cantidad de productos recalculados.
+ */
+export async function spAplicarReglaMargen(idRegla: string): Promise<number> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('sp_aplicar_regla_margen', {
+    p_id_regla: idRegla,
+  })
+  if (error) throw new Error(errorDeRpc('sp_aplicar_regla_margen', error))
+  return Number(data ?? 0)
 }
 
 export async function spBajaReglaPrecio(idRegla: string): Promise<void> {

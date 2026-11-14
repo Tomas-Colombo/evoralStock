@@ -112,6 +112,7 @@ export async function spRecalcularBatch(ids: string[]): Promise<Record<string, n
 /** Forma cruda que devuelve `sp_control_de_precios` (numerics como number|string). */
 interface ControlDePreciosRpcRow {
   id_producto: string
+  id_categoria: string | null
   nombre: string
   sku: string | null
   categoria_nombre: string | null
@@ -120,6 +121,7 @@ interface ControlDePreciosRpcRow {
   precio_venta_resuelto_at: string | null
   precio_venta_desactualizado: boolean
   regla_margen_nombre: string | null
+  id_regla_margen_resuelta: string | null
   precio_proyectado: number | string | null
   diferencia_pct: number | string | null
 }
@@ -145,6 +147,7 @@ export async function listControlDePrecios(): Promise<ProductoConPrecioStatus[]>
 
   return ((data ?? []) as ControlDePreciosRpcRow[]).map((r) => ({
     id_producto: r.id_producto,
+    id_categoria: r.id_categoria,
     nombre: r.nombre,
     sku: r.sku,
     categoria_nombre: r.categoria_nombre,
@@ -153,6 +156,7 @@ export async function listControlDePrecios(): Promise<ProductoConPrecioStatus[]>
     precio_venta_resuelto_at: r.precio_venta_resuelto_at,
     precio_venta_desactualizado: r.precio_venta_desactualizado,
     regla_margen_nombre: r.regla_margen_nombre,
+    id_regla_margen_resuelta: r.id_regla_margen_resuelta,
     precio_proyectado: num(r.precio_proyectado),
     diferencia_pct: num(r.diferencia_pct),
   }))

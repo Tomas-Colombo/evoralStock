@@ -100,6 +100,28 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     ],
   },
   {
+    id: 'precios-control-productos-regla',
+    titulo: 'Cómo ver los productos de una regla y aplicar precios',
+    ruta: '/precios/control',
+    permisos: ['precios.ver'],
+    pasos: [
+      'Ingresá a Control de precios desde el enlace "Ver detalle" del pop-up al crear una regla de margen.',
+      'Revisá los productos alcanzados por la regla, organizados en tablas por categoría con su precio proyectado y variación.',
+      'Hacé clic en el botón "Aplicar a todos" para actualizar el precio de venta de todos los productos de la regla en un solo paso.',
+      'Verificá el mensaje de confirmación con el total de productos recalculados.',
+    ],
+    detalles: [
+      {
+        tema: 'Permisos requeridos para aplicar',
+        texto: 'Para utilizar "Aplicar a todos" necesitás contar con permisos de edición de precios, visualización de costos y visualización de márgenes.',
+      },
+      {
+        tema: 'Filtro automático',
+        texto: 'Al ingresar a la vista de una regla, el filtro comienza en "Todos" para que puedas revisar tanto los productos desactualizados como los que ya están al día.',
+      },
+    ],
+  },
+  {
     id: 'precios-cotizacion-consultar',
     titulo: 'Cómo consultar la cotización oficial del dólar',
     ruta: '/precios/cotizacion',
@@ -171,8 +193,18 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
       'Definí el alcance (Global, Por categoría, Por proveedor o Por producto) y seleccioná el ítem correspondiente.',
       'Ingresá el valor en porcentaje o monto fijo, la prioridad y opcionalmente el rango de vigencia.',
       'Hacé clic en "Crear regla" para guardar la configuración.',
+      'Si creaste una regla de margen sobre costo, se abrirá el pop-up de confirmación mostrando el impacto de productos que suben o bajan de precio por categoría.',
+      'Desde el pop-up disponés de tres opciones: "Aplicar a N productos" para actualizar los precios en el momento, "Ver detalle" para examinar los artículos alcanzados en Control de precios, o "Deshacer regla" para cancelarla de inmediato.',
     ],
     detalles: [
+      {
+        tema: 'Confirmación de impacto de regla de margen',
+        texto: 'El pop-up de confirmación consulta el impacto proyectado sin exponer montos y permite aplicar el recálculo masivo en el momento si contás con los permisos de edición, costos y márgenes.',
+      },
+      {
+        tema: 'Sin permiso para ver costos',
+        texto: 'Si no contás con permiso para ver costos no vas a poder aplicar los precios desde el pop-up; la regla queda guardada y otra persona con dicho permiso podrá aplicar los precios desde Control de precios.',
+      },
       {
         tema: 'Cascada de prioridad',
         texto: 'Ante dos reglas del mismo tipo y alcance, se aplica la que tenga mayor número de prioridad.',

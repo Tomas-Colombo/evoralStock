@@ -1,6 +1,6 @@
 import { Topbar } from '@/components/shell/Topbar'
 import { verifySession } from '@/lib/dal/session'
-import { hasModuleAccess } from '@/lib/dal/guard'
+import { hasModuleAccess, hasPermission } from '@/lib/dal/guard'
 import { listReglasPrecio } from '@/lib/dal/precios/regla'
 import { listPlanesCuotas } from '@/lib/dal/precios/cuotas'
 import { listCategoriasActivas } from '@/lib/dal/inventario/categoria'
@@ -12,6 +12,11 @@ import { NuevaReglaModalButton } from './NuevaReglaModalButton'
 export default async function ReglasPage() {
   const session = await verifySession()
   const puedeVerMargenes = hasModuleAccess(session, 'precios', 'ver_margenes')
+  const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
+  const puedeEditarPrecios = hasPermission(session, 'precios', 'editar')
+  const puedeEliminarPrecios = hasPermission(session, 'precios', 'eliminar')
+  const puedeAplicar = puedeEditarPrecios && puedeVerCostos && puedeVerMargenes
+  const puedeDeshacer = puedeEliminarPrecios
   const [rows, planesCuotas, categorias, proveedores, productos] = await Promise.all([
     listReglasPrecio({ incluirBaja: false }),
     listPlanesCuotas(),
@@ -36,6 +41,9 @@ export default async function ReglasPage() {
               sku: p.sku,
             }))}
             puedeVerMargenes={puedeVerMargenes}
+            puedeAplicar={puedeAplicar}
+            puedeDeshacer={puedeDeshacer}
+            puedeVerCostos={puedeVerCostos}
           />
         }
       />

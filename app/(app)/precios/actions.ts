@@ -5,9 +5,11 @@ import { AuthorizationError } from '@/lib/dal/errors'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import {
+  spAplicarReglaMargen,
   spBajaReglaPrecio,
   spCreateReglaPrecio,
   spExtenderVigenciaRegla,
+  spImpactoReglaMargen,
 } from '@/lib/dal/precios/regla'
 import {
   listPlanesCuotas,
@@ -40,11 +42,14 @@ import {
   CUOTAS_MIN,
   type AlcanceRegla,
   type FormaPago,
+  type ImpactoReglaCategoria,
   type MedioPagoRecargo,
   type PlanCuotasRow,
   type TipoRegla,
   type TipoValorRegla,
 } from '@/lib/types/precios'
+import { reglaIdSchema } from '@/lib/validation/precios'
+import { extractErrorSlug } from '@/lib/dal/revendedoras/slug-error'
 
 type ActionResult<T = unknown> = { ok: true; data?: T } | { ok: false; reason: string }
 
@@ -52,10 +57,10 @@ type Guarded =
   | { ok: true; tenantId: string; userId: string }
   | { ok: false; error: string }
 
-async function guarded(accion: string): Promise<Guarded> {
+async function guarded(accion: string, modulo: string = 'precios'): Promise<Guarded> {
   try {
     const session = await verifySession()
-    await requireModuleRole(session, 'precios', accion)
+    await requireModuleRole(session, modulo, accion)
     return { ok: true, tenantId: session.tenantId, userId: session.user.id }
   } catch (error) {
     if (error instanceof AuthorizationError) return { ok: false, error: error.reason }
@@ -122,6 +127,55 @@ export async function extenderVigenciaReglaAction(input: {
     return { ok: true }
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
+  }
+}
+
+export async function impactoReglaAction(
+  input: unknown,
+): Promise<ActionResult<{ impacto: ImpactoReglaCategoria[] }>> {
+  const g = await guarded('ver_margenes')
+  if (!g.ok) return { ok: false, reason: g.error }
+
+  const raw = typeof input === 'string' ? { idRegla: input } : input
+  const parsed = reglaIdSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { ok: false, reason: 'payload-invalido' }
+  }
+
+  try {
+    const impacto = await spImpactoReglaMargen(parsed.data.idRegla)
+    return { ok: true, data: { impacto } }
+  } catch (e) {
+    return { ok: false, reason: extractErrorSlug(e) }
+  }
+}
+
+export async function aplicarReglaAction(
+  input: unknown,
+): Promise<ActionResult<{ recalculados: number }>> {
+  const gEditar = await guarded('editar')
+  if (!gEditar.ok) return { ok: false, reason: gEditar.error }
+
+  const gCostos = await guarded('ver_costos', 'inventario')
+  if (!gCostos.ok) return { ok: false, reason: gCostos.error }
+
+  const gMargenes = await guarded('ver_margenes')
+  if (!gMargenes.ok) return { ok: false, reason: gMargenes.error }
+
+  const raw = typeof input === 'string' ? { idRegla: input } : input
+  const parsed = reglaIdSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { ok: false, reason: 'payload-invalido' }
+  }
+
+  try {
+    const recalculados = await spAplicarReglaMargen(parsed.data.idRegla)
+    revalidatePath('/precios')
+    revalidatePath('/precios/reglas')
+    revalidatePath('/precios/control')
+    return { ok: true, data: { recalculados } }
+  } catch (e) {
+    return { ok: false, reason: extractErrorSlug(e) }
   }
 }
 

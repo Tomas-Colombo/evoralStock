@@ -48,7 +48,6 @@ export const SP_SIN_CHEQUEO: Record<string, string> = {
   // Solo lectura, acotada por RLS (10): funciones de solo lectura sin efectos colaterales
   sp_calcular_costo_cobro: 'Solo lectura / cálculo puro sin efectos colaterales',
   sp_calcular_precio_venta_snapshot: 'Solo lectura / cálculo puro acotado por RLS',
-  sp_control_de_precios: 'Solo lectura acotada por RLS',
   sp_descuentos_disponibles_venta: 'Solo lectura acotada por RLS',
   sp_get_cotizacion_vigente: 'Solo lectura acotada por RLS',
   sp_inventario_resumen: 'Solo lectura acotada por RLS',
