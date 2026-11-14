@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { CameraIcon } from '@/components/ui/CameraIcon'
 import { BuscadorProductos, type SugerenciaProducto } from '@/components/inventario/BuscadorProductos'
 import { Pagination } from '@/components/ui/Pagination'
 import { Table, type Column } from '@/components/ui/Table'
@@ -26,7 +25,6 @@ export function ProductosTableClient({
   pageSize,
   total,
   basePath = '/inventario/productos',
-  scanHref,
   tenenciaStock,
   initialTenencia,
 }: {
@@ -42,8 +40,6 @@ export function ProductosTableClient({
   /** Ruta a la que se sincronizan los filtros. La home de inventario reusa
    *  esta tabla, así que el listado vive en `/inventario`, no en `/inventario/productos`. */
   basePath?: string
-  /** Si se pasa, muestra un botón de cámara (escaneo) en la barra de búsqueda. */
-  scanHref?: string
   /** Stock por tenencia para mostrar columna y filtro (condicionado a módulo revendedoras). */
   tenenciaStock?: Record<string, StockPorTenenciaRow> | null
   initialTenencia?: string
@@ -237,9 +233,8 @@ export function ProductosTableClient({
     applyFilters(s.nombre)
   }
 
-  // Texto libre sin sugerencia: si no matcheó ningún nombre/SKU lo tratamos
-  // como un código (QR) y vamos a la ficha; si no hay ruta de escaneo,
-  // caemos al filtro server por nombre/SKU.
+  // Texto libre sin sugerencia: delega la resolución a /inventario/buscar
+  // (QR exacto de unidad, EAN-13, SKU o nombre).
   function buscarLibre(texto: string) {
     const valor = texto.trim()
     if (!valor) return
@@ -298,17 +293,6 @@ export function ProductosTableClient({
             <Button variant="neutral" onClick={() => applyFilters()} className="shrink-0">
               Aplicar
             </Button>
-            {scanHref && (
-              <Link
-                href={scanHref}
-                aria-label="Escanear con cámara"
-                title="Escanear con cámara"
-                className="inline-flex shrink-0 items-center gap-2 rounded-md border border-line-2 px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-hover hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-              >
-                <CameraIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Escanear</span>
-              </Link>
-            )}
           </>
         }
       />

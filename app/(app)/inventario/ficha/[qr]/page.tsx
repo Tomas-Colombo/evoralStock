@@ -6,7 +6,7 @@ import { AjusteInventarioAction } from './AjusteInventarioAction'
 import { QrDisplay } from '@/components/inventario/QrDisplay'
 import { verifySession } from '@/lib/dal/session'
 import { resolverCodigo } from '@/lib/dal/inventario/codigo'
-import { findItemByQr, getItemConDetalle } from '@/lib/dal/inventario/item'
+import { getItemConDetalle } from '@/lib/dal/inventario/item'
 import { ESTADO_ITEM_LABEL, ESTADO_ITEM_VARIANT } from '@/lib/types/inventario'
 import { EscanearOtro } from './EscanearOtro'
 import { FichaActions } from './FichaActions'
@@ -22,15 +22,8 @@ export default async function FichaItemPage(props: {
   const { qr } = await props.params
   const decoded = decodeURIComponent(qr)
 
-  const base = await findItemByQr(decoded)
-  if (!base) {
-    const resuelto = await resolverCodigo(decoded)
-    if (resuelto?.tipo === 'item') {
-      redirect(`/inventario/ficha/${encodeURIComponent(resuelto.item.qr_code)}`)
-    }
-  }
-
-  if (!base) {
+  const resuelto = await resolverCodigo(decoded, { sku: false })
+  if (!resuelto || resuelto.tipo !== 'item') {
     return (
       <>
         <Topbar title="Ítem no encontrado" session={session} backHref="/inventario/ficha" />
@@ -52,6 +45,12 @@ export default async function FichaItemPage(props: {
       </>
     )
   }
+
+  if (resuelto.item.qr_code !== decoded) {
+    redirect(`/inventario/ficha/${encodeURIComponent(resuelto.item.qr_code)}`)
+  }
+
+  const base = resuelto.item
 
   const puedeVerCostos = hasModuleAccess(session, 'inventario', 'ver_costos')
   const detalleRaw = await getItemConDetalle(base.id_item)

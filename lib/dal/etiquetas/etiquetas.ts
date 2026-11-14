@@ -43,10 +43,10 @@ export interface CrearEtiquetaPlantillaInput {
   nombre: string
   ancho_mm: number
   alto_mm: number
-  mostrar_nombre?: boolean
-  mostrar_talle?: boolean
-  mostrar_sku?: boolean
-  mostrar_texto_codigo?: boolean
+  mostrar_nombre: boolean
+  mostrar_talle: boolean
+  mostrar_sku: boolean
+  mostrar_texto_codigo: boolean
 }
 
 export interface EditarEtiquetaPlantillaInput {
@@ -54,10 +54,10 @@ export interface EditarEtiquetaPlantillaInput {
   nombre: string
   ancho_mm: number
   alto_mm: number
-  mostrar_nombre?: boolean
-  mostrar_talle?: boolean
-  mostrar_sku?: boolean
-  mostrar_texto_codigo?: boolean
+  mostrar_nombre: boolean
+  mostrar_talle: boolean
+  mostrar_sku: boolean
+  mostrar_texto_codigo: boolean
 }
 
 /**
@@ -71,7 +71,11 @@ export async function getEtiquetaConfig(): Promise<EtiquetaConfig> {
     .select('metodo, impresora_tipo, margen_mm, separacion_mm, columnas, offset_x_mm, offset_y_mm')
     .maybeSingle()
 
-  if (error || !data) {
+  if (error) {
+    throw new Error(`getEtiquetaConfig: ${error.message}`)
+  }
+
+  if (!data) {
     return {
       metodo: ETIQUETA_CONFIG_DEFAULTS.metodo,
       impresora_tipo: ETIQUETA_CONFIG_DEFAULTS.impresora_tipo,
@@ -160,10 +164,10 @@ export async function spCrearEtiquetaPlantilla(
     p_nombre: input.nombre,
     p_ancho_mm: input.ancho_mm,
     p_alto_mm: input.alto_mm,
-    p_mostrar_nombre: input.mostrar_nombre ?? true,
-    p_mostrar_talle: input.mostrar_talle ?? true,
-    p_mostrar_sku: input.mostrar_sku ?? true,
-    p_mostrar_texto_codigo: input.mostrar_texto_codigo ?? true,
+    p_mostrar_nombre: input.mostrar_nombre,
+    p_mostrar_talle: input.mostrar_talle,
+    p_mostrar_sku: input.mostrar_sku,
+    p_mostrar_texto_codigo: input.mostrar_texto_codigo,
     p_ip: ip ?? null,
   })
   if (error) throw new Error(errorDeRpc('sp_crear_etiqueta_plantilla', error))
@@ -180,10 +184,10 @@ export async function spEditarEtiquetaPlantilla(
     p_nombre: input.nombre,
     p_ancho_mm: input.ancho_mm,
     p_alto_mm: input.alto_mm,
-    p_mostrar_nombre: input.mostrar_nombre ?? true,
-    p_mostrar_talle: input.mostrar_talle ?? true,
-    p_mostrar_sku: input.mostrar_sku ?? true,
-    p_mostrar_texto_codigo: input.mostrar_texto_codigo ?? true,
+    p_mostrar_nombre: input.mostrar_nombre,
+    p_mostrar_talle: input.mostrar_talle,
+    p_mostrar_sku: input.mostrar_sku,
+    p_mostrar_texto_codigo: input.mostrar_texto_codigo,
     p_ip: ip ?? null,
   })
   if (error) throw new Error(errorDeRpc('sp_editar_etiqueta_plantilla', error))

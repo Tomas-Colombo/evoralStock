@@ -170,7 +170,6 @@ export default async function InventarioHome(props: {
             pageSize={PRODUCTOS_PAGE_SIZE}
             total={total}
             basePath="/inventario"
-            scanHref="/inventario/ficha"
             tenenciaStock={tenenciaStockMap}
             initialTenencia={tieneModuloRevendedoras ? (searchParams.tenencia ?? '') : ''}
           />

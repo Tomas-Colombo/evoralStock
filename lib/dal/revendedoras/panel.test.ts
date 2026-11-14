@@ -108,7 +108,7 @@ describe('DAL Panel Revendedoras — Slice 4b', () => {
     })
 
     await quienTieneItem('2000000000015')
-    expect(resolverSpy).toHaveBeenCalledWith('2000000000015')
+    expect(resolverSpy).toHaveBeenCalledWith('2000000000015', { sku: false })
     expect(rpcSpy).toHaveBeenCalledWith('rf_quien_tiene_item', { p_identificador: 'QR-RESOLVED-123' })
   })
 

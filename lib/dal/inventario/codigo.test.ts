@@ -107,6 +107,18 @@ describe('resolverCodigo (REQ-ETQ-06)', () => {
     expect(res).toEqual({ tipo: 'item', item: mockItemEan })
   })
 
+  it('EAN válido sin ítem → sigue a SKU', async () => {
+    findProductoBySkuMock.mockResolvedValue(mockProducto)
+
+    const { resolverCodigo } = await import('./codigo')
+    const res = await resolverCodigo('2000000000015')
+
+    expect(findItemByQrMock).toHaveBeenCalledWith('2000000000015')
+    expect(findItemByEanMock).toHaveBeenCalledWith('2000000000015')
+    expect(findProductoBySkuMock).toHaveBeenCalledWith('2000000000015')
+    expect(res).toEqual({ tipo: 'producto', producto: mockProducto, talle: null })
+  })
+
   it('3. Orden: si QR y EAN no coinciden, busca por SKU', async () => {
     findProductoBySkuMock.mockResolvedValue(mockProducto)
 

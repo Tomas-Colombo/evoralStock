@@ -59,10 +59,10 @@ describe('lib/dal/etiquetas/etiquetas', () => {
       })
     })
 
-    it('devuelve los valores por defecto si no hay fila o supabase devuelve error', async () => {
+    it('devuelve los valores por defecto si no hay fila', async () => {
       const builder = {
         select: () => builder,
-        maybeSingle: async () => ({ data: null, error: { message: 'not found' } }),
+        maybeSingle: async () => ({ data: null, error: null }),
       }
 
       createServerClientMock.mockResolvedValue({
@@ -81,6 +81,20 @@ describe('lib/dal/etiquetas/etiquetas', () => {
         offset_x_mm: ETIQUETA_CONFIG_DEFAULTS.offset_x_mm,
         offset_y_mm: ETIQUETA_CONFIG_DEFAULTS.offset_y_mm,
       })
+    })
+
+    it('lanza si supabase devuelve error', async () => {
+      const builder = {
+        select: () => builder,
+        maybeSingle: async () => ({ data: null, error: { message: 'db error' } }),
+      }
+
+      createServerClientMock.mockResolvedValue({
+        from: () => builder,
+      })
+
+      const { getEtiquetaConfig } = await import('./etiquetas')
+      await expect(getEtiquetaConfig()).rejects.toThrow('getEtiquetaConfig: db error')
     })
   })
 

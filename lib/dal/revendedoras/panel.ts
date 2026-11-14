@@ -89,7 +89,7 @@ export async function quienTieneItem(
   let codigoParaRpc = identificador.trim()
   const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codigoParaRpc)
   if (!esUuid) {
-    const resuelto = await resolverCodigo(codigoParaRpc)
+    const resuelto = await resolverCodigo(codigoParaRpc, { sku: false })
     if (resuelto?.tipo === 'item') {
       codigoParaRpc = resuelto.item.qr_code
     }
