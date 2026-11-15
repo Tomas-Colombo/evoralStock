@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,7 @@ import { impactoReglaAction } from '@/app/(app)/precios/actions'
 import type { ImpactoReglaCategoria, TipoRegla } from '@/lib/types/precios'
 import { NuevaReglaForm, type Ref } from './NuevaReglaForm'
 import { ImpactoReglaDialog } from './ImpactoReglaDialog'
+import { leerImpactoDeUrl, marcarImpactoEnUrl } from './impactoEnUrl'
 
 export function NuevaReglaModalButton({
   categorias,
@@ -41,6 +42,24 @@ export function NuevaReglaModalButton({
     reason: string
   } | null>(null)
 
+  useEffect(() => {
+    const id = leerImpactoDeUrl()
+    if (!id) return
+    let cancelado = false
+    void impactoReglaAction(id).then((res) => {
+      if (cancelado) return
+      if (!res.ok) {
+        marcarImpactoEnUrl(null)
+        return
+      }
+      setDialogData({ id, impacto: res.data?.impacto ?? [] })
+      setOpen(true)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
   function handleOpen() {
     setDialogData(null)
     setImpactoError(null)
@@ -48,6 +67,7 @@ export function NuevaReglaModalButton({
   }
 
   function handleCloseModal() {
+    marcarImpactoEnUrl(null)
     setOpen(false)
     if (dialogData) {
       setDialogData(null)
@@ -75,6 +95,7 @@ export function NuevaReglaModalButton({
     }
 
     setDialogData({ id, impacto: res.data?.impacto ?? [] })
+    marcarImpactoEnUrl(id)
   }
 
   return (

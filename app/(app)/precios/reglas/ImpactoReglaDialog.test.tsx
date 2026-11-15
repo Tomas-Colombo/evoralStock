@@ -170,8 +170,13 @@ describe('ImpactoReglaDialog', () => {
     resolverAplicar({ ok: true, data: { recalculados: 5 } })
     await vi.waitFor(() => {
       expect(toastMock.success).toHaveBeenCalledWith('5 productos recalculados')
-      expect(onClose).toHaveBeenCalled()
     })
+    // Queda abierto en estado aplicado para seguir trabajando desde el cuadro.
+    expect(onClose).not.toHaveBeenCalled()
+    expect(
+      screen.getByText('Precios aplicados: los productos de esta regla ya tienen el precio nuevo.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Aplicar a/i })).not.toBeInTheDocument()
   })
 
   it('visibilidad de botones por permiso', () => {

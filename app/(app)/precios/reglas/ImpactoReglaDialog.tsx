@@ -28,12 +28,15 @@ export function ImpactoReglaDialog({
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(false)
+  const [aplicada, setAplicada] = useState(false)
 
   const totalProductos = impacto.reduce((sum, c) => sum + c.productos, 0)
   const totalCambian = impacto.reduce((sum, c) => sum + (c.cambian ?? 0), 0)
   const totalSinCosto = impacto.reduce((sum, c) => sum + (c.sin_costo ?? 0), 0)
 
-  const puedeMostrarAplicar = puedeAplicar && puedeVerCostos && totalCambian > 0
+  // Al reabrir el cuadro después de aplicar, el impacto recalculado da cambian = 0.
+  const yaAplicada = aplicada || (puedeVerCostos && totalProductos > 0 && totalCambian === 0)
+  const puedeMostrarAplicar = puedeAplicar && puedeVerCostos && totalCambian > 0 && !yaAplicada
 
   async function handleAplicar() {
     if (loading) return
@@ -46,7 +49,7 @@ export function ImpactoReglaDialog({
       }
       const n = res.data?.recalculados ?? 0
       toast.success(`${n} ${n === 1 ? 'producto recalculado' : 'productos recalculados'}`)
-      onClose()
+      setAplicada(true)
     } finally {
       setLoading(false)
     }
@@ -113,9 +116,15 @@ export function ImpactoReglaDialog({
         </div>
       )}
 
-      <p className="text-xs text-muted">
-        La regla queda guardada y los precios sin aplicar.
-      </p>
+      {yaAplicada ? (
+        <p className="text-sm font-medium text-text">
+          Precios aplicados: los productos de esta regla ya tienen el precio nuevo.
+        </p>
+      ) : (
+        <p className="text-xs text-muted">
+          La regla queda guardada y los precios sin aplicar.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         {puedeDeshacer && (

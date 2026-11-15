@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +12,7 @@ import { impactoReglaAction } from '@/app/(app)/precios/actions'
 import type { ImpactoReglaCategoria, TipoRegla } from '@/lib/types/precios'
 import { NuevaReglaForm, type Ref } from '../NuevaReglaForm'
 import { ImpactoReglaDialog } from '../ImpactoReglaDialog'
+import { leerImpactoDeUrl, marcarImpactoEnUrl } from '../impactoEnUrl'
 
 export function NuevaReglaView({
   categorias,
@@ -41,6 +42,23 @@ export function NuevaReglaView({
     reason: string
   } | null>(null)
 
+  useEffect(() => {
+    const id = leerImpactoDeUrl()
+    if (!id) return
+    let cancelado = false
+    void impactoReglaAction(id).then((res) => {
+      if (cancelado) return
+      if (!res.ok) {
+        marcarImpactoEnUrl(null)
+        return
+      }
+      setDialogData({ id, impacto: res.data?.impacto ?? [] })
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
   async function handleSuccess({ id, tipoRegla }: { id: string; tipoRegla: TipoRegla }) {
     if (tipoRegla !== 'margen') {
       toast.success('Regla creada')
@@ -58,9 +76,11 @@ export function NuevaReglaView({
     }
 
     setDialogData({ id, impacto: res.data?.impacto ?? [] })
+    marcarImpactoEnUrl(id)
   }
 
   function handleCloseDialog() {
+    marcarImpactoEnUrl(null)
     setDialogData(null)
     router.push('/precios/reglas')
   }
