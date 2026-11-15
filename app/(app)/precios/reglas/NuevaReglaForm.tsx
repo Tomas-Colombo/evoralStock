@@ -129,7 +129,7 @@ export function NuevaReglaForm({
           id="r-nombre"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
-          placeholder='Ej. "Recargo 3 cuotas 25%"'
+          placeholder='Ej. "Descuento efectivo 10%"'
           autoFocus
         />
       </Field>
