@@ -10,9 +10,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
       'Ingresá a Administración desde el menú principal de navegación.',
       'Revisá los accesos a "Usuarios", "Roles" y "Auditoría".',
       'Consultá la configuración en "Logo del negocio", "Configuración de etiquetas e impresora" y "Plantillas de etiquetas".',
-      'Revisá la tarjeta "Seguridad de la cuenta" para cambiar tu clave personal.',
-      'Consultá la sección de "Últimas acciones auditadas" para revisar las operaciones recientes.',
-    ],
+      'Revisá la tarjeta "Seguridad de la cuenta" para cambiar tu clave personal.',    ],
   },
   {
     id: 'administracion-roles-listado',

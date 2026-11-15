@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/Skeleton'
-import { SkeletonTable, SkeletonTopbar } from '@/components/shell/PageSkeleton'
+import { SkeletonTopbar } from '@/components/shell/PageSkeleton'
 import { Card } from '@/components/ui/Card'
 
-/** Accesos rápidos a usuarios y roles, tarjetas de configuración y tabla de auditoría. */
+/** Accesos rápidos a usuarios y roles, y tarjetas de configuración. */
 export default function LoadingAdministracion() {
   return (
     <>
@@ -80,10 +80,7 @@ export default function LoadingAdministracion() {
             <Skeleton width="100%" height="2.25rem" />
             <Skeleton width="100%" height="2.25rem" />
           </div>
-        </Card>
-
-        <SkeletonTable title="Últimas acciones auditadas" rows={5} />
-      </main>
+        </Card>      </main>
     </>
   )
 }

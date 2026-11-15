@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { Pagination } from '@/components/ui/Pagination'
 import type { AuditoriaConActor } from '@/lib/types/administracion'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Select } from '@/components/ui/Select'
@@ -20,41 +21,63 @@ export function AuditoriaView({
   rows,
   entidades,
   filtros,
+  page,
+  pageSize,
+  total,
 }: {
   rows: AuditoriaConActor[]
   entidades: string[]
   filtros: { entidad: string; desde: string; hasta: string }
+  page: number
+  pageSize: number
+  total: number
 }) {
   const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const [entidad, setEntidad] = useState(filtros.entidad)
   const [desde, setDesde] = useState(filtros.desde)
   const [hasta, setHasta] = useState(filtros.hasta)
   const [detalle, setDetalle] = useState<AuditoriaConActor | null>(null)
 
-  function aplicar() {
+  const invertido = desde && hasta && desde > hasta
+
+  function navigate(params: URLSearchParams) {
+    const qs = params.toString()
+    startTransition(() =>
+      router.push(qs ? `/administracion/auditoria?${qs}` : '/administracion/auditoria'),
+    )
+  }
+
+  function buildParams(nextPage: number) {
     const params = new URLSearchParams()
     if (entidad) params.set('entidad', entidad)
     if (desde) params.set('desde', desde)
     if (hasta) params.set('hasta', hasta)
-    const qs = params.toString()
-    router.push(qs ? `/administracion/auditoria?${qs}` : '/administracion/auditoria')
+    if (nextPage > 1) params.set('page', String(nextPage))
+    return params
+  }
+
+  function aplicar() {
+    if (invertido) return
+    navigate(buildParams(1))
   }
 
   function limpiar() {
     setEntidad('')
     setDesde('')
     setHasta('')
-    router.push('/administracion/auditoria')
+    navigate(new URLSearchParams())
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <form
         onSubmit={(e) => {
           e.preventDefault()
           aplicar()
         }}
         className="rounded-lg border border-border bg-card p-4 flex flex-wrap items-end gap-3"
+        aria-label="Filtrar auditoría"
       >
         <div className="w-56">
           <Field htmlFor="a-ent" label="Entidad">
@@ -62,6 +85,7 @@ export function AuditoriaView({
               id="a-ent"
               value={entidad}
               onChange={(e) => setEntidad(e.target.value)}
+              disabled={pending}
             >
               <option value="">Todas</option>
               {entidades.map((e) => (
@@ -71,18 +95,41 @@ export function AuditoriaView({
           </Field>
         </div>
         <div className="w-40">
-          <Field htmlFor="a-d" label="Desde">
-            <Input id="a-d" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+          <Field
+            htmlFor="a-d"
+            label="Desde"
+            error={invertido ? 'Posterior a "Hasta"' : undefined}
+          >
+            <Input
+              id="a-d"
+              type="date"
+              value={desde}
+              max={hasta || undefined}
+              invalid={!!invertido}
+              onChange={(e) => setDesde(e.target.value)}
+              disabled={pending}
+            />
           </Field>
         </div>
         <div className="w-40">
           <Field htmlFor="a-h" label="Hasta">
-            <Input id="a-h" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+            <Input
+              id="a-h"
+              type="date"
+              value={hasta}
+              min={desde || undefined}
+              onChange={(e) => setHasta(e.target.value)}
+              disabled={pending}
+            />
           </Field>
         </div>
         <div className="flex gap-2 ml-auto">
-          <Button type="button" variant="ghost" onClick={limpiar}>Limpiar</Button>
-          <Button type="submit">Aplicar</Button>
+          <Button type="button" variant="secondary" onClick={limpiar} disabled={pending}>
+            Limpiar
+          </Button>
+          <Button type="submit" disabled={pending || !!invertido}>
+            {pending ? 'Filtrando…' : 'Aplicar'}
+          </Button>
         </div>
       </form>
 
@@ -99,7 +146,9 @@ export function AuditoriaView({
               <Th>Entidad</Th>
               <Th>Acción</Th>
               <Th>ID</Th>
-              <Th></Th>
+              <Th align="right">
+                <span className="sr-only">Acciones</span>
+              </Th>
             </THead>
             <TBody>
               {rows.map((r) => (
@@ -128,6 +177,14 @@ export function AuditoriaView({
           </DataTable>
         )}
       </TableFrame>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={(p) => navigate(buildParams(p))}
+        disabled={pending}
+      />
 
       <Modal
         open={!!detalle}

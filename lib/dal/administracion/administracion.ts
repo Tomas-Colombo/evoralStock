@@ -244,30 +244,36 @@ async function borrarLogosViejos(
 
 // ─── Auditoría ───────────────────────────────────────────────────────
 
-export async function listAuditoria(opts?: {
+// Paginada en el servidor: antes traía hasta 500 filas de una y la tabla no
+// tenía forma de llegar a las más viejas.
+export async function listAuditoria(opts: {
   entidad?: string
   desde?: string
   hasta?: string
-  limit?: number
-}): Promise<AuditoriaConActor[]> {
+  page: number
+  pageSize: number
+}): Promise<{ rows: AuditoriaConActor[]; total: number }> {
   const supabase = await createServerClient()
+  const from = (Math.max(1, opts.page) - 1) * opts.pageSize
+  const to = from + opts.pageSize - 1
   let q = supabase
     .from('auditoria')
     .select(`
       id_auditoria, id_tenant, id_usuario, entidad, entidad_id, accion,
       cambios, ts, ip
-    `)
+    `, { count: 'exact' })
     .order('ts', { ascending: false })
-    .limit(opts?.limit ?? 200)
-  if (opts?.entidad) q = q.eq('entidad', opts.entidad)
-  if (opts?.desde) q = q.gte('ts', opts.desde)
-  if (opts?.hasta) q = q.lte('ts', opts.hasta)
+    .range(from, to)
+  if (opts.entidad) q = q.eq('entidad', opts.entidad)
+  if (opts.desde) q = q.gte('ts', opts.desde)
+  if (opts.hasta) q = q.lte('ts', opts.hasta)
 
-  const { data: rawRows, error } = await q
+  const { data: rawRows, count, error } = await q
   if (error) throw new Error(`listAuditoria: ${error.message}`)
 
   const rows = (rawRows ?? []) as AuditoriaRow[]
-  if (rows.length === 0) return []
+  const total = count ?? 0
+  if (rows.length === 0) return { rows: [], total }
 
   const userIds = Array.from(
     new Set(rows.map((r) => r.id_usuario).filter((id): id is string => Boolean(id))),
@@ -285,14 +291,17 @@ export async function listAuditoria(opts?: {
     }
   }
 
-  return rows.map((r) => {
-    const actor = r.id_usuario ? userMap.get(r.id_usuario) : null
-    return {
-      ...r,
-      actor_email: actor?.email ?? null,
-      actor_nombre: actor?.nombre_completo ?? null,
-    }
-  })
+  return {
+    total,
+    rows: rows.map((r) => {
+      const actor = r.id_usuario ? userMap.get(r.id_usuario) : null
+      return {
+        ...r,
+        actor_email: actor?.email ?? null,
+        actor_nombre: actor?.nombre_completo ?? null,
+      }
+    }),
+  }
 }
 
 /** Lista de entidades distintas para el filtro (dinámico). */

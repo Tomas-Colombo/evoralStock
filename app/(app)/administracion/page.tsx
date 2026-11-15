@@ -4,7 +4,6 @@ import { hasModuleAccess } from '@/lib/dal/guard'
 import { verifySession } from '@/lib/dal/session'
 import { capacidades, modulosDePermisoVisibles } from '@/lib/modulos/capacidades'
 import {
-  listAuditoria,
   listRoles,
   listUsuarios,
 } from '@/lib/dal/administracion/administracion'
@@ -17,7 +16,6 @@ import { ConfiguracionLogoCard } from './ConfiguracionLogoCard'
 import { ConfiguracionEtiquetasCard } from './ConfiguracionEtiquetasCard'
 import { PlantillasEtiquetaCard } from './PlantillasEtiquetaCard'
 import { RolesModal } from './RolesModal'
-import { Card } from '@/components/ui/Card'
 
 function cardLink(c: { href: string; label: string; value: string }) {
   return (
@@ -36,10 +34,9 @@ export default async function AdministracionHome() {
   const session = await verifySession()
   const cap = capacidades(session.modulosHabilitados)
   const modulosVisibles = modulosDePermisoVisibles(cap)
-  const [usuarios, roles, ultimasAcciones, etiquetaConfig, plantillas] = await Promise.all([
+  const [usuarios, roles, etiquetaConfig, plantillas] = await Promise.all([
     listUsuarios(),
     listRoles(),
-    listAuditoria({ limit: 15 }),
     getEtiquetaConfig(),
     listEtiquetaPlantillas(),
   ])
@@ -78,36 +75,6 @@ export default async function AdministracionHome() {
           canDelete={canDelete}
         />
         <CambiarPasswordCard />
-
-        <Card as="section" padding="none" className="overflow-x-auto">
-          <div className="border-b border-border px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-display text-lg">Últimas acciones auditadas</h3>
-            <Link href="/administracion/auditoria" className="-mx-2 rounded-[4px] px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink">
-              Ver historial completo
-            </Link>
-          </div>
-          {ultimasAcciones.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted">Sin registros aún.</div>
-          ) : (
-            <ul className="divide-y divide-border-2 text-sm">
-              {ultimasAcciones.map((a) => (
-                <li key={a.id_auditoria} className="px-4 py-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-mono text-xs uppercase text-muted">
-                      {a.entidad} · {a.accion}
-                    </div>
-                    <div className="text-sm">
-                      {a.actor_nombre || a.actor_email || '(sistema)'}
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted whitespace-nowrap">
-                    {new Date(a.ts).toLocaleString('es-AR')}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
       </main>
     </>
   )
