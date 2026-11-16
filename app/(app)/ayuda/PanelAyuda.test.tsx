@@ -397,7 +397,7 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
 
     await waitFor(() => {
       expect(screen.getByText('Primeros pasos recibidos correctamente.')).toBeInTheDocument()
-      expect(screen.getAllByText(mensajeDeError('ayuda-error')).length).toBeGreaterThan(0)
+      expect(screen.getByText(mensajeDeError('ayuda-error'))).toBeInTheDocument()
     })
 
     // La burbuja de usuario NO se remueve porque ya hubo datos transmitidos
@@ -406,12 +406,40 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
     ).toBeInTheDocument()
   })
 
-  it('abort al cerrar: cancela el stream con AbortController al cerrar el panel', async () => {
+  it('error de stream aparece una sola vez (dentro del mensaje, sin banner global)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta que falla."}\n\n',
+        'data: {"tipo":"error","reason":"ayuda-error"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Pregunta error único' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Respuesta que falla.')).toBeInTheDocument()
+      expect(screen.getByText(mensajeDeError('ayuda-error'))).toBeInTheDocument()
+    })
+
+    // El error de stream va únicamente dentro del mensaje: no existe banner global duplicado
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getAllByText(mensajeDeError('ayuda-error'))).toHaveLength(1)
+  })
+
+  it('abort al cerrar: cancela el stream con AbortController al cerrar el panel, cierra el mensaje y no entra al historial siguiente', async () => {
     const controlled = createControlledStream()
     let capturedSignal: AbortSignal | null | undefined
 
     fetchMock.mockImplementationOnce((_url: string, init?: RequestInit) => {
       capturedSignal = init?.signal
+      init?.signal?.addEventListener('abort', () => {
+        controlled.error(new DOMException('The user aborted a request.', 'AbortError'))
+      })
       return Promise.resolve(controlled.asResponse())
     })
 
@@ -427,10 +455,44 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
     })
     expect(capturedSignal?.aborted).toBe(false)
 
+    // Emitir fragmento parcial antes del corte
+    controlled.push('data: {"tipo":"texto","contenido":"Fragmento antes de abortar."}\n\n')
+
+    await waitFor(() => {
+      expect(screen.getByText('Fragmento antes de abortar.')).toBeInTheDocument()
+    })
+
     // Cerrar el panel
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
-
     expect(capturedSignal?.aborted).toBe(true)
+
+    // Reabrir el panel: el mensaje de asistente está cerrado (enProgreso: false, esEnlatada: true) y visible
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+    expect(screen.getByText('Fragmento antes de abortar.')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('¿Qué querés hacer?')).not.toBeDisabled()
+    })
+
+    const textareaNuevo = screen.getByPlaceholderText('¿Qué querés hacer?')
+
+    // Nueva pregunta: la pregunta abortada NO entra al historial
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta nueva."}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n',
+      ]),
+    )
+
+    fireEvent.change(textareaNuevo, { target: { value: 'Siguiente pregunta' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    const bodyLlamada2 = JSON.parse(fetchMock.mock.calls[1][1].body as string)
+    // El historial debe estar vacío: ni la pregunta abortada ni el asistente parcial entraron
+    expect(bodyLlamada2.historial).toEqual([])
   })
 
   it('calificar con el idConsulta de fin y sin botones si es null', async () => {
@@ -564,7 +626,7 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
     const ultimaPeticion = JSON.parse(fetchMock.mock.calls[4][1].body as string)
     const { historial } = ultimaPeticion
 
-    // Historial tiene a lo sumo 4 turnos
+    // Historial tiene a lo sumo 4 turnos (en este caso Turno 1 y Turno 4 completos = 4 mensajes)
     expect(historial.length).toBeLessThanOrEqual(4)
 
     // Ninguna respuesta enlatada (sin_cita ni sugerencias) está en el historial
@@ -576,12 +638,82 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
       }
     }
 
-    // El turno 4 de asistente incluyó citasPrevias: ['clientes-nuevo']
-    const turnoAsistenteTurno4 = historial.find(
-      (m: { rol: string; citasPrevias?: string[] }) =>
-        m.rol === 'asistente' && m.citasPrevias?.includes('clientes-nuevo'),
+    // Turno 2 y Turno 3 están completamente excluidos (tanto usuario como asistente)
+    expect(historial.some((m: { texto: string }) => m.texto === 'Pregunta 2')).toBe(false)
+    expect(historial.some((m: { texto: string }) => m.texto === 'Pregunta 3')).toBe(false)
+
+    // Turno 1 y Turno 4 están presentes
+    expect(historial[0]).toEqual({ rol: 'usuario', texto: 'Pregunta 1' })
+    expect(historial[1]).toMatchObject({ rol: 'asistente', citasPrevias: ['ventas-nueva'] })
+    expect(historial[2]).toEqual({ rol: 'usuario', texto: 'Pregunta 4' })
+    expect(historial[3]).toMatchObject({ rol: 'asistente', citasPrevias: ['clientes-nuevo'] })
+  })
+
+  it('historial sin turnos de usuario seguidos: si una respuesta se excluye, se excluye también su pregunta', async () => {
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+
+    // Turno 1: respondida válida con link
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta 1."}\n\n',
+        'data: {"tipo":"link","id":"v-1","titulo":"Ventas","ruta":"/ventas"}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-1","resultado":"respondida"}\n\n',
+      ]),
     )
-    expect(turnoAsistenteTurno4).toBeDefined()
+    fireEvent.change(textarea, { target: { value: 'Pregunta 1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByText('Respuesta 1.')).toBeInTheDocument())
+
+    // Turno 2: sin_cita (excluida)
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta 2 sin cita."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-2","resultado":"sin_cita"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByText('Respuesta 2 sin cita.')).toBeInTheDocument())
+
+    // Turno 3: sugerencias (excluida)
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"sugerencias","entradas":[{"id":"s-1","titulo":"Sug 1","ruta":"/sug"}]}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"sin_llm"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Sug 1' })).toBeInTheDocument())
+
+    // Turno 4: comprobar el payload enviado
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta 4."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-4","resultado":"respondida"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+
+    const bodyLlamada4 = JSON.parse(fetchMock.mock.calls[3][1].body as string)
+    const { historial } = bodyLlamada4
+
+    // Historial solo contiene el Turno 1 (usuario + asistente).
+    // Ni Pregunta 2 ni Pregunta 3 deben figurar porque sus respuestas fueron excluidas.
+    expect(historial).toHaveLength(2)
+    expect(historial[0]).toEqual({ rol: 'usuario', texto: 'Pregunta 1' })
+    expect(historial[1]).toMatchObject({ rol: 'asistente', citasPrevias: ['v-1'] })
+
+    // No hay dos turnos de usuario seguidos: siempre alternan
+    for (let i = 0; i < historial.length - 1; i++) {
+      expect(historial[i].rol).not.toEqual(historial[i + 1].rol)
+    }
   })
 
   it('botón Nueva conversación regenera idConversacion y limpia el chat', async () => {

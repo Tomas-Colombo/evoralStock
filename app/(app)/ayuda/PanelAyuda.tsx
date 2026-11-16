@@ -150,33 +150,47 @@ export function PanelAyuda() {
       setIdConversacion(convId)
     }
 
-    const historialValido = mensajes
-      .filter((m) => {
-        if (m.rol === 'usuario') return true
-        return !m.esEnlatada && !m.sinCita && !m.sugerencias && !m.error
-      })
-      .map((m) => {
-        if (m.rol === 'usuario') {
-          return {
-            rol: 'usuario' as const,
+    // Historial con turnos alternados usuario/asistente.
+    // Si una respuesta fue excluida (enlatada, sin_cita, sugerencias, error, abortada),
+    // se descarta también la pregunta de usuario que la originó.
+    const turnosValidos: Array<{ rol: 'usuario' | 'asistente'; texto: string; citasPrevias?: string[] }> = []
+
+    for (let i = 0; i < mensajes.length; i++) {
+      const m = mensajes[i]
+      if (m.rol === 'usuario') {
+        const respuesta = mensajes[i + 1]
+        if (
+          respuesta &&
+          respuesta.rol === 'asistente' &&
+          !respuesta.esEnlatada &&
+          !respuesta.sinCita &&
+          !respuesta.sugerencias &&
+          !respuesta.error &&
+          !respuesta.enProgreso
+        ) {
+          const textoAsistente = respuesta.fragmentos
+            .map((f) => (f.tipo === 'texto' ? f.texto : f.titulo))
+            .join('')
+            .slice(0, 500)
+          const linkIds = respuesta.fragmentos
+            .filter((f): f is { tipo: 'link'; id: string; titulo: string; ruta: string } => f.tipo === 'link')
+            .map((f) => f.id)
+          const citasPrevias = Array.from(new Set(linkIds))
+
+          turnosValidos.push({
+            rol: 'usuario',
             texto: m.texto.slice(0, 500),
-          }
+          })
+          turnosValidos.push({
+            rol: 'asistente',
+            texto: textoAsistente,
+            ...(citasPrevias.length > 0 ? { citasPrevias } : {}),
+          })
         }
-        const texto = m.fragmentos
-          .map((f) => (f.tipo === 'texto' ? f.texto : f.titulo))
-          .join('')
-          .slice(0, 500)
-        const linkIds = m.fragmentos
-          .filter((f): f is { tipo: 'link'; id: string; titulo: string; ruta: string } => f.tipo === 'link')
-          .map((f) => f.id)
-        const citasPrevias = Array.from(new Set(linkIds))
-        return {
-          rol: 'asistente' as const,
-          texto,
-          ...(citasPrevias.length > 0 ? { citasPrevias } : {}),
-        }
-      })
-      .slice(-4)
+      }
+    }
+
+    const historialValido = turnosValidos.slice(-4)
 
     const idMensajeUsuario = crypto.randomUUID()
     const idMensajeAsistente = crypto.randomUUID()
@@ -190,6 +204,8 @@ export function PanelAyuda() {
       },
     ])
     setPregunta('')
+
+    let recibioFragmentos = false
 
     try {
       const res = await fetch('/api/ayuda/chat', {
@@ -251,6 +267,7 @@ export function PanelAyuda() {
           const updated: MensajeAsistente = { ...current }
 
           if (evento.tipo === 'texto') {
+            recibioFragmentos = true
             const frags = [...updated.fragmentos]
             const ultimo = frags[frags.length - 1]
             if (ultimo && ultimo.tipo === 'texto') {
@@ -263,6 +280,7 @@ export function PanelAyuda() {
             }
             updated.fragmentos = frags
           } else if (evento.tipo === 'link') {
+            recibioFragmentos = true
             updated.fragmentos = [
               ...updated.fragmentos,
               {
@@ -276,6 +294,7 @@ export function PanelAyuda() {
             updated.sugerencias = evento.entradas
             updated.esEnlatada = true
           } else if (evento.tipo === 'error') {
+            // El error de stream va únicamente dentro del mensaje
             updated.error = mensajeDeError(evento.reason)
             updated.esEnlatada = true
             updated.enProgreso = false
@@ -292,10 +311,6 @@ export function PanelAyuda() {
           next[idx] = updated
           return next
         })
-
-        if (evento.tipo === 'error') {
-          setError(mensajeDeError(evento.reason))
-        }
       }
 
       const procesarBloque = (bloque: string) => {
@@ -344,24 +359,33 @@ export function PanelAyuda() {
       )
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
+        if (recibioFragmentos) {
+          setMensajes((prev) =>
+            prev.map((m) =>
+              m.id === idMensajeAsistente && m.rol === 'asistente'
+                ? { ...m, enProgreso: false, esEnlatada: true }
+                : m,
+            ),
+          )
+        } else {
+          setMensajes((prev) => prev.filter((m) => m.id !== idMensajeAsistente))
+        }
         return
       }
 
-      setMensajes((prev) => {
-        const asis = prev.find((m) => m.id === idMensajeAsistente && m.rol === 'asistente') as
-          | MensajeAsistente
-          | undefined
-        if (asis && (asis.fragmentos.length > 0 || asis.sugerencias)) {
-          return prev.map((m) =>
-            m.id === idMensajeAsistente
+      if (recibioFragmentos) {
+        setMensajes((prev) =>
+          prev.map((m) =>
+            m.id === idMensajeAsistente && m.rol === 'asistente'
               ? { ...m, enProgreso: false, error: mensajeDeError('ayuda-error'), esEnlatada: true }
               : m,
-          )
-        }
+          ),
+        )
+      } else {
+        setMensajes((prev) => prev.filter((m) => m.id !== idMensajeUsuario && m.id !== idMensajeAsistente))
         setPregunta(textoPregunta)
-        return prev.filter((m) => m.id !== idMensajeUsuario && m.id !== idMensajeAsistente)
-      })
-      setError(mensajeDeError('ayuda-error'))
+        setError(mensajeDeError('ayuda-error'))
+      }
     } finally {
       enVueloRef.current = false
       setEnVuelo(false)
