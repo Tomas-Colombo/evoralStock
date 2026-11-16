@@ -4,10 +4,10 @@ Tareas organizadas por fases secuenciales y lotes de trabajo para agentes. Cada 
 
 ## Gate humano
 
-- [ ] Spec aprobada (`proposal.md`, `design.md`, `specs/REQ-AYUDA-V2.md`, `tasks.md`) por la persona.
-- [ ] DR-AYUDA-V2-1 aprobada: resultado `'sin_cita'` y tarjeta fija al final del stream en UI.
-- [ ] DR-AYUDA-V2-2 resuelta: límite por defecto de consultas diarias por tenant (propuesto: 100).
-- [ ] DR-AYUDA-V2-3 ratificada: postergación del caché de respuestas fuera de v2 por seguridad INVOKER.
+- [x] Spec aprobada (`proposal.md`, `design.md`, `specs/REQ-AYUDA-V2.md`, `tasks.md`) por la persona (2026-11-16).
+- [x] DR-AYUDA-V2-1 aprobada: resultado `'sin_cita'` y tarjeta fija al final del stream en UI.
+- [x] DR-AYUDA-V2-2 resuelta: 100 consultas diarias por tenant por defecto.
+- [x] DR-AYUDA-V2-3 ratificada: caché de respuestas fuera de v2.
 - [ ] Fase 0 ejecutada: modelos GA seleccionados (`GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`) mediante medición empírica de TTFT con script.
 
 ---
