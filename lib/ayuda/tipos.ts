@@ -6,18 +6,33 @@ export interface DetalleGuia {
 }
 
 export interface EntradaGuia {
-  id: string                          // kebab, único, ≤64
+  id: string
   titulo: string
   pasos: readonly string[]
-  ruta?: `/${string}`                 // solo rutas estáticas de app/(app)
+  ruta?: `/${string}`
   permisos: readonly [Permiso, ...Permiso[]]
   detalles?: readonly DetalleGuia[]
+  alias?: readonly string[]
 }
 
 export interface MensajeHistorial {
   rol: 'usuario' | 'asistente'
   texto: string
+  citasPrevias?: readonly string[]
 }
+
+export interface TokenLinkAyuda {
+  tipo: 'link'
+  id: string
+  titulo: string
+  ruta: string
+}
+
+export type EventoStreamAyuda =
+  | { tipo: 'texto'; contenido: string }
+  | TokenLinkAyuda
+  | { tipo: 'sugerencias'; entradas: Array<{ id: string; titulo: string; ruta?: string }> }
+  | { tipo: 'error'; reason: string }
 
 export interface PromptAyuda {
   instrucciones: string               // prefijo estable

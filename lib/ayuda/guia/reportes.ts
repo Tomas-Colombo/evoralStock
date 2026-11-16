@@ -6,6 +6,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el tablero financiero general',
     ruta: '/reportes',
     permisos: ['reportes.ver', 'ventas.ver'],
+    alias: ['metricas','totales','facturacion','resumen general'],
     pasos: [
       'Ingresá a Reportes desde el menú principal de navegación.',
       'Ajustá el período de consulta seleccionando las fechas desde y hasta en el filtro superior.',
@@ -25,6 +26,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el ranking de productos en reportes',
     ruta: '/reportes',
     permisos: ['reportes.ver', 'inventario.ver'],
+    alias: ['mas vendidos','lo que mas se vende','productos mas vendidos','ranking de ventas'],
     pasos: [
       'Ingresá a Reportes y desplazate hasta la sección Ranking de productos.',
       'Elegí el criterio de ordenamiento entre Mayor ganancia, Más unidades o Mayor facturación.',

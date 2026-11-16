@@ -6,6 +6,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el inventario de productos',
     ruta: '/inventario',
     permisos: ['inventario.ver'],
+    alias: ['prendas cargadas','catalogo de ropa','ropa en stock','articulos'],
     pasos: [
       'Ingresá a Inventario desde el menú principal.',
       'Revisá los indicadores de stock disponible, productos activos, productos bajo mínimo y cantidad de proveedores.',
@@ -19,6 +20,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un nuevo producto',
     ruta: '/inventario/productos/nuevo',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['alta de prenda','prenda','remera','vestido','ropa'],
     pasos: [
       'En Inventario, hacé clic en "Nuevo producto" (o ingresá desde el acceso directo).',
       'Ingresá el Nombre del producto y seleccioná su Categoría.',
@@ -220,6 +222,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo cambiar el estado de un ítem desde su ficha',
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['fallada','ropa rota','sacar de venta','dar de baja prenda'],
     pasos: [
       'Accedé a la ficha del ítem escaneando su código o buscándolo por código.',
       'En la sección "Acciones", hacé clic en el botón según el estado ("Devolver al proveedor", "Dar de baja", "Liberar reserva" o "Reponer a disponible").',
@@ -262,6 +265,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo imprimir etiquetas de productos',
     ruta: '/inventario/imprimir-etiquetas',
     permisos: ['inventario.ver'],
+    alias: ['stickers','etiquetas de precio','codigos adhesivos','imprimir stickers'],
     pasos: [
       'Accedé a la pantalla de impresión desde un ingreso confirmado ("Imprimir etiquetas") o desde la ficha de un producto o ítem.',
       'Si la cantidad de etiquetas supera el límite por tanda, navegá entre tandas con "← Anterior" o "Siguiente →".',

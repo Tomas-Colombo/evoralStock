@@ -127,6 +127,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     titulo: 'Cómo entregar artículos en consignación a una revendedora',
     ruta: '/revendedoras',
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
+    alias: ['entregar prendas','dar ropa para vender','mercaderia a revendedora'],
     pasos: [
       'Desde la lista de Revendedoras, abrí la ficha de la colaboradora y entrá en la pestaña "Consignaciones".',
       'Hacé clic en "Nueva consignación".',

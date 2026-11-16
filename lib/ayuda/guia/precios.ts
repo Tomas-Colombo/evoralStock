@@ -152,6 +152,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo cambiar el modo o fijar una cotización manual',
     ruta: '/precios/cotizacion',
     permisos: ['precios.ver', 'precios.editar_cotizacion'],
+    alias: ['dolar','dolar blue','cambiar cotizacion','tipo de cambio','precio del dolar','actualizar listas'],
     pasos: [
       'Desde Cotización USD, hacé clic en el botón "Manual" en la sección de configuración de modo.',
       'Ingresá el valor en pesos por cada dólar en el campo "Cotización manual del dólar".',

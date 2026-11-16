@@ -173,6 +173,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo invitar a un nuevo colaborador',
     ruta: '/administracion/usuarios/nuevo',
     permisos: ['administracion.ver', 'administracion.crear'],
+    alias: ['empleada nueva','cuenta de empleado','nuevo usuario','crear acceso'],
     pasos: [
       'En la pantalla de Usuarios, hacé clic en "Invitar usuario".',
       'Completá el campo "Email" con la dirección de correo del colaborador.',

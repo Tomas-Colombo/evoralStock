@@ -6,6 +6,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de ventas',
     ruta: '/ventas',
     permisos: ['ventas.ver'],
+    alias: ['historial de operaciones', 'movimientos de venta', 'ventas del mes'],
     pasos: [
       'Ingresá a Ventas desde el menú principal.',
       'Ajustá el filtro de período con las fechas desde y hasta para definir el rango a consultar.',
@@ -19,6 +20,17 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar una venta',
     ruta: '/ventas/nueva',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: [
+      'venta',
+      'nueva venta',
+      'cargar venta',
+      'cobrar',
+      'cobro',
+      'pasar compra',
+      'cobrar con tarjeta',
+      'recargo',
+      'cobro sin recargo',
+    ],
     pasos: [
       'Ingresá a Ventas y hacé clic en "Nueva venta" para abrir el mostrador.',
       'Escaneá el código del producto o buscalo manualmente por nombre o código para sumarlo a la lista.',
@@ -43,6 +55,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo emitir un comprobante de venta',
     ruta: '/ventas',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: ['ticket', 'factura', 'factura fiscal', 'comprobante fiscal'],
     pasos: [
       'Desde el listado de Ventas, buscá la venta y hacé clic en "Ver" para abrir su ficha.',
       'En la tarjeta superior de datos de la venta, hacé clic en "Emitir comprobante".',
@@ -100,6 +113,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar la devolución de un producto vendido',
     ruta: '/ventas',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['devolucion de plata', 'reintegrar dinero', 'prenda fallada'],
     pasos: [
       'En el listado de Ventas, hacé clic en "Ver" en la operación correspondiente.',
       'En la tabla de líneas de venta, buscá el ítem devuelto y hacé clic en "Devolver".',
@@ -147,6 +161,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo crear una reserva de productos',
     ruta: '/ventas/reservas/nueva',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: ['seña', 'apartar', 'apartado de prenda', 'senar'],
     pasos: [
       'Desde el listado de Reservas, hacé clic en "Nueva reserva".',
       'Escaneá el código de cada ítem o buscalo por código para sumarlo a la reserva.',
@@ -203,6 +218,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar la cartera de clientes',
     ruta: '/clientes',
     permisos: ['ventas.ver'],
+    alias: ['whatsapp', 'celular', 'telefono de cliente', 'comprador'],
     pasos: [
       'Ingresá a Clientes desde el menú principal de navegación.',
       'Buscá por nombre, apellido, teléfono o email en la barra de búsqueda y hacé clic en "Aplicar".',
@@ -261,6 +277,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el panel de control de cuotas',
     ruta: '/cuotas',
     permisos: ['ventas.ver'],
+    alias: ['deudores', 'cuotas fiadas', 'cuotas pendientes', 'quien debe'],
     pasos: [
       'Ingresá a Cuotas desde el menú de navegación.',
       'Revisá en la franja superior los indicadores de monto vencido, lo que vence hoy, lo que vence en el mes y el total a cobrar.',

@@ -25,6 +25,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar una devolución de mercadería a proveedor',
     ruta: '/consignaciones/nueva',
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
+    alias: ['ropa a porcentaje','comision de terceros','consignacion de ropa'],
     pasos: [
       'En Consignaciones, hacé clic en "Nueva devolución".',
       'Seleccioná el proveedor destinatario en el menú desplegable.',
@@ -145,6 +146,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo generar una rendición de ventas a un proveedor',
     ruta: '/rendiciones/nueva',
     permisos: ['rendiciones.ver', 'rendiciones.crear'],
+    alias: ['rendir cuentas','pagarle al consignador','rendicion de lote','rendir consignacion','lote en consignacion'],
     pasos: [
       'En Rendiciones, hacé clic en "Generar rendición".',
       'Seleccioná el proveedor en el menú desplegable para cargar las ventas pendientes de liquidar.',
