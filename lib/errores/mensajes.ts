@@ -363,6 +363,10 @@ const MENSAJES: Record<string, string> = {
   'ayuda-no-disponible': 'El asistente de ayuda no está disponible en este momento.',
   'ayuda-error': 'No pudimos consultar al asistente de ayuda. Probá de nuevo en unos minutos.',
   'consulta-no-encontrada': 'No se encontró la consulta de ayuda.',
+  'cuota-excedida': 'Alcanzaste el límite de consultas diarias del asistente de ayuda. Probá de nuevo mañana.',
+  'cuota-decremento-prohibido': 'No podés reducir el contador de consultas de ayuda.',
+  'cuota-modificacion-invalida': 'No podés modificar la fecha ni el comercio de la cuota de ayuda.',
+  'cuota-insert-invalido': 'El contador inicial de consultas tiene que ser 0 o 1.',
 
   // ─── Plataforma (Super Admin) ──────────────────────────────────────
   'concepto-invalido': 'Escribí un concepto para el movimiento.',

@@ -15,6 +15,7 @@ const SLUGS_DE_LA_APP = [
   // Permisos y sesión
   'no-permission', 'module-disabled', 'tenant-mismatch', 'no-session', 'no-tenant', 'usuario-sin-rol', 'modulo-revendedoras-deshabilitado',
   'modulo-nucleo', 'modulo-paquete-incompleto', 'modulo-con-estado-vivo', 'ayuda-no-disponible', 'ayuda-error', 'consulta-no-encontrada',
+  'cuota-excedida', 'cuota-decremento-prohibido', 'cuota-modificacion-invalida', 'cuota-insert-invalido',
   'email-duplicado', 'revendedora-not-found', 'revendedora-con-stock', 'acceso-duplicado', 'error-invitacion', 'error-enlazar', 'sin-acceso', 'error-desvincular', 'error-desactivar', 'error-rol-no-encontrado',
   // Actions
   'sin-cotizacion-dolar', 'cotizacion-manual-invalida', 'modo-cotizacion-invalido', 'bcra-no-disponible', 'cotizacion-desactualizada',

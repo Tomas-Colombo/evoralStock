@@ -135,7 +135,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
   })
 
   describe('REQ-AYUDA-10 — Registro de cada turno', () => {
-    it('REQ-AYUDA-10 feliz: turno respondido registra fila con entrada_id y resultado = respondida', async () => {
+    it('REQ-AYUDA-10 feliz: turno respondido registra fila con entradas_citadas y resultado = respondida', async () => {
       const tenant = await createTenantWithUser('ayuda-r10-feliz')
       await habilitarAyuda(tenant.tenantId)
       const auth = await signInAs(tenant)
@@ -145,7 +145,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: idConv,
         p_pregunta: '¿Cómo cargo una venta?',
         p_respuesta: 'Hacé clic en Ventas y luego en Nueva Venta.',
-        p_entrada_id: 'ventas-nueva',
+        p_entradas_citadas: ['ventas-nueva'],
         p_resultado: 'respondida',
       })
 
@@ -166,13 +166,13 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_conversacion: idConv,
         pregunta: '¿Cómo cargo una venta?',
         respuesta: 'Hacé clic en Ventas y luego en Nueva Venta.',
-        entrada_id: 'ventas-nueva',
+        entradas_citadas: ['ventas-nueva'],
         resultado: 'respondida',
         util: null,
       })
     })
 
-    it('REQ-AYUDA-10 N1: turno con timeout o error registra fila con respuesta null y sin entrada_id', async () => {
+    it('REQ-AYUDA-10 N1: turno con timeout o error registra fila con respuesta null y sin entradas_citadas', async () => {
       const tenant = await createTenantWithUser('ayuda-r10-n1')
       await habilitarAyuda(tenant.tenantId)
       const auth = await signInAs(tenant)
@@ -182,7 +182,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: idConv,
         p_pregunta: '¿Dónde veo las comisiones?',
         p_respuesta: null,
-        p_entrada_id: null,
+        p_entradas_citadas: [],
         p_resultado: 'error',
       })
 
@@ -198,14 +198,14 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_consulta_ayuda: idError,
         resultado: 'error',
         respuesta: null,
-        entrada_id: null,
+        entradas_citadas: [],
       })
 
       const { data: idFuera, error: errFuera } = await auth.rpc('sp_registrar_consulta_ayuda', {
         p_id_conversacion: idConv,
         p_pregunta: '¿Cómo se prepara un café?',
         p_respuesta: null,
-        p_entrada_id: null,
+        p_entradas_citadas: [],
         p_resultado: 'fuera_de_opciones',
       })
 
@@ -221,7 +221,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_consulta_ayuda: idFuera,
         resultado: 'fuera_de_opciones',
         respuesta: null,
-        entrada_id: null,
+        entradas_citadas: [],
       })
     })
 
@@ -238,7 +238,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta privada de A',
         p_respuesta: 'Respuesta privada de A',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
       expect(errA).toBeNull()
@@ -260,7 +260,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta con módulo deshabilitado',
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
 
@@ -277,7 +277,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'a'.repeat(301),
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
 
@@ -337,7 +337,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta del operador',
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
       expect(errAdmin).toBeNull()
@@ -353,59 +353,14 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta de la revendedora',
         p_respuesta: null,
-        p_entrada_id: null,
+        p_entradas_citadas: [],
         p_resultado: 'error',
       })
       expect(errInsert).not.toBeNull()
     })
   })
 
-  describe('CHECK de resultado/entrada_id en consulta_ayuda', () => {
-    it('resultado = respondida exige entrada_id no nulo', async () => {
-      const tenant = await createTenantWithUser('ayuda-chk-resp')
-
-      const { error } = await serviceRole.from('consulta_ayuda').insert({
-        id_tenant: tenant.tenantId,
-        id_usuario: tenant.userId,
-        id_conversacion: randomUUID(),
-        pregunta: 'Pregunta válida',
-        respuesta: 'Respuesta',
-        entrada_id: null,
-        resultado: 'respondida',
-      })
-
-      expect(error).not.toBeNull()
-      expect(error?.message).toMatch(/check|consulta_ayuda_resultado_entrada_check/i)
-    })
-
-    it('resultado <> respondida exige entrada_id nulo', async () => {
-      const tenant = await createTenantWithUser('ayuda-chk-no-resp')
-
-      const { error: errFuera } = await serviceRole.from('consulta_ayuda').insert({
-        id_tenant: tenant.tenantId,
-        id_usuario: tenant.userId,
-        id_conversacion: randomUUID(),
-        pregunta: 'Pregunta válida',
-        respuesta: null,
-        entrada_id: 'entrada-invalida',
-        resultado: 'fuera_de_opciones',
-      })
-      expect(errFuera).not.toBeNull()
-      expect(errFuera?.message).toMatch(/check|consulta_ayuda_resultado_entrada_check/i)
-
-      const { error: errError } = await serviceRole.from('consulta_ayuda').insert({
-        id_tenant: tenant.tenantId,
-        id_usuario: tenant.userId,
-        id_conversacion: randomUUID(),
-        pregunta: 'Pregunta válida',
-        respuesta: null,
-        entrada_id: 'entrada-invalida',
-        resultado: 'error',
-      })
-      expect(errError).not.toBeNull()
-      expect(errError?.message).toMatch(/check|consulta_ayuda_resultado_entrada_check/i)
-    })
-
+  describe('CHECK de resultado/formato en consulta_ayuda', () => {
     it('resultado rechaza valores fuera del enum permitido', async () => {
       const tenant = await createTenantWithUser('ayuda-chk-enum')
 
@@ -415,7 +370,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_conversacion: randomUUID(),
         pregunta: 'Pregunta válida',
         respuesta: null,
-        entrada_id: null,
+        entradas_citadas: [],
         resultado: 'desconocido',
       })
 
@@ -432,7 +387,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_conversacion: randomUUID(),
         pregunta: '',
         respuesta: null,
-        entrada_id: null,
+        entradas_citadas: [],
         resultado: 'fuera_de_opciones',
       })
 
@@ -440,7 +395,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       expect(error?.message).toMatch(/check|consulta_ayuda_pregunta_check/i)
     })
 
-    it('respuesta > 2000 caracteres es rechazada por CHECK', async () => {
+    it('respuesta > 5000 caracteres es rechazada por CHECK', async () => {
       const tenant = await createTenantWithUser('ayuda-chk-resp-len')
 
       const { error } = await serviceRole.from('consulta_ayuda').insert({
@@ -448,8 +403,8 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_usuario: tenant.userId,
         id_conversacion: randomUUID(),
         pregunta: 'Pregunta válida',
-        respuesta: 'x'.repeat(2001),
-        entrada_id: 'ayuda-uso',
+        respuesta: 'x'.repeat(5001),
+        entradas_citadas: ['ayuda-uso'],
         resultado: 'respondida',
       })
 
@@ -457,7 +412,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
       expect(error?.message).toMatch(/check|consulta_ayuda_respuesta_check/i)
     })
 
-    it('entrada_id > 64 caracteres es rechazada por CHECK', async () => {
+    it('entradas_citadas con elemento > 64 caracteres es rechazada por CHECK', async () => {
       const tenant = await createTenantWithUser('ayuda-chk-ent-len')
 
       const { error } = await serviceRole.from('consulta_ayuda').insert({
@@ -466,12 +421,12 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         id_conversacion: randomUUID(),
         pregunta: 'Pregunta válida',
         respuesta: 'Respuesta',
-        entrada_id: 'x'.repeat(65),
+        entradas_citadas: ['x'.repeat(65)],
         resultado: 'respondida',
       })
 
       expect(error).not.toBeNull()
-      expect(error?.message).toMatch(/check|consulta_ayuda_entrada_id_check/i)
+      expect(error?.message).toMatch(/check|consulta_ayuda_entradas_citadas_check/i)
     })
   })
 
@@ -485,7 +440,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: '¿Cómo cargo una venta?',
         p_respuesta: 'Hacé clic en...',
-        p_entrada_id: 'ventas-nueva',
+        p_entradas_citadas: ['ventas-nueva'],
         p_resultado: 'respondida',
       })
       expect(errReg).toBeNull()
@@ -531,7 +486,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta de usuario 1',
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
       expect(errReg).toBeNull()
@@ -559,7 +514,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta tenant A',
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
       expect(errRegA).toBeNull()
@@ -583,7 +538,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta con fallo',
         p_respuesta: null,
-        p_entrada_id: null,
+        p_entradas_citadas: [],
         p_resultado: 'error',
       })
       expect(errRegError).toBeNull()
@@ -607,7 +562,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         p_id_conversacion: randomUUID(),
         p_pregunta: 'Pregunta',
         p_respuesta: 'Respuesta',
-        p_entrada_id: 'ayuda-uso',
+        p_entradas_citadas: ['ayuda-uso'],
         p_resultado: 'respondida',
       })
       expect(errReg).toBeNull()
