@@ -6,9 +6,9 @@ Guía operativa para despliegue, configuración y mantenimiento del módulo `ayu
 
 - `GEMINI_API_KEY` (opcional, solo servidor): Clave de API de Google AI Studio. Sin esta variable el panel de ayuda no se renderiza en ninguna pantalla, el Route Handler responde `503 ayuda-no-disponible` y las acciones retornan error de disponibilidad. Nunca se expone al cliente ni se registra en logs ni telemetría.
 - `GEMINI_MODEL` (opcional, solo servidor, valor por defecto: `gemini-3.5-flash-lite`): Identificador del modelo de lenguaje principal. Debe ser un modelo General Availability (GA) estable para producción.
-- `GEMINI_MODEL_FALLBACK` (opcional, solo servidor, valor por defecto: `gemini-3-flash-preview`): Modelo secundario de contingencia. Se utiliza si la llamada inicial falla con error 429 o 5xx tras un reintento con backoff exponencial, **únicamente antes de emitir el primer byte** hacia el cliente.
+- `GEMINI_MODEL_FALLBACK` (opcional, solo servidor, sin valor por defecto): Modelo secundario de contingencia (ej. `gemini-3-flash-preview`). Sin esta variable configurada no hay fallback. Se utiliza si la llamada inicial falla con error 429 o 5xx tras un reintento con backoff exponencial, **únicamente antes de emitir el primer byte** hacia el cliente.
   > [!WARNING]
-  > El modelo de fallback actual (`gemini-3-flash-preview`) es una versión **preview**: Google puede modificar su comportamiento, cuota o discontinuarlo sin previo aviso. Debe ser monitoreado y reemplazado cuando surja una alternativa GA liviana.
+  > Si se configura `gemini-3-flash-preview` como fallback, considerar que es una versión **preview**: Google puede modificar su comportamiento, cuota o discontinuarlo sin previo aviso. Debe ser monitoreado y reemplazado cuando surja una alternativa GA liviana.
 
 > **Importante:** No incluir claves reales ni placeholders sensibles en archivos versionados.
 

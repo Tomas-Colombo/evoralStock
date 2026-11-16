@@ -66,12 +66,12 @@ describe('lib/ayuda/config', () => {
       expect(leerConfigAyuda()).toBeNull()
     })
 
-    it('devuelve apiKey y modelo por defecto (gemini-3-flash-preview) si GEMINI_MODEL no está configurado', () => {
+    it('devuelve apiKey y modelo por defecto (gemini-3.5-flash-lite) si GEMINI_MODEL no está configurado', () => {
       process.env.GEMINI_API_KEY = 'clave-secreta'
       const cfg = leerConfigAyuda()
       expect(cfg).toEqual({
         apiKey: 'clave-secreta',
-        modelo: 'gemini-3-flash-preview',
+        modelo: 'gemini-3.5-flash-lite',
       })
     })
 
@@ -91,7 +91,7 @@ describe('lib/ayuda/config', () => {
       const cfg = leerConfigAyuda()
       expect(cfg).toEqual({
         apiKey: 'clave-secreta',
-        modelo: 'gemini-3-flash-preview',
+        modelo: 'gemini-3.5-flash-lite',
       })
     })
 

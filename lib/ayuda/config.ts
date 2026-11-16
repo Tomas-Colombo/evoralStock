@@ -7,7 +7,7 @@ export interface ConfigAyuda {
   modeloFallback?: string
 }
 
-const DEFAULT_MODELO = 'gemini-3-flash-preview'
+const DEFAULT_MODELO = 'gemini-3.5-flash-lite'
 const MODELO_REGEX = /^[a-z0-9.-]+$/
 
 const configAyudaSchema = z.object({
