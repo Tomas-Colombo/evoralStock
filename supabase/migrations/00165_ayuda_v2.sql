@@ -44,6 +44,10 @@
 -- alter table consulta_ayuda drop column if exists tokens_cached cascade;
 -- alter table consulta_ayuda drop column if exists tokens_thinking cascade;
 --
+-- NOTE: el rollback recorta las respuestas de v2 para cumplir con el check original.
+-- update consulta_ayuda set respuesta = left(respuesta, 2000)
+--   where char_length(respuesta) > 2000;
+--
 -- alter table consulta_ayuda add constraint consulta_ayuda_respuesta_check
 --   check (respuesta is null or char_length(respuesta) <= 2000);
 --
