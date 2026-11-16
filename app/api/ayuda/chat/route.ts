@@ -34,6 +34,8 @@ function programarEnAfter(tarea: () => Promise<void>) {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const inicio = Date.now()
+
   const compuerta = await ejecutarCompuertas(req)
   if (!compuerta.ok) {
     return NextResponse.json(
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             respuesta: null,
             entradasCitadas: [],
             resultado: 'sin_llm',
+            latenciaMs: Date.now() - inicio,
           })
           if (regRes.ok) {
             idConsulta = regRes.id
@@ -92,34 +95,66 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Flujo con LLM
+  const { idConversacion, pregunta, config, topEntradas, historial, permisos } = compuerta
+
   const prompt = armarPromptV2({
-    entradas: compuerta.topEntradas,
-    historial: compuerta.historial,
-    pregunta: compuerta.pregunta,
+    entradas: topEntradas,
+    historial,
+    pregunta,
   })
 
-  let geminiRes: StreamGeminiResultado
+  let geminiRes: StreamGeminiResultado | undefined
+  let textoAcumulado = ''
+  let completado = false
+
+  function registrarFallo(tipoError: 'cancelado' | 'stream' | 'proveedor') {
+    const meta = geminiRes?.getMeta()
+    const modelo = meta?.modelo ?? config.modelo
+    const tokens = meta?.usage
+    const latenciaMs = Date.now() - inicio
+    const respuesta = textoAcumulado.length > 0 ? textoAcumulado.slice(0, 5000) : null
+
+    programarEnAfter(async () => {
+      try {
+        await registrarConsultaAyuda({
+          idConversacion,
+          pregunta,
+          respuesta,
+          entradasCitadas: [],
+          resultado: 'error',
+          tipoError,
+          latenciaMs,
+          modelo,
+          tokensInput: tokens?.tokensInput,
+          tokensOutput: tokens?.tokensOutput,
+          tokensCached: tokens?.tokensCached,
+          tokensThinking: tokens?.tokensThinking,
+        })
+      } catch {
+        console.error('ayuda: error al registrar consulta')
+      }
+    })
+  }
+
   try {
     geminiRes = await ejecutarGeminiStream({
-      apiKey: compuerta.config.apiKey,
-      modelo: compuerta.config.modelo,
-      modeloFallback: compuerta.config.modeloFallback,
+      apiKey: config.apiKey,
+      modelo: config.modelo,
+      modeloFallback: config.modeloFallback,
       prompt,
       signal: req.signal,
     })
   } catch {
+    registrarFallo('proveedor')
     return NextResponse.json({ ok: false, reason: 'ayuda-error' }, { status: 502 })
   }
 
-  const entradasAutorizadas = filtrarGuia(GUIA, compuerta.permisos)
+  const entradasAutorizadas = filtrarGuia(GUIA, permisos)
   const parser = new TransformStreamAyuda(entradasAutorizadas)
   const parsedStream = geminiRes.stream.pipeThrough(parser)
   const reader = parsedStream.getReader()
 
-  const inicio = Date.now()
-  let textoAcumulado = ''
   const citasCitadas: string[] = []
-  let completado = false
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -150,8 +185,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         let idConsulta: string | null = null
         try {
           const regRes = await registrarConsultaAyuda({
-            idConversacion: compuerta.idConversacion,
-            pregunta: compuerta.pregunta,
+            idConversacion,
+            pregunta,
             respuesta,
             entradasCitadas,
             resultado,
@@ -182,27 +217,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         if (req.signal.aborted) {
           if (!completado) {
             completado = true
-            const meta = geminiRes.getMeta()
-            programarEnAfter(async () => {
-              try {
-                await registrarConsultaAyuda({
-                  idConversacion: compuerta.idConversacion,
-                  pregunta: compuerta.pregunta,
-                  respuesta: textoAcumulado.length > 0 ? textoAcumulado.slice(0, 5000) : null,
-                  entradasCitadas: [],
-                  resultado: 'error',
-                  tipoError: 'cancelado',
-                  latenciaMs: Date.now() - inicio,
-                  modelo: meta.modelo,
-                  tokensInput: meta.usage.tokensInput,
-                  tokensOutput: meta.usage.tokensOutput,
-                  tokensCached: meta.usage.tokensCached,
-                  tokensThinking: meta.usage.tokensThinking,
-                })
-              } catch {
-                console.error('ayuda: error al registrar consulta')
-              }
-            })
+            registrarFallo('cancelado')
           }
           try {
             controller.close()
@@ -221,55 +236,16 @@ export async function POST(req: NextRequest): Promise<Response> {
             controller.close()
           } catch {}
 
-          const meta = geminiRes.getMeta()
-          programarEnAfter(async () => {
-            try {
-              await registrarConsultaAyuda({
-                idConversacion: compuerta.idConversacion,
-                pregunta: compuerta.pregunta,
-                respuesta: textoAcumulado.length > 0 ? textoAcumulado.slice(0, 5000) : null,
-                entradasCitadas: [],
-                resultado: 'error',
-                tipoError: 'stream',
-                latenciaMs: Date.now() - inicio,
-                modelo: meta.modelo,
-                tokensInput: meta.usage.tokensInput,
-                tokensOutput: meta.usage.tokensOutput,
-                tokensCached: meta.usage.tokensCached,
-                tokensThinking: meta.usage.tokensThinking,
-              })
-            } catch {
-              console.error('ayuda: error al registrar consulta')
-            }
-          })
+          registrarFallo('stream')
         }
       }
     },
 
     cancel() {
+      void reader.cancel()
       if (!completado) {
         completado = true
-        const meta = geminiRes.getMeta()
-        programarEnAfter(async () => {
-          try {
-            await registrarConsultaAyuda({
-              idConversacion: compuerta.idConversacion,
-              pregunta: compuerta.pregunta,
-              respuesta: textoAcumulado.length > 0 ? textoAcumulado.slice(0, 5000) : null,
-              entradasCitadas: [],
-              resultado: 'error',
-              tipoError: 'cancelado',
-              latenciaMs: Date.now() - inicio,
-              modelo: meta.modelo,
-              tokensInput: meta.usage.tokensInput,
-              tokensOutput: meta.usage.tokensOutput,
-              tokensCached: meta.usage.tokensCached,
-              tokensThinking: meta.usage.tokensThinking,
-            })
-          } catch {
-            console.error('ayuda: error al registrar consulta')
-          }
-        })
+        registrarFallo('cancelado')
       }
     },
   })

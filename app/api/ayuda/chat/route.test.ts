@@ -350,7 +350,7 @@ describe('POST /api/ayuda/chat', () => {
 
   // 8. Gemini falla antes del primer chunk
   describe('Gemini falla antes del primer chunk', () => {
-    it('devuelve 502 ayuda-error si ejecutarGeminiStream lanza excepción', async () => {
+    it('devuelve 502 ayuda-error y registra en after() con tipoError proveedor, latencia y modelo primario', async () => {
       ejecutarGeminiStreamMock.mockRejectedValueOnce(new Error('Provider 500'))
 
       const { POST } = await import('./route')
@@ -360,6 +360,16 @@ describe('POST /api/ayuda/chat', () => {
       expect(res.status).toBe(502)
       const data = await res.json()
       expect(data).toEqual({ ok: false, reason: 'ayuda-error' })
+
+      expect(registrarConsultaAyudaMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          idConversacion: VALID_UUID,
+          resultado: 'error',
+          tipoError: 'proveedor',
+          modelo: 'gemini-model-test',
+          latenciaMs: expect.any(Number),
+        }),
+      )
     })
   })
 
@@ -467,6 +477,36 @@ describe('POST /api/ayuda/chat', () => {
           entradasCitadas: [],
         }),
       )
+    })
+
+    it('la latencia incluye la espera previa al primer chunk', async () => {
+      const mockStream = new ReadableStream<string>({
+        start(controller) {
+          controller.enqueue('Respuesta tras demora.')
+          controller.close()
+        },
+      })
+
+      ejecutarGeminiStreamMock.mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        return {
+          stream: mockStream,
+          getMeta: () => ({
+            modelo: 'gemini-model-test',
+            usage: {},
+          }),
+        }
+      })
+
+      const { POST } = await import('./route')
+      const req = crearRequest(validBody)
+
+      const res = await POST(req)
+      await leerEventosSSE(res)
+
+      expect(registrarConsultaAyudaMock).toHaveBeenCalledTimes(1)
+      const callArgs = registrarConsultaAyudaMock.mock.calls[0][0]
+      expect(callArgs.latenciaMs).toBeGreaterThanOrEqual(40)
     })
   })
 
@@ -619,6 +659,42 @@ describe('POST /api/ayuda/chat', () => {
       const res = await POST(req)
       await leerEventosSSE(res)
 
+      expect(registrarConsultaAyudaMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resultado: 'error',
+          tipoError: 'cancelado',
+        }),
+      )
+    })
+
+    it('cancel() en el stream cancela el reader del parser y registra en after con tipoError cancelado', async () => {
+      let readerCancelado = false
+      const mockStream = new ReadableStream<string>({
+        start(controller) {
+          controller.enqueue('Inicio del stream...')
+        },
+        cancel() {
+          readerCancelado = true
+        },
+      })
+
+      ejecutarGeminiStreamMock.mockResolvedValueOnce({
+        stream: mockStream,
+        getMeta: () => ({
+          modelo: 'gemini-model-test',
+          usage: {},
+        }),
+      })
+
+      const { POST } = await import('./route')
+      const req = crearRequest(validBody)
+
+      const res = await POST(req)
+      const reader = res.body?.getReader()
+      await reader?.read()
+      await reader?.cancel()
+
+      expect(readerCancelado).toBe(true)
       expect(registrarConsultaAyudaMock).toHaveBeenCalledWith(
         expect.objectContaining({
           resultado: 'error',
