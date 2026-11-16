@@ -542,5 +542,58 @@ describe('lib/ayuda/gemini', () => {
 
       spyError.mockRestore()
     })
+
+    it('cancelar el ReadableStream invoca return del iterador mockeado para detener upstream', async () => {
+      const returnMock = vi.fn().mockResolvedValue({ done: true, value: undefined })
+
+      const iteradorMock = {
+        next: vi
+          .fn()
+          .mockResolvedValueOnce({ done: false, value: { text: 'Primer chunk' } })
+          .mockResolvedValueOnce({ done: false, value: { text: 'Segundo chunk' } }),
+        return: returnMock,
+        [Symbol.asyncIterator]() {
+          return this
+        },
+      }
+
+      mockGenerateContentStream.mockResolvedValueOnce(iteradorMock)
+
+      const resultado = await ejecutarGeminiStream({
+        apiKey: cfgValida.apiKey,
+        modelo: 'gemini-3-flash-preview',
+        prompt: promptEjemplo,
+        backoffMs: 0,
+      })
+
+      const reader = resultado.stream.getReader()
+      const primerLectura = await reader.read()
+      expect(primerLectura.value).toBe('Primer chunk')
+
+      await reader.cancel('cancelado por cliente')
+      expect(returnMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('un error sin status cuyo mensaje contiene "5000" no reintenta', async () => {
+      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const errorCon5000 = new Error('Invalid prompt: length 5000 exceeds maximum allowed limit')
+
+      mockGenerateContentStream.mockRejectedValueOnce(errorCon5000)
+
+      await expect(
+        ejecutarGeminiStream({
+          apiKey: cfgValida.apiKey,
+          modelo: 'gemini-3-flash-preview',
+          modeloFallback: 'gemini-2.5-flash',
+          prompt: promptEjemplo,
+          backoffMs: 0,
+        }),
+      ).rejects.toThrow()
+
+      // Debe fallar de inmediato en el intento 1 sin reintentar ni ir al fallback
+      expect(mockGenerateContentStream).toHaveBeenCalledTimes(1)
+
+      spyError.mockRestore()
+    })
   })
 })

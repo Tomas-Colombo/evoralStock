@@ -159,6 +159,8 @@ describe('armarPromptV2', () => {
     // Instrucciones exigen texto plano y citas [[id]]
     expect(prompt.instrucciones).toContain('texto plano puro, SIN formato Markdown')
     expect(prompt.instrucciones).toContain('[[id]]')
+    expect(prompt.instrucciones).toContain('[[id-de-la-entrada]]')
+    expect(prompt.instrucciones).not.toContain('[[venta-nueva]]')
     expect(prompt.instrucciones).toContain('NO uses negritas (**)')
 
     // Entradas completas con pasos y detalles

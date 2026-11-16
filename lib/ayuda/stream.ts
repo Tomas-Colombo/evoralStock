@@ -74,12 +74,19 @@ export class TransformStreamAyuda extends TransformStream<string, EventoStreamAy
                 const entrada = entradasAutorizadas.find((e) => e.id === candidateId)
 
                 if (entrada) {
-                  controller.enqueue({
-                    tipo: 'link',
-                    id: entrada.id,
-                    titulo: entrada.titulo,
-                    ruta: entrada.ruta ?? '',
-                  })
+                  if (entrada.ruta) {
+                    controller.enqueue({
+                      tipo: 'link',
+                      id: entrada.id,
+                      titulo: entrada.titulo,
+                      ruta: entrada.ruta,
+                    })
+                  } else {
+                    controller.enqueue({
+                      tipo: 'texto',
+                      contenido: entrada.titulo,
+                    })
+                  }
                   idsCitados.push(entrada.id)
                 }
                 // Si la entrada es inválida, se descarta silenciosamente la cita
@@ -120,8 +127,6 @@ export class TransformStreamAyuda extends TransformStream<string, EventoStreamAy
     this.idsCitados = idsCitados
   }
 }
-
-export { TransformStreamAyuda as ParserStreamAyuda, TransformStreamAyuda as StreamAyudaParser }
 
 export function crearParserStream(entradasAutorizadas: readonly EntradaGuia[]): {
   stream: TransformStreamAyuda

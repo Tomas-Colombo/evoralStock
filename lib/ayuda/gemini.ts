@@ -218,28 +218,17 @@ function esError429o5xx(err: unknown): boolean {
     return status === 429 || (status >= 500 && status < 600)
   }
   const nombre = extraerNombre(err)
-  const mensaje = extraerMensaje(err)
-  if (
+  return (
     nombre.includes('429') ||
     nombre.includes('503') ||
     nombre.includes('500') ||
     nombre.includes('502') ||
-    nombre.includes('504')
-  ) {
-    return true
-  }
-  if (
-    mensaje.includes('429') ||
-    mensaje.includes('503') ||
-    mensaje.includes('500') ||
-    mensaje.includes('502') ||
-    mensaje.includes('504') ||
-    mensaje.includes('Too Many Requests') ||
-    mensaje.includes('Service Unavailable')
-  ) {
-    return true
-  }
-  return false
+    nombre.includes('504') ||
+    nombre === 'RateLimitError' ||
+    nombre === 'ResourceExhausted' ||
+    nombre === 'ServiceUnavailable' ||
+    nombre === 'InternalServerError'
+  )
 }
 
 function sanitizarError(err: unknown, modelo: string): ErrorGeminiStream {
@@ -438,8 +427,9 @@ export async function ejecutarGeminiStream(
       }
     },
 
-    cancel() {
+    async cancel() {
       cancelado = true
+      await conexion.iterador.return?.()
     },
   })
 
@@ -451,6 +441,4 @@ export async function ejecutarGeminiStream(
     }),
   }
 }
-
-export const crearStreamGemini = ejecutarGeminiStream
 

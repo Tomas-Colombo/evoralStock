@@ -181,4 +181,28 @@ describe('lib/ayuda/stream — TransformStreamAyuda (REQ-AYUDA-V2-08)', () => {
     expect(eventos.filter((e) => e.tipo === 'link')).toHaveLength(3)
     expect(idsCitados).toEqual(['venta-nueva', 'gastos-nuevo', 'venta-nueva'])
   })
+
+  it('si la entrada citada no tiene ruta emite { tipo: "texto", contenido: entrada.titulo } y cuenta el id en idsCitados', async () => {
+    const entradasConSinRuta: EntradaGuia[] = [
+      ...fixtureEntradas,
+      {
+        id: 'ayuda-general',
+        titulo: 'Ayuda General',
+        pasos: ['Consultar al administrador'],
+        permisos: ['ayuda.consultar'],
+      },
+    ]
+
+    const parser = new TransformStreamAyuda(entradasConSinRuta)
+    const eventos = await leerStream(parser, [
+      'Podés consultar [[ayuda-general]] para más detalles.',
+    ])
+
+    expect(eventos).toEqual([
+      { tipo: 'texto', contenido: 'Podés consultar ' },
+      { tipo: 'texto', contenido: 'Ayuda General' },
+      { tipo: 'texto', contenido: ' para más detalles.' },
+    ])
+    expect(parser.idsCitados).toEqual(['ayuda-general'])
+  })
 })
