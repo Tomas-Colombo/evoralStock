@@ -23,12 +23,17 @@ export const PESO_TURNO_PREVIO = 0.4
 /**
  * Umbral de corte de relevancia mínima normalizado en [0, 1] para evitar invocar a Gemini
  * en consultas fuera de dominio (REQ-AYUDA-V2-04).
- * Calibrado empíricamente en lib/ayuda/evaluacion.test.ts con el set de control:
- * - Máximo fuera de dominio: 0.2642 ("cuál es la contraseña del wifi del local")
- * - Mínimo de dominio en set de control: 0.3114 ("cómo consultar el perfil completo y compras históricas de un proveedor")
- * - Margen de separación: +0.0472 (umbral en 0.28 deja margen de ~0.0158 sobre el max fuera de dominio y ~0.0314 bajo el min de dominio).
+ * Calibrado en lib/ayuda/evaluacion.test.ts. Con 0.28 el 13% de las preguntas válidas
+ * coloquiales caía en sin_llm aun con la entrada correcta primera ("no me deja anular una
+ * venta de ayer": 0.247), y BM25 léxico no separa del todo dominio de fuera de dominio
+ * cercano ("contraseña del wifi": 0.275). Se prioriza recall: una pregunta válida sin
+ * respuesta es peor que gastar una consulta de cuota en una ajena, que igual termina en
+ * sin_cita con la tarjeta fija.
+ * - Mínimo de dominio (ambos sets): ~0.184 ("subir un diez por ciento todos los precios").
+ * - Máximo fuera de dominio general (pizza, mundial): ~0.07.
+ * - Fuera de dominio cercano (wifi, ARCA, posnet, sueldos) pasa al modelo a propósito.
  */
-export const UMBRAL_MINIMO_BM25 = 0.28
+export const UMBRAL_MINIMO_BM25 = 0.18
 
 export interface ResultadoBM25 {
   entrada: EntradaGuia

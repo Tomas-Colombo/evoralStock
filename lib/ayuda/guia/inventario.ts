@@ -49,6 +49,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar la ficha de un producto',
     ruta: '/inventario',
     permisos: ['inventario.ver'],
+    alias: ['detalle de producto', 'ver producto', 'datos del articulo'],
     pasos: [
       'Ingresá a Inventario desde el menú de navegación.',
       'Buscá el producto en la tabla y hacé clic en su fila.',
@@ -63,6 +64,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo editar un producto',
     ruta: '/inventario',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['modificar producto', 'cambiar nombre de producto', 'corregir articulo', 'editar prenda'],
     pasos: [
       'En el listado de Inventario, hacé clic sobre el producto para abrir su ficha.',
       'En la parte superior derecha, hacé clic en "Editar".',
@@ -82,6 +84,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo asignar talles a stock ingresado sin talle',
     ruta: '/inventario',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['talles', 'cargar talles', 'stock sin talle'],
     pasos: [
       'Desde Inventario, hacé clic en el producto para acceder a su ficha.',
       'Si hay unidades disponibles sin talle, localizá el bloque "Productos sin talle" y hacé clic en "Asignar talles".',
@@ -100,6 +103,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo reponer stock de un producto existente',
     ruta: '/inventario',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['reponer', 'reponer mercaderia', 'sumar unidades', 'volver a cargar stock', 'producto agotado'],
     pasos: [
       'En Inventario, localizá el producto y hacé clic en su fila para abrir la ficha.',
       'En la cabecera de la ficha, hacé clic en el botón "Restock".',
@@ -123,6 +127,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Qué pasa con el costo y el precio al reestockear',
     ruta: '/inventario',
     permisos: ['inventario.ver'],
+    alias: ['costo promedio', 'precio al reponer'],
     pasos: [
       'Al confirmar un nuevo ingreso de mercadería, el costo vigente del producto pasa a ser el costo de esa última compra.',
       'Todas las unidades propias en stock (disponibles, reservadas o en revendedora) se sincronizan automáticamente al nuevo costo de reposición.',
@@ -146,6 +151,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar las categorías de inventario',
     ruta: '/inventario/categorias',
     permisos: ['inventario.ver'],
+    alias: ['rubros de productos', 'tipos de producto'],
     pasos: [
       'Ingresá a Inventario desde el menú principal.',
       'En la barra superior de acciones y filtros, hacé clic en "Categorías".',
@@ -157,6 +163,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar una nueva categoría',
     ruta: '/inventario/categorias',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['nuevo rubro de productos', 'agregar categoria'],
     pasos: [
       'En la pantalla de Categorías, hacé clic en "Nueva categoría".',
       'Completá el Nombre de la categoría (con al menos 2 caracteres).',
@@ -176,6 +183,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo editar una categoría',
     ruta: '/inventario/categorias',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['renombrar categoria', 'modificar categoria'],
     pasos: [
       'Desde la pantalla de Categorías, localizá la categoría en la lista y hacé clic en "Editar".',
       'Modificá el Nombre, la Descripción o agregá y quitá talles según corresponda.',
@@ -187,6 +195,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo activar o desactivar una categoría',
     ruta: '/inventario/categorias',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['dar de baja categoria', 'reactivar categoria'],
     pasos: [
       'Ingresá a la sección de Categorías.',
       'En la fila de la categoría correspondiente, hacé clic en "Desactivar" (o "Activar" si se encuentra inactiva).',
@@ -204,6 +213,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo escanear o buscar la ficha de un ítem',
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver'],
+    alias: ['escanear codigo', 'lector de codigo de barras', 'buscar por codigo', 'pistola lectora'],
     pasos: [
       'Desde Inventario, hacé clic en "Escanear código" (o ingresá a la pantalla Escanear ítem).',
       'Apuntá la cámara al código de la etiqueta para leerlo automáticamente.',
@@ -245,6 +255,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un ajuste de inventario en un ítem',
     ruta: '/inventario/ficha',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['corregir stock', 'ajustar stock', 'faltante', 'sobrante'],
     pasos: [
       'Ingresá a la ficha del ítem escaneando su código.',
       'En la tarjeta "Ajuste de inventario", hacé clic en el botón "Ajuste de inventario".',
@@ -296,6 +307,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de ingresos de mercadería',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver'],
+    alias: ['compras a proveedores', 'remitos cargados', 'historial de ingresos'],
     pasos: [
       'Ingresá a Ingresos desde el menú principal de navegación (o hacé clic en "Nuevo ingreso" en Inventario).',
       'Revisá la lista con fecha, proveedor, tipo de ingreso, remito, líneas, unidades, costo total y estado.',
@@ -317,6 +329,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un ingreso de mercadería',
     ruta: '/inventario/ingresos/nuevo',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['cargar mercaderia', 'entrada de mercaderia', 'compra a proveedor', 'recibir mercaderia', 'cargar remito'],
     pasos: [
       'Desde Ingresos, hacé clic en "Nuevo ingreso".',
       'Seleccioná el Proveedor en el desplegable (o dejalo vacío para alta directa sin proveedor).',
@@ -362,6 +375,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo importar un remito PDF en un ingreso',
     ruta: '/inventario/ingresos/nuevo',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['subir remito', 'factura en pdf', 'importar factura'],
     pasos: [
       'En la pantalla de Nuevo ingreso (o en un ingreso borrador), hacé clic en "Importar PDF".',
       'Seleccioná el archivo PDF del remito provisto por el proveedor.',
@@ -390,6 +404,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo confirmar un ingreso borrador',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['finalizar ingreso', 'cerrar ingreso'],
     pasos: [
       'Desde Ingresos, hacé clic en "Abrir" sobre un ingreso que se encuentre en estado Borrador.',
       'Verificá que todas las líneas de productos, talles y costos estén correctamente cargadas.',
@@ -413,6 +428,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo completar el costo pendiente de un ingreso',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver', 'inventario.cargar_costos'],
+    alias: ['falta el costo', 'costo pendiente', 'cargar costo'],
     pasos: [
       'Desde el listado de Ingresos de mercadería, hacé clic en "Abrir" sobre un ingreso confirmado que tenga costo pendiente.',
       'En la tabla de productos, localizá la línea con costo pendiente.',
@@ -435,6 +451,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo agregar productos a un ingreso borrador',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['sumar productos al ingreso', 'agregar articulo al ingreso'],
     pasos: [
       'En Ingresos, hacé clic en "Abrir" sobre el ingreso borrador.',
       'En el formulario "Agregar producto a mano", seleccioná si el artículo "Es nuevo" o "Del inventario".',
@@ -447,6 +464,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo quitar una línea de un ingreso borrador',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['sacar producto del ingreso', 'borrar linea', 'eliminar articulo del ingreso', 'producto mal cargado'],
     pasos: [
       'Desde la lista de Ingresos, hacé clic en "Abrir" en el ingreso borrador.',
       'En la tabla de productos del ingreso, localizá la fila que deseás eliminar.',
@@ -459,6 +477,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo cancelar o eliminar un ingreso de mercadería',
     ruta: '/inventario/ingresos',
     permisos: ['inventario.ver', 'inventario.eliminar'],
+    alias: ['anular ingreso', 'borrar ingreso', 'deshacer ingreso'],
     pasos: [
       'En el listado de Ingresos de mercadería, localizá el ingreso a dar de baja.',
       'En la columna de acciones hacé clic en "Cancelar" (si está confirmado) o en "Eliminar" (si es borrador).',
@@ -477,6 +496,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de proveedores',
     ruta: '/proveedores',
     permisos: ['inventario.ver'],
+    alias: ['mayoristas', 'fabricantes', 'contactos de proveedores'],
     pasos: [
       'Ingresá a Proveedores desde el menú de navegación.',
       'Revisá la lista de proveedores con nombre, tipo, teléfono, días de rotación y estado.',
@@ -489,6 +509,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un nuevo proveedor',
     ruta: '/proveedores/nuevo',
     permisos: ['inventario.ver', 'inventario.crear'],
+    alias: ['alta de proveedor', 'nuevo mayorista', 'agregar proveedor'],
     pasos: [
       'Ingresá a Proveedores y hacé clic en "Nuevo proveedor" (o accedé a la pantalla de nuevo proveedor).',
       'Ingresá el Nombre del proveedor (mínimo 2 caracteres).',
@@ -502,6 +523,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo editar los datos de un proveedor',
     ruta: '/proveedores',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['modificar proveedor', 'cambiar datos de proveedor'],
     pasos: [
       'Entrá a Proveedores desde el menú de navegación.',
       'Hacé clic en "Ver" en la fila del proveedor a consultar.',
@@ -521,6 +543,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un proveedor de tipo consignatario',
     ruta: '/proveedores/nuevo',
     permisos: ['inventario.ver', 'inventario.crear', 'consignaciones.ver'],
+    alias: ['proveedor en consignacion', 'consignador'],
     pasos: [
       'Desde Proveedores, hacé clic en "Nuevo proveedor".',
       'Completá el Nombre del proveedor.',
@@ -540,6 +563,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el perfil de un proveedor',
     ruta: '/proveedores',
     permisos: ['inventario.ver'],
+    alias: ['ficha de proveedor', 'compras a un proveedor'],
     pasos: [
       'En el listado de Proveedores, hacé clic en "Ver" sobre el proveedor a consultar.',
       'Revisá los datos de contacto, CUIT, días de rotación y notas en la cabecera.',
@@ -558,6 +582,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el estado de cuenta y consignaciones de un proveedor',
     ruta: '/proveedores',
     permisos: ['inventario.ver', 'consignaciones.ver', 'rendiciones.ver'],
+    alias: ['cuenta corriente de proveedor', 'saldo con proveedor'],
     pasos: [
       'Desde Proveedores, hacé clic en "Ver" sobre el proveedor consignatario.',
       'Revisá los indicadores de deuda total, valor de stock en consignación y monto pendiente de rendir.',
@@ -581,6 +606,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo dar de baja o reactivar un proveedor',
     ruta: '/proveedores',
     permisos: ['inventario.ver', 'inventario.editar'],
+    alias: ['desactivar proveedor', 'reactivar proveedor', 'proveedor inactivo', 'dejar de comprarle al proveedor'],
     pasos: [
       'Ingresá al listado de Proveedores y hacé clic en "Ver" en la fila del proveedor.',
       'En la cabecera de la ficha, hacé clic en "Dar de baja" (o "Reactivar" si estaba inactivo).',

@@ -38,6 +38,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar la deuda con proveedores en reportes',
     ruta: '/reportes',
     permisos: ['reportes.ver', 'rendiciones.ver'],
+    alias: ['cuanto le debo a proveedores', 'deuda con mayoristas'],
     pasos: [
       'Ingresá al tablero de Reportes con el módulo de rendiciones activo.',
       'Ubicá el bloque "Lo que debés" en la sección de posición financiera.',
@@ -56,6 +57,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el rendimiento del canal de revendedoras en reportes',
     ruta: '/reportes',
     permisos: ['reportes.ver', 'revendedoras.ver'],
+    alias: ['ventas de revendedoras', 'rendimiento de vendedoras'],
     pasos: [
       'Ingresá a Reportes teniendo contratado el paquete de revendedoras.',
       'Desplazate hasta el bloque inferior Canal revendedoras.',

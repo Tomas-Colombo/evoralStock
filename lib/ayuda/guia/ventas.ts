@@ -75,6 +75,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo anular una venta',
     ruta: '/ventas',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['cancelar venta', 'deshacer venta', 'revertir venta', 'venta mal cargada', 'borrar venta', 'eliminar venta'],
     pasos: [
       'En el listado de Ventas, localizá la operación y hacé clic en "Ver".',
       'En la parte superior derecha de la ficha, hacé clic en el botón "Anular venta".',
@@ -93,6 +94,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar el cambio de un producto vendido',
     ruta: '/ventas',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: ['cambio de talle', 'cambiar prenda', 'cambio de articulo', 'cambiar por otro producto'],
     pasos: [
       'Desde el listado de Ventas, hacé clic en "Ver" sobre la venta original.',
       'En la tabla de líneas de venta, buscá el ítem a cambiar y hacé clic en "Cambiar".',
@@ -132,6 +134,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de reservas',
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver'],
+    alias: ['senas', 'apartados', 'reservas pendientes'],
     pasos: [
       'Ingresá a la sección Reservas desde el menú o desde el botón "Reservas" en Ventas.',
       'Revisá la lista con cliente, fecha de alta, fecha de vencimiento, cantidad de ítems y estado.',
@@ -144,6 +147,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo purgar reservas vencidas',
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['limpiar reservas', 'senas vencidas', 'reservas viejas', 'liberar reservas vencidas'],
     pasos: [
       'Ingresá a la sección Reservas.',
       'En el extremo superior derecho, hacé clic en el botón "Purgar vencidas".',
@@ -182,6 +186,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo cancelar una reserva',
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['anular reserva', 'cancelar sena', 'anular sena', 'liberar reserva', 'desapartar'],
     pasos: [
       'Desde el listado de Reservas, hacé clic en "Abrir" en la reserva activa que quieras dar de baja.',
       'En la tarjeta superior con los datos de la reserva, hacé clic en "Cancelar reserva".',
@@ -199,6 +204,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo convertir una reserva en venta',
     ruta: '/ventas/reservas',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: ['completar sena', 'cobrar saldo de reserva', 'retirar apartado', 'pasar reserva a venta'],
     pasos: [
       'En el listado de Reservas hacé clic en "Vender", o hacé clic en "Abrir" y seleccioná "Convertir en venta".',
       'El sistema abrirá la pantalla de Nueva venta con los ítems, el cliente y las notas ya cargados.',
@@ -231,6 +237,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un nuevo cliente',
     ruta: '/clientes/nuevo',
     permisos: ['ventas.ver', 'ventas.crear'],
+    alias: ['alta de cliente', 'nuevo comprador', 'agregar cliente', 'cargar clienta'],
     pasos: [
       'Ingresá a la pantalla de Nuevo cliente (o hacé clic en "Nuevo cliente" desde la cabecera del listado).',
       'Completá el apellido y el nombre del cliente (ambos son campos obligatorios).',
@@ -249,6 +256,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo editar los datos de un cliente',
     ruta: '/clientes',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['modificar cliente', 'cambiar datos de cliente', 'actualizar telefono', 'corregir direccion'],
     pasos: [
       'En la tabla de Clientes, hacé clic en el botón "Editar" en la fila correspondiente (o hacelo desde su ficha con "Editar cliente").',
       'Modificá el apellido, nombre, teléfono, email o notas en el formulario.',
@@ -260,6 +268,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo activar o desactivar un cliente',
     ruta: '/clientes',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['dar de baja cliente', 'reactivar cliente', 'ocultar cliente'],
     pasos: [
       'En la tabla de Clientes, localizá al cliente en el listado.',
       'En la columna de acciones hacé clic en "Desactivar" (o "Activar" si se encontraba inactivo).',
@@ -290,6 +299,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar el cobro de una cuota',
     ruta: '/clientes',
     permisos: ['ventas.ver', 'ventas.editar'],
+    alias: ['pagar cuota', 'abonar cuota', 'cliente paga cuota', 'cobrar cuota'],
     pasos: [
       'Accedé a Clientes (o a Cuotas) y hacé clic en el nombre del cliente para abrir su ficha.',
       'Desplazate hasta la sección Cuotas y localizá la cuota pendiente o parcial.',
@@ -309,6 +319,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     titulo: 'Cómo marcar una cuota como incobrable',
     ruta: '/clientes',
     permisos: ['ventas.ver', 'ventas.eliminar'],
+    alias: ['deuda perdida', 'moroso', 'cliente que no paga', 'cuota impaga', 'deudor incobrable'],
     pasos: [
       'Ingresá a Clientes (o Cuotas) y hacé clic sobre el cliente para entrar a su ficha.',
       'En la sección Cuotas, ubicá la cuota adeudada y hacé clic en el botón "Incobrable".',

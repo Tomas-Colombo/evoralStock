@@ -6,6 +6,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el panel de precios y ganancia proyectada',
     ruta: '/precios',
     permisos: ['precios.ver'],
+    alias: ['ganancia', 'margen', 'panel de precios'],
     pasos: [
       'Ingresá a Precios desde el menú principal de navegación.',
       'Revisá en la cabecera los indicadores de reglas activas, precios desactualizados, productos sin precio y con margen aplicado.',
@@ -24,6 +25,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el control de precios',
     ruta: '/precios/control',
     permisos: ['precios.ver'],
+    alias: ['precios desactualizados', 'revisar precios'],
     pasos: [
       'Ingresá a Precios y hacé clic en "Control de precios" en la barra de cabecera.',
       'Filtrá los productos por estado: solo desactualizados, sin precio de venta, sin regla de margen o todos.',
@@ -42,6 +44,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo recalcular el precio de un producto',
     ruta: '/precios/control',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['actualizar precio de un producto', 'cambiar precio'],
     pasos: [
       'Desde Control de precios, localizá el producto que tenga el precio desactualizado.',
       'En el extremo derecho de la fila, hacé clic en el botón "Recalcular".',
@@ -59,6 +62,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo recalcular precios de forma masiva',
     ruta: '/precios/control',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['aumentar precios', 'actualizar todos los precios', 'subir precios', 'remarcar'],
     pasos: [
       'En Control de precios, tildá la casilla de cada producto o hacé clic en "Seleccionar visibles".',
       'Revisá la cantidad de artículos marcados en la barra superior.',
@@ -77,6 +81,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo revaluar costos en dólares al tipo de cambio vigente',
     ruta: '/precios/control',
     permisos: ['precios.ver', 'precios.editar_cotizacion'],
+    alias: ['productos en dolares', 'actualizar por dolar', 'costos en dolares'],
     pasos: [
       'Ingresá a Precios y seleccioná "Control de precios".',
       'En la barra superior de acciones, hacé clic en "Revaluar costos USD al dólar vigente".',
@@ -104,6 +109,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo ver los productos de una regla y aplicar precios',
     ruta: '/precios/control',
     permisos: ['precios.ver'],
+    alias: ['aplicar regla de precio'],
     pasos: [
       'Ingresá a Control de precios desde el enlace "Ver detalle" del pop-up al crear una regla de margen.',
       'Revisá los productos alcanzados por la regla, organizados en tablas por categoría con su precio proyectado y variación.',
@@ -126,6 +132,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar la cotización oficial del dólar',
     ruta: '/precios/cotizacion',
     permisos: ['precios.ver'],
+    alias: ['valor del dolar', 'cotizacion'],
     pasos: [
       'Ingresá a Precios y hacé clic en la tarjeta "Cotización USD".',
       'Verificá el tipo de cambio vigente, el origen (Oficial BCRA o Manual) y la fecha del valor oficial reportado.',
@@ -175,6 +182,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar las reglas de precios',
     ruta: '/precios/reglas',
     permisos: ['precios.ver'],
+    alias: ['margenes', 'markup', 'reglas de margen'],
     pasos: [
       'Ingresá a Precios y hacé clic en la tarjeta "Reglas de precios".',
       'Revisá las reglas agrupadas por tipo: Margen, Descuento y Recargo.',
@@ -187,6 +195,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo crear una regla de precio',
     ruta: '/precios/reglas/nueva',
     permisos: ['precios.ver', 'precios.crear'],
+    alias: ['nuevo margen', 'definir margen', 'porcentaje de ganancia'],
     pasos: [
       'Ingresá a Reglas de precios y hacé clic en "Nueva regla" (o ingresá a Nueva regla de precio).',
       'Escribí un nombre descriptivo para identificar la regla.',
@@ -217,6 +226,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo dar de baja una regla de precio',
     ruta: '/precios/reglas',
     permisos: ['precios.ver', 'precios.eliminar'],
+    alias: ['eliminar regla de precio', 'borrar regla'],
     pasos: [
       'En el listado de Reglas de precios, localizá la regla a eliminar.',
       'Hacé clic en el botón "Dar de baja" en el extremo derecho de la fila.',
@@ -234,6 +244,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo agregar un plan de cuotas',
     ruta: '/precios/reglas',
     permisos: ['precios.ver', 'precios.crear'],
+    alias: ['cuotas sin interes', 'nuevo plan de cuotas', 'financiacion'],
     pasos: [
       'Desde Reglas de precios, hacé clic en el botón "Editar cuotas".',
       'En el campo "Agregar plan", ingresá la cantidad de cuotas deseada.',
@@ -251,6 +262,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo activar o desactivar un plan de cuotas',
     ruta: '/precios/reglas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['desactivar cuotas', 'pausar plan de cuotas'],
     pasos: [
       'En Reglas de precios, hacé clic en "Editar cuotas".',
       'En la lista de planes, ubicá la cantidad de cuotas a modificar.',
@@ -268,6 +280,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar las cuentas de cobro y recargos',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver'],
+    alias: ['medios de pago', 'formas de pago', 'billeteras', 'cuentas bancarias'],
     pasos: [
       'Ingresá a Precios y hacé clic en la tarjeta "Cuentas de cobro".',
       'Revisá la tabla de cuentas destino con su tipo, identificador y estado.',
@@ -280,6 +293,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo crear una cuenta de cobro',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.crear'],
+    alias: ['agregar medio de pago', 'nueva billetera', 'nueva cuenta bancaria'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Nueva cuenta".',
       'Ingresá el nombre de la cuenta (como Caja, Banco o billetera virtual).',
@@ -300,6 +314,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo activar o desactivar una cuenta de cobro',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['desactivar medio de pago'],
     pasos: [
       'En el listado de Cuentas y recargos, ubicá la cuenta en la tabla.',
       'En la columna de acciones, hacé clic en "Desactivar" (o "Activar" si estaba inactiva).',
@@ -317,6 +332,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo cargar un arancel de cobro para una cuenta',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.crear'],
+    alias: ['comision del medio de pago', 'arancel', 'porcentaje que cobra el banco'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Costo de cobro" en la fila de la cuenta deseada.',
       'En el bloque Aranceles vigentes, hacé clic en "+ Arancel".',
@@ -336,6 +352,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo editar un arancel de cobro',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['modificar arancel', 'cambiar comision del banco'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Costo de cobro" sobre la cuenta correspondiente.',
       'En la tabla de aranceles vigentes, localizá la fila del medio y hacé clic en "Editar".',
@@ -348,6 +365,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo dar de baja un arancel de cobro',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['eliminar arancel'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Costo de cobro" sobre la cuenta correspondiente.',
       'En la tabla de aranceles vigentes, ubicá el medio y hacé clic en "Dar de baja".',
@@ -365,6 +383,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo configurar retenciones fiscales en una cuenta',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['retenciones', 'impuestos del cobro', 'percepciones'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Costo de cobro" sobre la cuenta a configurar.',
       'En la sección Retenciones fiscales, hacé clic en "Editar retenciones".',
@@ -377,6 +396,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo crear un recargo por cuotas',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.crear'],
+    alias: ['interes por cuotas', 'recargo en cuotas'],
     pasos: [
       'En Cuentas y recargos, desplazate al panel Recargo por cuotas y hacé clic en "Nuevo recargo".',
       'Seleccioná la cantidad de cuotas entre los planes activos.',
@@ -396,6 +416,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo editar un recargo por cuotas',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['modificar recargo', 'cambiar interes'],
     pasos: [
       'En Cuentas y recargos, hacé clic en "Costo de cobro" sobre la cuenta correspondiente.',
       'Desplazate hasta el bloque Recargo por cuotas.',
@@ -409,6 +430,7 @@ export const GUIA_PRECIOS: readonly EntradaGuia[] = [
     titulo: 'Cómo dar de baja un recargo por cuotas',
     ruta: '/precios/cuentas',
     permisos: ['precios.ver', 'precios.editar'],
+    alias: ['eliminar recargo', 'quitar interes'],
     pasos: [
       'En el panel Recargo por cuotas de Cuentas y recargos, buscá la fila correspondiente.',
       'Hacé clic en el botón "Dar de baja".',

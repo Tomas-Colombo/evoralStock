@@ -10,5 +10,6 @@ export const GUIA_AYUDA: readonly EntradaGuia[] = [
       'Si no encontrás lo que buscás o la pantalla no está disponible, consultale al administrador de tu negocio.',
     ],
     permisos: ['ayuda.consultar'],
+    alias: ['asistente', 'chat de ayuda', 'preguntarle al asistente'],
   },
 ]

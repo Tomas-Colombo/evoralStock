@@ -6,6 +6,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el panel de administración',
     ruta: '/administracion',
     permisos: ['administracion.ver'],
+    alias: ['configuracion', 'ajustes del negocio'],
     pasos: [
       'Ingresá a Administración desde el menú principal de navegación.',
       'Revisá los accesos a "Usuarios", "Roles" y "Auditoría".',
@@ -17,6 +18,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar los roles y permisos',
     ruta: '/administracion',
     permisos: ['administracion.ver'],
+    alias: ['permisos', 'perfiles de acceso'],
     pasos: [
       'Ingresá a Administración desde el menú principal.',
       'Hacé clic en la tarjeta de "Roles" para abrir la ventana modal.',
@@ -29,6 +31,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo crear un nuevo rol de usuario',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.crear'],
+    alias: ['nuevo perfil de permisos', 'crear permisos'],
     pasos: [
       'En Administración, hacé clic en la tarjeta de "Roles".',
       'Hacé clic en el botón "Nuevo rol".',
@@ -53,6 +56,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo modificar un rol existente',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['cambiar permisos', 'modificar permisos', 'dar permisos', 'sacar permisos'],
     pasos: [
       'En Administración, abrí la ventana de "Roles".',
       'Localizá el rol que deseás modificar y hacé clic en "Editar".',
@@ -65,6 +69,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo eliminar un rol de usuario',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.eliminar'],
+    alias: ['borrar rol'],
     pasos: [
       'En Administración, hacé clic en la tarjeta de "Roles".',
       'Buscá el rol en la lista y hacé clic en "Eliminar".',
@@ -82,6 +87,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo configurar o cambiar el logo del negocio',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['logo', 'imagen de la marca', 'cambiar logo'],
     pasos: [
       'En Administración, desplazate hasta la tarjeta "Logo del negocio".',
       'Hacé clic en "Cambiar imagen" para seleccionar un archivo PNG, SVG o WebP.',
@@ -94,6 +100,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo quitar el logo comercial del negocio',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['borrar logo', 'sacar logo'],
     pasos: [
       'En Administración, localizá la tarjeta "Logo del negocio".',
       'En la parte inferior de la tarjeta, hacé clic en "Quitar logo".',
@@ -105,6 +112,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo elegir el método de identificación de etiquetas',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['codigo de barras o qr', 'tipo de etiqueta'],
     pasos: [
       'En Administración, localizá la sección "Configuración de etiquetas e impresora".',
       'En el selector "Método de identificación", elegí la simbología que usará tu negocio (QR, DataMatrix, Code 128 o EAN-13).',
@@ -117,6 +125,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo gestionar plantillas de etiquetas',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['diseno de etiqueta', 'formato de etiqueta'],
     pasos: [
       'En Administración, localizá la sección "Plantillas de etiquetas".',
       'Para crear una nueva plantilla, hacé clic en "Nueva plantilla", completá el nombre, ancho y alto en milímetros, y los campos visibles.',
@@ -135,6 +144,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo configurar el perfil de impresora de etiquetas',
     ruta: '/administracion',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['impresora termica', 'configurar impresora'],
     pasos: [
       'En Administración, localizá la sección "Configuración de etiquetas e impresora".',
       'Elegí el tipo de impresora: "Hoja A4" (en grilla) o "Rollo térmico" (etiquetas continuas).',
@@ -149,6 +159,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo cambiar tu contraseña de acceso personal',
     ruta: '/administracion',
     permisos: ['administracion.ver'],
+    alias: ['cambiar mi clave'],
     pasos: [
       'En Administración, desplazate hasta el bloque "Seguridad de la cuenta".',
       'Ingresá tu contraseña actual en el primer campo.',
@@ -162,6 +173,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de usuarios',
     ruta: '/administracion/usuarios',
     permisos: ['administracion.ver'],
+    alias: ['empleados', 'usuarios del sistema', 'quienes tienen acceso'],
     pasos: [
       'Ingresá a Administración y hacé clic en la tarjeta "Usuarios".',
       'Revisá en la tabla la lista de colaboradores con su nombre, correo, rol y estado.',
@@ -187,6 +199,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo cambiar el rol de un usuario',
     ruta: '/administracion/usuarios',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['cambiar permisos de un usuario', 'ascender empleado'],
     pasos: [
       'En la pantalla de Usuarios, ubicá la fila correspondiente al colaborador.',
       'En la columna Rol, abrí el selector desplegable.',
@@ -199,6 +212,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo activar o desactivar a un usuario',
     ruta: '/administracion/usuarios',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['desactivar usuario', 'quitar acceso a empleado', 'empleado que se fue', 'bloquear usuario', 'reactivar usuario'],
     pasos: [
       'En el listado de Usuarios, localizá la cuenta del colaborador.',
       'En el extremo derecho de la fila, hacé clic en "Desactivar" (o "Activar" si estaba inactivo).',
@@ -210,6 +224,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo restablecer la contraseña de un usuario',
     ruta: '/administracion/usuarios',
     permisos: ['administracion.ver', 'administracion.editar'],
+    alias: ['resetear contrasena', 'olvido la clave', 'blanquear contrasena'],
     pasos: [
       'En la lista de Usuarios, localizá al colaborador y hacé clic en "Restablecer clave".',
       'Escribí o generá una nueva contraseña provisoria de 8 caracteres o más.',
@@ -228,6 +243,7 @@ export const GUIA_ADMINISTRACION: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el registro de auditoría',
     ruta: '/administracion/auditoria',
     permisos: ['administracion.ver'],
+    alias: ['quien hizo que', 'historial de cambios', 'registro de acciones'],
     pasos: [
       'Ingresá a Administración y hacé clic en la tarjeta "Auditoría".',
       'Para acotar la búsqueda, seleccioná la Entidad en el desplegable y definí el rango de fechas.',

@@ -318,6 +318,29 @@ export const SET_CONTROL_DOMINIO: readonly CasoEvaluacion[] = [
     citasPrevias: ['ventas-registrar-venta'],
     esMultiTurno: true,
   },
+
+  // Bloque D: sinónimos de acción. Escritas antes de la pasada de alias y sin
+  // copiarlos: "como cancelar una venta" no recuperaba ventas-anular-venta.
+  { pregunta: 'como cancelar una venta', esperada: 'ventas-anular-venta' },
+  { pregunta: 'deshacer una venta que cargué mal', esperada: 'ventas-anular-venta' },
+  { pregunta: 'cancelar una reserva', esperada: 'ventas-reservas-cancelar' },
+  { pregunta: 'cancelar una seña', esperada: 'ventas-reservas-cancelar' },
+  { pregunta: 'borrar un gasto que cargué dos veces', esperada: 'gastos-eliminar' },
+  { pregunta: 'pagar una cuota atrasada', esperada: 'ventas-cuotas-cobrar' },
+  { pregunta: 'cliente que no va a pagar nunca la deuda', esperada: 'ventas-cuotas-marcar-incobrable' },
+  { pregunta: 'agregar un comprador nuevo', esperada: 'ventas-clientes-crear' },
+  { pregunta: 'modificar el telefono de una clienta', esperada: 'ventas-clientes-editar' },
+  { pregunta: 'sacar a una empleada que ya no trabaja', esperada: 'administracion-usuarios-alternar-estado' },
+  { pregunta: 'blanquear la clave de una vendedora', esperada: 'administracion-usuarios-restablecer-clave' },
+  { pregunta: 'eliminar un articulo mal cargado en el ingreso', esperada: 'inventario-ingresos-quitar-linea' },
+  { pregunta: 'anular un ingreso de mercaderia', esperada: 'inventario-ingresos-cancelar' },
+  { pregunta: 'subir el logo de la tienda', esperada: 'administracion-logo-actualizar' },
+  { pregunta: 'calcular cuanto le toca a una revendedora', esperada: 'revendedoras-liquidar' },
+  { pregunta: 'devolverle mercaderia al proveedor', esperada: 'consignaciones-nueva' },
+  { pregunta: 'reponer unidades de un articulo que se agoto', esperada: 'inventario-producto-restock' },
+  { pregunta: 'dejar de trabajar con un proveedor', esperada: 'proveedores-toggle-activo' },
+  { pregunta: 'quitarle permisos a un rol', esperada: 'administracion-roles-editar' },
+  { pregunta: 'borrar una categoria de gastos', esperada: 'gastos-categorias-dar-de-baja' },
 ]
 
 /**
@@ -380,9 +403,7 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
         })
       }
 
-      const scoreNormEsperada =
-        resultados.find((r) => r.entrada.id === caso.esperada!)?.scoreNormalizado ?? 0
-      scoresNorm.push({ pregunta: caso.pregunta, scoreNorm: scoreNormEsperada })
+      scoresNorm.push({ pregunta: caso.pregunta, scoreNorm: resultados[0]?.scoreNormalizado ?? 0 })
     }
 
     const recall5 = aciertosTop5 / casosDominio.length
@@ -401,6 +422,11 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
     }
 
     expect(recall5).toBeGreaterThanOrEqual(0.9)
+    // Con 0.28 estas preguntas coloquiales caían en sin_llm aun con la entrada correcta primera.
+    expect(
+      minScoreNorm,
+      `El top 1 mínimo del set original (${minScoreNorm.toFixed(4)}) debe superar UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
+    ).toBeGreaterThanOrEqual(UMBRAL_MINIMO_BM25)
   })
 
   it('evalúa set de control: recall@5, discriminación normalizada y margen de corte', () => {
@@ -429,13 +455,11 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
         })
       }
 
-      const resEsperada = resultados.find((r) => r.entrada.id === caso.esperada!)
-      const scoreNormEsperada = resEsperada?.scoreNormalizado ?? 0
-      const scoreEsperada = resEsperada?.score ?? 0
+      // El corte de sin_llm en el route se decide con el top 1, no con la esperada.
       scoresControl.push({
         pregunta: caso.pregunta,
-        scoreNorm: scoreNormEsperada,
-        score: scoreEsperada,
+        scoreNorm: resultados[0]?.scoreNormalizado ?? 0,
+        score: resultados[0]?.score ?? 0,
         esperada: caso.esperada!,
       })
     }
@@ -498,10 +522,17 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       `Recall@5 en set de control debe ser al menos 90% (actual: ${(recall5Control * 100).toFixed(1)}%)`,
     ).toBeGreaterThanOrEqual(0.9)
 
-    // 2. Toda consulta fuera de dominio debe quedar estrictamente por debajo de UMBRAL_MINIMO_BM25
+    // 2. Las ajenas sin relación con el negocio no llegan al modelo. Las cercanas (wifi,
+    // ARCA, posnet) pueden pasar a propósito: se prioriza recall (ver UMBRAL_MINIMO_BM25).
+    const preguntasGenerales = new Set(
+      EVALUACION_AYUDA.filter((c) => c.esperada === undefined).map((c) => c.pregunta),
+    )
+    const maxFueraDominioGeneral = Math.max(
+      ...fueraDominioDetalle.filter((d) => preguntasGenerales.has(d.pregunta)).map((d) => d.scoreNorm),
+    )
     expect(
-      scoreMaxFueraDominioNorm,
-      `El score normalizado máximo fuera de dominio (${scoreMaxFueraDominioNorm.toFixed(4)}) debe ser menor a UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
+      maxFueraDominioGeneral,
+      `El score normalizado máximo fuera de dominio general (${maxFueraDominioGeneral.toFixed(4)}) debe ser menor a UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
     ).toBeLessThan(UMBRAL_MINIMO_BM25)
 
     // 3. Toda consulta de dominio del set de control debe superar o igualar UMBRAL_MINIMO_BM25

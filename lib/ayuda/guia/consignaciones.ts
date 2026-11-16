@@ -6,6 +6,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de devoluciones a proveedor',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver'],
+    alias: ['devoluciones a proveedor', 'mercaderia devuelta'],
     pasos: [
       'Ingresá a Consignaciones desde el menú principal de navegación.',
       'Ajustá el rango de fechas con el filtro de período para acotar las operaciones.',
@@ -25,6 +26,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar una devolución de mercadería a proveedor',
     ruta: '/consignaciones/nueva',
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
+    alias: ['devolucion a proveedor', 'retorno de mercaderia', 'mandar mercaderia de vuelta'],
     pasos: [
       'En Consignaciones, hacé clic en "Nueva devolución".',
       'Seleccioná el proveedor destinatario en el menú desplegable.',
@@ -44,6 +46,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo confirmar la salida de un lote de devolución',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
+    alias: ['despachar devolucion'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" sobre el lote activo.',
       'En la cabecera de la ficha, hacé clic en el botón "Confirmar lote".',
@@ -62,6 +65,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo agregar un artículo a un lote de consignación activo',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
+    alias: ['sumar articulo a la devolucion'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" sobre el lote deseado.',
       'En la sección "Apartar ítem", escaneá el código o buscá el producto por nombre.',
@@ -74,6 +78,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo confirmar la devolución individual de un ítem',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
+    alias: ['confirmar devolucion de un articulo'],
     pasos: [
       'En Consignaciones, hacé clic en "Abrir" para acceder a la ficha del lote.',
       'En la tabla de ítems, localizá el artículo pendiente.',
@@ -86,6 +91,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo cancelar la devolución de un ítem pendiente',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
+    alias: ['anular devolucion de un articulo'],
     pasos: [
       'Desde la ficha del lote en Consignaciones, buscá el ítem pendiente en la tabla.',
       'Hacé clic en "Liberar" en la fila del ítem correspondiente.',
@@ -98,6 +104,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo cerrar un lote de consignación activo',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.editar'],
+    alias: ['finalizar lote de consignacion'],
     pasos: [
       'En la lista de Consignaciones, hacé clic en "Abrir" sobre el lote deseado.',
       'En la cabecera de la ficha, hacé clic en "Cerrar lote".',
@@ -116,6 +123,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo eliminar un lote de devolución',
     ruta: '/consignaciones',
     permisos: ['consignaciones.ver', 'consignaciones.eliminar'],
+    alias: ['borrar lote de devolucion', 'anular lote de devolucion'],
     pasos: [
       'En el listado de Consignaciones, localizá el lote a anular.',
       'Hacé clic en "Eliminar" en la fila correspondiente.',
@@ -133,6 +141,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de rendiciones',
     ruta: '/rendiciones',
     permisos: ['rendiciones.ver'],
+    alias: ['rendiciones a consignadores'],
     pasos: [
       'Ingresá a Rendiciones desde el menú principal de navegación.',
       'Revisá en la cabecera los indicadores de cantidad total, rendiciones pendientes y monto adeudado.',
@@ -165,6 +174,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo excluir una venta de la rendición',
     ruta: '/rendiciones/nueva',
     permisos: ['rendiciones.ver', 'rendiciones.editar'],
+    alias: ['sacar venta de la rendicion'],
     pasos: [
       'Desde la pantalla de Generar rendición, seleccioná el proveedor.',
       'En la tabla de ventas pendientes, localizá la línea del artículo.',
@@ -183,6 +193,7 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar el pago de una rendición',
     ruta: '/rendiciones',
     permisos: ['rendiciones.ver', 'rendiciones.editar'],
+    alias: ['pague la rendicion', 'pago a consignador'],
     pasos: [
       'En el listado de Rendiciones, buscá la rendición en estado pendiente y hacé clic en "Ver".',
       'En la esquina superior derecha de la ficha, hacé clic en "Marcar pagada".',

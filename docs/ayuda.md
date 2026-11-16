@@ -79,11 +79,11 @@ El motor de retrieval local (`lib/ayuda/bm25.ts`) opera en TypeScript puro sin d
 - **Turno previo**: Los títulos y alias de las citas del turno anterior se agregan con factor atenuado `PESO_TURNO_PREVIO = 0.4`.
 - **Palabras funcionales (Whitelist estricta)**: Aunque se filtran stopwords comunes, se preservan terminantemente en clave y query las palabras: `no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues`, para evitar invertir el sentido de consultas críticas.
 - **Score normalizado y umbral**:
-  El score BM25 se normaliza en el rango $[0, 1]$ mediante $\frac{\text{score}}{\text{score} + 10}$. El umbral actual es:
+  El score BM25 se normaliza en el rango $[0, 1]$ dividiéndolo por el máximo alcanzable para esa consulta, $\sum_t w_t \cdot idf_t \cdot (K_1 + 1)$; las palabras que no están en la guía usan el idf máximo, así que bajan la fracción. El corte se decide sobre ese valor. El umbral actual es:
   ```ts
-  export const UMBRAL_MINIMO_BM25 = 0.28
+  export const UMBRAL_MINIMO_BM25 = 0.18
   ```
-  Este valor asegura un margen de separación limpio entre consultas fuera de dominio (máximo medido: 0.2642) y consultas legítimas de la aplicación (mínimo de dominio en control: 0.3114).
+  Prioriza recall: toda pregunta válida del set de evaluación queda por encima (mínimo ~0.184) y las ajenas sin relación (recetas, fútbol) por debajo (~0.07). Las ajenas cercanas al negocio (wifi, ARCA, posnet, sueldos) pasan al modelo a propósito: gastan una consulta de cuota y terminan en `sin_cita` con la tarjeta fija. Con BM25 léxico no hay umbral que separe las dos poblaciones del todo.
 
 ### Recalibración con `evaluacion.test.ts`
 

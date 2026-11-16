@@ -6,6 +6,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el listado de gastos',
     ruta: '/gastos',
     permisos: ['gastos.ver'],
+    alias: ['egresos', 'salidas de dinero', 'pagos del local'],
     pasos: [
       'Ingresá a Gastos desde el menú principal de navegación.',
       'Revisá en la cabecera los indicadores de monto gastado en el mes y categorías excedidas o cerca del límite.',
@@ -38,6 +39,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo eliminar un gasto registrado',
     ruta: '/gastos',
     permisos: ['gastos.ver', 'gastos.editar'],
+    alias: ['borrar gasto', 'gasto duplicado', 'anular gasto'],
     pasos: [
       'Desde el listado de Gastos, localizá el gasto en la tabla de últimos gastos registrados.',
       'Hacé clic en el botón "Eliminar" en la fila del gasto correspondiente.',
@@ -55,6 +57,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar los presupuestos por categoría',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver'],
+    alias: ['presupuesto', 'cuanto gastamos por rubro'],
     pasos: [
       'Ingresá a Gastos y hacé clic en el botón "Presupuestos" en la barra superior (o en "Ajustar presupuestos").',
       'Consultá la lista de categorías con su presupuesto mensual asignado y su estado.',
@@ -66,6 +69,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo crear una categoría de gasto',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver', 'gastos.crear'],
+    alias: ['nuevo rubro de gasto', 'tipo de gasto'],
     pasos: [
       'En Presupuestos por categoría, ubicá la sección Nueva categoría.',
       'Escribí el nombre de la categoría (por ejemplo Alquiler, Impuestos o Servicios).',
@@ -83,6 +87,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo definir el presupuesto mensual de una categoría',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver', 'gastos.editar'],
+    alias: ['limite de gasto', 'tope mensual'],
     pasos: [
       'En la tabla de Presupuestos por categoría, buscá la fila del rubro a configurar.',
       'Hacé clic en el campo de la columna "Presupuesto mensual (ARS)" e ingresá el tope en pesos.',
@@ -100,6 +105,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo cambiar el nombre de una categoría de gasto',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver', 'gastos.editar'],
+    alias: ['renombrar rubro de gasto'],
     pasos: [
       'En Presupuestos por categoría, localizá la categoría en la tabla.',
       'Modificá el texto directamente en el campo de la columna Categoría.',
@@ -111,6 +117,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo dar de baja una categoría de gasto',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver', 'gastos.editar'],
+    alias: ['eliminar categoria de gasto', 'borrar rubro de gasto', 'desactivar categoria de gasto'],
     pasos: [
       'En la tabla de Presupuestos por categoría, ubicá la categoría activa.',
       'Hacé clic en el botón "Dar de baja" de esa fila.',
@@ -128,6 +135,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo reactivar una categoría de gasto dada de baja',
     ruta: '/gastos/presupuestos',
     permisos: ['gastos.ver', 'gastos.editar'],
+    alias: ['volver a activar categoria de gasto'],
     pasos: [
       'En Presupuestos por categoría, tildá la casilla "Mostrar dadas de baja".',
       'Localizá la categoría inactiva en la lista.',
