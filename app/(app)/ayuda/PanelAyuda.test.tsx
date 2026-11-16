@@ -5,15 +5,16 @@ import { PanelAyuda } from './PanelAyuda'
 import { ToastProvider } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 
-const { consultarAyudaActionMock, calificarConsultaAyudaActionMock } = vi.hoisted(() => ({
-  consultarAyudaActionMock: vi.fn(),
+const { calificarConsultaAyudaActionMock } = vi.hoisted(() => ({
   calificarConsultaAyudaActionMock: vi.fn(),
 }))
 
 vi.mock('@/app/(app)/ayuda/actions', () => ({
-  consultarAyudaAction: consultarAyudaActionMock,
   calificarConsultaAyudaAction: calificarConsultaAyudaActionMock,
 }))
+
+const fetchMock = vi.fn()
+globalThis.fetch = fetchMock
 
 function renderPanel() {
   return render(
@@ -23,22 +24,56 @@ function renderPanel() {
   )
 }
 
-describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
+function mockStreamResponse(chunks: string[], status = 200) {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk))
+      }
+      controller.close()
+    },
+  })
+
+  return new Response(stream, {
+    status,
+    headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+  })
+}
+
+function createControlledStream() {
+  const encoder = new TextEncoder()
+  let controller!: ReadableStreamDefaultController<Uint8Array>
+  const stream = new ReadableStream({
+    start(c) {
+      controller = c
+    },
+  })
+
+  return {
+    stream,
+    push(chunk: string) {
+      controller.enqueue(encoder.encode(chunk))
+    },
+    close() {
+      controller.close()
+    },
+    error(err: unknown) {
+      controller.error(err)
+    },
+    asResponse(status = 200) {
+      return new Response(stream, {
+        status,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+      })
+    },
+  }
+}
+
+describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    consultarAyudaActionMock.mockResolvedValue({
-      ok: true,
-      idConsulta: 'uuid-consulta-1',
-      resultado: {
-        resultado: 'respondida',
-        texto: 'Para registrar una venta, andá a Ventas.',
-        entrada: {
-          id: 'ventas-nueva',
-          titulo: 'Nueva venta',
-          ruta: '/ventas',
-        },
-      },
-    })
+    fetchMock.mockReset()
     calificarConsultaAyudaActionMock.mockResolvedValue({ ok: true })
   })
 
@@ -83,111 +118,329 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
     expect(screen.getByRole('button', { name: 'Ayuda' })).toHaveFocus()
   })
 
-  it('N4: dos envíos seguidos con la action pendiente → una sola llamada', async () => {
-    let resolverAction: (val: unknown) => void = () => {}
-    const promesaPendiente = new Promise((resolve) => {
-      resolverAction = resolve
-    })
-    consultarAyudaActionMock.mockReturnValue(promesaPendiente)
+  it('Shift+Enter no envía la pregunta; Enter sin Shift envía', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta"}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n',
+      ]),
+    )
 
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
 
     const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
-    fireEvent.change(textarea, { target: { value: '¿Cómo cargo una venta?' } })
+    fireEvent.change(textarea, { target: { value: 'Texto de prueba' } })
+
+    // Shift+Enter no envía
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    // Enter sin Shift envía
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('muestra aviso de datos de clientes y contador de caracteres con límite 300', async () => {
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    expect(screen.getByText('No escribas datos de clientes.')).toBeInTheDocument()
+    expect(screen.getByText('0/300')).toBeInTheDocument()
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    expect(textarea).toHaveAttribute('maxLength', '300')
+
+    fireEvent.change(textarea, { target: { value: 'Hola mundo' } })
+    expect(screen.getByText('10/300')).toBeInTheDocument()
+  })
+
+  it('dos envíos seguidos con stream en curso → una sola llamada (botón deshabilitado durante stream)', async () => {
+    const controlled = createControlledStream()
+    fetchMock.mockResolvedValueOnce(controlled.asResponse())
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: '¿Cómo registro una venta?' } })
 
     const botonEnviar = screen.getByRole('button', { name: 'Enviar' })
-
-    // Doble click o envío mientras la action está en vuelo
     fireEvent.click(botonEnviar)
+
+    // Intento de doble envío mientras el stream está en vuelo
     fireEvent.click(botonEnviar)
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
 
-    expect(consultarAyudaActionMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(botonEnviar).toBeDisabled()
 
-    // Al resolver, se procesa la respuesta
-    resolverAction({
-      ok: true,
-      idConsulta: 'uuid-1',
-      resultado: {
-        resultado: 'respondida',
-        texto: 'Pasos para venta.',
-        entrada: { id: 'ventas-nueva', titulo: 'Nueva venta' },
-      },
-    })
+    // Emitir eventos y cerrar
+    controlled.push('data: {"tipo":"texto","contenido":"Pasos para venta."}\n\n')
+    controlled.push('data: {"tipo":"fin","idConsulta":"c-1","resultado":"respondida"}\n\n')
+    controlled.close()
 
     await waitFor(() => {
       expect(screen.getByText('Pasos para venta.')).toBeInTheDocument()
-      expect(textarea).toHaveFocus()
+      expect(textarea).not.toBeDisabled()
     })
   })
 
-  it('turno fallido: la burbuja desaparece, el texto vuelve al textarea y se ve el mensaje de error', async () => {
-    consultarAyudaActionMock.mockResolvedValueOnce({
-      ok: false,
-      reason: 'ayuda-error',
-    })
+  it('texto progresivo: se acumulan los chunks de texto en tiempo real', async () => {
+    const controlled = createControlledStream()
+    fetchMock.mockResolvedValueOnce(controlled.asResponse())
 
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
 
     const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
-    fireEvent.change(textarea, { target: { value: 'Pregunta que fallará' } })
-
+    fireEvent.change(textarea, { target: { value: 'Hola' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
+    controlled.push('data: {"tipo":"texto","contenido":"Hola "}\n\n')
+
     await waitFor(() => {
-      // Se muestra el error en el panel
-      expect(screen.getByRole('alert')).toHaveTextContent(mensajeDeError('ayuda-error'))
+      expect(screen.getByText('Hola')).toBeInTheDocument()
     })
 
-    // La burbuja del usuario ya no está en el listado
-    expect(screen.queryByText('Pregunta que fallará', { selector: 'div.bg-block' })).not.toBeInTheDocument()
+    controlled.push('data: {"tipo":"texto","contenido":"mundo desde el stream."}\n\n')
 
-    // El texto volvió al textarea
-    expect(textarea).toHaveValue('Pregunta que fallará')
-    expect(textarea).toHaveFocus()
+    await waitFor(() => {
+      expect(screen.getByText('Hola mundo desde el stream.')).toBeInTheDocument()
+    })
+
+    controlled.push('data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n')
+    controlled.close()
+
+    await waitFor(() => {
+      expect(screen.getByText('Hola mundo desde el stream.')).toBeInTheDocument()
+    })
   })
 
-  it('fuera_de_opciones → tarjeta fija sin texto del modelo', async () => {
-    consultarAyudaActionMock.mockResolvedValueOnce({
-      ok: true,
-      idConsulta: 'uuid-2',
-      resultado: {
-        resultado: 'fuera_de_opciones',
-      },
-    })
+  it('evento partido entre chunks: se ensambla correctamente sin perder datos', async () => {
+    const controlled = createControlledStream()
+    fetchMock.mockResolvedValueOnce(controlled.asResponse())
 
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
 
     const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
-    fireEvent.change(textarea, { target: { value: '¿Cuál es el sentido de la vida?' } })
+    fireEvent.change(textarea, { target: { value: 'Pregunta chunk' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
+    // Chunk 1 incompleto
+    controlled.push('data: {"tipo":"texto","conte')
+    // Esperar brevemente
+    await new Promise((r) => setTimeout(r, 20))
+    // Chunk 2 completa el JSON
+    controlled.push('nido":"texto ensamblado"}\n\n')
+    controlled.push('data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n')
+    controlled.close()
+
+    await waitFor(() => {
+      expect(screen.getByText('texto ensamblado')).toBeInTheDocument()
+    })
+  })
+
+  it('link renderizado como <a> con href correcto', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Para registrar una venta, andá a "}\n\n',
+        'data: {"tipo":"link","id":"ventas-nueva","titulo":"Nueva venta","ruta":"/ventas/nueva"}\n\n',
+        'data: {"tipo":"texto","contenido":" y completá los datos."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-1","resultado":"respondida"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: '¿Cómo vendo?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => {
+      const link = screen.getByRole('link', { name: 'Nueva venta' })
+      expect(link).toBeInTheDocument()
+      expect(link).toHaveAttribute('href', '/ventas/nueva')
+      expect(link.tagName).toBe('A')
+      expect(screen.getByText(/Para registrar una venta, andá a/)).toBeInTheDocument()
+      expect(screen.getByText(/y completá los datos\./)).toBeInTheDocument()
+    })
+  })
+
+  it('"<script>" como texto literal (REQ-09 N2): no inyecta HTML ni ejecuta scripts', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"<script>alert(\\"xss\\")</script>"}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Prueba XSS' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('<script>alert("xss")</script>')).toBeInTheDocument()
+    })
+
+    // Asegura que no se creó ninguna etiqueta script en el DOM
+    const scripts = document.querySelectorAll('script:not([src])')
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('sin_cita (DR-1): conserva el texto visible y renderiza al pie la tarjeta fija de v1', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Puedo explicarte el concepto, pero no hay pantalla directa."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-sin-cita","resultado":"sin_cita"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Concepto sin pantalla' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      // Texto conservado
+      expect(
+        screen.getByText('Puedo explicarte el concepto, pero no hay pantalla directa.'),
+      ).toBeInTheDocument()
+      // Tarjeta fija de v1 al pie
       expect(
         screen.getByText('No tengo esa respuesta. Preguntale al administrador de tu negocio.'),
       ).toBeInTheDocument()
     })
   })
 
-  it('"¿Te sirvió?" llama a calificar con { idConsulta, util }, y no se muestra con idConsulta null', async () => {
-    // Caso 1: idConsulta presente
-    consultarAyudaActionMock.mockResolvedValueOnce({
-      ok: true,
-      idConsulta: 'uuid-consulta-42',
-      resultado: {
-        resultado: 'respondida',
-        texto: 'Texto de ayuda con ruta.',
-        entrada: {
-          id: 'precios-ver',
-          titulo: 'Control de precios',
-          ruta: '/precios',
-        },
-      },
+  it('sin_llm con sugerencias: renderiza la lista de links de orientación', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"sugerencias","entradas":[{"id":"v-1","titulo":"Facturación y cobro","ruta":"/ventas"},{"id":"c-1","titulo":"Control de clientes","ruta":"/clientes"}]}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"sin_llm"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'pregunta fuera de umbral' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Facturación y cobro' })).toHaveAttribute(
+        'href',
+        '/ventas',
+      )
+      expect(screen.getByRole('link', { name: 'Control de clientes' })).toHaveAttribute(
+        'href',
+        '/clientes',
+      )
     })
+  })
+
+  it('429 cuota-excedida: muestra aviso visible y deshabilita el input hasta recargar', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ ok: false, reason: 'cuota-excedida' }),
+    })
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Consulta con cuota' } })
+
+    const botonEnviar = screen.getByRole('button', { name: 'Enviar' })
+    fireEvent.click(botonEnviar)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(mensajeDeError('cuota-excedida'))
+      expect(textarea).toBeDisabled()
+      expect(botonEnviar).toBeDisabled()
+    })
+
+    // La burbuja de usuario se removió al fallar pre-stream
+    expect(screen.queryByText('Consulta con cuota', { selector: 'div.bg-block' })).not.toBeInTheDocument()
+    // El texto volvió al textarea
+    expect(textarea).toHaveValue('Consulta con cuota')
+
+    // Al tocar "Nueva conversación", el input sigue deshabilitado (hasta recargar)
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva conversación' }))
+    expect(textarea).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent(mensajeDeError('cuota-excedida'))
+  })
+
+  it('error a mitad del stream: conserva el texto recibido y muestra el mensaje de error', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Primeros pasos recibidos correctamente."}\n\n',
+        'data: {"tipo":"error","reason":"ayuda-error"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Pregunta con error a mitad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Primeros pasos recibidos correctamente.')).toBeInTheDocument()
+      expect(screen.getAllByText(mensajeDeError('ayuda-error')).length).toBeGreaterThan(0)
+    })
+
+    // La burbuja de usuario NO se remueve porque ya hubo datos transmitidos
+    expect(
+      screen.getByText('Pregunta con error a mitad', { selector: 'div.bg-block' }),
+    ).toBeInTheDocument()
+  })
+
+  it('abort al cerrar: cancela el stream con AbortController al cerrar el panel', async () => {
+    const controlled = createControlledStream()
+    let capturedSignal: AbortSignal | null | undefined
+
+    fetchMock.mockImplementationOnce((_url: string, init?: RequestInit) => {
+      capturedSignal = init?.signal
+      return Promise.resolve(controlled.asResponse())
+    })
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Pregunta que se abortará' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(capturedSignal).toBeDefined()
+    })
+    expect(capturedSignal?.aborted).toBe(false)
+
+    // Cerrar el panel
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+
+  it('calificar con el idConsulta de fin y sin botones si es null', async () => {
+    // Caso 1: con idConsulta
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta útil."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"uuid-consulta-42","resultado":"respondida"}\n\n',
+      ]),
+    )
 
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
@@ -198,7 +451,6 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
 
     await waitFor(() => {
       expect(screen.getByText('¿Te sirvió?')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Ir a Control de precios' })).toHaveAttribute('href', '/precios')
     })
 
     const botonSi = screen.getByRole('button', { name: 'Sí' })
@@ -224,19 +476,13 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
       expect(botonNo).toHaveAttribute('data-variant', 'primary')
     })
 
-    // Caso 2: idConsulta null → no se muestra "¿Te sirvió?"
-    consultarAyudaActionMock.mockResolvedValueOnce({
-      ok: true,
-      idConsulta: null,
-      resultado: {
-        resultado: 'respondida',
-        texto: 'Otra respuesta sin registro en DB.',
-        entrada: {
-          id: 'ayuda-uso',
-          titulo: 'Uso de la ayuda',
-        },
-      },
-    })
+    // Caso 2: con idConsulta null → no se muestra "¿Te sirvió?" para ese nuevo mensaje
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Otra respuesta sin registro en DB."}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"respondida"}\n\n',
+      ]),
+    )
 
     fireEvent.change(textarea, { target: { value: 'Pregunta sin idConsulta' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -250,63 +496,102 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
     expect(calificarBloques).toHaveLength(1)
   })
 
-  it('el historial que se envía tiene ≤6 mensajes y textos ≤500', async () => {
+  it('historial: envía ≤4 mensajes, textos ≤500, citasPrevias de links y excluye enlatadas', async () => {
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
 
     const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
 
-    // Generar más de 6 turnos para probar el recorte
-    for (let i = 1; i <= 5; i++) {
-      consultarAyudaActionMock.mockResolvedValueOnce({
-        ok: true,
-        idConsulta: `id-${i}`,
-        resultado: {
-          resultado: 'respondida',
-          texto: `Respuesta ${i}: ${'x'.repeat(600)}`,
-          entrada: { id: `entrada-${i}`, titulo: `Titulo ${i}` },
-        },
-      })
+    // Turno 1: respondida con links
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Paso 1."}\n\n',
+        'data: {"tipo":"link","id":"ventas-nueva","titulo":"Ventas","ruta":"/ventas"}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-1","resultado":"respondida"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByText('Paso 1.')).toBeInTheDocument())
 
-      fireEvent.change(textarea, { target: { value: `Pregunta ${i}: ${'y'.repeat(600)}` } })
-      fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    // Turno 2: sin_cita (enlatada / tarjeta fija)
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Paso 2 sin cita."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-2","resultado":"sin_cita"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByText('Paso 2 sin cita.')).toBeInTheDocument())
 
-      await waitFor(() => {
-        expect(screen.getByText(new RegExp(`Respuesta ${i}:`))).toBeInTheDocument()
-      })
-    }
+    // Turno 3: sugerencias (enlatada)
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"sugerencias","entradas":[{"id":"s-1","titulo":"Sug 1","ruta":"/sug"}]}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"sin_llm"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Sug 1' })).toBeInTheDocument())
 
-    // Turno 6
-    consultarAyudaActionMock.mockResolvedValueOnce({
-      ok: true,
-      idConsulta: 'id-6',
-      resultado: {
-        resultado: 'respondida',
-        texto: 'Respuesta 6',
-        entrada: { id: 'entrada-6', titulo: 'Titulo 6' },
-      },
-    })
+    // Turno 4: respondida con link largo para probar slice ≤500
+    const textoLargo = 'a'.repeat(600)
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        `data: {"tipo":"texto","contenido":"${textoLargo}"}\n\n`,
+        'data: {"tipo":"link","id":"clientes-nuevo","titulo":"Clientes","ruta":"/clientes"}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-4","resultado":"respondida"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Clientes' })).toBeInTheDocument())
 
-    fireEvent.change(textarea, { target: { value: 'Pregunta 6' } })
+    // Turno 5: comprobar el payload enviado
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Final"}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-5","resultado":"respondida"}\n\n',
+      ]),
+    )
+    fireEvent.change(textarea, { target: { value: 'Pregunta 5' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
-    await waitFor(() => {
-      expect(consultarAyudaActionMock).toHaveBeenCalledTimes(6)
-    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5))
 
-    const ultimaLlamada = consultarAyudaActionMock.mock.calls[5][0]
-    expect(ultimaLlamada.historial.length).toBeLessThanOrEqual(6)
-    for (const msg of ultimaLlamada.historial) {
+    const ultimaPeticion = JSON.parse(fetchMock.mock.calls[4][1].body as string)
+    const { historial } = ultimaPeticion
+
+    // Historial tiene a lo sumo 4 turnos
+    expect(historial.length).toBeLessThanOrEqual(4)
+
+    // Ninguna respuesta enlatada (sin_cita ni sugerencias) está en el historial
+    for (const msg of historial) {
       expect(msg.texto.length).toBeLessThanOrEqual(500)
+      if (msg.rol === 'asistente') {
+        expect(msg.texto).not.toContain('Paso 2 sin cita.')
+        expect(msg.citasPrevias).toBeDefined()
+      }
     }
 
-    // Solo envía las 4 claves permitidas por consultarAyudaSchema
-    expect(Object.keys(ultimaLlamada).sort()).toEqual(
-      ['focoId', 'historial', 'idConversacion', 'pregunta'].sort(),
+    // El turno 4 de asistente incluyó citasPrevias: ['clientes-nuevo']
+    const turnoAsistenteTurno4 = historial.find(
+      (m: { rol: string; citasPrevias?: string[] }) =>
+        m.rol === 'asistente' && m.citasPrevias?.includes('clientes-nuevo'),
     )
+    expect(turnoAsistenteTurno4).toBeDefined()
   })
 
   it('botón Nueva conversación regenera idConversacion y limpia el chat', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Primera respuesta."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-1","resultado":"respondida"}\n\n',
+      ]),
+    )
+
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
 
@@ -315,57 +600,35 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Para registrar una venta, andá a Ventas.')).toBeInTheDocument()
+      expect(screen.getByText('Primera respuesta.')).toBeInTheDocument()
     })
 
-    const primeraLlamadaIdConv = consultarAyudaActionMock.mock.calls[0][0].idConversacion
+    const primeraPeticion = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    const primeraIdConv = primeraPeticion.idConversacion
 
     // Click en Nueva conversación
     fireEvent.click(screen.getByRole('button', { name: 'Nueva conversación' }))
 
-    expect(screen.queryByText('Para registrar una venta, andá a Ventas.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Primera respuesta.')).not.toBeInTheDocument()
     expect(screen.getByText('¿En qué te puedo ayudar hoy?')).toBeInTheDocument()
 
-    // Nueva pregunta envía un nuevo idConversacion
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Segunda respuesta."}\n\n',
+        'data: {"tipo":"fin","idConsulta":"c-2","resultado":"respondida"}\n\n',
+      ]),
+    )
+
     fireEvent.change(textarea, { target: { value: 'Segunda pregunta' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => {
-      expect(consultarAyudaActionMock).toHaveBeenCalledTimes(2)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
-    const segundaLlamadaIdConv = consultarAyudaActionMock.mock.calls[1][0].idConversacion
-    expect(segundaLlamadaIdConv).not.toEqual(primeraLlamadaIdConv)
-  })
-
-  it('Shift+Enter no envía la pregunta; Enter sin Shift envía', async () => {
-    renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
-
-    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
-    fireEvent.change(textarea, { target: { value: 'Texto de prueba' } })
-
-    // Shift+Enter no envía
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
-    expect(consultarAyudaActionMock).not.toHaveBeenCalled()
-
-    // Enter sin Shift envía
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
-    expect(consultarAyudaActionMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('muestra aviso de datos de clientes y contador de caracteres con límite 300', async () => {
-    renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
-
-    expect(screen.getByText('No escribas datos de clientes.')).toBeInTheDocument()
-    expect(screen.getByText('0/300')).toBeInTheDocument()
-
-    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
-    expect(textarea).toHaveAttribute('maxLength', '300')
-
-    fireEvent.change(textarea, { target: { value: 'Hola mundo' } })
-    expect(screen.getByText('10/300')).toBeInTheDocument()
+    const segundaPeticion = JSON.parse(fetchMock.mock.calls[1][1].body as string)
+    const segundaIdConv = segundaPeticion.idConversacion
+    expect(segundaIdConv).not.toEqual(primeraIdConv)
   })
 
   it('si calificar falla muestra toast con mensajeDeError sin romper el panel', async () => {
@@ -373,6 +636,13 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
       ok: false,
       reason: 'consulta-no-encontrada',
     })
+
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"texto","contenido":"Respuesta para calificar"}\n\n',
+        'data: {"tipo":"fin","idConsulta":"uuid-fallido","resultado":"respondida"}\n\n',
+      ]),
+    )
 
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
@@ -393,5 +663,28 @@ describe('PanelAyuda (REQ-AYUDA-12 / §6 UI)', () => {
 
     // El panel sigue montado y funcional
     expect(screen.getByRole('dialog', { name: 'Ayuda' })).toBeInTheDocument()
+  })
+
+  it('error antes del stream: la burbuja desaparece, el texto vuelve al textarea y se ve el error', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ ok: false, reason: 'ayuda-error' }),
+    })
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'Pregunta que fallará' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(mensajeDeError('ayuda-error'))
+    })
+
+    expect(screen.queryByText('Pregunta que fallará', { selector: 'div.bg-block' })).not.toBeInTheDocument()
+    expect(textarea).toHaveValue('Pregunta que fallará')
+    expect(textarea).toHaveFocus()
   })
 })
