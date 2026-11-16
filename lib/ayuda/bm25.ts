@@ -21,14 +21,19 @@ export const B = 0.75
 export const PESO_TURNO_PREVIO = 0.4
 
 /**
- * Umbral de corte de relevancia mínima para evitar invocar a Gemini en consultas fuera de dominio (REQ-AYUDA-V2-04).
- * Calibrado empíricamente con lib/ayuda/evaluacion.test.ts (consultas fuera de dominio quedan < 4.5).
+ * Umbral de corte de relevancia mínima normalizado en [0, 1] para evitar invocar a Gemini
+ * en consultas fuera de dominio (REQ-AYUDA-V2-04).
+ * Calibrado empíricamente en lib/ayuda/evaluacion.test.ts con el set de control:
+ * - Máximo fuera de dominio: 0.2642 ("cuál es la contraseña del wifi del local")
+ * - Mínimo de dominio en set de control: 0.3114 ("cómo consultar el perfil completo y compras históricas de un proveedor")
+ * - Margen de separación: +0.0472 (umbral en 0.28 deja margen de ~0.0158 sobre el max fuera de dominio y ~0.0314 bajo el min de dominio).
  */
-export const UMBRAL_MINIMO_BM25 = 8.0
+export const UMBRAL_MINIMO_BM25 = 0.28
 
 export interface ResultadoBM25 {
   entrada: EntradaGuia
   score: number
+  scoreNormalizado: number
 }
 
 export interface OpcionesBuscarBM25 {
@@ -50,9 +55,12 @@ export class IndiceBM25 {
   private readonly idfs: Map<string, number> = new Map()
   private readonly docPorId: Map<string, DocumentoIndexado> = new Map()
   private readonly avgdl: number
+  private readonly nTotal: number
+  private readonly idfDf0: number
 
   constructor(guia: readonly EntradaGuia[]) {
-    const nTotal = guia.length
+    this.nTotal = guia.length
+    this.idfDf0 = Math.log((this.nTotal + 0.5) / 0.5 + 1)
     let sumaLongitudes = 0
     const docFrequencies: Map<string, number> = new Map()
 
@@ -100,11 +108,11 @@ export class IndiceBM25 {
       this.docPorId.set(entrada.id, docIndexado)
     }
 
-    this.avgdl = nTotal > 0 ? sumaLongitudes / nTotal : 1
+    this.avgdl = this.nTotal > 0 ? sumaLongitudes / this.nTotal : 1
 
     for (const [token, df] of docFrequencies.entries()) {
       // Fórmula Robertson-Spärck Jones con + 1 para garantizar no-negatividad
-      const idf = Math.log((nTotal - df + 0.5) / (df + 0.5) + 1)
+      const idf = Math.log((this.nTotal - df + 0.5) / (df + 0.5) + 1)
       this.idfs.set(token, idf)
     }
   }
@@ -170,6 +178,14 @@ export class IndiceBM25 {
       return []
     }
 
+    // Denominador del scoreNormalizado: Σ_t (peso_t · idf_t · (K1 + 1))
+    // Para tokens no presentes en el índice se usa idfDf0 = ln((N+0.5)/0.5 + 1)
+    let sumaIdfMax = 0
+    for (const [token, queryWeight] of pesosTerminos.entries()) {
+      const idf = this.idfs.get(token) ?? this.idfDf0
+      sumaIdfMax += queryWeight * idf * (K1 + 1)
+    }
+
     // 4. Scoring BM25 exclusivamente sobre entradas autorizadas
     const resultados: ResultadoBM25[] = []
 
@@ -192,9 +208,15 @@ export class IndiceBM25 {
       }
 
       if (score > 0) {
+        const scoreNormalizado =
+          sumaIdfMax > 0
+            ? Math.min(1, Math.max(0, score / sumaIdfMax))
+            : 0
+
         resultados.push({
           entrada: doc.entrada,
           score,
+          scoreNormalizado,
         })
       }
     }

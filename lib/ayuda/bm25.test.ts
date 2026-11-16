@@ -30,6 +30,8 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       // Debe rankear alto emitir comprobante
       const ids = resultados.map((r) => r.entrada.id)
       expect(ids).toContain('ventas-emitir-comprobante')
+      expect(resultados[0].scoreNormalizado).toBeGreaterThan(0)
+      expect(resultados[0].scoreNormalizado).toBeLessThanOrEqual(1)
     })
 
     it('N1: operador sin permiso gastos consulta por "cómo cargar un gasto"; ninguna entrada de gastos aparece', () => {
@@ -56,22 +58,23 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       const resVentas = buscarBM25('venta', permisosCompletos, { topK: 100 })
       expect(resVentas.length).toBeGreaterThan(0)
       expect(resVentas.every((r) => r.score > 0)).toBe(true)
+      expect(resVentas.every((r) => r.scoreNormalizado > 0 && r.scoreNormalizado <= 1)).toBe(true)
     })
   })
 
-  describe('REQ-AYUDA-V2-04 — Umbral de corte BM25 y discriminación de consultas', () => {
-    it('Feliz: consulta fuera de dominio queda bajo el umbral mínimo BM25', () => {
+  describe('REQ-AYUDA-V2-04 — Umbral de corte BM25 normalizado y discriminación de consultas', () => {
+    it('Feliz: consulta fuera de dominio queda bajo el umbral mínimo BM25 normalizado', () => {
       const resultados = buscarBM25('cómo cocinar una pizza napolitana en horno de barro', permisosCompletos)
 
-      const mejorScore = resultados[0]?.score ?? 0
+      const mejorScore = resultados[0]?.scoreNormalizado ?? 0
       expect(mejorScore).toBeLessThan(UMBRAL_MINIMO_BM25)
     })
 
-    it('N1: consulta con palabras clave operativas reconocidas supera el umbral', () => {
+    it('N1: consulta con palabras clave operativas reconocidas supera el umbral normalizado', () => {
       const resultados = buscarBM25('cómo anular una venta confirmada', permisosCompletos)
 
       expect(resultados.length).toBeGreaterThan(0)
-      expect(resultados[0].score).toBeGreaterThanOrEqual(UMBRAL_MINIMO_BM25)
+      expect(resultados[0].scoreNormalizado).toBeGreaterThanOrEqual(UMBRAL_MINIMO_BM25)
       expect(resultados[0].entrada.id).toBe('ventas-anular-venta')
     })
   })
@@ -142,6 +145,7 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
     it('exporta constantes requeridas por la spec para su calibración', () => {
       expect(typeof UMBRAL_MINIMO_BM25).toBe('number')
       expect(UMBRAL_MINIMO_BM25).toBeGreaterThan(0)
+      expect(UMBRAL_MINIMO_BM25).toBeLessThanOrEqual(1)
       expect(PESO_TURNO_PREVIO).toBe(0.4)
     })
 
@@ -166,6 +170,8 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       const res = indice.buscar('despacho', new Set<Permiso>(['ventas.ver']))
       expect(res.length).toBeGreaterThan(0)
       expect(res[0].entrada.id).toBe('test-1')
+      expect(res[0].scoreNormalizado).toBeGreaterThan(0)
+      expect(res[0].scoreNormalizado).toBeLessThanOrEqual(1)
     })
   })
 })

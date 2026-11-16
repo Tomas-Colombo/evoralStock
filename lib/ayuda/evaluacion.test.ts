@@ -3,7 +3,7 @@ import { buscarBM25, UMBRAL_MINIMO_BM25 } from './bm25'
 import type { Permiso } from '@/lib/types/administracion'
 import { CATALOGO_PERMISOS } from '@/lib/types/administracion'
 
-interface CasoEvaluacion {
+export interface CasoEvaluacion {
   pregunta: string
   esperada?: string // undefined para consultas fuera de dominio
   citasPrevias?: readonly string[]
@@ -183,11 +183,11 @@ export const EVALUACION_AYUDA: readonly CasoEvaluacion[] = [
 
 /**
  * =========================================================================
- * SET DE CONTROL SEPARADO (≥15 de dominio sin mirar alias + ≥6 fuera de dominio cercanas)
+ * SET DE CONTROL SEPARADO (≥15 de dominio sin mirar alias + ≥10 cortas + multi-turno + ≥6 fuera de dominio)
  * =========================================================================
- * Preguntas de dominio redactadas SIN mirar los alias (otras palabras, otras pantallas).
  */
 export const SET_CONTROL_DOMINIO: readonly CasoEvaluacion[] = [
+  // Bloque A: 18 preguntas de dominio redactadas SIN mirar los alias (otras palabras, otras pantallas).
   {
     pregunta: 'cómo convertir una reserva en venta para cobrar el saldo restante',
     esperada: 'ventas-reservas-convertir-venta',
@@ -260,6 +260,64 @@ export const SET_CONTROL_DOMINIO: readonly CasoEvaluacion[] = [
     pregunta: 'cómo consultar el registro de auditoría de acciones de los usuarios',
     esperada: 'administracion-auditoria-consultar',
   },
+
+  // Bloque B: 12 consultas cortas (1 a 3 palabras, sin "cómo") a pantallas distintas
+  {
+    pregunta: 'imprimir etiquetas',
+    esperada: 'inventario-etiquetas-imprimir',
+  },
+  {
+    pregunta: 'anular venta',
+    esperada: 'ventas-anular-venta',
+  },
+  {
+    pregunta: 'alta producto',
+    esperada: 'inventario-producto-crear',
+  },
+  {
+    pregunta: 'emitir ticket',
+    esperada: 'ventas-emitir-comprobante',
+  },
+  {
+    pregunta: 'registrar gasto',
+    esperada: 'gastos-registrar',
+  },
+  {
+    pregunta: 'cotizacion dolar',
+    esperada: 'precios-cotizacion-editar',
+  },
+  {
+    pregunta: 'cambiar producto',
+    esperada: 'ventas-cambiar-producto',
+  },
+  {
+    pregunta: 'nuevo proveedor',
+    esperada: 'proveedores-crear',
+  },
+  {
+    pregunta: 'devolver mercaderia',
+    esperada: 'ventas-devolver-producto',
+  },
+  {
+    pregunta: 'ranking productos',
+    esperada: 'reportes-ranking-productos',
+  },
+  {
+    pregunta: 'nueva revendedora',
+    esperada: 'revendedoras-crear',
+  },
+  {
+    pregunta: 'cambiar contraseña',
+    esperada: 'administracion-password-cambiar',
+  },
+
+  // Bloque C: Consulta multi-turno del spec
+  {
+    pregunta: '¿y el descuento?',
+    esperada: 'ventas-registrar-venta',
+    citasPrevias: ['ventas-registrar-venta'],
+    esMultiTurno: true,
+  },
 ]
 
 /**
@@ -300,6 +358,7 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
     const casosDominio = EVALUACION_AYUDA.filter((c) => c.esperada !== undefined)
     let aciertosTop5 = 0
     const fallos: Array<{ pregunta: string; esperada: string; top5: string[]; scores: number[] }> = []
+    const scoresNorm: Array<{ pregunta: string; scoreNorm: number }> = []
 
     for (const caso of casosDominio) {
       const resultados = buscarBM25(caso.pregunta, todosLosPermisos, {
@@ -320,13 +379,19 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
           scores: top5Scores,
         })
       }
+
+      const scoreNormEsperada =
+        resultados.find((r) => r.entrada.id === caso.esperada!)?.scoreNormalizado ?? 0
+      scoresNorm.push({ pregunta: caso.pregunta, scoreNorm: scoreNormEsperada })
     }
 
     const recall5 = aciertosTop5 / casosDominio.length
+    const minScoreNorm = Math.min(...scoresNorm.map((s) => s.scoreNorm))
     console.log(`\n=== SET ORIGINAL ===`)
     console.log(`Casos de dominio: ${casosDominio.length}`)
     console.log(`Aciertos en top 5: ${aciertosTop5}`)
     console.log(`Recall@5 Original: ${(recall5 * 100).toFixed(1)}%`)
+    console.log(`Score normalizado mínimo (Original): ${minScoreNorm.toFixed(4)}`)
 
     if (fallos.length > 0) {
       console.log(`Fallos (${fallos.length}):`)
@@ -338,14 +403,17 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
     expect(recall5).toBeGreaterThanOrEqual(0.9)
   })
 
-  it('evalúa set de control: recall@5 (18 casos) y discriminación fuera de dominio cercano (7 casos)', () => {
+  it('evalúa set de control: recall@5, discriminación normalizada y margen de corte', () => {
     // 1. In-domain control set
     let aciertosControl = 0
     const fallosControl: Array<{ pregunta: string; esperada: string; top5: string[]; scores: number[] }> = []
-    const scoresControl: Array<{ pregunta: string; score: number }> = []
+    const scoresControl: Array<{ pregunta: string; scoreNorm: number; score: number; esperada: string }> = []
 
     for (const caso of SET_CONTROL_DOMINIO) {
-      const resultados = buscarBM25(caso.pregunta, todosLosPermisos, { topK: 5 })
+      const resultados = buscarBM25(caso.pregunta, todosLosPermisos, {
+        citasPrevias: caso.citasPrevias,
+        topK: 5,
+      })
       const top5Ids = resultados.map((r) => r.entrada.id)
       const top5Scores = resultados.map((r) => r.score)
 
@@ -361,17 +429,26 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
         })
       }
 
-      const scoreEsperada = resultados.find((r) => r.entrada.id === caso.esperada!)?.score ?? 0
-      scoresControl.push({ pregunta: caso.pregunta, score: scoreEsperada })
+      const resEsperada = resultados.find((r) => r.entrada.id === caso.esperada!)
+      const scoreNormEsperada = resEsperada?.scoreNormalizado ?? 0
+      const scoreEsperada = resEsperada?.score ?? 0
+      scoresControl.push({
+        pregunta: caso.pregunta,
+        scoreNorm: scoreNormEsperada,
+        score: scoreEsperada,
+        esperada: caso.esperada!,
+      })
     }
 
     const recall5Control = aciertosControl / SET_CONTROL_DOMINIO.length
+    const minScoreNormControl = Math.min(...scoresControl.map((s) => s.scoreNorm))
+    const casoMinimo = scoresControl.reduce((min, cur) => (cur.scoreNorm < min.scoreNorm ? cur : min))
+
     console.log(`\n=== SET DE CONTROL ===`)
     console.log(`Casos de dominio: ${SET_CONTROL_DOMINIO.length}`)
     console.log(`Aciertos en top 5: ${aciertosControl}`)
     console.log(`Recall@5 Control: ${(recall5Control * 100).toFixed(1)}%`)
-    const minScoreDominioControl = Math.min(...scoresControl.map(s => s.score))
-    console.log(`Score mínimo entrada esperada (Control): ${minScoreDominioControl.toFixed(2)}`)
+    console.log(`Score normalizado mínimo (Control): ${minScoreNormControl.toFixed(4)} ("${casoMinimo.pregunta}" -> ${casoMinimo.esperada})`)
 
     if (fallosControl.length > 0) {
       console.log(`Fallos Control (${fallosControl.length}):`)
@@ -380,9 +457,9 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       }
     }
 
-    // 2. Out-of-domain control set (cercanas al negocio)
-    let scoreMaxFueraDominio = 0
-    const fueraDominioDetalle: Array<{ pregunta: string; scoreMax: number; entrada?: string }> = []
+    // 2. Out-of-domain control set (cercanas al negocio + generales)
+    let scoreMaxFueraDominioNorm = 0
+    const fueraDominioDetalle: Array<{ pregunta: string; scoreNorm: number; score: number; entrada?: string }> = []
 
     const todasFueraDominio = [
       ...EVALUACION_AYUDA.filter((c) => c.esperada === undefined),
@@ -391,24 +468,28 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
 
     for (const caso of todasFueraDominio) {
       const resultados = buscarBM25(caso.pregunta, todosLosPermisos, { topK: 5 })
-      const top1Score = resultados[0]?.score ?? 0
-      if (top1Score > scoreMaxFueraDominio) {
-        scoreMaxFueraDominio = top1Score
+      const top1 = resultados[0]
+      const top1ScoreNorm = top1?.scoreNormalizado ?? 0
+      const top1Score = top1?.score ?? 0
+      if (top1ScoreNorm > scoreMaxFueraDominioNorm) {
+        scoreMaxFueraDominioNorm = top1ScoreNorm
       }
       fueraDominioDetalle.push({
         pregunta: caso.pregunta,
-        scoreMax: top1Score,
-        entrada: resultados[0]?.entrada.id,
+        scoreNorm: top1ScoreNorm,
+        score: top1Score,
+        entrada: top1?.entrada.id,
       })
     }
 
     console.log(`\n=== FUERA DE DOMINIO (${todasFueraDominio.length} casos) ===`)
-    console.log(`Score máximo fuera de dominio: ${scoreMaxFueraDominio.toFixed(2)}`)
+    console.log(`Score normalizado máximo fuera de dominio: ${scoreMaxFueraDominioNorm.toFixed(4)}`)
     for (const d of fueraDominioDetalle) {
-      console.log(`  - "${d.pregunta}": score=${d.scoreMax.toFixed(2)} (${d.entrada ?? 'ninguna'})`)
+      console.log(`  - "${d.pregunta}": scoreNorm=${d.scoreNorm.toFixed(4)} (raw=${d.score.toFixed(2)}, top1=${d.entrada ?? 'ninguna'})`)
     }
 
-    console.log(`\nUmbral actual (UMBRAL_MINIMO_BM25): ${UMBRAL_MINIMO_BM25}`)
+    console.log(`\nUmbral configurado (UMBRAL_MINIMO_BM25): ${UMBRAL_MINIMO_BM25}`)
+    console.log(`Margen de separación: ${(minScoreNormControl - scoreMaxFueraDominioNorm).toFixed(4)}`)
 
     // Verificaciones:
     // 1. Recall@5 en set de control >= 90%
@@ -419,8 +500,14 @@ describe('Suite de Evaluación BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
 
     // 2. Toda consulta fuera de dominio debe quedar estrictamente por debajo de UMBRAL_MINIMO_BM25
     expect(
-      scoreMaxFueraDominio,
-      `El score máximo fuera de dominio (${scoreMaxFueraDominio.toFixed(2)}) debe ser menor a UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
+      scoreMaxFueraDominioNorm,
+      `El score normalizado máximo fuera de dominio (${scoreMaxFueraDominioNorm.toFixed(4)}) debe ser menor a UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
     ).toBeLessThan(UMBRAL_MINIMO_BM25)
+
+    // 3. Toda consulta de dominio del set de control debe superar o igualar UMBRAL_MINIMO_BM25
+    expect(
+      minScoreNormControl,
+      `El score normalizado mínimo de dominio (${minScoreNormControl.toFixed(4)}) debe ser mayor o igual a UMBRAL_MINIMO_BM25 (${UMBRAL_MINIMO_BM25})`,
+    ).toBeGreaterThanOrEqual(UMBRAL_MINIMO_BM25)
   })
 })
