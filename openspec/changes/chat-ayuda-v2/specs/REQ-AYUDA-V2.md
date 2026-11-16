@@ -1,6 +1,6 @@
 # Spec — chat-ayuda-v2 / ayuda
 
-**Change**: `chat-ayuda-v2` · **Requisitos**: `REQ-AYUDA-V2-01…14` · **Decisiones**: `DR-AYUDA-V2-1…6`
+**Change**: `chat-ayuda-v2` · **Requisitos**: `REQ-AYUDA-V2-01…14` · **Decisiones**: `DR-AYUDA-V2-1…7`
 
 Esta especificación evoluciona el módulo de ayuda implementado en `chat-ayuda`. **Reemplaza formalmente** las siguientes secciones de `openspec/changes/chat-ayuda/specs/REQ-AYUDA.md`:
 - **REQ-AYUDA-05 (Salida estructurada y re-validación)** → reemplazado por REQ-AYUDA-V2-06.
@@ -114,7 +114,7 @@ El límite de cuota vive en `limite_ayuda_tenant(id_tenant, limite_diario)` y so
 - **N10**: revendedora intenta leer `limite_ayuda_tenant` o `cuota_ayuda_diaria` → 0 filas devueltas (policy restrictiva de revendedora ACC-11).
 
 ### REQ-AYUDA-V2-12 — Telemetría diferida vía after() y entradas_citadas (reemplaza REQ-AYUDA-10)
-Al cerrarse el stream o producirse un error, el registro en `consulta_ayuda` se ejecuta mediante `after()` de `next/server`. Se reemplaza la columna `entrada_id text` por `entradas_citadas text[]` (con CHECK de cardinalidad ≤ 6 y longitud individual ≤ 64). Se eleva el CHECK de longitud máxima de `respuesta` a 5.000 caracteres para acomodar `maxOutputTokens`. Se registran: `resultado` (`'respondida'`, `'sin_cita'`, `'sin_llm'`, `'fuera_de_opciones'`, `'error'`), `entradas_citadas`, `tipo_error`, `latencia_ms`, `modelo`, y desglose de tokens (`input`, `output`, `cached`, `thinking`).
+Si el stream se completa, el registro en `consulta_ayuda` se hace con `await` antes del evento final `{ tipo: 'fin', idConsulta, resultado }`, para que la UI pueda calificar (DR-AYUDA-V2-7). Si el cliente cancela o hay un error, el registro se ejecuta mediante `after()` de `next/server`. Se reemplaza la columna `entrada_id text` por `entradas_citadas text[]` (con CHECK de cardinalidad ≤ 6 y longitud individual ≤ 64). Se eleva el CHECK de longitud máxima de `respuesta` a 5.000 caracteres para acomodar `maxOutputTokens`. Se registran: `resultado` (`'respondida'`, `'sin_cita'`, `'sin_llm'`, `'fuera_de_opciones'`, `'error'`), `entradas_citadas`, `tipo_error`, `latencia_ms`, `modelo`, y desglose de tokens (`input`, `output`, `cached`, `thinking`).
 
 - **Feliz**: stream completado con citas válidas → `after()` persiste fila con `resultado: 'respondida'`, `entradas_citadas: ['venta-nueva']`, tokens y latencia.
 - **N1**: stream completado sin citas válidas → `after()` persiste fila con `resultado: 'sin_cita'`, `entradas_citadas: []`.
@@ -626,3 +626,6 @@ export type EventoStreamAyuda =
   Una vez emitido el primer token al cliente vía SSE, la conexión no admite conmutación transparente de modelo; los fallos posteriores emiten evento SSE de error.
 - **DR-AYUDA-V2-6 (Cerrada) — Telemetría diferida con `after()`**:
   La persistencia en base de datos se programa de forma asíncrona tras la respuesta sin demorar el stream al cliente.
+  Acotada por DR-AYUDA-V2-7: solo para cancelación y error.
+- **DR-AYUDA-V2-7 (Cerrada) — Registro con `await` al completar el stream:**
+  `idConsulta` lo genera el SP al insertar y la UI lo necesita para calificar. Con `after()` la respuesta ya cerró y el id nunca llega. Al completar, el route registra con `await` y emite `{ tipo: 'fin', idConsulta, resultado }` (`idConsulta: null` si el registro falla, fail-open). El texto ya está en pantalla: solo se demora el botón de calificar.

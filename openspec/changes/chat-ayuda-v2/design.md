@@ -266,3 +266,6 @@ Para evitar deuda técnica y archivos muertos en el repositorio, la Fase 6 de im
   Una vez emitido el primer token al cliente vía SSE, la conexión no admite conmutación transparente de modelo; los fallos posteriores emiten evento SSE de error.
 - **DR-AYUDA-V2-6 (Cerrada) — Telemetría diferida con `after()`:**
   La persistencia en base de datos se programa de forma asíncrona tras la respuesta sin demorar el stream al cliente.
+  Acotada por DR-AYUDA-V2-7: solo para cancelación y error.
+- **DR-AYUDA-V2-7 (Cerrada) — Registro con `await` al completar el stream:**
+  `idConsulta` lo genera el SP al insertar y la UI lo necesita para calificar. Con `after()` la respuesta ya cerró y el id nunca llega. Al completar, el route registra con `await` y emite `{ tipo: 'fin', idConsulta, resultado }` (`idConsulta: null` si el registro falla, fail-open). El texto ya está en pantalla: solo se demora el botón de calificar.

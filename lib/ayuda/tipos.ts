@@ -33,6 +33,10 @@ export type EventoStreamAyuda =
   | TokenLinkAyuda
   | { tipo: 'sugerencias'; entradas: Array<{ id: string; titulo: string; ruta?: string }> }
   | { tipo: 'error'; reason: string }
+  // Último evento de un stream completo. idConsulta viaja acá porque la UI lo
+  // necesita para calificar y la fila recién existe al terminar (DR-AYUDA-V2-7);
+  // es null si el registro falló (fail-open).
+  | { tipo: 'fin'; idConsulta: string | null; resultado: 'respondida' | 'sin_cita' | 'sin_llm' }
 
 export interface PromptAyuda {
   instrucciones: string               // prefijo estable
