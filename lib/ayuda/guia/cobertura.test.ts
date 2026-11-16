@@ -215,4 +215,33 @@ describe('Cobertura de la guía de ayuda', () => {
         .join('\n')}`,
     ).toEqual([])
   })
+  it('e) Cada alias es no vacío, tiene ≤ 64 caracteres y sin duplicados dentro de la misma entrada (REQ-AYUDA-V2-01 N2)', () => {
+    const aliasInvalidos: Array<{ id: string; motivo: string; alias: string }> = []
+
+    for (const entrada of GUIA) {
+      if (!entrada.alias) continue
+
+      const vistos = new Set<string>()
+      for (const alias of entrada.alias) {
+        if (!alias || alias.trim().length === 0) {
+          aliasInvalidos.push({ id: entrada.id, motivo: 'alias vacío', alias })
+        }
+        if (alias && alias.length > 64) {
+          aliasInvalidos.push({ id: entrada.id, motivo: 'alias con más de 64 caracteres', alias })
+        }
+        const normalizado = alias.trim().toLowerCase()
+        if (vistos.has(normalizado)) {
+          aliasInvalidos.push({ id: entrada.id, motivo: 'alias duplicado en la misma entrada', alias })
+        }
+        vistos.add(normalizado)
+      }
+    }
+
+    expect(
+      aliasInvalidos,
+      `Se encontraron alias inválidos en GUIA:\n${aliasInvalidos
+        .map((f) => `- Entrada "${f.id}": ${f.motivo} ("${f.alias}")`)
+        .join('\n')}`,
+    ).toEqual([])
+  })
 })

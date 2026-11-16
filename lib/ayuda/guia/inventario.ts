@@ -20,7 +20,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un nuevo producto',
     ruta: '/inventario/productos/nuevo',
     permisos: ['inventario.ver', 'inventario.crear'],
-    alias: ['alta de prenda','prenda','remera','vestido','ropa'],
+    alias: ['alta de prenda', 'prenda', 'remera', 'vestido', 'ropa', 'articulo', 'producto'],
     pasos: [
       'En Inventario, hacé clic en "Nuevo producto" (o ingresá desde el acceso directo).',
       'Ingresá el Nombre del producto y seleccioná su Categoría.',
@@ -338,6 +338,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
   },
   {
     id: 'inventario-ingresos-consignacion',
+    alias: ['ropa a porcentaje', 'comision de terceros', 'consignacion de ropa', 'ingreso a porcentaje', 'producto a porcentaje', 'articulo a porcentaje'],
     titulo: 'Cómo registrar un ingreso de mercadería en consignación',
     ruta: '/inventario/ingresos/nuevo',
     permisos: ['inventario.ver', 'inventario.crear', 'consignaciones.ver'],

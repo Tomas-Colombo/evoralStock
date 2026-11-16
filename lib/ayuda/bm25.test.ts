@@ -48,6 +48,15 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       const resultados = buscarBM25('cómo cobrar una venta', permisosVacios)
       expect(resultados).toEqual([])
     })
+
+    it('N3: descarta resultados con score <= 0 antes del topK', () => {
+      const resultados = buscarBM25('termino_completamente_inexistente_xyz_987654', permisosCompletos)
+      expect(resultados).toEqual([])
+      // Si hay coincidencias, ningún elemento retornado tiene score <= 0
+      const resVentas = buscarBM25('venta', permisosCompletos, { topK: 100 })
+      expect(resVentas.length).toBeGreaterThan(0)
+      expect(resVentas.every((r) => r.score > 0)).toBe(true)
+    })
   })
 
   describe('REQ-AYUDA-V2-04 — Umbral de corte BM25 y discriminación de consultas', () => {

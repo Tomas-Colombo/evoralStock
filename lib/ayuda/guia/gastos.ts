@@ -18,7 +18,7 @@ export const GUIA_GASTOS: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar un gasto',
     ruta: '/gastos/nuevo',
     permisos: ['gastos.ver', 'gastos.crear'],
-    alias: ['alquiler','luz','boleta de edenor','servicio','pagar gasto'],
+    alias: ['alquiler', 'luz', 'boleta de luz', 'servicio', 'pagar gasto'],
     pasos: [
       'En Gastos, hacé clic en "Nuevo gasto" (o ingresá a la pantalla de Nuevo gasto).',
       'Seleccioná la categoría correspondiente al gasto (o creá una nueva si no existe).',

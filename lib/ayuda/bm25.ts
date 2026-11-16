@@ -24,7 +24,7 @@ export const PESO_TURNO_PREVIO = 0.4
  * Umbral de corte de relevancia mínima para evitar invocar a Gemini en consultas fuera de dominio (REQ-AYUDA-V2-04).
  * Calibrado empíricamente con lib/ayuda/evaluacion.test.ts (consultas fuera de dominio quedan < 4.5).
  */
-export const UMBRAL_MINIMO_BM25 = 4.5
+export const UMBRAL_MINIMO_BM25 = 8.0
 
 export interface ResultadoBM25 {
   entrada: EntradaGuia
@@ -191,10 +191,12 @@ export class IndiceBM25 {
         score += queryWeight * idf * (numerador / denominador)
       }
 
-      resultados.push({
-        entrada: doc.entrada,
-        score,
-      })
+      if (score > 0) {
+        resultados.push({
+          entrada: doc.entrada,
+          score,
+        })
+      }
     }
 
     // 5. Ordenar descendente por score

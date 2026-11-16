@@ -25,7 +25,6 @@ export const GUIA_CONSIGNACIONES: readonly EntradaGuia[] = [
     titulo: 'Cómo registrar una devolución de mercadería a proveedor',
     ruta: '/consignaciones/nueva',
     permisos: ['consignaciones.ver', 'consignaciones.crear'],
-    alias: ['ropa a porcentaje','comision de terceros','consignacion de ropa'],
     pasos: [
       'En Consignaciones, hacé clic en "Nueva devolución".',
       'Seleccioná el proveedor destinatario en el menú desplegable.',
