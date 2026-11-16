@@ -194,7 +194,7 @@ supabase/
   5. **`permisosEfectivos(session)`**: cálculo en memoria de los permisos válidos del operador.
   6. **Retrieval BM25 local**:
      - Si el score BM25 máximo queda bajo `UMBRAL_MINIMO_BM25`, se retorna inmediatamente respuesta de sugerencias `sin_llm` **SIN llamar a `sp_reservar_cuota_ayuda`** (la cuota no se reserva si no se consume el LLM).
-  7. **Reserva atómica de cuota**: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o el límite configurado es < 1), la función lanza excepción y se retorna **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+  7. **Reserva atómica de cuota**: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o el límite configurado es < 1), la función lanza excepción y se retorna **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'cuota-excedida' }`.
   8. **Inicio del streaming SSE**: invocación al modelo y apertura de `ReadableStream` con `Content-Type: text/event-stream; charset=utf-8`.
 - **Excepción justificada a "toda mutación es Server Action"**:
   Las Server Actions de React 19 no soportan respuestas chunked en tiempo real mediante `ReadableStream` y Server-Sent Events. El Route Handler es imprescindible para la entrega fluida token a token. `calificarConsultaAyudaAction` se mantiene como Server Action estándar.

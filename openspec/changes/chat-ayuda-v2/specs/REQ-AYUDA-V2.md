@@ -86,7 +86,7 @@ El endpoint `POST /api/ayuda/chat` MUST implementar estrictamente el siguiente o
 5. `permisosEfectivos(session)`: cálculo en memoria de permisos válidos.
 6. Retrieval BM25 local sobre entradas autorizadas:
    - Si score < `UMBRAL_MINIMO_BM25` → emite respuesta `sin_llm` **SIN reservar cuota**.
-7. Si supera el umbral y va a invocar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o `limite_diario < 1`) → **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+7. Si supera el umbral y va a invocar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o `limite_diario < 1`) → **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'cuota-excedida' }`.
 8. Inicio del streaming SSE (`ReadableStream`, `Content-Type: text/event-stream; charset=utf-8`). Errores durante el stream viajan como eventos SSE `{ tipo: 'error', reason: string }`.
 
 - **Feliz**: petición POST con origen válido y operador autorizado → supera compuertas, reserva cuota e inicia stream SSE.
@@ -96,7 +96,7 @@ El endpoint `POST /api/ayuda/chat` MUST implementar estrictamente el siguiente o
 - **N4**: paquete `ayuda` apagado en el tenant → HTTP 403 JSON (`module-disabled`).
 - **N5**: payload inválido (pregunta vacía) → HTTP 400 JSON (`payload-invalido`).
 - **N6**: consulta fuera de dominio bajo el umbral BM25 → respuesta `sin_llm`; cuota diaria NO es decrementada.
-- **N7**: cuota diaria alcanzada antes de la llamada al modelo → HTTP 429 JSON (`ayuda-cuota-excedida`).
+- **N7**: cuota diaria alcanzada antes de la llamada al modelo → HTTP 429 JSON (`cuota-excedida`).
 
 ### REQ-AYUDA-V2-11 — Control de cuota con SECURITY INVOKER y separación de tablas
 El límite de cuota vive en `limite_ayuda_tenant(id_tenant, limite_diario)` y solo puede ser modificado por el operador con service-role (patrón 00117); `authenticated` solo tiene permiso `SELECT` filtrado por policies restrictivas. El contador diario vive en `cuota_ayuda_diaria(id_tenant, fecha, consultas_realizadas)` y utiliza obligatoriamente `fn_hoy_tenant()` (prohibido `current_date`). Ambas tablas llevan policy restrictiva de revendedora (`auth_revendedora_id() is null`) y policy restrictiva por permiso (`(select auth_tiene_permiso('ayuda', 'consultar'))`). Todas las funciones son `SECURITY INVOKER`. Grants a `authenticated` en `cuota_ayuda_diaria`: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas)`, sin `DELETE`.

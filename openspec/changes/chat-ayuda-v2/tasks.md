@@ -140,7 +140,7 @@ Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.tes
 
 Archivos: `app/api/ayuda/chat/route.ts`, `app/api/ayuda/chat/compuertas.ts`, `app/api/ayuda/chat/route.test.ts`, `lib/validation/ayuda.ts`, `lib/errores/mensajes.ts` (+ su test).
 
-- [ ] Slugs `origin-invalido` y `ayuda-cuota-excedida` en el catálogo y en el inventario del test.
+- [ ] Slug `origin-invalido` en el catálogo y en el inventario del test (`cuota-excedida` ya lo agregó la Fase 3: se reutiliza, no se duplica).
 - [ ] Deduplicar `entradas_citadas` (orden de primera aparición) antes de
       registrar: el modelo puede citar la misma entrada varias veces y el
       CHECK de cardinalidad ≤ 6 haría fallar el registro.
@@ -153,7 +153,7 @@ Archivos: `app/api/ayuda/chat/route.ts`, `app/api/ayuda/chat/compuertas.ts`, `ap
   4. Parseo Zod `strictObject`: HTTP 400 JSON `{ ok: false, reason: 'payload-invalido' }`.
   5. `permisosEfectivos(session)`.
   6. Retrieval BM25 local: si score < umbral → emitir respuesta `sin_llm` **SIN reservar cuota**.
-  7. Si supera el umbral y va a llamar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si cuota alcanzada → HTTP 429 JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+  7. Si supera el umbral y va a llamar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si cuota alcanzada → HTTP 429 JSON `{ ok: false, reason: 'cuota-excedida' }`.
 - [ ] Implementar `app/api/ayuda/chat/route.ts` como adaptador `ReadableStream` SSE:
   - Streaming SSE con `Content-Type: text/event-stream; charset=utf-8`.
   - Errores ocurridos una vez iniciado el stream viajan como evento SSE `{ tipo: 'error', reason: string }`.
@@ -171,7 +171,7 @@ Archivos: `app/(app)/ayuda/PanelAyuda.tsx`, `app/(app)/ayuda/PanelAyuda.test.tsx
 - [ ] Renderizar texto progresivo en tiempo real y transformar tokens estructurados de link en componentes `<Link href={ruta}>` (REQ-AYUDA-V2-09).
 - [ ] Garantizar que no se use `dangerouslySetInnerHTML` ni renderizado de HTML sin escapar.
 - [ ] **Manejo de `sin_cita` (DR-AYUDA-V2-1)**: si el stream finaliza sin haber emitido enlaces a la guía, mantener el texto y mostrar al pie la tarjeta fija de advertencia de v1 ("No tengo esa respuesta. Preguntale al administrador de tu negocio.").
-- [ ] Gestionar error de cuota excedida (HTTP 429 `ayuda-cuota-excedida`) mostrando aviso claro en la UI.
+- [ ] Gestionar error de cuota excedida (HTTP 429 `cuota-excedida`) mostrando aviso claro en la UI.
 - [ ] Mantener intacta la Server Action `calificarConsultaAyudaAction` vinculada a cada respuesta respondida.
 - [ ] Actualizar `PanelAyuda.test.tsx` verificando streaming, cancelación, tarjeta fija y renderizado seguro.
 

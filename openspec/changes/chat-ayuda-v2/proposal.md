@@ -58,7 +58,7 @@ Reemplazar la arquitectura de envío total de índice y respuesta JSON estática
      5. `permisosEfectivos(session)`.
      6. Retrieval BM25 local sobre entradas autorizadas:
         - Si el score queda bajo el umbral de corte → respuesta `sin_llm` (sugerencias) **SIN reservar cuota**.
-     7. Si supera el umbral y se va a llamar a Gemini: **reserva atómica de cuota diaria**. Si la cuota fue alcanzada → 429 `ayuda-cuota-excedida` HTTP JSON.
+     7. Si supera el umbral y se va a llamar a Gemini: **reserva atómica de cuota diaria**. Si la cuota fue alcanzada → 429 `cuota-excedida` HTTP JSON.
      8. Inicio del streaming SSE.
 
 6. **Control de cuota atómica con `SECURITY INVOKER`**:
