@@ -15,19 +15,30 @@ Tareas organizadas por fases secuenciales y lotes de trabajo para agentes. Cada 
 ## Olas de ejecución
 
 ```
-Ola 1   Fase 0 (Latencia TTFT y modelos GA)
+Ola A   Fase 0 (TTFT y modelos)   Fase 1 (tipos, BM25, evaluación)   Fase 3 (DB)
+                                     │                                 │
+Ola B                             Fase 2 (stream, prompt, Gemini)      │
+                                     │                                 │
+Ola C   Fase 4 (Route Handler + compuertas) ◄────────────────────────┘
+        Fase 5 (UI en streaming)
            │
-Ola 2   Fase 1 (Contratos tipados, BM25 y evaluacion.test.ts)
-           │
-Ola 3   ├──► Fase 2 (Streaming, TransformStream y Prompt v2)
-        └──► Fase 3 (DB: límite, cuota atómica y telemetría)
-                  │
-Ola 4   Fase 4 (Route Handler SSE + compuertas locales)
-           │
-Ola 5   Fase 5 (UI streaming en PanelAyuda y tarjeta fija)
-           │
-Ola 6   Fase 6 (Limpieza de código deprecado, docs/ayuda.md y gates)
+Ola D   Fase 6 (limpieza, docs, gates)
 ```
+
+Máximo 3 agentes por ola; ninguna fase de la misma ola comparte archivos.
+
+- **Ola A**: las tres fases son independientes. La Fase 3 no depende del BM25,
+  y la Fase 0 solo fija el valor de `GEMINI_MODEL`, que la Fase 2 lee de env.
+- **Ola B**: la Fase 2 necesita los tipos cerrados en la Fase 1
+  (`EventoStreamAyuda`, `TokenLinkAyuda`, `alias`).
+- **Ola C**: la Fase 4 integra la 2 y la 3. La Fase 5 programa contra el
+  contrato de eventos de `lib/ayuda/tipos.ts` y contra las respuestas HTTP de
+  la §REQ-AYUDA-V2-10, no contra el código de la Fase 4.
+- **Ola D**: la limpieza va al final porque la Fase 5 todavía usa
+  `calificarConsultaAyudaAction` del mismo archivo que se recorta.
+
+Entre olas, el chat v1 tiene que seguir funcionando: lo garantiza la Fase 3
+(ver su primera tarea).
 
 ---
 
@@ -83,8 +94,16 @@ Archivos: `lib/ayuda/stream.ts`, `lib/ayuda/stream.test.ts`, `lib/ayuda/prompt.t
 
 ## Fase 3 — Base de Datos: Límite, Cuota Atómica y Telemetría
 
-Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.test.ts`, `lib/dal/ayuda/cuota.ts`.
+Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.test.ts`, `tests/db/ayuda.test.ts`, `lib/dal/ayuda/cuota.ts`, `lib/dal/ayuda/index.ts` (+ su test), `lib/errores/mensajes.ts` (+ su test).
 
+- [ ] La migración dropea la firma vieja de `sp_registrar_consulta_ayuda`: en
+      la misma fase, `registrarConsultaAyuda` de `lib/dal/ayuda/index.ts` pasa
+      a la firma nueva sin cambiar su payload (traduce `entradaId` a
+      `entradas_citadas = [entradaId]`), y `tests/db/ayuda.test.ts` se ajusta.
+      Así el chat v1 sigue registrando hasta la Ola C.
+- [ ] Slugs que levantan los SP y triggers nuevos (`cuota-excedida`,
+      `cuota-decremento-prohibido`, `cuota-modificacion-invalida`,
+      `cuota-insert-invalido`) en el catálogo y en el inventario del test.
 - [ ] Crear migración SQL con número siguiente libre:
   - Tabla `limite_ayuda_tenant (id_tenant uuid primary key references tenant, limite_diario integer default 100)`. RLS activada con policy tenant, policy restrictiva revendedora (ACC-11) y policy restrictiva por permiso (`auth_tiene_permiso('ayuda', 'consultar')`). Grant `SELECT` a `authenticated`; revocado `INSERT, UPDATE, DELETE` a `authenticated` (solo service-role, patrón 00117).
   - Tabla `cuota_ayuda_diaria (id_tenant uuid, fecha date, consultas_realizadas integer, primary key (id_tenant, fecha))`. RLS activada con policy tenant, policy restrictiva revendedora (ACC-11) y policy restrictiva por permiso (`auth_tiene_permiso('ayuda', 'consultar')`).
@@ -119,7 +138,12 @@ Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.tes
 
 ## Fase 4 — Route Handler HTTP SSE y Compuertas Locales
 
-Archivos: `app/api/ayuda/chat/route.ts`, `app/api/ayuda/chat/compuertas.ts`, `app/api/ayuda/chat/route.test.ts`, `lib/validation/ayuda.ts`.
+Archivos: `app/api/ayuda/chat/route.ts`, `app/api/ayuda/chat/compuertas.ts`, `app/api/ayuda/chat/route.test.ts`, `lib/validation/ayuda.ts`, `lib/errores/mensajes.ts` (+ su test).
+
+- [ ] Slugs `origin-invalido` y `ayuda-cuota-excedida` en el catálogo y en el inventario del test.
+- [ ] Deduplicar `entradas_citadas` (orden de primera aparición) antes de
+      registrar: el modelo puede citar la misma entrada varias veces y el
+      CHECK de cardinalidad ≤ 6 haría fallar el registro.
 
 - [ ] Definir `consultarAyudaChatSchema` con Zod `strictObject` en `lib/validation/ayuda.ts`.
 - [ ] Crear `app/api/ayuda/chat/compuertas.ts` colocalizado en el módulo implementando el orden único innegociable y respuestas HTTP JSON previas al stream:
@@ -155,13 +179,12 @@ Archivos: `app/(app)/ayuda/PanelAyuda.tsx`, `app/(app)/ayuda/PanelAyuda.test.tsx
 
 ## Fase 6 — Limpieza de Código Deprecado, Documentación y Cierre
 
-Archivos: `app/(app)/ayuda/actions.ts`, `lib/ayuda/{salida,resolver,consultar}.ts`, `lib/ayuda/gemini.ts`, `docs/ayuda.md`, `lib/errores/mensajes.ts`, `lib/errores/mensajes.test.ts`.
+Archivos: `app/(app)/ayuda/actions.ts` (+ su test), `lib/ayuda/{salida,resolver,consultar}.ts` (+ sus tests), `lib/ayuda/gemini.ts`, `lib/dal/ayuda/index.ts` (quitar la traducción `entradaId` de la Fase 3), `docs/ayuda.md`.
 
 - [ ] **Fase de limpieza de código deprecado**:
   - Verificar con `rg "consultarAyudaAction"` y removerla de `app/(app)/ayuda/actions.ts` (conservando únicamente `calificarConsultaAyudaAction`).
   - Verificar con `rg` y eliminar los archivos muertos: `lib/ayuda/salida.ts`, `lib/ayuda/resolver.ts`, `lib/ayuda/consultar.ts`.
   - Eliminar el modo JSON estructurado y esquemas asociados de `lib/ayuda/gemini.ts`.
-- [ ] Agregar nuevo slug `ayuda-cuota-excedida` a `lib/errores/mensajes.ts` y al inventario de `mensajes.test.ts`.
 - [ ] **Actualizar `docs/ayuda.md`**:
   - Reemplazar menciones a modelos preview por modelos GA estables.
   - Documentar variables `GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`.
