@@ -86,24 +86,33 @@ Archivos: `lib/ayuda/stream.ts`, `lib/ayuda/stream.test.ts`, `lib/ayuda/prompt.t
 Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.test.ts`, `lib/dal/ayuda/cuota.ts`.
 
 - [ ] Crear migración SQL con número siguiente libre:
-  - Tabla `limite_ayuda_tenant (id_tenant uuid primary key references tenant, limite_diario integer default 100)`. RLS activada; grant `SELECT` a `authenticated`; revocar `INSERT, UPDATE, DELETE` a `authenticated` (solo service-role, patrón 00117).
-  - Tabla `cuota_ayuda_diaria (id_tenant uuid, fecha date, consultas_realizadas integer, primary key (id_tenant, fecha))`.
+  - Tabla `limite_ayuda_tenant (id_tenant uuid primary key references tenant, limite_diario integer default 100)`. RLS activada con policy tenant, policy restrictiva revendedora (ACC-11) y policy restrictiva por permiso (`auth_tiene_permiso('ayuda', 'consultar')`). Grant `SELECT` a `authenticated`; revocado `INSERT, UPDATE, DELETE` a `authenticated` (solo service-role, patrón 00117).
+  - Tabla `cuota_ayuda_diaria (id_tenant uuid, fecha date, consultas_realizadas integer, primary key (id_tenant, fecha))`. RLS activada con policy tenant, policy restrictiva revendedora (ACC-11) y policy restrictiva por permiso (`auth_tiene_permiso('ayuda', 'consultar')`).
   - Grants estrictos: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas)` a `authenticated`; revocar `DELETE`.
   - Triggers de seguridad e integridad temporal usando estrictamente `fn_hoy_tenant()`:
     - Trigger `trg_guardia_insert_cuota_ayuda`: fuerza `fecha = fn_hoy_tenant()` y valida `consultas_realizadas in (0, 1)`.
     - Trigger `trg_guardia_update_cuota_ayuda`: garantiza solo incrementos e inmutabilidad de tenant y fecha.
-  - Función `sp_reservar_cuota_ayuda()` (SECURITY INVOKER) con `INSERT ON CONFLICT DO UPDATE ... WHERE consultas_realizadas < limite_diario RETURNING`.
+  - Función `sp_reservar_cuota_ayuda()` (SECURITY INVOKER):
+    - Chequeo temprano `if v_limite < 1 then raise exception 'cuota-excedida'; end if;`.
+    - `INSERT ON CONFLICT DO UPDATE ... WHERE consultas_realizadas < v_limite RETURNING`.
   - Extensión de `consulta_ayuda`:
     - Reemplazar `entrada_id text` por `entradas_citadas text[]` con backfill automático desde `entrada_id`.
+    - CHECK `consulta_ayuda_entradas_citadas_check`: cardinalidad ≤ 6 y longitud individual ≤ 64.
+    - Elevar CHECK de `respuesta` a 5.000 caracteres (`char_length(respuesta) <= 5000`).
     - Ampliar CHECK de resultado para admitir `in ('respondida', 'sin_cita', 'sin_llm', 'fuera_de_opciones', 'error')`.
     - Columnas de telemetría: `tipo_error`, `latencia_ms`, `modelo`, `tokens_input`, `tokens_output`, `tokens_cached`, `tokens_thinking`.
-  - Actualización de `sp_registrar_consulta_ayuda` (SECURITY INVOKER) partiendo de `pnpm sp:last sp_registrar_consulta_ayuda`.
-  - Bloque reversible `-- DOWN:` ejecutable completo verificado por `pnpm gate:db`.
+  - Drop explícito de `sp_registrar_consulta_ayuda(uuid, text, text, text, text)` y creación de nueva firma (SECURITY INVOKER) con `revoke/grant` explícitos.
+  - Bloque reversible `-- DOWN:` ejecutable completo verificado por `pnpm gate:db`:
+    - Mapeo de `sin_cita` → `respondida` / `fuera_de_opciones` y `sin_llm` → `fuera_de_opciones`.
+    - Backfill inverso hacia `entrada_id text` y restauración de los 4 checks originales de v1 con sus nombres exactos.
+    - Restauración de la firma original de `sp_registrar_consulta_ayuda` proveniente de `00150`.
 - [ ] Crear `lib/dal/ayuda/cuota.ts` para invocar `sp_reservar_cuota_ayuda` y `sp_registrar_consulta_ayuda`.
 - [ ] Crear suite `tests/db/ayuda_v2.test.ts`:
   - Prueba N de `INSERT` directo en `cuota_ayuda_diaria` con contador alto (ej. 99) rechazado por trigger.
   - Prueba N de `INSERT` directo con fecha futura sobrescrita por `fn_hoy_tenant()`.
-  - Prueba de reserva atómica exitosa y rechazo con `cuota-excedida` al alcanzar el límite de `limite_ayuda_tenant`.
+  - Prueba N de reserva atómica con `limite_diario = 0` rechazada con `cuota-excedida` antes del insert.
+  - Prueba de reserva atómica exitosa y rechazo al alcanzar el límite.
+  - Pruebas de las policies restrictivas: revendedora y operador sin permiso `ayuda.consultar` reciben 0 filas en ambas tablas.
   - Verificación del test 8 de `tests/db/rvp-lecturas.test.ts` confirmando cero DEFINER nuevos.
 
 ---

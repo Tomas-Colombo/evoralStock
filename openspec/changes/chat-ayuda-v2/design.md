@@ -178,6 +178,7 @@ supabase/
 - **Renderizado seguro en UI**:
   - El componente React `PanelAyuda` recibe eventos SSE de tipo `texto` y `link`.
   - Renderiza texto plano y botones/links tipados (`<Link href={evento.ruta}>`).
+  - **Tratamiento de `sin_cita` (DR-AYUDA-V2-1)**: si el stream termina sin ninguna cita válida, la UI mantiene el texto en pantalla y agrega al pie la tarjeta fija de advertencia de v1.
   - **Uso de HTML prohibido**: cero llamadas a `dangerouslySetInnerHTML` ni librerías que inyecten HTML en el DOM, blindando al sistema contra ataques XSS.
 
 ### 4.5. Endpoint `POST /api/ayuda/chat` (SSE) y compuertas locales
@@ -193,155 +194,48 @@ supabase/
   5. **`permisosEfectivos(session)`**: cálculo en memoria de los permisos válidos del operador.
   6. **Retrieval BM25 local**:
      - Si el score BM25 máximo queda bajo `UMBRAL_MINIMO_BM25`, se retorna inmediatamente respuesta de sugerencias `sin_llm` **SIN llamar a `sp_reservar_cuota_ayuda`** (la cuota no se reserva si no se consume el LLM).
-  7. **Reserva atómica de cuota**: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado, la función lanza excepción y se retorna **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+  7. **Reserva atómica de cuota**: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o el límite configurado es < 1), la función lanza excepción y se retorna **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
   8. **Inicio del streaming SSE**: invocación al modelo y apertura de `ReadableStream` con `Content-Type: text/event-stream; charset=utf-8`.
 - **Excepción justificada a "toda mutación es Server Action"**:
   Las Server Actions de React 19 no soportan respuestas chunked en tiempo real mediante `ReadableStream` y Server-Sent Events. El Route Handler es imprescindible para la entrega fluida token a token. `calificarConsultaAyudaAction` se mantiene como Server Action estándar.
 
-### 4.6. Control de cuota atómica con `SECURITY INVOKER`
+### 4.6. Control de cuota atómica con `SECURITY INVOKER` y separación de tablas
 - **Garantía anti-propagación de DEFINER**:
   `tests/db/rvp-lecturas.test.ts` (test 8) valida la lista blanca cerrada de DEFINER. Todas las funciones de cuota son **`SECURITY INVOKER`**.
 - **Separación de tablas: límite vs contador**:
-  1. **Tabla de límite configurado por tenant**:
-     ```sql
-     create table if not exists limite_ayuda_tenant (
-       id_tenant      uuid primary key references tenant(id_tenant) on delete cascade,
-       limite_diario  integer not null default 100,
-       created_at     timestamptz not null default now()
-     );
-     alter table limite_ayuda_tenant enable row level security;
-     create policy limite_ayuda_tenant_select on limite_ayuda_tenant
-       for select to authenticated
-       using (id_tenant = auth_tenant_id());
-     -- Solo modificable por el operador con service-role (patrón 00117):
-     revoke insert, update, delete on limite_ayuda_tenant from authenticated;
-     ```
-  2. **Tabla de contador diario**:
-     ```sql
-     create table if not exists cuota_ayuda_diaria (
-       id_tenant             uuid not null references tenant(id_tenant) on delete cascade,
-       fecha                 date not null,
-       consultas_realizadas  integer not null default 0,
-       created_at            timestamptz not null default now(),
-       primary key (id_tenant, fecha)
-     );
-     alter table cuota_ayuda_diaria enable row level security;
-     create policy cuota_ayuda_diaria_tenant on cuota_ayuda_diaria
-       for all to authenticated
-       using (id_tenant = auth_tenant_id())
-       with check (id_tenant = auth_tenant_id());
-     create policy restrict_revendedora_cuota_ayuda on cuota_ayuda_diaria
-       as restrictive for all to authenticated
-       using (auth_revendedora_id() is null);
-
-     revoke all on cuota_ayuda_diaria from public, anon;
-     grant select, insert (id_tenant, fecha, consultas_realizadas), update (consultas_realizadas)
-       on cuota_ayuda_diaria to authenticated;
-     revoke delete on cuota_ayuda_diaria from authenticated;
-     ```
+  1. **Tabla de límite configurado por tenant (`limite_ayuda_tenant`)**:
+     - Clave primaria `id_tenant references tenant(id_tenant)`.
+     - Campo `limite_diario integer not null default 100 check (limite_diario >= 0)`.
+     - RLS activada con doble policy restrictiva: revendedora bloqueada (`auth_revendedora_id() is null`, guardia ACC-11) y permiso requerido (`(select auth_tiene_permiso('ayuda', 'consultar'))`).
+     - Grant `SELECT` a `authenticated`; revocado `INSERT, UPDATE, DELETE` a `authenticated` (solo service-role, patrón 00117).
+     - **Procedimiento de aprovisionamiento**: hasta que plataforma tenga UI en `PaquetesCard`, el operador inserta o actualiza filas vía SQL con clave `service_role`. Sin fila registrada, el sistema toma el valor por defecto de 100 consultas/día (`coalesce(limite_diario, 100)`).
+  2. **Tabla de contador diario (`cuota_ayuda_diaria`)**:
+     - Clave primaria compuesta `(id_tenant, fecha)`.
+     - RLS activada con policy tenant (`id_tenant = auth_tenant_id()`), policy restrictiva de revendedora (ACC-11) y policy restrictiva por permiso (`auth_tiene_permiso('ayuda', 'consultar')`).
+     - Grants estrictos por columna: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas) on cuota_ayuda_diaria to authenticated`. Revocado `DELETE`.
 - **Triggers de seguridad e integridad temporal**:
   - **Uso estricto de fecha del tenant**: se utiliza `fn_hoy_tenant()` en todo el código SQL; se prohíbe terminantemente `current_date`.
-  - **Trigger `BEFORE INSERT`**:
-    ```sql
-    create or replace function fn_guardia_insert_cuota_ayuda() returns trigger
-    language plpgsql security invoker set search_path = public, pg_temp as $$
-    begin
-      new.fecha := fn_hoy_tenant();
-      if new.consultas_realizadas not in (0, 1) then
-        raise exception 'cuota-insert-invalido' using errcode = '42501';
-      end if;
-      return new;
-    end;
-    $$;
-
-    create trigger trg_guardia_insert_cuota_ayuda
-      before insert on cuota_ayuda_diaria
-      for each row execute function fn_guardia_insert_cuota_ayuda();
-    ```
-  - **Trigger `BEFORE UPDATE`**:
-    ```sql
-    create or replace function fn_guardia_update_cuota_ayuda() returns trigger
-    language plpgsql security invoker set search_path = public, pg_temp as $$
-    begin
-      if new.consultas_realizadas <= old.consultas_realizadas then
-        raise exception 'cuota-decremento-prohibido' using errcode = '42501';
-      end if;
-      if new.id_tenant is distinct from old.id_tenant or new.fecha is distinct from old.fecha then
-        raise exception 'cuota-modificacion-invalida' using errcode = '42501';
-      end if;
-      return new;
-    end;
-    $$;
-
-    create trigger trg_guardia_update_cuota_ayuda
-      before update on cuota_ayuda_diaria
-      for each row execute function fn_guardia_update_cuota_ayuda();
-    ```
-- **Riesgo residual documentado**:
-  Un usuario autenticado con permiso legítimo de ayuda que tenga intenciones de perjudicar al negocio podría ejecutar un script automatizado para agotar las consultas diarias de su propio comercio. Este riesgo se mitiga limitando el impacto al cupo del tenant (sin sobrecostos de tarjeta en Google Cloud) y auditando la autoría en `consulta_ayuda.id_usuario`.
+  - **Trigger `BEFORE INSERT` (`fn_guardia_insert_cuota_ayuda`)**:
+    Sobrescribe `new.fecha := fn_hoy_tenant()` e impide que se inserte un contador arbitrario exigiendo `new.consultas_realizadas in (0, 1)`.
+  - **Trigger `BEFORE UPDATE` (`fn_guardia_update_cuota_ayuda`)**:
+    Exige `new.consultas_realizadas > old.consultas_realizadas` (impide decrementos) y bloquea alteraciones a `id_tenant` o `fecha`.
 - **Reserva atómica (`sp_reservar_cuota_ayuda`)**:
-  ```sql
-  create or replace function sp_reservar_cuota_ayuda() returns void
-  language plpgsql security invoker set search_path = public, pg_temp as $$
-  declare
-    v_tenant uuid := auth_tenant_id();
-    v_limite integer;
-    v_res    integer;
-  begin
-    if not (select auth_tiene_permiso('ayuda', 'consultar')) then
-      raise exception 'no-permission' using errcode = '42501';
-    end if;
-    if v_tenant is null then
-      raise exception 'no-tenant' using errcode = '42501';
-    end if;
-    if not fn_modulo_habilitado(v_tenant, 'ayuda') then
-      raise exception 'module-disabled' using errcode = 'P0001';
-    end if;
+  Lee `limite_diario` de `limite_ayuda_tenant`. Si `v_limite < 1` (ej. tenant con cuota 0), lanza inmediatamente `'cuota-excedida'` antes de intentar cualquier inserción. Si no, ejecuta `INSERT ... ON CONFLICT DO UPDATE ... WHERE consultas_realizadas < v_limite RETURNING`. Si no retorna filas, lanza `'cuota-excedida'`.
+- **Riesgo residual documentado**:
+  Un empleado con permiso legítimo de ayuda puede agotar intencionalmente el cupo diario de su tenant ejecutando consultas continuas. El impacto queda acotado al cupo diario de ese tenant (sin costos descontrolados en Google Cloud) y la autoría se audita mediante `id_usuario` en `consulta_ayuda`.
 
-    select coalesce(limite_diario, 100) into v_limite
-    from limite_ayuda_tenant where id_tenant = v_tenant;
-    if v_limite is null then
-      v_limite := 100;
-    end if;
-
-    insert into cuota_ayuda_diaria (id_tenant, fecha, consultas_realizadas)
-    values (v_tenant, fn_hoy_tenant(), 1)
-    on conflict (id_tenant, fecha) do update
-      set consultas_realizadas = cuota_ayuda_diaria.consultas_realizadas + 1
-      where cuota_ayuda_diaria.consultas_realizadas < v_limite
-    returning consultas_realizadas into v_res;
-
-    if v_res is null then
-      raise exception 'cuota-excedida' using errcode = 'P0001';
-    end if;
-  end;
-  $$;
-  ```
-
-### 4.7. Telemetría diferida con `after()` de `next/server`
+### 4.7. Telemetría diferida con `after()` de `next/server` y evolución de esquema
 - **Uso de `after()`**:
   El registro final en `consulta_ayuda` no bloquea el cierre del stream al cliente; se programa mediante `after(async () => { ... })`.
-- **Migración de `entrada_id` a `entradas_citadas`**:
-  Se sustituye la columna mono-valor `entrada_id text` por `entradas_citadas text[]`. Se realiza backfill automático:
-  ```sql
-  update consulta_ayuda
-  set entradas_citadas = case
-    when entrada_id is not null then array[entrada_id]
-    else array[]::text[]
-  end;
-  alter table consulta_ayuda drop column if exists entrada_id;
-  ```
-- **Datos registrados**:
-  - `resultado`: `'respondida'` | `'sin_cita'` | `'sin_llm'` | `'fuera_de_opciones'` | `'error'`
-  - `entradas_citadas`: array de ids de las pantallas citadas con éxito
-  - `tipo_error`: kebab-case slug si hubo fallo
-  - `latencia_ms`: tiempo transcurrido desde el inicio de la petición
-  - `modelo`: identificador del modelo o `'sin_llm'`
-  - `tokens_input`, `tokens_output`, `tokens_cached`, `tokens_thinking` extraídos de `usageMetadata`
-- **Comportamiento si la plataforma corta la función**:
-  - Se define `export const maxDuration = 30` en el Route Handler.
-  - En Vercel Serverless, `after()` mantiene el contenedor vivo hasta completar la promesa o alcanzar `maxDuration`.
-  - Si la función es cortada abruptamente: la cuota ya fue reservada en el paso inicial (protección financiera garantizada), aunque la fila de telemetría final pudiera perderse.
+- **Migración de `entrada_id` a `entradas_citadas text[]`**:
+  - Se agrega `entradas_citadas text[] not null default array[]::text[]`.
+  - Se backfillea con `case when entrada_id is not null then array[entrada_id] else array[]::text[] end`.
+  - Se agrega CHECK `consulta_ayuda_entradas_citadas_check`: `coalesce(cardinality(entradas_citadas), 0) <= 6 and array_to_string(entradas_citadas, ',') !~ '[^,]{65,}'`.
+  - **Límite de caracteres de respuesta en DB**: se eleva `consulta_ayuda_respuesta_check` a 5.000 caracteres (`char_length(respuesta) <= 5000`) para acomodar `maxOutputTokens: 1000` en español (~4.000 caracteres) sin recortar en el DAL, preservando datos de telemetría íntegros para auditoría de calidad.
+- **Ventana entre migración (`db push`) y deploy**:
+  Antes de crear la versión extendida de `sp_registrar_consulta_ayuda`, la migración dropea explícitamente `sp_registrar_consulta_ayuda(uuid, text, text, text, text)`. Durante la ventana previa al deploy del nuevo frontend, las consultas de v1 fallarán al intentar registrarse en el SP dropeado; sin embargo, gracias al manejo fail-open de REQ-AYUDA-10, `consultarAyudaAction` captura el error, lo registra en `console.error` y la respuesta llega intacta al usuario. `sp_calificar_consulta_ayuda` no sufre cambios de firma y sigue operativo.
+- **Reversibilidad y DOWN (`pnpm gate:db`)**:
+  El script DOWN restaura la columna `entrada_id text`, mapea las filas existentes (`sin_cita` → `respondida` con primer citado o `fuera_de_opciones`, `sin_llm` → `fuera_de_opciones`), dropea las columnas nuevas, recrea los 4 CHECKs originales de v1 con sus nombres exactos, dropea la firma nueva y restaura la definición exacta de `sp_registrar_consulta_ayuda` proveniente de `00150`.
 
 ### 4.8. Reemplazo formal de especificaciones v1
 - `REQ-AYUDA-05` (salida estructurada JSON): reemplazado por `REQ-AYUDA-V2-06` (texto plano sin markdown y citas sintácticas).
@@ -361,13 +255,13 @@ Para evitar deuda técnica y archivos muertos en el repositorio, la Fase 6 de im
 ## 5. Decisiones de diseño y puntos abiertos
 
 - **DR-AYUDA-V2-1 (Cerrada / Propuesta aprobada) — Respuesta sin citas válidas:**
-  Cuando el stream finaliza sin haber emitido ninguna cita válida a la guía, se registra en telemetría `resultado = 'sin_cita'` (con `entradas_citadas = []`), se conserva el texto transmitido en el chat y la UI agrega al final del mensaje la tarjeta fija de advertencia de v1: *"No tengo esa respuesta. Preguntale al administrador de tu negocio."*
+  Cuando el stream finaliza sin haber emitido ninguna cita válida a la guía, se registra en telemetría `resultado = 'sin_cita'` (con `entradas_citadas = []`), se conserva el texto transmitido en el chat y la UI agrega al final del mensaje la tarjeta fija de advertencia de v1: *"No tengo esa respuesta. Preguntale al administrador de tu negocio."*.
 - **DR-AYUDA-V2-2 (Abierta) — Límite por defecto de cuota diaria:**
-  Se establece provisionalmente en 100 consultas/día por tenant en `limite_ayuda_tenant`, editable por el super admin mediante scripts o plataforma.
+  Se establece provisionalmente en 100 consultas/día por tenant en `limite_ayuda_tenant`, editable por el operador mediante SQL con clave service-role hasta que exista UI en plataforma.
 - **DR-AYUDA-V2-3 (Abierta / Fuera de v2) — Caché de respuestas por tenant:**
   Bajo `SECURITY INVOKER`, cualquier usuario con acceso al tenant podría inyectar respuestas adulteradas en la tabla de caché que luego serían leídas por sus compañeros (envenenamiento de caché interno). Por seguridad, el caché de respuestas queda postergado y fuera de las fases de implementación de v2. Se reevaluará con telemetría en producción.
 - **DR-AYUDA-V2-4 (Cerrada) — Salida en texto plano sin Markdown:**
-  El modelo emite texto plano directo (sin negritas ni listas con sintaxis Markdown), conteniendo únicamente citas `[[id]]`.
+  El modelo emite texto plano directo (sin negritas ni listas con formato Markdown), conteniendo únicamente citas sintácticas `[[id]]`.
 - **DR-AYUDA-V2-5 (Cerrada) — Reintento y fallback solo antes del primer byte:**
   Una vez emitido el primer token al cliente vía SSE, la conexión no admite conmutación transparente de modelo; los fallos posteriores emiten evento SSE de error.
 - **DR-AYUDA-V2-6 (Cerrada) — Telemetría diferida con `after()`:**

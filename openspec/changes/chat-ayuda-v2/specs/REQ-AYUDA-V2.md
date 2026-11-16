@@ -86,7 +86,7 @@ El endpoint `POST /api/ayuda/chat` MUST implementar estrictamente el siguiente o
 5. `permisosEfectivos(session)`: cálculo en memoria de permisos válidos.
 6. Retrieval BM25 local sobre entradas autorizadas:
    - Si score < `UMBRAL_MINIMO_BM25` → emite respuesta `sin_llm` **SIN reservar cuota**.
-7. Si supera el umbral y va a invocar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado → **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+7. Si supera el umbral y va a invocar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si el límite diario fue alcanzado (o `limite_diario < 1`) → **HTTP 429 Too Many Requests** JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
 8. Inicio del streaming SSE (`ReadableStream`, `Content-Type: text/event-stream; charset=utf-8`). Errores durante el stream viajan como eventos SSE `{ tipo: 'error', reason: string }`.
 
 - **Feliz**: petición POST con origen válido y operador autorizado → supera compuertas, reserva cuota e inicia stream SSE.
@@ -99,24 +99,28 @@ El endpoint `POST /api/ayuda/chat` MUST implementar estrictamente el siguiente o
 - **N7**: cuota diaria alcanzada antes de la llamada al modelo → HTTP 429 JSON (`ayuda-cuota-excedida`).
 
 ### REQ-AYUDA-V2-11 — Control de cuota con SECURITY INVOKER y separación de tablas
-El límite de cuota vive en `limite_ayuda_tenant(id_tenant, limite_diario)` y solo puede ser modificado por el operador con service-role (patrón 00117); `authenticated` solo tiene permiso `SELECT`. El contador diario vive en `cuota_ayuda_diaria(id_tenant, fecha, consultas_realizadas)` y utiliza obligatoriamente `fn_hoy_tenant()` (prohibido `current_date`). Todas las funciones son `SECURITY INVOKER`. Grants a `authenticated`: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas)`, sin `DELETE`.
+El límite de cuota vive en `limite_ayuda_tenant(id_tenant, limite_diario)` y solo puede ser modificado por el operador con service-role (patrón 00117); `authenticated` solo tiene permiso `SELECT` filtrado por policies restrictivas. El contador diario vive en `cuota_ayuda_diaria(id_tenant, fecha, consultas_realizadas)` y utiliza obligatoriamente `fn_hoy_tenant()` (prohibido `current_date`). Ambas tablas llevan policy restrictiva de revendedora (`auth_revendedora_id() is null`) y policy restrictiva por permiso (`(select auth_tiene_permiso('ayuda', 'consultar'))`). Todas las funciones son `SECURITY INVOKER`. Grants a `authenticated` en `cuota_ayuda_diaria`: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas)`, sin `DELETE`.
 
 - **Feliz**: `sp_reservar_cuota_ayuda` incrementa atómicamente el contador en 1 si es menor al límite de `limite_ayuda_tenant`.
 - **N1**: consulta lanzada cuando `consultas_realizadas = limite_diario` → excepción `cuota-excedida` (HTTP 429).
-- **N2**: intento directo de `INSERT` en `cuota_ayuda_diaria` con `consultas_realizadas = 99` → trigger `BEFORE INSERT` lanza `cuota-insert-invalido`.
-- **N3**: intento directo de `INSERT` en `cuota_ayuda_diaria` con fecha futura → trigger `BEFORE INSERT` sobrescribe con `fn_hoy_tenant()`.
-- **N4**: intento vía PostgREST de ejecutar `UPDATE cuota_ayuda_diaria SET consultas_realizadas = 0` → trigger `BEFORE UPDATE` lanza `cuota-decremento-prohibido`.
-- **N5**: intento vía PostgREST de modificar `id_tenant` o `fecha` en `cuota_ayuda_diaria` → trigger `BEFORE UPDATE` lanza `cuota-modificacion-invalida`.
-- **N6**: intento de `DELETE FROM cuota_ayuda_diaria` → denegado por permisos de PostgreSQL.
-- **N7**: intento de `UPDATE` o `INSERT` en `limite_ayuda_tenant` por `authenticated` → denegado por permisos de PostgreSQL.
+- **N2**: tenant configurado con `limite_diario = 0` → excepción inmediata `cuota-excedida` antes del insert.
+- **N3**: intento directo de `INSERT` en `cuota_ayuda_diaria` con `consultas_realizadas = 99` → trigger `BEFORE INSERT` lanza `cuota-insert-invalido`.
+- **N4**: intento directo de `INSERT` en `cuota_ayuda_diaria` con fecha futura → trigger `BEFORE INSERT` sobrescribe con `fn_hoy_tenant()`.
+- **N5**: intento vía PostgREST de ejecutar `UPDATE cuota_ayuda_diaria SET consultas_realizadas = 0` → trigger `BEFORE UPDATE` lanza `cuota-decremento-prohibido`.
+- **N6**: intento vía PostgREST de modificar `id_tenant` o `fecha` en `cuota_ayuda_diaria` → trigger `BEFORE UPDATE` lanza `cuota-modificacion-invalida`.
+- **N7**: intento de `DELETE FROM cuota_ayuda_diaria` → denegado por permisos de PostgreSQL.
+- **N8**: intento de `UPDATE` o `INSERT` en `limite_ayuda_tenant` por `authenticated` → denegado por permisos de PostgreSQL.
+- **N9**: usuario sin permiso `ayuda.consultar` intenta leer `limite_ayuda_tenant` o `cuota_ayuda_diaria` → 0 filas devueltas (policy restrictiva por permiso).
+- **N10**: revendedora intenta leer `limite_ayuda_tenant` o `cuota_ayuda_diaria` → 0 filas devueltas (policy restrictiva de revendedora ACC-11).
 
 ### REQ-AYUDA-V2-12 — Telemetría diferida vía after() y entradas_citadas (reemplaza REQ-AYUDA-10)
-Al cerrarse el stream o producirse un error, el registro en `consulta_ayuda` se ejecuta mediante `after()` de `next/server`. Se reemplaza la columna `entrada_id text` por `entradas_citadas text[]`. Se registran: `resultado` (`'respondida'`, `'sin_cita'`, `'sin_llm'`, `'fuera_de_opciones'`, `'error'`), `entradas_citadas`, `tipo_error`, `latencia_ms`, `modelo`, y desglose de tokens (`input`, `output`, `cached`, `thinking`). Si la función serverless es interrumpida abruptamente por Vercel, la cuota previamente reservada asegura la contención financiera.
+Al cerrarse el stream o producirse un error, el registro en `consulta_ayuda` se ejecuta mediante `after()` de `next/server`. Se reemplaza la columna `entrada_id text` por `entradas_citadas text[]` (con CHECK de cardinalidad ≤ 6 y longitud individual ≤ 64). Se eleva el CHECK de longitud máxima de `respuesta` a 5.000 caracteres para acomodar `maxOutputTokens`. Se registran: `resultado` (`'respondida'`, `'sin_cita'`, `'sin_llm'`, `'fuera_de_opciones'`, `'error'`), `entradas_citadas`, `tipo_error`, `latencia_ms`, `modelo`, y desglose de tokens (`input`, `output`, `cached`, `thinking`).
 
 - **Feliz**: stream completado con citas válidas → `after()` persiste fila con `resultado: 'respondida'`, `entradas_citadas: ['venta-nueva']`, tokens y latencia.
 - **N1**: stream completado sin citas válidas → `after()` persiste fila con `resultado: 'sin_cita'`, `entradas_citadas: []`.
-- **N2**: cliente cancela stream a mitad de generación → `after()` registra telemetría con tokens acumulados hasta la cancelación.
-- **N3**: timeout de Vercel corta la ejecución antes de `after()` → la cuota ya fue reservada; no hay sobreconsumo financiero.
+- **N2**: intento de insertar más de 6 citas en `entradas_citadas` → rechazo por CHECK `consulta_ayuda_entradas_citadas_check`.
+- **N3**: cliente cancela stream a mitad de generación → `after()` registra telemetría con tokens acumulados hasta la cancelación.
+- **N4**: timeout de Vercel corta la ejecución antes de `after()` → la cuota ya fue reservada; no hay sobreconsumo financiero.
 
 ### REQ-AYUDA-V2-13 — Preservación de calificación de consultas (REQ-AYUDA-11)
 `calificarConsultaAyudaAction` se preserva como Server Action estándar con sus tres compuertas: `verifySession` → `requireModuleRole('ayuda', 'consultar')` → zod → `sp_calificar_consulta_ayuda`.
@@ -133,10 +137,12 @@ Bajo ninguna circunstancia se importan módulos de base de datos ni datos de neg
 
 ## 2. Matriz de permisos
 
-| Función / Endpoint | Operador con `ayuda.consultar` | Sin permiso | Revendedora (`idRevendedora`) | Módulo apagado | Otro tenant |
+| Función / Endpoint / Tabla | Operador con `ayuda.consultar` | Sin permiso | Revendedora (`idRevendedora`) | Módulo apagado | Otro tenant |
 | --- | --- | --- | --- | --- | --- |
 | `POST /api/ayuda/chat` (Compuertas) | Continúa a BM25 | 403 JSON (`no-permission`) | 401 JSON (`no-permission`) | 403 JSON (`module-disabled`) | Aislado por JWT |
 | `POST /api/ayuda/chat` (Cuota) | 200 (SSE stream) | — | — | — | Consume de su propio tenant |
+| `limite_ayuda_tenant` (SELECT) | Fila de su tenant | 0 filas (RLS permiso) | 0 filas (RLS revendedora) | Fila de su tenant | 0 filas (RLS tenant) |
+| `cuota_ayuda_diaria` (SELECT) | Filas de su tenant | 0 filas (RLS permiso) | 0 filas (RLS revendedora) | Filas de su tenant | 0 filas (RLS tenant) |
 | `calificarConsultaAyudaAction` | ok | `no-permission` | `no-permission` | `module-disabled` | `consulta-no-encontrada` |
 | `sp_reservar_cuota_ayuda` | ok | `no-permission` | rechazo (RLS/permiso) | `module-disabled` | Incrementa en su tenant |
 | `sp_registrar_consulta_ayuda` | ok | `no-permission` | rechazo (RLS/permiso) | `module-disabled` | Escribe en su tenant |
@@ -154,170 +160,398 @@ No aplica: este cambio no crea ni modifica cifras financieras ni saldos contable
 
 - Todas las funciones creadas o modificadas (`sp_reservar_cuota_ayuda`, `sp_registrar_consulta_ayuda`, `sp_calificar_consulta_ayuda`) son terminantemente **`SECURITY INVOKER`**.
 - Ninguna función es `SECURITY DEFINER`, respetando la lista blanca estricta del test 8 de `tests/db/rvp-lecturas.test.ts`.
-- La tabla `cuota_ayuda_diaria` cuenta con:
-  - Policy restrictiva de revendedora: `auth_revendedora_id() is null`.
-  - Policy de tenant: `id_tenant = auth_tenant_id()`.
-- La tabla `limite_ayuda_tenant` cuenta con policy de select por tenant (`id_tenant = auth_tenant_id()`) y revendedora bloqueada.
+- **Doble policy restrictiva en tablas nuevas de cuota**:
+  1. Policy restrictiva de revendedora (guardia ACC-11 en `tests/db/rls-revendedoras.test.ts:156`):
+     `using (auth_revendedora_id() is null)`
+  2. Policy restrictiva por permiso (patrón `rls-por-permiso`):
+     `using ((select auth_tiene_permiso('ayuda', 'consultar')))`
 - La tabla `consulta_ayuda` preserva su policy restrictiva `restrict_revendedora_consulta_ayuda`.
 
 ---
 
 ## 5. Migraciones
 
-Número: el siguiente número libre al momento de aplicar. Contenido de la migración:
+Número: el siguiente número libre al momento de aplicar.
 
-1. **Tabla `limite_ayuda_tenant`**:
-   ```sql
-   create table if not exists limite_ayuda_tenant (
-     id_tenant      uuid primary key references tenant(id_tenant) on delete cascade,
-     limite_diario  integer not null default 100,
-     created_at     timestamptz not null default now()
-   );
-   alter table limite_ayuda_tenant enable row level security;
-   create policy limite_ayuda_tenant_select on limite_ayuda_tenant
-     for select to authenticated
-     using (id_tenant = auth_tenant_id());
-   revoke insert, update, delete on limite_ayuda_tenant from authenticated;
-   ```
-2. **Tabla `cuota_ayuda_diaria` y triggers**:
-   ```sql
-   create table if not exists cuota_ayuda_diaria (
-     id_tenant             uuid not null references tenant(id_tenant) on delete cascade,
-     fecha                 date not null,
-     consultas_realizadas  integer not null default 0,
-     created_at            timestamptz not null default now(),
-     primary key (id_tenant, fecha)
-   );
-   alter table cuota_ayuda_diaria enable row level security;
-   create policy cuota_ayuda_diaria_tenant on cuota_ayuda_diaria
-     for all to authenticated
-     using (id_tenant = auth_tenant_id())
-     with check (id_tenant = auth_tenant_id());
-   create policy restrict_revendedora_cuota_ayuda on cuota_ayuda_diaria
-     as restrictive for all to authenticated
-     using (auth_revendedora_id() is null);
+### 5.1. Procedimiento de aprovisionamiento del límite
+Hasta que la interfaz de plataforma (`app/(plataforma)/plataforma/[id]/PaquetesCard.tsx`) exponga un editor visual de cuota diaria, el operador configura o modifica el límite de un tenant ejecutando SQL directo con la clave administrativa `service_role` (o script de provisioning):
+```sql
+insert into limite_ayuda_tenant (id_tenant, limite_diario)
+values ('<id_tenant>', 150)
+on conflict (id_tenant) do update set limite_diario = excluded.limite_diario;
+```
+Si un tenant no tiene fila registrada en `limite_ayuda_tenant`, el sistema adopta transparentemente el valor por defecto de 100 consultas/día (`coalesce(limite_diario, 100)`).
 
-   revoke all on cuota_ayuda_diaria from public, anon;
-   grant select, insert (id_tenant, fecha, consultas_realizadas), update (consultas_realizadas)
-     on cuota_ayuda_diaria to authenticated;
-   revoke delete on cuota_ayuda_diaria from authenticated;
+### 5.2. Ventana de compatibilidad entre migración y deploy
+> [!IMPORTANT]
+> Al aplicar la migración (`supabase db push`) antes de que Vercel complete el deploy del nuevo código, el backend v1 en producción invocará a la firma anterior de `sp_registrar_consulta_ayuda(uuid, text, text, text, text)`. Como dicha firma es dropeada, la llamada fallará con error de función inexistente.
+> **Comportamiento fail-open garantizado por REQ-AYUDA-10**: `consultarAyudaAction` captura el fallo de registro, lo loguea con `console.error` y entrega igualmente la respuesta al usuario. `sp_calificar_consulta_ayuda` no cambia su firma, por lo que las calificaciones históricas continúan operando sin interrupción.
 
-   create or replace function fn_guardia_insert_cuota_ayuda() returns trigger
-   language plpgsql security invoker set search_path = public, pg_temp as $$
-   begin
-     new.fecha := fn_hoy_tenant();
-     if new.consultas_realizadas not in (0, 1) then
-       raise exception 'cuota-insert-invalido' using errcode = '42501';
-     end if;
-     return new;
-   end;
-   $$;
+### 5.3. Script de migración UP
 
-   create trigger trg_guardia_insert_cuota_ayuda
-     before insert on cuota_ayuda_diaria
-     for each row execute function fn_guardia_insert_cuota_ayuda();
+```sql
+-- 1. Tabla limite_ayuda_tenant
+create table if not exists limite_ayuda_tenant (
+  id_tenant      uuid primary key references tenant(id_tenant) on delete cascade,
+  limite_diario  integer not null default 100,
+  created_at     timestamptz not null default now(),
+  constraint limite_ayuda_tenant_limite_check check (limite_diario >= 0)
+);
 
-   create or replace function fn_guardia_update_cuota_ayuda() returns trigger
-   language plpgsql security invoker set search_path = public, pg_temp as $$
-   begin
-     if new.consultas_realizadas <= old.consultas_realizadas then
-       raise exception 'cuota-decremento-prohibido' using errcode = '42501';
-     end if;
-     if new.id_tenant is distinct from old.id_tenant or new.fecha is distinct from old.fecha then
-       raise exception 'cuota-modificacion-invalida' using errcode = '42501';
-     end if;
-     return new;
-   end;
-   $$;
+alter table limite_ayuda_tenant enable row level security;
 
-   create trigger trg_guardia_update_cuota_ayuda
-     before update on cuota_ayuda_diaria
-     for each row execute function fn_guardia_update_cuota_ayuda();
-   ```
-3. **SP `sp_reservar_cuota_ayuda` (INVOKER)**:
-   ```sql
-   create or replace function sp_reservar_cuota_ayuda() returns void
-   language plpgsql security invoker set search_path = public, pg_temp as $$
-   declare
-     v_tenant uuid := auth_tenant_id();
-     v_limite integer;
-     v_res    integer;
-   begin
-     if not (select auth_tiene_permiso('ayuda', 'consultar')) then
-       raise exception 'no-permission' using errcode = '42501';
-     end if;
-     if v_tenant is null then
-       raise exception 'no-tenant' using errcode = '42501';
-     end if;
-     if not fn_modulo_habilitado(v_tenant, 'ayuda') then
-       raise exception 'module-disabled' using errcode = 'P0001';
-     end if;
+create policy limite_ayuda_tenant_tenant on limite_ayuda_tenant
+  for select to authenticated
+  using (id_tenant = auth_tenant_id());
 
-     select coalesce(limite_diario, 100) into v_limite
-     from limite_ayuda_tenant where id_tenant = v_tenant;
-     if v_limite is null then
-       v_limite := 100;
-     end if;
+create policy restrict_revendedora_limite_ayuda_tenant on limite_ayuda_tenant
+  as restrictive for all to authenticated
+  using (auth_revendedora_id() is null);
 
-     insert into cuota_ayuda_diaria (id_tenant, fecha, consultas_realizadas)
-     values (v_tenant, fn_hoy_tenant(), 1)
-     on conflict (id_tenant, fecha) do update
-       set consultas_realizadas = cuota_ayuda_diaria.consultas_realizadas + 1
-       where cuota_ayuda_diaria.consultas_realizadas < v_limite
-     returning consultas_realizadas into v_res;
+create policy restrict_permiso_limite_ayuda_tenant on limite_ayuda_tenant
+  as restrictive for all to authenticated
+  using ((select auth_tiene_permiso('ayuda', 'consultar')));
 
-     if v_res is null then
-       raise exception 'cuota-excedida' using errcode = 'P0001';
-     end if;
-   end;
-   $$;
-   ```
-4. **Migración de `consulta_ayuda`**:
-   ```sql
-   alter table consulta_ayuda add column if not exists entradas_citadas text[] not null default array[]::text[];
-   update consulta_ayuda
-   set entradas_citadas = case
-     when entrada_id is not null then array[entrada_id]
-     else array[]::text[]
-   end;
-   alter table consulta_ayuda drop constraint if exists consulta_ayuda_resultado_entrada_check;
-   alter table consulta_ayuda drop constraint if exists consulta_ayuda_resultado_check;
-   alter table consulta_ayuda add constraint consulta_ayuda_resultado_check
-     check (resultado in ('respondida', 'sin_cita', 'sin_llm', 'fuera_de_opciones', 'error'));
-   alter table consulta_ayuda drop column if exists entrada_id;
+revoke all on limite_ayuda_tenant from public, anon;
+grant select on limite_ayuda_tenant to authenticated;
+revoke insert, update, delete on limite_ayuda_tenant from authenticated;
 
-   alter table consulta_ayuda add column if not exists tipo_error text;
-   alter table consulta_ayuda add column if not exists latencia_ms integer;
-   alter table consulta_ayuda add column if not exists modelo text;
-   alter table consulta_ayuda add column if not exists tokens_input integer;
-   alter table consulta_ayuda add column if not exists tokens_output integer;
-   alter table consulta_ayuda add column if not exists tokens_cached integer;
-   alter table consulta_ayuda add column if not exists tokens_thinking integer;
-   ```
-5. **Actualización de `sp_registrar_consulta_ayuda` (INVOKER)**:
-   Partiendo de su definición en `00150`, acepta `p_entradas_citadas text[]`, `p_tipo_error text`, `p_latencia_ms integer`, `p_modelo text`, `p_tokens_input integer`, `p_tokens_output integer`, `p_tokens_cached integer`, `p_tokens_thinking integer`.
+-- 2. Tabla cuota_ayuda_diaria y triggers
+create table if not exists cuota_ayuda_diaria (
+  id_tenant             uuid not null references tenant(id_tenant) on delete cascade,
+  fecha                 date not null,
+  consultas_realizadas  integer not null default 0,
+  created_at            timestamptz not null default now(),
+  primary key (id_tenant, fecha)
+);
 
-**Bloque `-- DOWN:` ejecutable**:
+alter table cuota_ayuda_diaria enable row level security;
+
+create policy cuota_ayuda_diaria_tenant on cuota_ayuda_diaria
+  for all to authenticated
+  using (id_tenant = auth_tenant_id())
+  with check (id_tenant = auth_tenant_id());
+
+create policy restrict_revendedora_cuota_ayuda_diaria on cuota_ayuda_diaria
+  as restrictive for all to authenticated
+  using (auth_revendedora_id() is null);
+
+create policy restrict_permiso_cuota_ayuda_diaria on cuota_ayuda_diaria
+  as restrictive for all to authenticated
+  using ((select auth_tiene_permiso('ayuda', 'consultar')));
+
+revoke all on cuota_ayuda_diaria from public, anon;
+grant select, insert (id_tenant, fecha, consultas_realizadas), update (consultas_realizadas)
+  on cuota_ayuda_diaria to authenticated;
+revoke delete on cuota_ayuda_diaria from authenticated;
+
+create or replace function fn_guardia_insert_cuota_ayuda() returns trigger
+language plpgsql security invoker set search_path = public, pg_temp as $$
+begin
+  new.fecha := fn_hoy_tenant();
+  if new.consultas_realizadas not in (0, 1) then
+    raise exception 'cuota-insert-invalido' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_guardia_insert_cuota_ayuda
+  before insert on cuota_ayuda_diaria
+  for each row execute function fn_guardia_insert_cuota_ayuda();
+
+create or replace function fn_guardia_update_cuota_ayuda() returns trigger
+language plpgsql security invoker set search_path = public, pg_temp as $$
+begin
+  if new.consultas_realizadas <= old.consultas_realizadas then
+    raise exception 'cuota-decremento-prohibido' using errcode = '42501';
+  end if;
+  if new.id_tenant is distinct from old.id_tenant or new.fecha is distinct from old.fecha then
+    raise exception 'cuota-modificacion-invalida' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_guardia_update_cuota_ayuda
+  before update on cuota_ayuda_diaria
+  for each row execute function fn_guardia_update_cuota_ayuda();
+
+-- 3. sp_reservar_cuota_ayuda
+create or replace function sp_reservar_cuota_ayuda() returns void
+language plpgsql security invoker set search_path = public, pg_temp as $$
+declare
+  v_tenant uuid := auth_tenant_id();
+  v_limite integer;
+  v_res    integer;
+begin
+  if not (select auth_tiene_permiso('ayuda', 'consultar')) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+  if not fn_modulo_habilitado(v_tenant, 'ayuda') then
+    raise exception 'module-disabled' using errcode = 'P0001';
+  end if;
+
+  select coalesce(limite_diario, 100) into v_limite
+  from limite_ayuda_tenant where id_tenant = v_tenant;
+  if v_limite is null then
+    v_limite := 100;
+  end if;
+
+  if v_limite < 1 then
+    raise exception 'cuota-excedida' using errcode = 'P0001';
+  end if;
+
+  insert into cuota_ayuda_diaria (id_tenant, fecha, consultas_realizadas)
+  values (v_tenant, fn_hoy_tenant(), 1)
+  on conflict (id_tenant, fecha) do update
+    set consultas_realizadas = cuota_ayuda_diaria.consultas_realizadas + 1
+    where cuota_ayuda_diaria.consultas_realizadas < v_limite
+  returning consultas_realizadas into v_res;
+
+  if v_res is null then
+    raise exception 'cuota-excedida' using errcode = 'P0001';
+  end if;
+end;
+$$;
+
+revoke all on function sp_reservar_cuota_ayuda() from public, anon;
+grant execute on function sp_reservar_cuota_ayuda() to authenticated;
+
+-- 4. Modificación de consulta_ayuda
+alter table consulta_ayuda add column if not exists entradas_citadas text[] not null default array[]::text[];
+
+update consulta_ayuda
+set entradas_citadas = case
+  when entrada_id is not null then array[entrada_id]
+  else array[]::text[]
+end;
+
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_resultado_entrada_check;
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_resultado_check;
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_entrada_id_check;
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_respuesta_check;
+
+alter table consulta_ayuda add constraint consulta_ayuda_resultado_check
+  check (resultado in ('respondida', 'sin_cita', 'sin_llm', 'fuera_de_opciones', 'error'));
+
+-- Elección y justificación: 5.000 caracteres en DB para cubrir maxOutputTokens sin truncar datos de calidad en DAL
+alter table consulta_ayuda add constraint consulta_ayuda_respuesta_check
+  check (respuesta is null or char_length(respuesta) <= 5000);
+
+alter table consulta_ayuda add constraint consulta_ayuda_entradas_citadas_check
+  check (coalesce(cardinality(entradas_citadas), 0) <= 6 and array_to_string(entradas_citadas, ',') !~ '[^,]{65,}');
+
+alter table consulta_ayuda drop column if exists entrada_id;
+
+alter table consulta_ayuda add column if not exists tipo_error text;
+alter table consulta_ayuda add column if not exists latencia_ms integer;
+alter table consulta_ayuda add column if not exists modelo text;
+alter table consulta_ayuda add column if not exists tokens_input integer;
+alter table consulta_ayuda add column if not exists tokens_output integer;
+alter table consulta_ayuda add column if not exists tokens_cached integer;
+alter table consulta_ayuda add column if not exists tokens_thinking integer;
+
+-- 5. Drop de firma anterior de sp_registrar_consulta_ayuda y recreación
+drop function if exists sp_registrar_consulta_ayuda(uuid, text, text, text, text);
+
+create or replace function sp_registrar_consulta_ayuda(
+  p_id_conversacion uuid,
+  p_pregunta        text,
+  p_respuesta       text,
+  p_entradas_citadas text[],
+  p_resultado       text,
+  p_tipo_error      text default null,
+  p_latencia_ms     integer default null,
+  p_modelo          text default null,
+  p_tokens_input    integer default null,
+  p_tokens_output   integer default null,
+  p_tokens_cached   integer default null,
+  p_tokens_thinking integer default null
+) returns uuid
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_tenant  uuid := auth_tenant_id();
+  v_usuario uuid := auth.uid();
+  v_id      uuid;
+begin
+  if not (select auth_tiene_permiso('ayuda', 'consultar')) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+
+  if not fn_modulo_habilitado(v_tenant, 'ayuda') then
+    raise exception 'module-disabled' using errcode = 'P0001';
+  end if;
+
+  insert into consulta_ayuda (
+    id_tenant,
+    id_usuario,
+    id_conversacion,
+    pregunta,
+    respuesta,
+    entradas_citadas,
+    resultado,
+    tipo_error,
+    latencia_ms,
+    modelo,
+    tokens_input,
+    tokens_output,
+    tokens_cached,
+    tokens_thinking
+  ) values (
+    v_tenant,
+    v_usuario,
+    p_id_conversacion,
+    p_pregunta,
+    p_respuesta,
+    coalesce(p_entradas_citadas, array[]::text[]),
+    p_resultado,
+    p_tipo_error,
+    p_latencia_ms,
+    p_modelo,
+    p_tokens_input,
+    p_tokens_output,
+    p_tokens_cached,
+    p_tokens_thinking
+  ) returning id_consulta_ayuda into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function sp_registrar_consulta_ayuda(uuid, text, text, text[], text, text, integer, text, integer, integer, integer, integer) from public, anon;
+grant execute on function sp_registrar_consulta_ayuda(uuid, text, text, text[], text, text, integer, text, integer, integer, integer, integer) to authenticated;
+```
+
+### 5.4. Script de migración DOWN (verificado para `pnpm gate:db`)
+
 ```sql
 -- DOWN:
--- alter table consulta_ayuda add column entrada_id text;
--- update consulta_ayuda set entrada_id = case when cardinality(entradas_citadas) > 0 then entradas_citadas[1] else null end;
--- alter table consulta_ayuda drop column if exists entradas_citadas cascade;
--- alter table consulta_ayuda drop column if exists tipo_error cascade;
--- alter table consulta_ayuda drop column if exists latencia_ms cascade;
--- alter table consulta_ayuda drop column if exists modelo cascade;
--- alter table consulta_ayuda drop column if exists tokens_input cascade;
--- alter table consulta_ayuda drop column if exists tokens_output cascade;
--- alter table consulta_ayuda drop column if exists tokens_cached cascade;
--- alter table consulta_ayuda drop column if exists tokens_thinking cascade;
--- drop function if exists sp_reservar_cuota_ayuda();
--- drop trigger if exists trg_guardia_update_cuota_ayuda on cuota_ayuda_diaria;
--- drop function if exists fn_guardia_update_cuota_ayuda();
--- drop trigger if exists trg_guardia_insert_cuota_ayuda on cuota_ayuda_diaria;
--- drop function if exists fn_guardia_insert_cuota_ayuda();
--- drop table if exists cuota_ayuda_diaria cascade;
--- drop table if exists limite_ayuda_tenant cascade;
--- <restaura versión previa de sp_registrar_consulta_ayuda>
+-- 1. Agregar columna entrada_id
+alter table consulta_ayuda add column if not exists entrada_id text;
+
+-- 2. Mapear datos nuevos a restricciones compatibles con v1 antes de restaurar checks
+update consulta_ayuda
+set entrada_id = case
+  when cardinality(entradas_citadas) > 0 then entradas_citadas[1]
+  else null
+end;
+
+update consulta_ayuda
+set resultado = case
+  when entrada_id is not null then 'respondida'
+  else 'fuera_de_opciones'
+end
+where resultado = 'sin_cita';
+
+update consulta_ayuda
+set resultado = 'fuera_de_opciones', entrada_id = null
+where resultado = 'sin_llm';
+
+update consulta_ayuda
+set entrada_id = null
+where resultado in ('fuera_de_opciones', 'error');
+
+-- 3. Eliminar columnas y checks de v2
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_entradas_citadas_check;
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_resultado_check;
+alter table consulta_ayuda drop constraint if exists consulta_ayuda_respuesta_check;
+alter table consulta_ayuda drop column if exists entradas_citadas cascade;
+alter table consulta_ayuda drop column if exists tipo_error cascade;
+alter table consulta_ayuda drop column if exists latencia_ms cascade;
+alter table consulta_ayuda drop column if exists modelo cascade;
+alter table consulta_ayuda drop column if exists tokens_input cascade;
+alter table consulta_ayuda drop column if exists tokens_output cascade;
+alter table consulta_ayuda drop column if exists tokens_cached cascade;
+alter table consulta_ayuda drop column if exists tokens_thinking cascade;
+
+-- 4. Recrear checks originales de v1 con sus nombres exactos
+alter table consulta_ayuda add constraint consulta_ayuda_respuesta_check
+  check (respuesta is null or char_length(respuesta) <= 2000);
+
+alter table consulta_ayuda add constraint consulta_ayuda_entrada_id_check
+  check (entrada_id is null or char_length(entrada_id) <= 64);
+
+alter table consulta_ayuda add constraint consulta_ayuda_resultado_check
+  check (resultado in ('respondida', 'fuera_de_opciones', 'error'));
+
+alter table consulta_ayuda add constraint consulta_ayuda_resultado_entrada_check
+  check ((resultado = 'respondida') = (entrada_id is not null));
+
+-- 5. Dropear SP de v2 y recrear el SP exacto de 00150
+drop function if exists sp_registrar_consulta_ayuda(uuid, text, text, text[], text, text, integer, text, integer, integer, integer, integer);
+
+create or replace function sp_registrar_consulta_ayuda(
+  p_id_conversacion uuid,
+  p_pregunta        text,
+  p_respuesta       text,
+  p_entrada_id      text,
+  p_resultado       text
+) returns uuid
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_tenant  uuid := auth_tenant_id();
+  v_usuario uuid := auth.uid();
+  v_id      uuid;
+begin
+  if not (select auth_tiene_permiso('ayuda', 'consultar')) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+
+  if not fn_modulo_habilitado(v_tenant, 'ayuda') then
+    raise exception 'module-disabled' using errcode = 'P0001';
+  end if;
+
+  insert into consulta_ayuda (
+    id_tenant,
+    id_usuario,
+    id_conversacion,
+    pregunta,
+    respuesta,
+    entrada_id,
+    resultado
+  ) values (
+    v_tenant,
+    v_usuario,
+    p_id_conversacion,
+    p_pregunta,
+    p_respuesta,
+    p_entrada_id,
+    p_resultado
+  ) returning id_consulta_ayuda into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function sp_registrar_consulta_ayuda(uuid, text, text, text, text) from public, anon;
+grant execute on function sp_registrar_consulta_ayuda(uuid, text, text, text, text) to authenticated;
+
+-- 6. Dropear cuota y límites
+drop function if exists sp_reservar_cuota_ayuda();
+drop trigger if exists trg_guardia_update_cuota_ayuda on cuota_ayuda_diaria;
+drop function if exists fn_guardia_update_cuota_ayuda();
+drop trigger if exists trg_guardia_insert_cuota_ayuda on cuota_ayuda_diaria;
+drop function if exists fn_guardia_insert_cuota_ayuda();
+drop table if exists cuota_ayuda_diaria cascade;
+drop table if exists limite_ayuda_tenant cascade;
 ```
 
 ---
@@ -383,7 +617,7 @@ export type EventoStreamAyuda =
 - **DR-AYUDA-V2-1 (Cerrada / Propuesta aprobada) — Respuesta sin citas válidas**:
   Cuando el stream finaliza sin emitir ninguna cita válida a la guía, se registra en telemetría `resultado = 'sin_cita'` (con `entradas_citadas = []`), se mantiene el texto transmitido en el chat y la UI agrega al final del mensaje la tarjeta fija de advertencia de v1: *"No tengo esa respuesta. Preguntale al administrador de tu negocio."*.
 - **DR-AYUDA-V2-2 (Abierta) — Límite diario por tenant**:
-  Se fija en 100 consultas diarias por defecto en `limite_ayuda_tenant`, configurable por el operador.
+  Se fija en 100 consultas diarias por defecto en `limite_ayuda_tenant`, configurable por el operador mediante SQL con clave service-role hasta que exista UI en plataforma.
 - **DR-AYUDA-V2-3 (Abierta / Fuera de v2) — Caché de respuestas**:
   Con `SECURITY INVOKER`, cualquier usuario con acceso al tenant podría inyectar respuestas adulteradas en la tabla de caché que luego serían leídas por sus compañeros (envenenamiento de caché interno). Por seguridad, el caché de respuestas queda postergado y fuera de las fases de implementación de v2.
 - **DR-AYUDA-V2-4 (Cerrada) — Salida en texto plano sin Markdown**:
