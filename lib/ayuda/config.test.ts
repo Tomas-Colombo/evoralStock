@@ -4,10 +4,12 @@ import { ayudaDisponible, leerConfigAyuda } from './config'
 describe('lib/ayuda/config', () => {
   const originalApiKey = process.env.GEMINI_API_KEY
   const originalModel = process.env.GEMINI_MODEL
+  const originalFallback = process.env.GEMINI_MODEL_FALLBACK
 
   beforeEach(() => {
     delete process.env.GEMINI_API_KEY
     delete process.env.GEMINI_MODEL
+    delete process.env.GEMINI_MODEL_FALLBACK
   })
 
   afterEach(() => {
@@ -20,6 +22,11 @@ describe('lib/ayuda/config', () => {
       process.env.GEMINI_MODEL = originalModel
     } else {
       delete process.env.GEMINI_MODEL
+    }
+    if (originalFallback !== undefined) {
+      process.env.GEMINI_MODEL_FALLBACK = originalFallback
+    } else {
+      delete process.env.GEMINI_MODEL_FALLBACK
     }
   })
 
@@ -103,6 +110,53 @@ describe('lib/ayuda/config', () => {
         expect(callArgs[0]).toBe('ayuda: configuración inválida')
         expect(callArgs[0]).not.toContain('clave-secreta')
         expect(callArgs[0]).not.toContain('Gemini 3!')
+      }
+
+      spyError.mockRestore()
+    })
+
+    it('devuelve modeloFallback si GEMINI_MODEL_FALLBACK es válido', () => {
+      process.env.GEMINI_API_KEY = 'clave-secreta'
+      process.env.GEMINI_MODEL = 'gemini-3-flash-preview'
+      process.env.GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash'
+
+      const cfg = leerConfigAyuda()
+      expect(cfg).toEqual({
+        apiKey: 'clave-secreta',
+        modelo: 'gemini-3-flash-preview',
+        modeloFallback: 'gemini-2.5-flash',
+      })
+    })
+
+    it('ignora GEMINI_MODEL_FALLBACK si está vacío o solo espacios', () => {
+      process.env.GEMINI_API_KEY = 'clave-secreta'
+      process.env.GEMINI_MODEL = 'gemini-3-flash-preview'
+      process.env.GEMINI_MODEL_FALLBACK = '   '
+
+      const cfg = leerConfigAyuda()
+      expect(cfg).toEqual({
+        apiKey: 'clave-secreta',
+        modelo: 'gemini-3-flash-preview',
+      })
+    })
+
+    it('ignora GEMINI_MODEL_FALLBACK si es inválido, loguea mensaje fijo sin valores y mantiene ayudaDisponible true', () => {
+      const spyError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      process.env.GEMINI_API_KEY = 'clave-secreta'
+      process.env.GEMINI_MODEL = 'gemini-3-flash-preview'
+      process.env.GEMINI_MODEL_FALLBACK = 'Gemini 2.5 Invalido!'
+
+      const cfg = leerConfigAyuda()
+      expect(cfg).toEqual({
+        apiKey: 'clave-secreta',
+        modelo: 'gemini-3-flash-preview',
+      })
+      expect(ayudaDisponible()).toBe(true)
+
+      expect(spyError).toHaveBeenCalledWith('ayuda: configuración inválida')
+      for (const callArgs of spyError.mock.calls) {
+        expect(callArgs[0]).not.toContain('Gemini 2.5 Invalido!')
+        expect(callArgs[0]).not.toContain('clave-secreta')
       }
 
       spyError.mockRestore()

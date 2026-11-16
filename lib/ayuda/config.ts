@@ -4,6 +4,7 @@ import { z } from 'zod'
 export interface ConfigAyuda {
   apiKey: string
   modelo: string
+  modeloFallback?: string
 }
 
 const DEFAULT_MODELO = 'gemini-3-flash-preview'
@@ -38,9 +39,21 @@ export function leerConfigAyuda(): ConfigAyuda | null {
     return null
   }
 
+  let modeloFallback: string | undefined = undefined
+  const rawFallback = process.env.GEMINI_MODEL_FALLBACK
+  if (typeof rawFallback === 'string' && rawFallback.trim() !== '') {
+    const trimmedFallback = rawFallback.trim()
+    if (MODELO_REGEX.test(trimmedFallback)) {
+      modeloFallback = trimmedFallback
+    } else {
+      console.error('ayuda: configuración inválida')
+    }
+  }
+
   return {
     apiKey: parsed.data.apiKey,
     modelo: parsed.data.modelo,
+    ...(modeloFallback !== undefined ? { modeloFallback } : {}),
   }
 }
 
