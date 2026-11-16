@@ -22,7 +22,6 @@ export interface RegistrarConsultaAyudaPayload {
   idConversacion: string
   pregunta: string
   respuesta: string | null
-  entradaId?: string | null
   entradasCitadas?: readonly string[] | string[] | null
   resultado: ResultadoConsultaAyuda
   tipoError?: string | null
@@ -47,9 +46,7 @@ export async function registrarConsultaAyuda(
     const entradasCitadas =
       payload.entradasCitadas !== undefined && payload.entradasCitadas !== null
         ? Array.from(payload.entradasCitadas)
-        : payload.entradaId
-          ? [payload.entradaId]
-          : []
+        : []
 
     const { data, error } = await supabase.rpc('sp_registrar_consulta_ayuda', {
       p_id_conversacion: payload.idConversacion,

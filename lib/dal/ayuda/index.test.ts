@@ -20,7 +20,7 @@ const payloadValido: RegistrarConsultaAyudaPayload = {
   idConversacion: '11111111-1111-1111-1111-111111111111',
   pregunta: '¿Cómo crear una venta?',
   respuesta: 'Tenés que ir a Ventas > Nueva venta.',
-  entradaId: 'ventas-nueva',
+  entradasCitadas: ['ventas-nueva'],
   resultado: 'respondida',
 }
 
@@ -73,7 +73,7 @@ describe('lib/dal/ayuda', () => {
   })
 
   describe('registrarConsultaAyuda', () => {
-    it('traduce entradaId a p_entradas_citadas = [entradaId] y devuelve id en caso de éxito', async () => {
+    it('envía p_entradas_citadas = entradasCitadas y devuelve id en caso de éxito', async () => {
       rpcMock.mockResolvedValueOnce({
         data: '22222222-2222-2222-2222-222222222222',
         error: null,
@@ -144,7 +144,7 @@ describe('lib/dal/ayuda', () => {
       })
     })
 
-    it('manda array vacío cuando entradaId es null y no hay entradasCitadas', async () => {
+    it('manda array vacío cuando no hay entradasCitadas', async () => {
       rpcMock.mockResolvedValueOnce({
         data: '44444444-4444-4444-4444-444444444444',
         error: null,
@@ -154,7 +154,6 @@ describe('lib/dal/ayuda', () => {
         idConversacion: '11111111-1111-1111-1111-111111111111',
         pregunta: 'Pregunta fuera de dominio',
         respuesta: null,
-        entradaId: null,
         resultado: 'fuera_de_opciones',
       })
 

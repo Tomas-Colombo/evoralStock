@@ -1,7 +1,6 @@
 import 'server-only'
-import { GoogleGenAI, ThinkingLevel, type Schema, type ThinkingConfig } from '@google/genai'
-import type { ErrorModelo, ModeloAyuda, PromptAyuda } from './tipos'
-import { esquemaSalida } from './salida'
+import { GoogleGenAI, ThinkingLevel, type ThinkingConfig } from '@google/genai'
+import type { PromptAyuda } from './tipos'
 
 /**
  * Determina la configuración de pensamiento para el modelo según el SDK fijado (@google/genai 2.32.0).
@@ -22,28 +21,6 @@ export function nivelPensamiento(modelo: string): ThinkingConfig {
   return { thinkingLevel: ThinkingLevel.MINIMAL }
 }
 
-interface LogFalloParams {
-  modelo: string
-  apiKey?: string
-  status?: number
-  nombre?: string
-  mensaje?: string
-}
-
-function logFallo(tipo: ErrorModelo, params: LogFalloParams): void {
-  let mensaje = params.mensaje ?? ''
-  if (params.apiKey && params.apiKey.trim().length > 0) {
-    mensaje = mensaje.replaceAll(params.apiKey, '[REDACTED]')
-  }
-
-  console.error(`ayuda: ${tipo}`, {
-    modelo: params.modelo,
-    status: params.status,
-    nombre: params.nombre ?? 'Error',
-    mensaje: mensaje.slice(0, 200),
-  })
-}
-
 function extraerStatus(err: unknown): number | undefined {
   if (typeof err === 'object' && err !== null) {
     if (typeof (err as { status?: unknown }).status === 'number') {
@@ -61,119 +38,6 @@ function extraerNombre(err: unknown, defaultNombre = 'Error'): string {
     return (err as { name: string }).name
   }
   return defaultNombre
-}
-
-function extraerMensaje(err: unknown): string {
-  if (typeof err === 'object' && err !== null && typeof (err as { message?: unknown }).message === 'string') {
-    return (err as { message: string }).message
-  }
-  if (typeof err === 'string') {
-    return err
-  }
-  return ''
-}
-
-/**
- * Crea el adaptador de Gemini que implementa el puerto ModeloAyuda.
- * REQ-AYUDA-08: clasifica fallos en 'sin-clave' | 'timeout' | 'proveedor' | 'formato'.
- */
-export function crearModeloGemini(cfg: { apiKey: string; modelo: string }): ModeloAyuda {
-  return async (prompt, idsPermitidos) => {
-    if (!cfg.apiKey || cfg.apiKey.trim() === '') {
-      logFallo('sin-clave', {
-        modelo: cfg.modelo,
-        apiKey: cfg.apiKey,
-        nombre: 'SinClaveError',
-        mensaje: 'Falta GEMINI_API_KEY',
-      })
-      return { ok: false, error: 'sin-clave' }
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey: cfg.apiKey,
-      httpOptions: {
-        timeout: 10_000,
-        retryOptions: { attempts: 1 },
-      },
-    })
-
-    const contents = prompt.turnos.map((t) => ({
-      role: t.rol === 'usuario' ? 'user' : 'model',
-      parts: [{ text: t.texto }],
-    }))
-
-    const abortController = new AbortController()
-    const timeoutId = setTimeout(() => {
-      abortController.abort(new DOMException('Request timeout after 10s', 'AbortError'))
-    }, 10_000)
-
-    let response
-    try {
-      response = await ai.models.generateContent({
-        model: cfg.modelo,
-        contents,
-        config: {
-          systemInstruction: prompt.instrucciones,
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: esquemaSalida(idsPermitidos) as Schema,
-          thinkingConfig: nivelPensamiento(cfg.modelo),
-          abortSignal: abortController.signal,
-        },
-      })
-    } catch (err: unknown) {
-      const isTimeout =
-        abortController.signal.aborted ||
-        extraerNombre(err) === 'AbortError' ||
-        extraerNombre(err) === 'RequestTimeoutError' ||
-        extraerNombre(err) === 'TimeoutError'
-
-      if (isTimeout) {
-        logFallo('timeout', {
-          modelo: cfg.modelo,
-          apiKey: cfg.apiKey,
-          nombre: extraerNombre(err, 'AbortError'),
-          mensaje: extraerMensaje(err),
-        })
-        return { ok: false, error: 'timeout' }
-      }
-
-      logFallo('proveedor', {
-        modelo: cfg.modelo,
-        apiKey: cfg.apiKey,
-        status: extraerStatus(err),
-        nombre: extraerNombre(err, 'ApiError'),
-        mensaje: extraerMensaje(err),
-      })
-      return { ok: false, error: 'proveedor' }
-    } finally {
-      clearTimeout(timeoutId)
-    }
-
-    const rawText = response.text
-    if (typeof rawText !== 'string') {
-      logFallo('formato', {
-        modelo: cfg.modelo,
-        apiKey: cfg.apiKey,
-        nombre: 'FormatoError',
-        mensaje: 'La respuesta de Gemini no contiene texto',
-      })
-      return { ok: false, error: 'formato' }
-    }
-
-    try {
-      const salida = JSON.parse(rawText) as unknown
-      return { ok: true, salida }
-    } catch {
-      logFallo('formato', {
-        modelo: cfg.modelo,
-        apiKey: cfg.apiKey,
-        nombre: 'SyntaxError',
-        mensaje: 'JSON inválido',
-      })
-      return { ok: false, error: 'formato' }
-    }
-  }
 }
 
 export interface TelemetriaUsoGemini {
@@ -441,4 +305,3 @@ export async function ejecutarGeminiStream(
     }),
   }
 }
-

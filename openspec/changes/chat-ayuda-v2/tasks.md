@@ -181,15 +181,15 @@ Archivos: `app/(app)/ayuda/PanelAyuda.tsx`, `app/(app)/ayuda/PanelAyuda.test.tsx
 
 Archivos: `app/(app)/ayuda/actions.ts` (+ su test), `lib/ayuda/{salida,resolver,consultar}.ts` (+ sus tests), `lib/ayuda/gemini.ts`, `lib/dal/ayuda/index.ts` (quitar la traducción `entradaId` de la Fase 3), `docs/ayuda.md`.
 
-- [ ] **Fase de limpieza de código deprecado**:
+- [x] **Fase de limpieza de código deprecado**:
   - Verificar con `rg "consultarAyudaAction"` y removerla de `app/(app)/ayuda/actions.ts` (conservando únicamente `calificarConsultaAyudaAction`).
   - Verificar con `rg` y eliminar los archivos muertos: `lib/ayuda/salida.ts`, `lib/ayuda/resolver.ts`, `lib/ayuda/consultar.ts`.
   - Eliminar el modo JSON estructurado y esquemas asociados de `lib/ayuda/gemini.ts`.
-- [ ] **Actualizar `docs/ayuda.md`**:
+- [x] **Actualizar `docs/ayuda.md`**:
   - Reemplazar menciones a modelos preview por modelos GA estables.
   - Documentar variables `GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`.
   - Documentar la cuota diaria por tenant (`limite_ayuda_tenant`, `cuota_ayuda_diaria`) y el trigger anti-decrementos.
   - Documentar la arquitectura streaming y la telemetría en `consulta_ayuda`.
-- [ ] Correr `lib/ayuda/guia/cobertura.test.ts` para verificar cobertura total de pantallas de la app.
-- [ ] Correr `tests/arquitectura-imports.test.ts` y `lib/ayuda/imports.test.ts` para garantizar cumplimiento de fronteras de arquitectura y aislamiento.
-- [ ] Ejecutar `pnpm gate` (o `pnpm gate:db` con base de datos activa) y confirmar estado limpio.
+- [x] Correr `lib/ayuda/guia/cobertura.test.ts` para verificar cobertura total de pantallas de la app.
+- [x] Correr `tests/arquitectura-imports.test.ts` y `lib/ayuda/imports.test.ts` para garantizar cumplimiento de fronteras de arquitectura y aislamiento.
+- [x] Ejecutar `pnpm gate` (o `pnpm gate:db` con base de datos activa) y confirmar estado limpio.
