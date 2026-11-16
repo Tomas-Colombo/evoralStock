@@ -71,6 +71,7 @@ const MENSAJES: Record<string, string> = {
   'modulo-con-estado-vivo':
     'No podés deshabilitar este módulo porque tiene operaciones o mercadería pendientes. Cerrá o liquidá los registros activos antes de continuar.',
   'tenant-mismatch': 'Esos datos pertenecen a otro negocio.',
+  'origin-invalido': 'El origen de la petición no es válido.',
   'no-session': 'Se cerró tu sesión. Volvé a iniciar sesión.',
   'no-tenant': 'Tu sesión no está asociada a ningún negocio. Volvé a iniciar sesión.',
   'usuario-sin-rol': 'Tu usuario todavía no tiene un rol asignado. Pedile a un administrador que configure tu acceso.',
