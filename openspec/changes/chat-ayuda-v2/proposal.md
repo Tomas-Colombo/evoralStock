@@ -8,14 +8,14 @@ La guía del asistente de ayuda creció a 132 entradas (~76.000 caracteres de te
 
 Este diseño presenta limitaciones críticas:
 1. **Consumo masivo e ineficiente de tokens**: cada turno consume ~19.000 tokens de entrada, y si la respuesta requiere detalles se ejecuta una segunda llamada obligatoria consecutiva con `focoId` (REQ-AYUDA-07), duplicando el costo y la latencia.
-2. **Latencia elevada sin feedback interactivo**: la generación sin streaming bloquea la UI con un spinner estático durante 4 a 10 segundos antes de mostrar cualquier carácter.
+2. **Latencia y falta de streaming**: aunque en el Lote 0 de v1 se midieron ~2 s con `gemini-3-flash-preview`, la ausencia de streaming bloquea la UI con un spinner estático hasta completar la respuesta entera (o el doble si hay 2ª llamada).
 3. **Pérdida de respuestas útiles**: si el modelo evalúa que ninguna entrada individual resuelve de forma exacta la consulta y retorna `null`, el texto explicativo generado se descarta por completo (REQ-AYUDA-06) y se muestra una tarjeta estática fija.
 4. **Falta de control de cuota por tenant**: no existe un techo transaccional por tenant en la base de datos; la única contención es la cuota global del proyecto en Google Cloud.
 5. **Rigidez mono-entrada**: no permite articular respuestas fluidas que combinen referencias o pasos de más de un flujo ni enriquecer el diálogo en turnos sucesivos.
 
 ## Decisión
 
-Reemplazar la arquitectura de envío total de índice y respuesta JSON estática por un pipeline de componentes orientados a alta velocidad, bajo costo, streaming interactivo y aislamiento multi-tenant estricto:
+Reemplazar la arquitectura de envío total de índice y respuesta JSON estática por un pipeline optimizado:
 
 1. **Retrieval 100% local en memoria (BM25 en TypeScript)**:
    - Se rankea la guía curada en memoria sin dependencias externas, sin modelos de embeddings ni llamadas de red.
@@ -23,17 +23,19 @@ Reemplazar la arquitectura de envío total de índice y respuesta JSON estática
      `no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues`.
    - Se agrega un campo opcional `alias: readonly string[]` en `EntradaGuia` para incorporar sinónimos operativos con boost de relevancia en el scoring.
    - El filtrado por permisos efectivos del usuario es **fail-closed y previo al rankeo** (idéntico a v1).
-   - Se recuperan las mejores 5 a 6 entradas con sus detalles completos para inyectar al prompt.
-   - Si el score BM25 máximo queda por debajo de un umbral de confianza, se devuelve inmediatamente una respuesta estática con sugerencias de entradas cercanas **sin invocar al LLM**.
+   - Calibración empírica en `lib/ayuda/evaluacion.test.ts` con ~40 preguntas reales: valida que la entrada esperada figure en el top 5 y que preguntas fuera de dominio queden bajo el umbral.
+   - Top 5 a 6 entradas completas con sus detalles se inyectan al prompt.
+   - Si el score BM25 máximo queda por debajo del umbral, se devuelve de inmediato respuesta `sin_llm` con sugerencias de entradas cercanas **SIN reservar cuota ni invocar a Gemini**.
 
 2. **Contexto multi-turno optimizado**:
-   - En turnos de seguimiento, se incorporan al query BM25 los títulos y alias de las entradas citadas en el turno anterior con menor ponderación, reteniendo además la entrada activa en foco en el contexto.
+   - En turnos de seguimiento, se incorporan al query BM25 los títulos y alias de las entradas citadas en el turno anterior con factor de peso atenuado (0.4, calibrado con la suite de evaluación).
+   - Los ids de citas previos enviados por el cliente se revalidan contra las entradas permitidas del usuario (Zod ≤ 64; se descartan si no están permitidos).
    - Historial comprimido: ventana máxima de 4 turnos recientes, excluyendo respuestas enlatadas o tarjetas de sugerencias.
 
-3. **Prompting directo y conciso con modelo GA (sin prefijar en código)**:
+3. **Prompting directo y conciso con modelo GA (Fase 0)**:
    - Estructura del prompt: prefijo de sistema/instrucciones estable + bloque de top 5-6 entradas recuperadas + historial breve + pregunta actual.
-   - Salida del modelo en **texto plano con citas sintácticas `[[entrada-id]]`** (sin JSON estructurado).
-   - Modelo GA configurable vía `GEMINI_MODEL` (la spec no fija modelo; se selecciona en Fase 0 midiendo TTFT), `thinkingLevel: 'MINIMAL'` (o `thinkingBudget: 0`), `maxOutputTokens` acotado (~800 tokens).
+   - Salida del modelo en **texto plano puro, sin Markdown** (sin negritas ni listas formateadas) con citas sintácticas `[[entrada-id]]`. El prompt lo exige explícitamente.
+   - La spec **no fija modelo de memoria ni umbrales inventados**: la Fase 0 lista los modelos disponibles para la clave (`ai.models.list()`) y mide TTFT en streaming de los modelos GA candidatos; la persona elige con los números reales en mano (lección de v1: el listado de Google no garantiza disponibilidad real).
    - 1 reintento con backoff exponencial ante errores 429/5xx y fallback a `GEMINI_MODEL_FALLBACK` **únicamente antes de emitir el primer byte**.
 
 4. **Parser de citas al vuelo en streaming (`TransformStream`)**:
@@ -42,62 +44,72 @@ Reemplazar la arquitectura de envío total de índice y respuesta JSON estática
    - Toda cita `[[entrada-id]]` cerrada se valida contra la whitelist de entradas permitidas del turno. Si es válida, se emite un evento/token de link tipado con título y ruta resueltos en el servidor desde la guía; si es inválida, se descarta. La ruta nunca sale del modelo.
    - El cliente renderiza texto y componentes React de navegación, **nunca HTML crudo** (`dangerouslySetInnerHTML` prohibido).
 
-5. **Endpoint `POST /api/ayuda/chat` (SSE) y compuertas locales**:
-   - Route Handler en Next.js App Router actuando como adaptador de `ReadableStream`.
-   - **Compuertas en `app/api/ayuda/chat/`**: las compuertas viven en la misma carpeta del módulo que las consume (cumpliendo con la regla de AGENTS.md: *"Used by one module → it lives in that module's folder"*; no se crea función compartida en `lib/`).
-   - **Orden único de ejecución innegociable**:
-     1. Validación de `Origin` contra `Host` (rechazo 403 CSRF sin tocar sesión ni DB).
-     2. `verifySession()`: validación de sesión activa y rechazo inmediato de `session.idRevendedora` con 401/`no-permission` (alineado con los demás handlers de `app/api`).
-     3. `requireModuleRole(session, 'ayuda', 'consultar')`.
-     4. Validación zod `strictObject` (`consultarAyudaChatSchema`).
+5. **Endpoint `POST /api/ayuda/chat` (SSE), compuertas y errores tipados**:
+   - Route Handler en Next.js App Router.
+   - **Compuertas colocalizadas en `app/api/ayuda/chat/`**: no se crea función compartida en `lib/` (AGENTS: *"Used by one module → its folder"*).
+   - **Manejo de errores estricto**:
+     - Errores de compuertas (previos al stream): retornan respuesta HTTP con JSON `{ ok: false, reason: string }` y status HTTP semántico (401, 403, 400, 429).
+     - Errores posteriores al inicio del stream: viajan como eventos SSE `{ tipo: 'error', reason: string }`.
+   - **Orden único de ejecución**:
+     1. Validación `Origin`: ausente o no coincidente con `Host` (o `x-forwarded-host`) → 403 Forbidden HTTP JSON inmediato, sin tocar sesión ni DB.
+     2. `verifySession()`: rechazo inmediato de `session.idRevendedora` con 401 (`no-permission`) HTTP JSON.
+     3. `requireModuleRole(session, 'ayuda', 'consultar')`: 403 HTTP JSON si no tiene rol o módulo apagado.
+     4. Validación Zod `strictObject`: 400 `payload-invalido` HTTP JSON.
      5. `permisosEfectivos(session)`.
-     6. Reserva atómica de cuota diaria en base de datos.
-   - Excepción técnica justificada a la regla "toda mutación es Server Action": las Server Actions no soportan streaming SSE chunked en tiempo real. `calificarConsultaAyudaAction` se mantiene como Server Action estándar.
+     6. Retrieval BM25 local sobre entradas autorizadas:
+        - Si el score queda bajo el umbral de corte → respuesta `sin_llm` (sugerencias) **SIN reservar cuota**.
+     7. Si supera el umbral y se va a llamar a Gemini: **reserva atómica de cuota diaria**. Si la cuota fue alcanzada → 429 `ayuda-cuota-excedida` HTTP JSON.
+     8. Inicio del streaming SSE.
 
 6. **Control de cuota atómica con `SECURITY INVOKER`**:
-   - Todas las funciones son `SECURITY INVOKER` para respetar la lista blanca estricta de `tests/db/rvp-lecturas.test.ts` (test 8).
-   - Tabla `cuota_ayuda_diaria` particionada por tenant y fecha.
-   - **Defensa contra manipulación por PostgREST**: el rol `authenticated` solo recibe `GRANT UPDATE (consultas_realizadas)`. Un trigger `BEFORE UPDATE` impide decrementos y bloquea la edición de `id_tenant`, `fecha` o `limite_diario`.
-   - El límite diario vive protegido: solo el operador/super-admin puede modificarlo (patrón de migración 00117).
-   - Reserva de cuota atómica antes de llamar al modelo (`INSERT ... ON CONFLICT DO UPDATE ... WHERE consultas_realizadas < limite_diario RETURNING`).
+   - Separación estricta de tablas:
+     - `limite_ayuda_tenant(id_tenant pk, limite_diario)`: solo modificable por el operador con clave service-role (patrón 00117); el rol `authenticated` solo tiene permiso `SELECT`.
+     - `cuota_ayuda_diaria(id_tenant, fecha, consultas_realizadas)`: el rol `authenticated` recibe grants por columna para `INSERT (id_tenant, fecha, consultas_realizadas)` y `UPDATE (consultas_realizadas)`, sin grant de `DELETE`.
+   - Reglas de integridad mediante triggers y fechas de tenant:
+     - Se reemplaza `current_date` por `fn_hoy_tenant()` en todo el diseño.
+     - Trigger `BEFORE INSERT`: fuerza `fecha = fn_hoy_tenant()` y valida `consultas_realizadas in (0, 1)`.
+     - Trigger `BEFORE UPDATE`: garantiza que el contador solo se incremente (`new.consultas_realizadas > old.consultas_realizadas`) e impide modificar `id_tenant` o `fecha`.
+   - **Riesgo residual documentado**: un empleado del tenant con permiso legítimo de ayuda puede agotar intencionalmente el cupo diario de su comercio ejecutando consultas en bucle.
+   - Reserva de cuota atómica mediante `sp_reservar_cuota_ayuda` (SECURITY INVOKER).
 
 7. **Telemetría diferida con `after()` de `next/server`**:
-   - El registro de la consulta en `consulta_ayuda` se difiere al cierre de la respuesta mediante `after()`, liberando el stream hacia el usuario.
-   - Se registra: resultado (`respondida`, `sin_llm`, `fuera_de_opciones`, `error`), latencia en milisegundos, modelo utilizado y desglose de tokens (`input`, `output`, `cached`, `thinking`) extraídos de `usageMetadata`.
-   - Si la plataforma (Vercel) llegara a cortar la función por timeout extremo, la cuota ya quedó reservada previamente de forma segura (fail-safe financiero).
+   - Registro final en `consulta_ayuda` mediante `after()`, liberando el stream al cliente.
+   - Se migra la columna `entrada_id text` a `entradas_citadas text[]` (con backfill automático desde `entrada_id` y bloque DOWN).
+   - Se registra: `resultado` (`'respondida'`, `'sin_cita'`, `'sin_llm'`, `'fuera_de_opciones'`, `'error'`), latencia en ms, modelo utilizado y desglose de tokens (`input`, `output`, `cached`, `thinking`) extraídos de `usageMetadata`.
 
-8. **Invariantes de seguridad reafirmadas**:
-   - Cero datos del tenant al modelo (REQ-AYUDA-09 y test de aislamiento `lib/ayuda/imports.test.ts`).
-   - Rutas derivadas únicamente de la guía tipada estática.
-   - Cobertura total de pantallas en la guía verificada por `cobertura.test.ts`.
-   - Actualización operativa de `docs/ayuda.md` en la fase final de cierre.
+8. **Invariantes y limpieza de código deprecado**:
+   - Cero datos del tenant al modelo (REQ-AYUDA-09 e `imports.test.ts`).
+   - `lib/ayuda/tipos.ts` es modificado exclusivamente en la fase inicial de contratos (ninguna otra fase lo toca).
+   - Fase de limpieza dedicada que retira `consultarAyudaAction`, `salida.ts`, `resolver.ts`, `consultar.ts` y el modo JSON de `gemini.ts` tras verificar con `rg` que no existan importadores.
+   - Actualización de `docs/ayuda.md` en la fase final de cierre.
 
 ## Reemplazo explícito de especificaciones anteriores
 
-`chat-ayuda-v2` **reemplaza formalmente** las siguientes secciones de `openspec/changes/chat-ayuda/specs/REQ-AYUDA.md`:
-- **REQ-AYUDA-05 (Salida estructurada y re-validación)**: reemplazado por salida en texto plano con citas sintácticas `[[entrada-id]]` procesadas en streaming (REQ-AYUDA-V2-06).
-- **REQ-AYUDA-06 (El modelo nunca devuelve rutas / descarte de texto)**: reemplazado por REQ-AYUDA-V2-08. El texto siempre se transmite en streaming al usuario y nunca se descarta; las citas válidas se transforman en enlaces interactivos y las inválidas se descartan como citas.
-- **REQ-AYUDA-07 (Máximo dos llamadas por turno)**: reemplazado por llamada única (REQ-AYUDA-V2-07), ya que las top 5-6 entradas inyectadas por BM25 incluyen sus detalles completos desde el inicio.
-- **REQ-AYUDA-10 (Valores de resultado)**: el dominio del campo `resultado` en `consulta_ayuda` se amplía para admitir `('respondida', 'sin_llm', 'fuera_de_opciones', 'error')` y se elimina la restricción de que `respondida` exija un único `entrada_id` no nulo.
+`chat-ayuda-v2` **reemplaza formalmente**:
+- **REQ-AYUDA-05 (Salida estructurada y re-validación)**: reemplazado por texto plano con citas sintácticas `[[entrada-id]]` (REQ-AYUDA-V2-06).
+- **REQ-AYUDA-06 (El modelo nunca devuelve rutas / descarte de texto)**: reemplazado por REQ-AYUDA-V2-08. El texto siempre se emite en streaming; citas válidas se convierten en links y las inválidas se descartan.
+- **REQ-AYUDA-07 (Máximo dos llamadas por turno)**: reemplazado por llamada única (REQ-AYUDA-V2-07), con top 5-6 entradas completas desde el inicio.
+- **REQ-AYUDA-10 (Valores de resultado y entrada_id)**: reemplazado por `entradas_citadas text[]` y resultados `('respondida', 'sin_cita', 'sin_llm', 'fuera_de_opciones', 'error')` en REQ-AYUDA-V2-12.
 
 ## Lo que NO entra en v2
 
-- Reemplazo de BM25 por bases de datos vectoriales (pgvector), microservicios de búsqueda o embeddings remotos.
-- **Caché de respuestas entre turnos**: queda **fuera de las fases de v2** debido al riesgo de envenenamiento interno con `SECURITY INVOKER` y se abre como DR para analizar con la telemetría recolectada.
-- Historial conversacional persistente visible para el usuario (solo telemetría en `consulta_ayuda`).
-- Modificación del portal de revendedoras (`app/(revendedora)`), el cual continúa excluido del módulo de ayuda.
+- Modelos de embeddings o bases de datos vectoriales.
+- **Caché de respuestas entre turnos**: postergado fuera de las fases de v2 por riesgo de envenenamiento interno bajo `SECURITY INVOKER`.
+- Historial persistente en UI para el usuario.
+- Módulo de revendedoras (`app/(revendedora)`), el cual continúa excluido de ayuda.
 
 ## Decisiones abiertas / cerradas
 
 - **Cerradas**:
-  - Whitelist estricta de palabras funcionales en normalización BM25 (`no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues`).
-  - Ubicación de compuertas en `app/api/ayuda/chat/` (sin crear módulo compartido en `lib/`).
-  - Orden estricto de compuertas en el Route Handler: (1) Origin vs Host, (2) verifySession + idRevendedora, (3) requireModuleRole, (4) zod, (5) permisosEfectivos, (6) reserva de cuota.
-  - Streaming con SSE vía Route Handler `POST /api/ayuda/chat`.
-  - Reintento y fallback activo únicamente antes de emitir el primer byte.
-  - Telemetría al cierre ejecutada mediante `after()` de `next/server`.
-  - Cuota diaria bajo `SECURITY INVOKER` con protección contra decrementos por trigger `BEFORE UPDATE`.
+  - Salida en texto plano puro, sin Markdown (DR-AYUDA-V2-4 corregida).
+  - Whitelist estricta de palabras funcionales (`no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues`).
+  - Uso estricto de `fn_hoy_tenant()` en lugar de `current_date`.
+  - Compuertas en `app/api/ayuda/chat/` con errores previos vía HTTP JSON (Origin ausente/mismatch → 403, cuota → 429).
+  - BM25 previo a la reserva de cuota: respuestas `sin_llm` no consumen cupo diario.
+  - Tabla separada `limite_ayuda_tenant` modificable únicamente por service-role y triggers de seguridad en `cuota_ayuda_diaria`.
+  - Reemplazo de `entrada_id` por `entradas_citadas text[]` con backfill.
+  - Fase de limpieza obligatoria con verificación previa vía `rg`.
 - **Abiertas**:
-  - **DR-AYUDA-V2-1**: Comportamiento ante respuesta sin ninguna cita válida. Dado que el texto explicativo ya se emitió progresivamente al usuario vía streaming, ¿se añade una tarjeta sutil al final del stream alertando que la respuesta carece de enlaces directos, o se mantiene el texto limpio marcando la telemetría como `respondida` con lista de citas vacía?
-  - **DR-AYUDA-V2-2**: Límite por defecto de la cuota diaria por tenant (se propone 100 consultas/día por tenant en `cuota_ayuda_diaria`, configurable por el super admin).
-  - **DR-AYUDA-V2-3**: Caché de respuestas por tenant en DB: bajo `SECURITY INVOKER`, cualquier usuario con acceso al tenant podría insertar respuestas arbitrarias vistas por sus compañeros. Se posterga la implementación del caché hasta contar con telemetría de producción que justifique su necesidad frente al bajo costo alcanzado con BM25.
+  - **DR-AYUDA-V2-1**: Comportamiento ante stream completado sin citas válidas: se propone registrar `resultado = 'sin_cita'` y que la UI muestre al pie la tarjeta fija de v1 ("No tengo esa respuesta. Preguntale al administrador de tu negocio.").
+  - **DR-AYUDA-V2-2**: Cupo diario por defecto en `limite_ayuda_tenant` (propuesto: 100 consultas/día por tenant).
+  - **DR-AYUDA-V2-3**: Caché de respuestas por tenant en DB postergado; se analizará con datos empíricos de telemetría.

@@ -5,25 +5,28 @@ Tareas organizadas por fases secuenciales y lotes de trabajo para agentes. Cada 
 ## Gate humano
 
 - [ ] Spec aprobada (`proposal.md`, `design.md`, `specs/REQ-AYUDA-V2.md`, `tasks.md`) por la persona.
-- [ ] DR-AYUDA-V2-1 resuelta: comportamiento ante respuestas sin citas válidas transmitidas en streaming.
+- [ ] DR-AYUDA-V2-1 aprobada: resultado `'sin_cita'` y tarjeta fija al final del stream en UI.
 - [ ] DR-AYUDA-V2-2 resuelta: límite por defecto de consultas diarias por tenant (propuesto: 100).
 - [ ] DR-AYUDA-V2-3 ratificada: postergación del caché de respuestas fuera de v2 por seguridad INVOKER.
-- [ ] Fase 0 ejecutada: modelos GA seleccionados (`GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`) mediante medición empírica de TTFT.
+- [ ] Fase 0 ejecutada: modelos GA seleccionados (`GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`) mediante medición empírica de TTFT con script.
 
 ---
 
 ## Olas de ejecución
 
 ```
-Ola 1   Fase 0 (Latencia TTFT y modelos GA) ──► Fase 1 (Dominio BM25 y Whitelist)
-                                            ├──► Fase 2 (Streaming y TransformStream)
-                                            └──► Fase 3 (DB: cuota atómica y telemetría)
-                                                       │
-Ola 2   Fase 4 (Route Handler SSE + compuertas locales) ◄┘
+Ola 1   Fase 0 (Latencia TTFT y modelos GA)
            │
-Ola 3   Fase 5 (UI streaming en PanelAyuda)
+Ola 2   Fase 1 (Contratos tipados, BM25 y evaluacion.test.ts)
            │
-Ola 4   Fase 6 (Cierre: docs/ayuda.md, cobertura y gates de arquitectura)
+Ola 3   ├──► Fase 2 (Streaming, TransformStream y Prompt v2)
+        └──► Fase 3 (DB: límite, cuota atómica y telemetría)
+                  │
+Ola 4   Fase 4 (Route Handler SSE + compuertas locales)
+           │
+Ola 5   Fase 5 (UI streaming en PanelAyuda y tarjeta fija)
+           │
+Ola 6   Fase 6 (Limpieza de código deprecado, docs/ayuda.md y gates)
 ```
 
 ---
@@ -32,66 +35,75 @@ Ola 4   Fase 6 (Cierre: docs/ayuda.md, cobertura y gates de arquitectura)
 
 Archivos: `scripts/ayuda-latencia.mts`.
 
-- [ ] Extender `scripts/ayuda-latencia.mts` para consumir `generateContentStream` y medir:
-  - Tiempo al primer token (TTFT en milisegundos).
-  - Tiempo total de stream.
-  - Disponibilidad real bajo nuestra clave de API.
-- [ ] **Persona** ejecuta el script con los modelos GA candidatos:
+- [ ] Extender `scripts/ayuda-latencia.mts` para:
+  - Listar los modelos habilitados en la cuenta con `ai.models.list()`.
+  - Consumir `generateContentStream` y medir el tiempo al primer token (TTFT en ms) y tiempo total de stream de los modelos GA candidatos.
+  - Documentar la lección de v1: el listado no garantiza que `generateContent` funcione con nuestra clave.
+- [ ] **Persona** ejecuta el script con los modelos GA candidatos sin asumir nombres de memoria:
   ```bash
-  node --env-file=.env.local --experimental-strip-types scripts/ayuda-latencia.mts gemini-2.5-flash gemini-1.5-flash <otros-ga>
+  node --env-file=.env.local --experimental-strip-types scripts/ayuda-latencia.mts <candidatos-ga>
   ```
-- [ ] Definir en entorno `GEMINI_MODEL` (principal) y `GEMINI_MODEL_FALLBACK` (secundario) con base en menor TTFT (< 1.200 ms).
+- [ ] Definir en entorno `GEMINI_MODEL` (principal) y `GEMINI_MODEL_FALLBACK` (secundario) a partir de los números medidos.
 
 ---
 
-## Fase 1 — Dominio puro: BM25 y Normalización con Whitelist Funcional
+## Fase 1 — Contratos y Dominio BM25 con Suite de Evaluación
 
-Archivos: `lib/ayuda/stopwords.ts`, `lib/ayuda/normalizar.ts`, `lib/ayuda/bm25.ts`, `lib/ayuda/tipos.ts`, `lib/ayuda/guia/*.ts`, `lib/ayuda/bm25.test.ts`.
+Archivos: `lib/ayuda/tipos.ts`, `lib/ayuda/stopwords.ts`, `lib/ayuda/normalizar.ts`, `lib/ayuda/bm25.ts`, `lib/ayuda/bm25.test.ts`, `lib/ayuda/evaluacion.test.ts`, `lib/ayuda/guia/*.ts`.
 
-- [ ] Extender `EntradaGuia` en `lib/ayuda/tipos.ts` con el campo opcional `alias?: readonly string[]` (REQ-AYUDA-V2-01).
+- [ ] **Única modificación de contratos tipados**: extender `EntradaGuia` y definir eventos de streaming en `lib/ayuda/tipos.ts` (REQ-AYUDA-V2-01). *Ninguna otra fase modificará este archivo*.
 - [ ] Crear `lib/ayuda/stopwords.ts` con la lista de stopwords en español y la **whitelist inmutable de palabras funcionales en clave y query (normalizadas sin tilde)**:
   `no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues` (REQ-AYUDA-V2-02).
 - [ ] Crear `lib/ayuda/normalizar.ts` con normalización minúscula, desacentuación y stemming liviano en español.
-- [ ] Crear `lib/ayuda/bm25.ts`: cálculo BM25 en TypeScript puro sobre `titulo`, `alias`, `pasos` y `detalles`, con filtrado previo fail-closed mediante `filtrarGuia` (REQ-AYUDA-V2-03) y umbral de corte para fallback sin LLM (REQ-AYUDA-V2-04).
+- [ ] Crear `lib/ayuda/bm25.ts`: cálculo BM25 en TypeScript puro sobre `titulo`, `alias`, `pasos` y `detalles`, con filtrado previo fail-closed mediante `filtrarGuia` (REQ-AYUDA-V2-03) y umbral de corte para fallback `sin_llm` (REQ-AYUDA-V2-04).
 - [ ] Añadir alias operativos a entradas clave de `lib/ayuda/guia/*.ts` (ej. 'ticket', 'cobro', 'factura', 'seña').
-- [ ] Incorporar contexto multi-turno al query BM25 con peso atenuado (0.4) para títulos y alias del turno previo (REQ-AYUDA-V2-05).
+- [ ] Incorporar contexto multi-turno al query BM25 con peso atenuado (0.4) para títulos y alias del turno previo, revalidando que los ids enviados por el cliente correspondan a entradas autorizadas del operador (REQ-AYUDA-V2-05).
 - [ ] Crear `lib/ayuda/bm25.test.ts` con escenarios felices y negativos numerados N1–N3.
-- [ ] Validar que `lib/ayuda/imports.test.ts` siga pasando al 100% (REQ-AYUDA-V2-14).
+- [ ] **Crear `lib/ayuda/evaluacion.test.ts`**:
+  - Suite de ~40 preguntas reales representativas del uso del sistema.
+  - Aserciones de calibración: entrada esperada presente en el top 5 recuperado y preguntas fuera de dominio ubicadas bajo el umbral.
+  - Calibrar con los resultados de esta suite el umbral `UMBRAL_MINIMO_BM25` y el peso 0.4.
+- [ ] Validar que `lib/ayuda/imports.test.ts` continúe pasando al 100% (REQ-AYUDA-V2-14).
 
 ---
 
 ## Fase 2 — Streaming, Parser TransformStream y Prompt v2
 
-Archivos: `lib/ayuda/stream.ts`, `lib/ayuda/stream.test.ts`, `lib/ayuda/prompt.ts`, `lib/ayuda/prompt.test.ts`, `lib/ayuda/gemini.ts`, `lib/ayuda/tipos.ts`.
+Archivos: `lib/ayuda/stream.ts`, `lib/ayuda/stream.test.ts`, `lib/ayuda/prompt.ts`, `lib/ayuda/prompt.test.ts`, `lib/ayuda/gemini.ts`.
 
-- [ ] Definir tipos de eventos streaming (`EventoStreamAyuda`, `TokenLinkAyuda`) en `lib/ayuda/tipos.ts`.
 - [ ] Crear `lib/ayuda/stream.ts` con `TransformStream` que implemente:
   - Buffer delimitador para `[` y `[[`.
-  - Límite de seguridad de 80 caracteres (emisión como texto literal si desborda sin cerrar).
+  - Límite de seguridad de 80 caracteres (emisión como texto literal ordinario si desborda sin cerrar).
   - Resolución de citas cerradas `[[id]]` contra la whitelist de entradas autorizadas del turno, emitiendo `{ tipo: 'link', id, titulo, ruta }` (REQ-AYUDA-V2-08).
 - [ ] Crear `lib/ayuda/stream.test.ts` cubriendo delimitadores partidos entre chunks, citas no autorizadas, desborde de 80 caracteres y texto plano intercalado.
-- [ ] Actualizar `lib/ayuda/prompt.ts` para producir el prefijo estable y formatear las top 5-6 entradas completas con detalles y citas sintácticas (REQ-AYUDA-V2-06).
+- [ ] Actualizar `lib/ayuda/prompt.ts` para producir el prefijo estable y formatear las top 5-6 entradas completas con detalles, exigiendo explícitamente **salida en texto plano sin Markdown** y citas sintácticas `[[id]]` (REQ-AYUDA-V2-06, DR-AYUDA-V2-4).
 - [ ] Actualizar `lib/ayuda/gemini.ts` para streaming (`generateContentStream`), thinking mínimo, 1 reintento con backoff y fallback a `GEMINI_MODEL_FALLBACK` **únicamente antes de emitir el primer byte** (REQ-AYUDA-V2-07).
 
 ---
 
-## Fase 3 — Base de Datos: Cuota Atómica y Telemetría
+## Fase 3 — Base de Datos: Límite, Cuota Atómica y Telemetría
 
 Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.test.ts`, `lib/dal/ayuda/cuota.ts`.
 
 - [ ] Crear migración SQL con número siguiente libre:
-  - Tabla `cuota_ayuda_diaria` con clave primaria `(id_tenant, fecha)`.
-  - Policies RLS: `cuota_ayuda_diaria_tenant` y restrictiva `restrict_revendedora_cuota_ayuda`.
-  - Grants estrictos: `SELECT, INSERT, UPDATE (consultas_realizadas)` a `authenticated`; sin grant de `DELETE`.
-  - Trigger `trg_guardia_cuota_ayuda` con función `fn_guardia_cuota_ayuda` (SECURITY INVOKER) que rechaza decrementos de contador y modificaciones de tenant, fecha o límite diario.
-  - Función `sp_reservar_cuota_ayuda()` (SECURITY INVOKER) con `INSERT ON CONFLICT DO UPDATE ... WHERE ... RETURNING`.
-  - Extensión de tabla `consulta_ayuda`: columnas de telemetría (`tipo_error`, `latencia_ms`, `modelo`, `tokens_input`, `tokens_output`, `tokens_cached`, `tokens_thinking`) y flexibilización de CHECK de resultados (`respondida`, `sin_llm`, `fuera_de_opciones`, `error`).
+  - Tabla `limite_ayuda_tenant (id_tenant uuid primary key references tenant, limite_diario integer default 100)`. RLS activada; grant `SELECT` a `authenticated`; revocar `INSERT, UPDATE, DELETE` a `authenticated` (solo service-role, patrón 00117).
+  - Tabla `cuota_ayuda_diaria (id_tenant uuid, fecha date, consultas_realizadas integer, primary key (id_tenant, fecha))`.
+  - Grants estrictos: `SELECT, INSERT (id_tenant, fecha, consultas_realizadas), UPDATE (consultas_realizadas)` a `authenticated`; revocar `DELETE`.
+  - Triggers de seguridad e integridad temporal usando estrictamente `fn_hoy_tenant()`:
+    - Trigger `trg_guardia_insert_cuota_ayuda`: fuerza `fecha = fn_hoy_tenant()` y valida `consultas_realizadas in (0, 1)`.
+    - Trigger `trg_guardia_update_cuota_ayuda`: garantiza solo incrementos e inmutabilidad de tenant y fecha.
+  - Función `sp_reservar_cuota_ayuda()` (SECURITY INVOKER) con `INSERT ON CONFLICT DO UPDATE ... WHERE consultas_realizadas < limite_diario RETURNING`.
+  - Extensión de `consulta_ayuda`:
+    - Reemplazar `entrada_id text` por `entradas_citadas text[]` con backfill automático desde `entrada_id`.
+    - Ampliar CHECK de resultado para admitir `in ('respondida', 'sin_cita', 'sin_llm', 'fuera_de_opciones', 'error')`.
+    - Columnas de telemetría: `tipo_error`, `latencia_ms`, `modelo`, `tokens_input`, `tokens_output`, `tokens_cached`, `tokens_thinking`.
   - Actualización de `sp_registrar_consulta_ayuda` (SECURITY INVOKER) partiendo de `pnpm sp:last sp_registrar_consulta_ayuda`.
-  - Bloque reversible `-- DOWN:` ejecutable verificado por `pnpm gate:db`.
+  - Bloque reversible `-- DOWN:` ejecutable completo verificado por `pnpm gate:db`.
 - [ ] Crear `lib/dal/ayuda/cuota.ts` para invocar `sp_reservar_cuota_ayuda` y `sp_registrar_consulta_ayuda`.
 - [ ] Crear suite `tests/db/ayuda_v2.test.ts`:
-  - Prueba de reserva atómica exitosa y rechazo al superar el cupo diario.
-  - Intento de decremento vía PostgREST rechazado por el trigger.
+  - Prueba N de `INSERT` directo en `cuota_ayuda_diaria` con contador alto (ej. 99) rechazado por trigger.
+  - Prueba N de `INSERT` directo con fecha futura sobrescrita por `fn_hoy_tenant()`.
+  - Prueba de reserva atómica exitosa y rechazo con `cuota-excedida` al alcanzar el límite de `limite_ayuda_tenant`.
   - Verificación del test 8 de `tests/db/rvp-lecturas.test.ts` confirmando cero DEFINER nuevos.
 
 ---
@@ -101,44 +113,50 @@ Archivos: `supabase/migrations/<siguiente>_ayuda_v2.sql`, `tests/db/ayuda_v2.tes
 Archivos: `app/api/ayuda/chat/route.ts`, `app/api/ayuda/chat/compuertas.ts`, `app/api/ayuda/chat/route.test.ts`, `lib/validation/ayuda.ts`.
 
 - [ ] Definir `consultarAyudaChatSchema` con Zod `strictObject` en `lib/validation/ayuda.ts`.
-- [ ] Crear `app/api/ayuda/chat/compuertas.ts` colocalizado en el módulo implementando el orden único innegociable:
-  1. Validación `Origin` contra `Host` (rechazo 403 CSRF sin tocar sesión ni DB).
-  2. `verifySession()` y rechazo inmediato de `session.idRevendedora` con 401 (`no-permission`).
-  3. `requireModuleRole(session, 'ayuda', 'consultar')`.
-  4. Parseo Zod `strictObject`.
+- [ ] Crear `app/api/ayuda/chat/compuertas.ts` colocalizado en el módulo implementando el orden único innegociable y respuestas HTTP JSON previas al stream:
+  1. Validación `Origin`: ausente o mismatch → HTTP 403 JSON `{ ok: false, reason: 'origin-invalido' }`.
+  2. `verifySession()`: rechazo inmediato de `session.idRevendedora` con HTTP 401 JSON `{ ok: false, reason: 'no-permission' }`.
+  3. `requireModuleRole(session, 'ayuda', 'consultar')`: HTTP 403 JSON.
+  4. Parseo Zod `strictObject`: HTTP 400 JSON `{ ok: false, reason: 'payload-invalido' }`.
   5. `permisosEfectivos(session)`.
-  6. Reserva atómica de cuota diaria.
-- [ ] Implementar `app/api/ayuda/chat/route.ts` como adaptador `ReadableStream` SSE (`Content-Type: text/event-stream; charset=utf-8`):
-  - Integración del pipeline BM25 + Gemini stream + `TransformStream`.
-  - Ejecución de telemetría final diferida mediante `after()` de `next/server`.
+  6. Retrieval BM25 local: si score < umbral → emitir respuesta `sin_llm` **SIN reservar cuota**.
+  7. Si supera el umbral y va a llamar a Gemini: llamada a `sp_reservar_cuota_ayuda`. Si cuota alcanzada → HTTP 429 JSON `{ ok: false, reason: 'ayuda-cuota-excedida' }`.
+- [ ] Implementar `app/api/ayuda/chat/route.ts` como adaptador `ReadableStream` SSE:
+  - Streaming SSE con `Content-Type: text/event-stream; charset=utf-8`.
+  - Errores ocurridos una vez iniciado el stream viajan como evento SSE `{ tipo: 'error', reason: string }`.
+  - Ejecución de telemetría diferida no bloqueante mediante `after()` de `next/server`.
   - `export const maxDuration = 30`.
-- [ ] Crear `app/api/ayuda/chat/route.test.ts` testeando cada rechazo de compuerta y el flujo exitoso con fake de streaming.
+- [ ] Crear `app/api/ayuda/chat/route.test.ts` testeando cada error HTTP previo y el flujo de stream exitoso.
 
 ---
 
-## Fase 5 — UI Streaming en PanelAyuda
+## Fase 5 — UI Streaming en PanelAyuda y Tarjeta Fija
 
 Archivos: `app/(app)/ayuda/PanelAyuda.tsx`, `app/(app)/ayuda/PanelAyuda.test.tsx`.
 
-- [ ] Adaptar `PanelAyuda.tsx` para consumir el endpoint `/api/ayuda/chat` mediante `fetch` y lectura de `ReadableStream` con SSE.
+- [ ] Adaptar `PanelAyuda.tsx` para consumir `/api/ayuda/chat` mediante `fetch` y lectura de `ReadableStream` con SSE.
 - [ ] Renderizar texto progresivo en tiempo real y transformar tokens estructurados de link en componentes `<Link href={ruta}>` (REQ-AYUDA-V2-09).
 - [ ] Garantizar que no se use `dangerouslySetInnerHTML` ni renderizado de HTML sin escapar.
-- [ ] Gestionar el estado de cuota excedida (`ayuda-cuota-excedida`) mostrando aviso claro en la UI.
-- [ ] Manejar la resolución de la DR-AYUDA-V2-1 para respuestas que no contengan citas válidas.
+- [ ] **Manejo de `sin_cita` (DR-AYUDA-V2-1)**: si el stream finaliza sin haber emitido enlaces a la guía, mantener el texto y mostrar al pie la tarjeta fija de advertencia de v1 ("No tengo esa respuesta. Preguntale al administrador de tu negocio.").
+- [ ] Gestionar error de cuota excedida (HTTP 429 `ayuda-cuota-excedida`) mostrando aviso claro en la UI.
 - [ ] Mantener intacta la Server Action `calificarConsultaAyudaAction` vinculada a cada respuesta respondida.
-- [ ] Actualizar `PanelAyuda.test.tsx` verificando el ciclo de vida del stream, cancelación y renderizado seguro.
+- [ ] Actualizar `PanelAyuda.test.tsx` verificando streaming, cancelación, tarjeta fija y renderizado seguro.
 
 ---
 
-## Fase 6 — Cierre, Documentación y Verificación Integral
+## Fase 6 — Limpieza de Código Deprecado, Documentación y Cierre
 
-Archivos: `docs/ayuda.md`, `lib/errores/mensajes.ts`, `lib/errores/mensajes.test.ts`.
+Archivos: `app/(app)/ayuda/actions.ts`, `lib/ayuda/{salida,resolver,consultar}.ts`, `lib/ayuda/gemini.ts`, `docs/ayuda.md`, `lib/errores/mensajes.ts`, `lib/errores/mensajes.test.ts`.
 
+- [ ] **Fase de limpieza de código deprecado**:
+  - Verificar con `rg "consultarAyudaAction"` y removerla de `app/(app)/ayuda/actions.ts` (conservando únicamente `calificarConsultaAyudaAction`).
+  - Verificar con `rg` y eliminar los archivos muertos: `lib/ayuda/salida.ts`, `lib/ayuda/resolver.ts`, `lib/ayuda/consultar.ts`.
+  - Eliminar el modo JSON estructurado y esquemas asociados de `lib/ayuda/gemini.ts`.
 - [ ] Agregar nuevo slug `ayuda-cuota-excedida` a `lib/errores/mensajes.ts` y al inventario de `mensajes.test.ts`.
 - [ ] **Actualizar `docs/ayuda.md`**:
-  - Reemplazar referencias a modelos preview por modelos GA estables.
-  - Documentar las variables de entorno `GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`.
-  - Documentar el funcionamiento de la cuota diaria por tenant en `cuota_ayuda_diaria` y la reserva atómica.
+  - Reemplazar menciones a modelos preview por modelos GA estables.
+  - Documentar variables `GEMINI_MODEL` y `GEMINI_MODEL_FALLBACK`.
+  - Documentar la cuota diaria por tenant (`limite_ayuda_tenant`, `cuota_ayuda_diaria`) y el trigger anti-decrementos.
   - Documentar la arquitectura streaming y la telemetría en `consulta_ayuda`.
 - [ ] Correr `lib/ayuda/guia/cobertura.test.ts` para verificar cobertura total de pantallas de la app.
 - [ ] Correr `tests/arquitectura-imports.test.ts` y `lib/ayuda/imports.test.ts` para garantizar cumplimiento de fronteras de arquitectura y aislamiento.
