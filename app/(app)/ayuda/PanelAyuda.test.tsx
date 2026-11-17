@@ -320,6 +320,29 @@ describe('PanelAyuda (Fase 5 streaming / REQ-AYUDA-V2-09, 13 / DR-AYUDA-V2-1, 7)
     })
   })
 
+  it('sin_llm sin sugerencias: pide reformular en vez de mostrar links', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockStreamResponse([
+        'data: {"tipo":"sugerencias","entradas":[]}\n\n',
+        'data: {"tipo":"fin","idConsulta":null,"resultado":"sin_llm"}\n\n',
+      ]),
+    )
+
+    renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    const textarea = screen.getByPlaceholderText('¿Qué querés hacer?')
+    fireEvent.change(textarea, { target: { value: 'pregunta ajena' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No encontré nada sobre eso en la guía. Probá con otras palabras.'),
+      ).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Quizás te sirvan estas opciones:')).not.toBeInTheDocument()
+  })
+
   it('sin_llm con sugerencias: renderiza la lista de links de orientación', async () => {
     fetchMock.mockResolvedValueOnce(
       mockStreamResponse([

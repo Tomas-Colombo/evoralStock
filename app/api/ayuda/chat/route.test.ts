@@ -313,7 +313,8 @@ describe('POST /api/ayuda/chat', () => {
 
       expect(eventos).toHaveLength(2)
       expect(eventos[0].tipo).toBe('sugerencias')
-      expect((eventos[0] as { tipo: 'sugerencias'; entradas: unknown[] }).entradas.length).toBeLessThanOrEqual(3)
+      // Pregunta ajena: el top queda bajo UMBRAL_SUGERENCIAS_BM25 y no se sugiere ruido.
+      expect((eventos[0] as { tipo: 'sugerencias'; entradas: unknown[] }).entradas).toEqual([])
 
       expect(eventos[1]).toEqual({
         tipo: 'fin',

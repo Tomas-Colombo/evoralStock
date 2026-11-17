@@ -35,6 +35,13 @@ export const PESO_TURNO_PREVIO = 0.4
  */
 export const UMBRAL_MINIMO_BM25 = 0.18
 
+/**
+ * Piso para mostrar sugerencias en sin_llm. Debajo de esto el top es ruido: "finanzas"
+ * (sin entrada que la nombre) sugería crear roles y consignaciones con ~0.08. Las ajenas
+ * generales (recetas, fútbol) quedan en ~0.07.
+ */
+export const UMBRAL_SUGERENCIAS_BM25 = 0.12
+
 export interface ResultadoBM25 {
   entrada: EntradaGuia
   score: number
@@ -147,8 +154,12 @@ export class IndiceBM25 {
       pesosTerminos.set(token, (pesosTerminos.get(token) ?? 0) + 1.0)
     }
 
-    // 3. Multi-turno: títulos y alias del turno previo con peso 0.4 (REQ-AYUDA-V2-05)
-    if (opciones?.citasPrevias && opciones.citasPrevias.length > 0) {
+    // 3. Multi-turno: títulos y alias del turno previo (REQ-AYUDA-V2-05). El peso TOTAL
+    // del turno previo es PESO_TURNO_PREVIO × el peso de la pregunta actual, repartido
+    // entre sus tokens. Antes sumaba 0.4 por token: una cita con 8 tokens pesaba 3.2
+    // contra 1 de "como hacer una venta" y el top quedaba lleno de la entrada anterior.
+    const tokensPrevios = new Set<string>()
+    if (tokensQuery.length > 0 && opciones?.citasPrevias && opciones.citasPrevias.length > 0) {
       // Conservamos hasta 4 citas más recientes
       const citasRelevantes = opciones.citasPrevias.slice(-4)
 
@@ -167,15 +178,18 @@ export class IndiceBM25 {
             const tokensPrevAlias = (docPrevio.entrada.alias ?? []).flatMap((a) =>
               normalizarTexto(a),
             )
-            const tokensPrev = [...tokensPrevTitulo, ...tokensPrevAlias]
-            for (const token of tokensPrev) {
-              pesosTerminos.set(
-                token,
-                (pesosTerminos.get(token) ?? 0) + PESO_TURNO_PREVIO,
-              )
+            for (const token of [...tokensPrevTitulo, ...tokensPrevAlias]) {
+              tokensPrevios.add(token)
             }
           }
         }
+      }
+    }
+
+    if (tokensPrevios.size > 0) {
+      const pesoPorToken = (PESO_TURNO_PREVIO * tokensQuery.length) / tokensPrevios.size
+      for (const token of tokensPrevios) {
+        pesosTerminos.set(token, (pesosTerminos.get(token) ?? 0) + pesoPorToken)
       }
     }
 

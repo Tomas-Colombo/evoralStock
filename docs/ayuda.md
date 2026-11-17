@@ -76,7 +76,8 @@ Una vez superadas las compuertas, se abre el stream con header `Content-Type: te
 
 El motor de retrieval local (`lib/ayuda/bm25.ts`) opera en TypeScript puro sin dependencias externas:
 - **Ponderaciones**: `titulo` (3.0), `alias` (2.5), `detalles` (1.2), `pasos` (1.0).
-- **Turno previo**: Los títulos y alias de las citas del turno anterior se agregan con factor atenuado `PESO_TURNO_PREVIO = 0.4`.
+- **Turno previo**: Los títulos y alias de las citas del turno anterior se agregan al query con un peso total de `PESO_TURNO_PREVIO = 0.4` × el peso de la pregunta actual, repartido entre sus tokens. Así el contexto ayuda a una repregunta ("¿y el descuento?") sin tapar un cambio de tema.
+- **Sugerencias en `sin_llm`**: solo se muestran las entradas con score normalizado ≥ `UMBRAL_SUGERENCIAS_BM25 = 0.12`; si ninguna llega, el panel pide reformular la pregunta.
 - **Palabras funcionales (Whitelist estricta)**: Aunque se filtran stopwords comunes, se preservan terminantemente en clave y query las palabras: `no`, `sin`, `con`, `ya`, `ni`, `nunca`, `todavia`, `solo`, `antes`, `despues`, para evitar invertir el sentido de consultas críticas.
 - **Score normalizado y umbral**:
   El score BM25 se normaliza en el rango $[0, 1]$ dividiéndolo por el máximo alcanzable para esa consulta, $\sum_t w_t \cdot idf_t \cdot (K_1 + 1)$; las palabras que no están en la guía usan el idf máximo, así que bajan la fracción. El corte se decide sobre ese valor. El umbral actual es:

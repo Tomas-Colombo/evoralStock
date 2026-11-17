@@ -522,6 +522,12 @@ export function PanelAyuda() {
                     </p>
                   )}
 
+                  {m.sugerencias && m.sugerencias.length === 0 && (
+                    <p className="mt-2 text-xs text-muted">
+                      No encontré nada sobre eso en la guía. Probá con otras palabras.
+                    </p>
+                  )}
+
                   {m.sugerencias && m.sugerencias.length > 0 && (
                     <div className="mt-2 space-y-1.5">
                       <p className="text-xs text-muted">Quizás te sirvan estas opciones:</p>

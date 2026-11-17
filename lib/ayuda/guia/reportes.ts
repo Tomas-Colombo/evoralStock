@@ -6,7 +6,7 @@ export const GUIA_REPORTES: readonly EntradaGuia[] = [
     titulo: 'Cómo consultar el tablero financiero general',
     ruta: '/reportes',
     permisos: ['reportes.ver', 'ventas.ver'],
-    alias: ['metricas','totales','facturacion','resumen general'],
+    alias: ['metricas', 'totales', 'facturacion', 'resumen general', 'finanzas', 'resultados del negocio'],
     pasos: [
       'Ingresá a Reportes desde el menú principal de navegación.',
       'Ajustá el período de consulta seleccionando las fechas desde y hasta en el filtro superior.',

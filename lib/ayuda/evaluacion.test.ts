@@ -341,6 +341,28 @@ export const SET_CONTROL_DOMINIO: readonly CasoEvaluacion[] = [
   { pregunta: 'dejar de trabajar con un proveedor', esperada: 'proveedores-toggle-activo' },
   { pregunta: 'quitarle permisos a un rol', esperada: 'administracion-roles-editar' },
   { pregunta: 'borrar una categoria de gastos', esperada: 'gastos-categorias-dar-de-baja' },
+
+  // Bloque E: cambio de tema tras una cita. El turno previo sumaba 0.4 por token y tapaba
+  // la pregunta nueva: "como hacer una venta" después de gastos solo recuperaba gastos.
+  {
+    pregunta: 'como hacer una venta',
+    esperada: 'ventas-registrar-venta',
+    citasPrevias: ['gastos-registrar'],
+    esMultiTurno: true,
+  },
+  {
+    pregunta: 'donde cargo un gasto',
+    esperada: 'gastos-registrar',
+    citasPrevias: ['ventas-registrar-venta'],
+    esMultiTurno: true,
+  },
+  {
+    pregunta: 'imprimir etiquetas',
+    esperada: 'inventario-etiquetas-imprimir',
+    citasPrevias: ['administracion-usuarios-invitar'],
+    esMultiTurno: true,
+  },
+  { pregunta: 'como van las finanzas del local', esperada: 'reportes-tablero-general' },
 ]
 
 /**

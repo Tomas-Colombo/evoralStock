@@ -124,6 +124,15 @@ describe('Motor BM25 (REQ-AYUDA-V2-03 / 04 / 05)', () => {
       expect(res[0].entrada.id).toBe('ventas-registrar-venta')
     })
 
+    it('N4: la cita previa no tapa una pregunta de otro tema', () => {
+      const res = buscarBM25('como hacer una venta', permisosCompletos, {
+        citasPrevias: ['gastos-registrar'],
+      })
+
+      expect(res[0].entrada.id.startsWith('ventas-')).toBe(true)
+      expect(res.map((r) => r.entrada.id)).toContain('ventas-registrar-venta')
+    })
+
     it('N3: si el cliente envía más de 4 citas previas, se conservan solo las 4 más recientes', () => {
       const citas = [
         'ventas-listado',

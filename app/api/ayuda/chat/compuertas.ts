@@ -5,7 +5,7 @@ import { verifySession, type Session } from '@/lib/dal/session'
 import { reservarCuotaAyuda } from '@/lib/dal/ayuda'
 import { leerConfigAyuda, type ConfigAyuda } from '@/lib/ayuda/config'
 import { permisosEfectivos } from '@/lib/ayuda/permisos'
-import { buscarBM25, UMBRAL_MINIMO_BM25 } from '@/lib/ayuda/bm25'
+import { buscarBM25, UMBRAL_MINIMO_BM25, UMBRAL_SUGERENCIAS_BM25 } from '@/lib/ayuda/bm25'
 import type { EntradaGuia } from '@/lib/ayuda/tipos'
 import type { Permiso } from '@/lib/types/administracion'
 import {
@@ -132,7 +132,10 @@ export async function ejecutarCompuertas(req: NextRequest): Promise<ResultadoCom
   })
 
   if (resultados.length === 0 || resultados[0].scoreNormalizado < UMBRAL_MINIMO_BM25) {
-    const sugerencias = resultados.slice(0, 3).map((r) => ({
+    const sugerencias = resultados
+      .filter((r) => r.scoreNormalizado >= UMBRAL_SUGERENCIAS_BM25)
+      .slice(0, 3)
+      .map((r) => ({
       id: r.entrada.id,
       titulo: r.entrada.titulo,
       ruta: r.entrada.ruta,
