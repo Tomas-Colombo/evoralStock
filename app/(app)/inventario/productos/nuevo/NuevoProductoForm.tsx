@@ -47,6 +47,7 @@ export function NuevoProductoForm({
   const [idProveedor, setIdProveedor] = useState('')
   const [stockMinimo, setStockMinimo] = useState('0')
   const [pesoGramos, setPesoGramos] = useState('')
+  const [calcPorPesoActivo, setCalcPorPesoActivo] = useState(false)
   const [descripcion, setDescripcion] = useState('')
   const [costoInicial, setCostoInicial] = useState('')
   const [moneda, setMoneda] = useState('ARS')
@@ -172,6 +173,7 @@ export function NuevoProductoForm({
               setStock([]) // los talles son propios de cada categoría
               if (!categorias.find((c) => c.id_categoria === nextCatId)?.lleva_peso) {
                 setPesoGramos('')
+                setCalcPorPesoActivo(false)
               }
             }}
             aria-invalid={!!errors.categoria || undefined}
@@ -223,7 +225,10 @@ export function NuevoProductoForm({
               </div>
               {llevaPeso && (
                 <CalculadoraCostoPorPeso
-                  pesoInicial={pesoGramos.trim() ? Number(pesoGramos) : null}
+                  peso={pesoGramos}
+                  onPesoChange={setPesoGramos}
+                  activo={calcPorPesoActivo}
+                  onActivoChange={setCalcPorPesoActivo}
                   moneda={moneda}
                   disabled={pending}
                   onCostoCalculado={setCostoInicial}
@@ -234,7 +239,7 @@ export function NuevoProductoForm({
         )}
       </div>
 
-      {llevaPeso && (
+      {llevaPeso && !calcPorPesoActivo && (
         <Field
           htmlFor="prod-peso"
           label="Peso en gramos (opcional)"

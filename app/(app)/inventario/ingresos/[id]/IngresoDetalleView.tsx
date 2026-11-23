@@ -482,6 +482,7 @@ export function IngresoDetalleView({
             if (!catLinea?.lleva_peso) return null
             return (
               <CalculadoraCostoPorPeso
+                key={prodLinea?.id_producto ?? (linea.esNuevo ? 'nuevo' : 'sin-prod')}
                 pesoInicial={prodLinea?.peso_gramos ?? null}
                 moneda="ARS"
                 disabled={pending}

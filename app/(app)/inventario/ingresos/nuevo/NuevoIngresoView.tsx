@@ -694,6 +694,7 @@ export function NuevoIngresoView({
                   {puedeCargarCostos && llevaPeso && (
                     <div className="mt-2">
                       <CalculadoraCostoPorPeso
+                        key={prodLinea?.id_producto ?? (f.esNuevo ? 'nuevo' : 'sin-prod')}
                         pesoInicial={pesoInicialLinea}
                         moneda={moneda}
                         disabled={pending}
