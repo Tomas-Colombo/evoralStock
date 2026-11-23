@@ -93,7 +93,7 @@ test.describe('Ingresos de mercadería', () => {
     await page.getByRole('button', { name: '+ Agregar producto' }).click()
     await page.getByPlaceholder('Producto').fill(nombre)
 
-    // The line flips to «Vincular» with the existing product selected: a
+    // The line flips to «Reestock» with the existing product selected: a
     // restock, not a second product with the same name.
     const existente = contenido(page).getByLabel('Producto existente')
     await expect(existente).toBeVisible()
@@ -108,7 +108,7 @@ test.describe('Ingresos de mercadería', () => {
       .selectOption({ label: 'Compra (paga al ingresar)' })
 
     await page.getByRole('button', { name: '+ Agregar producto' }).click()
-    await page.getByRole('button', { name: 'Vincular', exact: true }).click()
+    await page.getByRole('button', { name: 'Reestock', exact: true }).click()
     await page.getByRole('button', { name: /^(Guardar|Guardando)/ }).click()
 
     await shell.expectErrorToast('Elegí un producto en todas las líneas')

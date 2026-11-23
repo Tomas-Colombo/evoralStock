@@ -110,7 +110,7 @@ export function RemitoImportPanel({
       }
       setFilas(
         parsed.lineas.map((l) => {
-          // Si ya existe un producto con ese nombre, arrancamos en "Vincular"
+          // Si ya existe un producto con ese nombre, arrancamos en "Reestock"
           // (es nuevo destildado); si no, se trata como producto nuevo.
           const match = buscarMatchNombre(porNombre, l.nombre)
           return {
@@ -181,7 +181,7 @@ export function RemitoImportPanel({
       // Invariante: es nuevo → nombre único. Si el nombre ya existe, hay que
       // cambiarlo o vincularlo, no crear un duplicado.
       if (f.esNuevo && matchDe(f)) {
-        return toast.error('Ese nombre ya existe', `Cambiá el nombre de "${f.nombre}" o usá «Vincular»`)
+        return toast.error('Ese nombre ya existe', `Cambiá el nombre de "${f.nombre}" o usá «Reestock»`)
       }
       if (f.esNuevo && !f.idCategoria) return toast.error('Elegí la categoría', f.nombre)
       if (!f.esNuevo && !f.idProducto) return toast.error('Elegí un producto', f.nombre)
@@ -318,7 +318,7 @@ export function RemitoImportPanel({
                           !f.esNuevo ? 'bg-block text-block-ink' : 'text-muted hover:bg-card'
                         }`}
                       >
-                        Vincular
+                        Reestock
                       </button>
                     </div>
 
@@ -403,7 +403,7 @@ export function RemitoImportPanel({
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                       {match && f.esNuevo && (
                         <span className="text-xs text-alerta-ink">
-                          Ya existe un producto con este nombre. Cambiá el nombre o usá «Vincular».
+                          Ya existe un producto con este nombre. Cambiá el nombre o usá «Reestock».
                         </span>
                       )}
                       {talles.length > 0 && (
