@@ -28,6 +28,7 @@ import { sugerirCategoria } from '@/lib/inventario/categoria-match'
 import { MAX_PDF_BYTES } from '@/lib/inventario/limites'
 import { crearIngresoCompletoAction, parseRemitoPdfAction } from '../../actions'
 import { NuevoProveedorModal } from '@/components/inventario/NuevoProveedorModal'
+import { CalculadoraCostoPorPeso } from '@/components/inventario/CalculadoraCostoPorPeso'
 import { NuevaCategoriaModal } from './NuevaCategoriaModal'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { IconButton } from '@/components/ui/IconButton'
@@ -222,7 +223,7 @@ export function NuevoIngresoView({
         return
       }
       // Cada renglón del PDF se suma a lo que ya haya cargado. Si el nombre
-      // matchea un producto existente, arranca en «Vincular»; si no, es nuevo.
+      // matchea un producto existente, arranca en «Reestock»; si no, es nuevo.
       setFilas((fs) => [
         ...fs,
         ...parsed.lineas.map((l) => {
@@ -280,7 +281,7 @@ export function NuevoIngresoView({
     )
   }
 
-  // En modo «Vincular» el producto elegido manda: el nombre lo aporta el
+  // En modo «Reestock» el producto elegido manda: el nombre lo aporta el
   // producto (no hay input de texto) y el costo arranca en el costo vigente
   // si puedeCargarCostos como valor por defecto editable. Solo en ARS.
   function vincularProducto(i: number, idProducto: string) {
@@ -333,7 +334,7 @@ export function NuevoIngresoView({
       return false
     }
     for (const f of filas) {
-      // En «Vincular» el nombre viene del producto elegido: el error útil es
+      // En «Reestock» el nombre viene del producto elegido: el error útil es
       // «falta elegir el producto», no «falta el nombre».
       if (!f.esNuevo && !f.idProducto) {
         toast.error('Elegí un producto en todas las líneas')
@@ -350,7 +351,7 @@ export function NuevoIngresoView({
       // Invariante: es nuevo → nombre único. Si el nombre ya existe, hay que
       // cambiarlo o vincularlo, no crear un duplicado.
       if (f.esNuevo && matchDe(f)) {
-        toast.error('Ese nombre ya existe', `Cambiá el nombre de "${f.nombre}" o usá «Vincular»`)
+        toast.error('Ese nombre ya existe', `Cambiá el nombre de "${f.nombre}" o usá «Reestock»`)
         return false
       }
       if (f.esNuevo && !f.idCategoria) {
@@ -550,11 +551,19 @@ export function NuevoIngresoView({
               const conTalles = f.talles.length > 0
               const cantNum = Number(f.cantidad || 0)
               const match = matchDe(f)
+              const prodLinea = !f.esNuevo && f.idProducto ? productos.find((p) => p.id_producto === f.idProducto) : undefined
+              const catLinea = f.esNuevo
+                ? categorias.find((c) => c.id_categoria === f.idCategoria)
+                : prodLinea
+                  ? (prodLinea.categoria ?? categorias.find((c) => c.id_categoria === prodLinea.id_categoria))
+                  : undefined
+              const llevaPeso = catLinea?.lleva_peso ?? false
+              const pesoInicialLinea = prodLinea?.peso_gramos ?? null
               return (
                 <div key={i} className="rounded-lg border border-border bg-card-2 px-3 py-2.5">
                   {/* Fila única: nombre · nuevo/vincular · categoría/producto · cantidad · precio · quitar */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    {/* En «Vincular» el nombre lo define el select de abajo: no
+                    {/* En «Reestock» el nombre lo define el select de abajo: no
                         duplicamos el dato con un input de texto. */}
                     {f.esNuevo && (
                       <Input
@@ -589,7 +598,7 @@ export function NuevoIngresoView({
                           !f.esNuevo ? 'bg-block text-block-ink' : 'text-muted hover:bg-card'
                         }`}
                       >
-                        Vincular
+                        Reestock
                       </button>
                     </div>
 
@@ -681,12 +690,24 @@ export function NuevoIngresoView({
                     </IconButton>
                   </div>
 
-                  {/* Segunda fila (solo si aplica): aviso + talles */}
+                  {/* Segunda fila (solo si aplica): calculadora por peso + aviso + talles */}
+                  {puedeCargarCostos && llevaPeso && (
+                    <div className="mt-2">
+                      <CalculadoraCostoPorPeso
+                        pesoInicial={pesoInicialLinea}
+                        moneda={moneda}
+                        disabled={pending}
+                        onCostoCalculado={(costo) =>
+                          actualizar(i, { costoUnitario: costo, costoPrecargado: false })
+                        }
+                      />
+                    </div>
+                  )}
                   {(match && f.esNuevo) || talles.length > 0 ? (
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                       {match && f.esNuevo && (
                         <span className="text-xs text-alerta-ink">
-                          Ya existe un producto con este nombre. Cambiá el nombre o usá «Vincular».
+                          Ya existe un producto con este nombre. Cambiá el nombre o usá «Reestock».
                         </span>
                       )}
                       {talles.length > 0 && (

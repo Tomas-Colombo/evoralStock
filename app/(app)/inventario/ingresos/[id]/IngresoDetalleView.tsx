@@ -9,6 +9,7 @@ import { Field } from '@/components/ui/Field'
 import { NumberInput } from '@/components/ui/NumberInput'
 import { useToast } from '@/components/ui/Toast'
 import { clampUnidades, MAX_UNIDADES_LINEA } from '@/components/inventario/StockTalleLoader'
+import { CalculadoraCostoPorPeso } from '@/components/inventario/CalculadoraCostoPorPeso'
 import { buildEtiquetasIngresoHref } from '@/lib/inventario/etiquetas'
 import type {
   CategoriaRow,
@@ -357,7 +358,7 @@ export function IngresoDetalleView({
         <form onSubmit={addLinea} className="rounded-lg border border-border bg-card p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-semibold">Agregar producto a mano</h3>
-            {/* Toggle Nuevo/Vincular: doble verificación del nombre. */}
+            {/* Toggle Nuevo/Reestock: doble verificación del nombre. */}
             <div className="inline-flex shrink-0 overflow-hidden rounded-md border border-border text-xs">
               <button
                 type="button"
@@ -374,7 +375,7 @@ export function IngresoDetalleView({
               <button
                 type="button"
                 onClick={() => {
-                  // Vincular: si el nombre matchea uno existente, lo dejamos
+                  // Reestock: si el nombre matchea uno existente, lo dejamos
                   // enganchado; si no, queda a la espera de elegir del listado.
                   setLinea((l) => ({
                     ...l,
@@ -467,6 +468,27 @@ export function IngresoDetalleView({
               {pending ? 'Agregando…' : 'Agregar línea'}
             </Button>
           </div>
+
+          {(() => {
+            if (!puedeCargarCostos) return null
+            const prodLinea = !linea.esNuevo && linea.idProducto
+              ? productos.find((p) => p.id_producto === linea.idProducto)
+              : undefined
+            const catLinea = linea.esNuevo
+              ? categorias.find((c) => c.id_categoria === idCategoriaAdd)
+              : prodLinea
+                ? (prodLinea.categoria ?? categorias.find((c) => c.id_categoria === prodLinea.id_categoria))
+                : undefined
+            if (!catLinea?.lleva_peso) return null
+            return (
+              <CalculadoraCostoPorPeso
+                pesoInicial={prodLinea?.peso_gramos ?? null}
+                moneda="ARS"
+                disabled={pending}
+                onCostoCalculado={setCostoUnitario}
+              />
+            )
+          })()}
 
           {/* Aviso del invariante, según el estado del nombre. */}
           {linea.esNuevo && matchLinea && (

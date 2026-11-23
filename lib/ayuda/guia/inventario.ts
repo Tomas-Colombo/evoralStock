@@ -42,6 +42,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Costo en dólares y conversión oficial',
         texto: 'Si seleccionás moneda USD para el costo inicial, el sistema muestra la cotización oficial del BCRA y un estimado en pesos. Al guardar, el costo se convierte a pesos al tipo de cambio vigente y se preserva el importe original en dólares.',
       },
+      {
+        tema: 'Peso en gramos y cálculo por peso',
+        texto: 'Si la categoría tiene marcado "Lleva peso", podés cargar opcionalmente el peso en gramos del producto y usar el toggle "Calcular por peso" (peso × costo por gramo) para completar el costo inicial en la moneda elegida.',
+      },
     ],
   },
   {
@@ -68,7 +72,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     pasos: [
       'En el listado de Inventario, hacé clic sobre el producto para abrir su ficha.',
       'En la parte superior derecha, hacé clic en "Editar".',
-      'Modificá el Nombre, la Categoría, el Stock mínimo o la Descripción en el formulario.',
+      'Modificá el Nombre, la Categoría, el Stock mínimo, el Peso en gramos (si la categoría lleva peso) o la Descripción en el formulario.',
       'Marcá o desmarcá la casilla "Producto activo" para cambiar su disponibilidad comercial.',
       'Hacé clic en "Guardar cambios" para actualizar el producto.',
     ],
@@ -169,6 +173,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'Completá el Nombre de la categoría (con al menos 2 caracteres).',
       'Ingresá una Descripción opcional.',
       'Agregá los talles correspondientes escribiendo cada uno y presionando la opción para sumarlo.',
+      'Si los productos de la categoría se costean por peso, marcá la casilla "Lleva peso".',
       'Hacé clic en "Crear categoría" para guardar el registro.',
     ],
     detalles: [
@@ -186,7 +191,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
     alias: ['renombrar categoria', 'modificar categoria'],
     pasos: [
       'Desde la pantalla de Categorías, localizá la categoría en la lista y hacé clic en "Editar".',
-      'Modificá el Nombre, la Descripción o agregá y quitá talles según corresponda.',
+      'Modificá el Nombre, la Descripción, el check "Lleva peso" o agregá y quitá talles según corresponda.',
       'Hacé clic en "Guardar cambios" para actualizar la información.',
     ],
   },
@@ -347,6 +352,10 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
         tema: 'Moneda del comprobante y conversión',
         texto: 'Podés elegir si el comprobante está expresado en ARS o USD. Con USD, se toma la cotización oficial del día de carga para registrar el costo unitario en pesos de las unidades físicas ingresadas.',
       },
+      {
+        tema: 'Cálculo de costo por peso en líneas',
+        texto: 'En productos cuya categoría tiene marcado "Lleva peso", cada línea muestra el toggle "Calcular por peso" (con el peso del producto precargado si existe) para calcular el costo unitario multiplicando gramos por costo por gramo.',
+      },
     ],
   },
   {
@@ -380,7 +389,7 @@ export const GUIA_INVENTARIO: readonly EntradaGuia[] = [
       'En la pantalla de Nuevo ingreso (o en un ingreso borrador), hacé clic en "Importar PDF".',
       'Seleccioná el archivo PDF del remito provisto por el proveedor.',
       'El sistema extraerá las líneas de productos, cantidades y costos unitarios automáticamente.',
-      'Revisá cada línea para confirmar si es un producto "Nuevo" con su categoría o "Vincular" a un artículo existente.',
+      'Revisá cada línea para confirmar si es un producto "Nuevo" con su categoría o "Reestock" a un artículo existente.',
       'Si los artículos cuentan con talles, hacé clic en "Cargar talles" para desglosar las unidades.',
       'Hacé clic en "Guardar" y confirmá la operación para dar de alta los ítems.',
     ],

@@ -48,6 +48,7 @@ describe('NuevoIngresoView — Selector de moneda y cotización USD', () => {
       nombre: 'Pantalones',
       descripcion: null,
       talles: ['38', '40'],
+      lleva_peso: false,
       activa: true,
       created_at: '',
       updated_at: '',

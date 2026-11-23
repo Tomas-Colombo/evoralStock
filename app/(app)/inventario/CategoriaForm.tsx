@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -38,6 +39,7 @@ export function CategoriaForm({
   const [nombre, setNombre] = useState(categoria?.nombre ?? '')
   const [descripcion, setDescripcion] = useState(categoria?.descripcion ?? '')
   const [talles, setTalles] = useState<string[]>(categoria?.talles ?? [])
+  const [llevaPeso, setLlevaPeso] = useState(categoria?.lleva_peso ?? false)
   const [errNombre, setErrNombre] = useState<string | null>(null)
 
   function submit(e: React.FormEvent) {
@@ -51,6 +53,7 @@ export function CategoriaForm({
       nombre: nombre.trim(),
       descripcion: descripcion.trim() || null,
       talles,
+      lleva_peso: llevaPeso,
     }
     start(async () => {
       if (categoria) {
@@ -58,6 +61,7 @@ export function CategoriaForm({
           nombre,
           descripcion: descripcion || null,
           talles,
+          lleva_peso: llevaPeso,
         })
         if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
         toast.success('Categoría actualizada')
@@ -69,6 +73,7 @@ export function CategoriaForm({
         nombre,
         descripcion: descripcion || null,
         talles,
+        llevaPeso,
       })
       if (!res.ok) return toast.error('No se pudo crear', mensajeDeError(res.reason))
       if (!res.data) return toast.error('No se pudo crear')
@@ -111,6 +116,21 @@ export function CategoriaForm({
       >
         <TallesEditor id={`${uid}-talles`} value={talles} onChange={setTalles} disabled={pending} />
       </Field>
+
+      <label className="flex items-start gap-2 text-sm text-text">
+        <Checkbox
+          checked={llevaPeso}
+          onChange={(e) => setLlevaPeso(e.target.checked)}
+          disabled={pending}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="block font-medium">Lleva peso</span>
+          <span className="block text-xs text-muted">
+            Habilita cargar peso en gramos y calcular el costo por gramo.
+          </span>
+        </span>
+      </label>
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onCancel} disabled={pending}>

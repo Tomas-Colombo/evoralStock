@@ -14,6 +14,7 @@ import {
   StockTalleLoader,
   type LineaTalle,
 } from '@/components/inventario/StockTalleLoader'
+import { CalculadoraCostoPorPeso } from '@/components/inventario/CalculadoraCostoPorPeso'
 import type { CategoriaRow, ProveedorRow } from '@/lib/types/inventario'
 import { buscarMatchNombre, indexarPorNombre } from '@/lib/inventario/producto-match'
 import { createProductoAction } from '../../actions'
@@ -45,6 +46,7 @@ export function NuevoProductoForm({
   const [idCategoria, setIdCategoria] = useState(categorias[0]?.id_categoria ?? '')
   const [idProveedor, setIdProveedor] = useState('')
   const [stockMinimo, setStockMinimo] = useState('0')
+  const [pesoGramos, setPesoGramos] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [costoInicial, setCostoInicial] = useState('')
   const [moneda, setMoneda] = useState('ARS')
@@ -59,8 +61,10 @@ export function NuevoProductoForm({
 
   const [errors, setErrors] = useState<{ nombre?: string; categoria?: string }>({})
 
-  // Talles disponibles según la categoría elegida.
-  const tallesCategoria = categorias.find((c) => c.id_categoria === idCategoria)?.talles ?? []
+  // Talles y flag de peso según la categoría elegida.
+  const categoriaSeleccionada = categorias.find((c) => c.id_categoria === idCategoria)
+  const tallesCategoria = categoriaSeleccionada?.talles ?? []
+  const llevaPeso = categoriaSeleccionada?.lleva_peso ?? false
 
   // Índice nombre-normalizado → producto existente, para bloquear duplicados.
   const indexNombres = useMemo(() => indexarPorNombre(productos), [productos])
@@ -116,6 +120,7 @@ export function NuevoProductoForm({
         sku: null, // el SKU se autogenera en la DB (sp_gen_sku)
         stockMinimo: Number(stockMinimo || 0),
         descripcion: descripcion || null,
+        pesoGramos: llevaPeso && pesoGramos.trim() ? Number(pesoGramos) : null,
         costoInicial: puedeCargarCostos && costoInicial ? Number(costoInicial) : null,
         moneda: puedeCargarCostos ? moneda : undefined,
         idProveedor: idProveedor || null,
@@ -162,8 +167,12 @@ export function NuevoProductoForm({
             id="prod-cat"
             value={idCategoria}
             onChange={(e) => {
-              setIdCategoria(e.target.value)
+              const nextCatId = e.target.value
+              setIdCategoria(nextCatId)
               setStock([]) // los talles son propios de cada categoría
+              if (!categorias.find((c) => c.id_categoria === nextCatId)?.lleva_peso) {
+                setPesoGramos('')
+              }
             }}
             aria-invalid={!!errors.categoria || undefined}
           >
@@ -193,27 +202,54 @@ export function NuevoProductoForm({
         </Field>
         {puedeCargarCostos && (
           <Field htmlFor="prod-costo" label="Costo inicial" hint={hintCosto}>
-            <div className="flex gap-2">
-              <NumberInput
-                id="prod-costo"
-                thousands
-                value={costoInicial}
-                onChange={(e) => setCostoInicial(e.target.value)}
-                className="flex-1"
-              />
-              <Select
-                value={moneda}
-                onChange={(e) => setMoneda(e.target.value)}
-                aria-label="Moneda"
-                className="w-auto"
-              >
-                <option value="ARS">ARS</option>
-                <option value="USD">USD</option>
-              </Select>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <NumberInput
+                  id="prod-costo"
+                  thousands
+                  value={costoInicial}
+                  onChange={(e) => setCostoInicial(e.target.value)}
+                  className="flex-1"
+                />
+                <Select
+                  value={moneda}
+                  onChange={(e) => setMoneda(e.target.value)}
+                  aria-label="Moneda"
+                  className="w-auto"
+                >
+                  <option value="ARS">ARS</option>
+                  <option value="USD">USD</option>
+                </Select>
+              </div>
+              {llevaPeso && (
+                <CalculadoraCostoPorPeso
+                  pesoInicial={pesoGramos.trim() ? Number(pesoGramos) : null}
+                  moneda={moneda}
+                  disabled={pending}
+                  onCostoCalculado={setCostoInicial}
+                />
+              )}
             </div>
           </Field>
         )}
       </div>
+
+      {llevaPeso && (
+        <Field
+          htmlFor="prod-peso"
+          label="Peso en gramos (opcional)"
+          hint="Solo informativo y para calcular costo por peso."
+        >
+          <NumberInput
+            id="prod-peso"
+            min={0.001}
+            step={0.001}
+            value={pesoGramos}
+            onChange={(e) => setPesoGramos(e.target.value)}
+            placeholder="Ej: 4.5"
+          />
+        </Field>
+      )}
 
       {proveedores.length > 0 && (
         <Field

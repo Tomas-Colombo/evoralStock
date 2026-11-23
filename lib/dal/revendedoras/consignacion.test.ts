@@ -44,6 +44,7 @@ const productoConTallesFixture: ProductoRowConCategoria = {
   nombre: 'Remera Básica',
   descripcion: null,
   stock_minimo: 0,
+  peso_gramos: null,
   activo: true,
   es_nuevo: false,
   precio_venta: 15000,

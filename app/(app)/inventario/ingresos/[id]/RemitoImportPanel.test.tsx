@@ -28,6 +28,7 @@ describe('RemitoImportPanel — Selector de moneda y cotización USD', () => {
       nombre: 'Buzos',
       descripcion: null,
       talles: ['M', 'L'],
+      lleva_peso: false,
       activa: true,
       created_at: '',
       updated_at: '',

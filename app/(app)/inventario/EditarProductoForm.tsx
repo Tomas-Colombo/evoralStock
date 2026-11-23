@@ -18,7 +18,7 @@ import { Select } from '@/components/ui/Select'
  *  o cualquier subtipo (p. ej. `ProductoConDetalle` de la tabla). */
 export type ProductoEditable = Pick<
   ProductoRow,
-  'id_producto' | 'nombre' | 'id_categoria' | 'stock_minimo' | 'descripcion' | 'activo'
+  'id_producto' | 'nombre' | 'id_categoria' | 'stock_minimo' | 'descripcion' | 'activo' | 'peso_gramos'
 >
 
 /**
@@ -46,8 +46,13 @@ export function EditarProductoForm({
   const [nombre, setNombre] = useState(producto.nombre)
   const [idCategoria, setIdCategoria] = useState(producto.id_categoria)
   const [stockMinimo, setStockMinimo] = useState(String(producto.stock_minimo))
+  const [pesoGramos, setPesoGramos] = useState(
+    producto.peso_gramos != null ? String(producto.peso_gramos) : '',
+  )
   const [descripcion, setDescripcion] = useState(producto.descripcion ?? '')
   const [activo, setActivo] = useState(producto.activo)
+
+  const llevaPeso = categorias.find((c) => c.id_categoria === idCategoria)?.lleva_peso ?? false
 
   const [errors, setErrors] = useState<{ nombre?: string; categoria?: string }>({})
 
@@ -66,6 +71,7 @@ export function EditarProductoForm({
         stock_minimo: Number(stockMinimo || 0),
         descripcion: descripcion.trim() || null,
         activo,
+        ...(llevaPeso ? { peso_gramos: pesoGramos.trim() ? Number(pesoGramos) : null } : {}),
       })
       if (!res.ok) return toast.error('No se pudo guardar', mensajeDeError(res.reason))
       toast.success('Producto actualizado')
@@ -110,6 +116,19 @@ export function EditarProductoForm({
           onChange={(e) => setStockMinimo(e.target.value)}
         />
       </Field>
+
+      {llevaPeso && (
+        <Field htmlFor="prod-peso" label="Peso en gramos (opcional)">
+          <NumberInput
+            id="prod-peso"
+            min={0.001}
+            step={0.001}
+            value={pesoGramos}
+            onChange={(e) => setPesoGramos(e.target.value)}
+            placeholder="Ej: 4.5"
+          />
+        </Field>
+      )}
 
       <Field htmlFor="prod-desc" label="Descripción">
         <Textarea

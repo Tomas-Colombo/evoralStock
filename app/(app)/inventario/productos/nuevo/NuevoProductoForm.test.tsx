@@ -30,6 +30,7 @@ describe('NuevoProductoForm — Moneda USD y cotización', () => {
       nombre: 'Remeras',
       descripcion: null,
       talles: ['S', 'M'],
+      lleva_peso: false,
       activa: true,
       created_at: '',
       updated_at: '',

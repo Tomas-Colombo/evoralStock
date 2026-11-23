@@ -61,6 +61,7 @@ const mockProducto: ProductoRowConCategoria = {
   nombre: 'Remera Negra',
   descripcion: null,
   stock_minimo: 0,
+  peso_gramos: null,
   activo: true,
   es_nuevo: false,
   precio_venta: 20000,

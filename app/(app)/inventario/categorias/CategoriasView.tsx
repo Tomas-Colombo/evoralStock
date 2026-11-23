@@ -60,7 +60,16 @@ export function CategoriasView({ initial }: { initial: CategoriaRow[] }) {
   }
 
   const columns: Column<CategoriaRow>[] = [
-    { key: 'nombre', label: 'Nombre' },
+    {
+      key: 'nombre',
+      label: 'Nombre',
+      render: (r) => (
+        <div className="flex items-center gap-2">
+          <span>{r.nombre}</span>
+          {r.lleva_peso && <Badge variant="info">Peso (g)</Badge>}
+        </div>
+      ),
+    },
     {
       key: 'talles',
       label: 'Talles',
