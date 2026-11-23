@@ -248,7 +248,7 @@ export function CotizacionView({
                     value={valorManual}
                     onChange={(e) => setValorManual(e.target.value)}
                     placeholder="1600"
-                    min={0.0001}
+                    min={0.01}
                     max={10000000}
                     step="0.01"
                     className="flex-1"
