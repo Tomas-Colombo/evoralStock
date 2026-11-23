@@ -53,13 +53,19 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
   return (
     <header
       aria-label="Barra superior"
-      className="band-scope relative isolate overflow-hidden w-full min-w-full bg-band text-band-ink"
+      className="band-scope relative isolate overflow-hidden w-full min-w-full bg-band text-band-ink [--band-fade:2rem] md:[--band-fade:2.5rem]"
     >
       <div
         aria-hidden="true"
         className="band-tatau pointer-events-none absolute inset-0 hidden sm:block print:hidden"
       />
-      <div className="relative z-10 flex flex-col gap-3.5 pb-4 pl-16 pr-4 pt-3 sm:pr-6 md:px-6 md:pb-5">
+      <div
+        aria-hidden="true"
+        className="band-fade pointer-events-none absolute inset-x-0 bottom-0 z-[1] print:hidden"
+      />
+      {/* Bottom padding = fade height: actions are band-themed (light ink) and
+          lost contrast where the gradient reaches the light page background. */}
+      <div className="relative z-10 flex flex-col gap-3.5 pb-[var(--band-fade)] pl-16 pr-4 pt-3 sm:pr-6 md:px-6">
         <div className="flex items-center justify-between gap-4">
           <nav aria-label="Ubicación" className="min-w-0">
             <ol className="eyebrow flex flex-wrap items-center gap-x-2 gap-y-1 text-band-label">

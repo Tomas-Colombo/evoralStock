@@ -456,7 +456,8 @@
       rgb(0 0 0 / 0.22) 68%,
       rgb(0 0 0 / 0.85) 86%,
       #000 100%
-    );
+    ), linear-gradient(to bottom, #000 55%, transparent 100%);
+    -webkit-mask-composite: source-in;
     mask-image: linear-gradient(
       90deg,
       #000 0%,
@@ -467,7 +468,10 @@
       rgb(0 0 0 / 0.22) 68%,
       rgb(0 0 0 / 0.85) 86%,
       #000 100%
-    );
+    ), linear-gradient(to bottom, #000 55%, transparent 100%);
+    /* Two layers: edge fade x vertical fade, so the texture is gone before
+       the band ends instead of being veiled grey by .band-fade. */
+    mask-composite: intersect;
   }
 
   .band-tatau::before {
@@ -484,10 +488,43 @@
     -webkit-mask-position: 0 0;
     mask-position: 0 0;
   }
+
+  /* Bottom fade of PageBand into the page `--bg`: the straight dark/light cut
+     read as a seam. It sits above the tatau and
+     below the content layer (z-10). Short (32-40px) on purpose: the tall
+     ramp spent most of its height on muted mid-greys that read as dirt.
+     First half stays band (the masked tatau already ended), the change to
+     --bg happens in the last half, interpolated in oklab to keep it clean. */
+  .band-fade {
+    height: var(--band-fade);
+    background: linear-gradient(
+      to bottom in oklab,
+      transparent 0%,
+      color-mix(in oklab, var(--band) 40%, transparent) 50%,
+      var(--bg) 100%
+    );
+  }
+
+  /* On the <main> right after a PageBand: its first block overlaps the light
+     end of .band-fade by 0.5rem. Without it the fade ended, then the page
+     padding, then the card's top border: two horizontal seams in a row.
+     Margins = -(main padding-top + 0.5rem), main being `p-4 sm:p-6`. */
+  .band-follow > :first-child {
+    position: relative;
+    z-index: 10;
+    margin-top: -1.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+  @media (width >= 40rem) {
+    .band-follow > :first-child {
+      margin-top: -2rem;
+    }
+  }
 }
 
 @media print {
-  .band-tatau {
+  .band-tatau,
+  .band-fade {
     display: none !important;
   }
 }

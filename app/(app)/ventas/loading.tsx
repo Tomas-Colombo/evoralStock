@@ -16,7 +16,7 @@ export default function LoadingVentas() {
           { label: 'Vencen pronto', value: '—' },
         ]}
       />
-      <main className="flex-1 p-4 sm:p-6 space-y-6" aria-busy="true">
+      <main className="band-follow flex-1 p-4 sm:p-6 space-y-6" aria-busy="true">
         <SkeletonTable title="Ventas del período" rows={10} />
       </main>
     </>

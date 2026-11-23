@@ -162,7 +162,7 @@ export default async function VentasHome(props: {
           </>
         }
       />
-      <main className="flex-1 p-4 sm:p-6 space-y-6">
+      <main className="band-follow flex-1 p-4 sm:p-6 space-y-6">
 
         {/* Alerta de deuda vencida. Vive acá y no sólo en /cuotas porque es
             la pantalla que se mira todos los días: una deuda vencida que hay
