@@ -30,6 +30,14 @@ export function CompartirAccesoModal({
 }) {
   const toast = useToast()
   const [telefono, setTelefono] = useState(telefonoInicial ?? '')
+  // Los llamadores montan este modal cerrado antes de tener los datos; useState
+  // solo lee su valor inicial en el primer render y el teléfono recién cargado
+  // se perdía. Se recarga cada vez que el modal se abre.
+  const [abiertoAntes, setAbiertoAntes] = useState(open)
+  if (open !== abiertoAntes) {
+    setAbiertoAntes(open)
+    if (open) setTelefono(telefonoInicial ?? '')
+  }
 
   const urlIngreso = typeof window === 'undefined' ? '' : `${window.location.origin}/login`
   const linkWhatsapp = linkWhatsappAcceso({ telefono, nombre, email, password, urlIngreso })
