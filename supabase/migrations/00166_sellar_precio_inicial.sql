@@ -191,6 +191,125 @@
 -- end;
 -- $$;
 --
+-- NOTE: Restaura sp_confirmar_ingreso (00157_cpc_ingreso_costo.sql:1112)
+-- create or replace function sp_confirmar_ingreso(
+--   p_id_ingreso uuid,
+--   p_ip         inet default null
+-- ) returns integer
+-- language plpgsql
+-- security invoker
+-- set search_path = public, extensions, pg_temp
+-- as $$
+-- declare
+--   v_tenant     uuid := auth_tenant_id();
+--   v_actor      uuid := auth.uid();
+--   v_confirmado boolean;
+--   v_tipo       tipo_ingreso;
+--   v_count      integer := 0;
+--   v_detalle    record;
+--   v_i          integer;
+--   v_qr         text;
+--   v_new_item   uuid;
+--   v_prod       record;
+-- begin
+--   if not (select auth_tiene_permiso('inventario', 'crear')) then
+--     raise exception 'no-permission' using errcode = '42501';
+--   end if;
+--
+--   if v_tenant is null then
+--     raise exception 'no-tenant' using errcode = '42501';
+--   end if;
+--
+--   select confirmado, tipo_ingreso into v_confirmado, v_tipo
+--     from ingreso_mercaderia
+--    where id_ingreso = p_id_ingreso and id_tenant = v_tenant
+--    for update;
+--
+--   if v_confirmado is null then
+--     raise exception 'ingreso-not-found' using errcode = '42704';
+--   end if;
+--
+--   if v_confirmado then
+--     return 0;  -- idempotente
+--   end if;
+--
+--   for v_detalle in
+--     select id_detalle, id_producto, cantidad, talle
+--       from ingreso_mercaderia_detalle
+--      where id_ingreso = p_id_ingreso and id_tenant = v_tenant
+--   loop
+--     for v_i in 1 .. v_detalle.cantidad loop
+--       v_qr := encode(gen_random_bytes(12), 'hex');
+--
+--       insert into item_producto(id_tenant, id_producto, id_ingreso, id_ingreso_detalle,
+--                                 qr_code, estado_item, tipo_ingreso, talle)
+--       values (v_tenant, v_detalle.id_producto, p_id_ingreso, v_detalle.id_detalle,
+--               v_qr, 'disponible', v_tipo, v_detalle.talle)
+--       returning id_item into v_new_item;
+--
+--       insert into movimiento_item(id_tenant, id_item, tipo_movimiento,
+--                                   estado_desde, estado_hasta,
+--                                   referencia_tipo, referencia_id, id_usuario)
+--       values (v_tenant, v_new_item, 'alta',
+--               null, 'disponible',
+--               'ingreso', p_id_ingreso, v_actor);
+--
+--       v_count := v_count + 1;
+--     end loop;
+--   end loop;
+--
+--   perform fn_sellar_costo_ingreso(p_id_ingreso);
+--
+--   if (select auth_tiene_permiso('inventario', 'cargar_costos')) then
+--     for v_prod in
+--       select id_producto,
+--              costo_unitario,
+--              costo_original_usd,
+--              cotizacion_aplicada,
+--              cotizacion_fecha_valor,
+--              case when costo_original_usd is not null or cotizacion_aplicada is not null then 'USD' else 'ARS' end as moneda
+--         from (
+--           select distinct on (d.id_producto)
+--                  d.id_producto,
+--                  c.costo_unitario,
+--                  c.costo_original_usd,
+--                  c.cotizacion_aplicada,
+--                  c.cotizacion_fecha_valor
+--             from ingreso_mercaderia_detalle d
+--             join ingreso_detalle_costo c on c.id_detalle = d.id_detalle
+--            where d.id_ingreso = p_id_ingreso and d.id_tenant = v_tenant
+--            order by d.id_producto, d.id_detalle
+--         ) s
+--     loop
+--       if v_prod.costo_unitario is not null and v_prod.costo_unitario > 0 then
+--         perform sp_aplicar_ultimo_costo(
+--           v_prod.id_producto,
+--           v_prod.costo_unitario,
+--           v_prod.moneda,
+--           v_prod.costo_original_usd,
+--           v_prod.cotizacion_aplicada,
+--           v_prod.cotizacion_fecha_valor,
+--           'ingreso mercaderia',
+--           p_ip,
+--           v_tipo <> 'consignacion'
+--         );
+--       end if;
+--     end loop;
+--   end if;
+--
+--   update ingreso_mercaderia
+--      set confirmado = true
+--    where id_ingreso = p_id_ingreso;
+--
+--   insert into auditoria(id_tenant, id_usuario, entidad, entidad_id, accion, cambios, ip)
+--   values (v_tenant, v_actor, 'ingreso_mercaderia', p_id_ingreso::text, 'confirmar',
+--           jsonb_build_object('items_generados', v_count, 'tipo_ingreso', v_tipo),
+--           p_ip);
+--
+--   return v_count;
+-- end;
+-- $$;
+--
 -- drop function if exists fn_calcular_precio_con_margen(numeric, tipo_valor_regla, numeric);
 
 -- ---------------------------------------------------------------------
@@ -520,5 +639,151 @@ begin
           p_ip);
 
   return v_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 5. sp_confirmar_ingreso: sella precio inicial después de confirmar
+-- ---------------------------------------------------------------------
+
+create or replace function sp_confirmar_ingreso(
+  p_id_ingreso uuid,
+  p_ip         inet default null
+) returns integer
+language plpgsql
+security invoker
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_tenant     uuid := auth_tenant_id();
+  v_actor      uuid := auth.uid();
+  v_confirmado boolean;
+  v_tipo       tipo_ingreso;
+  v_count      integer := 0;
+  v_detalle    record;
+  v_i          integer;
+  v_qr         text;
+  v_new_item   uuid;
+  v_prod       record;
+begin
+  if not (select auth_tiene_permiso('inventario', 'crear')) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+
+  select confirmado, tipo_ingreso into v_confirmado, v_tipo
+    from ingreso_mercaderia
+   where id_ingreso = p_id_ingreso and id_tenant = v_tenant
+   for update;
+
+  if v_confirmado is null then
+    raise exception 'ingreso-not-found' using errcode = '42704';
+  end if;
+
+  if v_confirmado then
+    return 0;  -- idempotente
+  end if;
+
+  for v_detalle in
+    select id_detalle, id_producto, cantidad, talle
+      from ingreso_mercaderia_detalle
+     where id_ingreso = p_id_ingreso and id_tenant = v_tenant
+  loop
+    for v_i in 1 .. v_detalle.cantidad loop
+      v_qr := encode(gen_random_bytes(12), 'hex');
+
+      insert into item_producto(id_tenant, id_producto, id_ingreso, id_ingreso_detalle,
+                                qr_code, estado_item, tipo_ingreso, talle)
+      values (v_tenant, v_detalle.id_producto, p_id_ingreso, v_detalle.id_detalle,
+              v_qr, 'disponible', v_tipo, v_detalle.talle)
+      returning id_item into v_new_item;
+
+      insert into movimiento_item(id_tenant, id_item, tipo_movimiento,
+                                  estado_desde, estado_hasta,
+                                  referencia_tipo, referencia_id, id_usuario)
+      values (v_tenant, v_new_item, 'alta',
+              null, 'disponible',
+              'ingreso', p_id_ingreso, v_actor);
+
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+
+  -- El sellador DEFINER valida D3 y traslada los costos del detalle a item_costo
+  -- (o hereda el costo vigente si no tenía costo) sin exponerlos por RLS
+  perform fn_sellar_costo_ingreso(p_id_ingreso);
+
+  -- D2: llamar a D1 una vez por producto del ingreso si el usuario tiene cargar_costos.
+  -- Si es consignación, actualiza el costo vigente pero no sincroniza unidades.
+  -- Líneas sin costo no llaman a sp_aplicar_ultimo_costo.
+  if (select auth_tiene_permiso('inventario', 'cargar_costos')) then
+    for v_prod in
+      select id_producto,
+             costo_unitario,
+             costo_original_usd,
+             cotizacion_aplicada,
+             cotizacion_fecha_valor,
+             case when costo_original_usd is not null or cotizacion_aplicada is not null then 'USD' else 'ARS' end as moneda
+        from (
+          select distinct on (d.id_producto)
+                 d.id_producto,
+                 c.costo_unitario,
+                 c.costo_original_usd,
+                 c.cotizacion_aplicada,
+                 c.cotizacion_fecha_valor
+            from ingreso_mercaderia_detalle d
+            join ingreso_detalle_costo c on c.id_detalle = d.id_detalle
+           where d.id_ingreso = p_id_ingreso and d.id_tenant = v_tenant
+           order by d.id_producto, d.id_detalle
+        ) s
+    loop
+      if v_prod.costo_unitario is not null and v_prod.costo_unitario > 0 then
+        perform sp_aplicar_ultimo_costo(
+          v_prod.id_producto,
+          v_prod.costo_unitario,
+          v_prod.moneda,
+          v_prod.costo_original_usd,
+          v_prod.cotizacion_aplicada,
+          v_prod.cotizacion_fecha_valor,
+          'ingreso mercaderia',
+          p_ip,
+          v_tipo <> 'consignacion'
+        );
+      end if;
+    end loop;
+  end if;
+
+  update ingreso_mercaderia
+     set confirmado = true
+   where id_ingreso = p_id_ingreso;
+
+  -- Sellar precio inicial recién después de marcar confirmado = true: el proveedor
+  -- ya resuelve y este ingreso ya no figura pendiente. Con la misma condición de
+  -- permisos y costo > 0, quien llega aquí ya pasó el gate de sp_aplicar_ultimo_costo.
+  if (select auth_tiene_permiso('inventario', 'cargar_costos')) then
+    for v_prod in
+      select distinct on (d.id_producto)
+             d.id_producto,
+             c.costo_unitario
+        from ingreso_mercaderia_detalle d
+        join ingreso_detalle_costo c on c.id_detalle = d.id_detalle
+       where d.id_ingreso = p_id_ingreso and d.id_tenant = v_tenant
+       order by d.id_producto, d.id_detalle
+    loop
+      if v_prod.costo_unitario is not null and v_prod.costo_unitario > 0 then
+        perform fn_sellar_precio_inicial(v_prod.id_producto);
+      end if;
+    end loop;
+  end if;
+
+  insert into auditoria(id_tenant, id_usuario, entidad, entidad_id, accion, cambios, ip)
+  values (v_tenant, v_actor, 'ingreso_mercaderia', p_id_ingreso::text, 'confirmar',
+          jsonb_build_object('items_generados', v_count, 'tipo_ingreso', v_tipo),
+          p_ip);
+
+  return v_count;
 end;
 $$;
