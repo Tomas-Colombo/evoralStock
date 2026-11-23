@@ -203,7 +203,7 @@ Se auditó mecánicamente la última definición viva (`pnpm sp:last`) de cada f
 | `monto_comision` | `liquidacion_revendedora` | `sp_generar_liquidacion` (INSERT y UPDATE final recalculado). | Generación de liquidación a revendedora. |
 | `porcentaje` | `escala_comision` | `sp_crear_regla_comision` (INSERT tramos de escala). | Alta de regla de comisión en revendedoras. |
 | `valor` (margen) | `regla_precio` | `sp_create_regla_precio` (INSERT con `tipo_regla = 'margen'`). | Creación de regla de margen en precios. |
-| `id_regla_margen_aplicada` | `producto` | `sp_recalcular_precio_venta` (UPDATE), `sp_create_producto` (UPDATE al crear). | Fijación de margen al alta o recálculo masivo. |
+| `id_regla_margen_aplicada` | `producto` | `sp_recalcular_precio_venta` (UPDATE), `fn_sellar_precio_inicial` (UPDATE al primer costo vigente vía `sp_aplicar_ultimo_costo`). | Fijación de margen al primer costo o recálculo masivo. |
 
 ---
 

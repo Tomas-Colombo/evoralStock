@@ -288,7 +288,8 @@ export async function createProductoAction(input: {
       stockMinimo: parsed.data.stockMinimo ?? 0,
       descripcion: parsed.data.descripcion?.trim() || null,
     })
-    if (parsed.data.costoInicial != null && parsed.data.costoInicial > 0) {
+    const entraPorIngreso = stock.length > 0 && Boolean(parsed.data.idProveedor)
+    if (!entraPorIngreso && parsed.data.costoInicial != null && parsed.data.costoInicial > 0) {
       await spSetCostoProducto({
         idProducto: id,
         costo: esUsd ? costoArs! : parsed.data.costoInicial,

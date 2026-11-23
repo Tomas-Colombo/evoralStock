@@ -109,7 +109,7 @@ En PostgreSQL, las cláusulas `RETURNING` y `SELECT ... FOR UPDATE` ejecutadas p
 Por lo tanto:
 1. Las tablas comerciales y de stock (`item_producto`, `detalle_venta`, `ingreso_mercaderia_detalle`, `devolucion_venta`) permanecen públicas para los roles operativos.
 2. Los costos residen en satélites con policy restrictiva de `SELECT` por permiso.
-3. Los escritores de negocio permanecen `SECURITY INVOKER` y delegan la escritura de costos a selladores `SECURITY DEFINER` chicos (`fn_sellar_costo_*`) que retornan `void`, no reciben montos por parámetro, filtran por tenant, rechazan revendedoras y validan que el llamador tenga los permisos requeridos.
+3. Los escritores de negocio permanecen `SECURITY INVOKER` y delegan la escritura de costos (y el sellado del precio inicial vía `fn_sellar_precio_inicial`) a selladores `SECURITY DEFINER` chicos (`fn_sellar_costo_*`, `fn_sellar_precio_inicial`) que retornan `void`, no reciben montos por parámetro, filtran por tenant, rechazan revendedoras y validan que el llamador tenga los permisos requeridos.
 4. Estado pendiente: la ausencia de costo se modela como ausencia de fila en la satélite, NUNCA con valor `0` (D-CPC-03).
 5. Reportes: sin permiso de costo devuelven `null`, nunca `0` (D-CPC-08).
 
