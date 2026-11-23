@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Select } from '@/components/ui/Select'
+import { Card } from '@/components/ui/Card'
+import { Field } from '@/components/ui/Field'
 import { Table, type Column } from '@/components/ui/Table'
 import { useToast } from '@/components/ui/Toast'
 import { waMeLink } from '@/lib/utils/waMeLink'
@@ -159,20 +161,23 @@ export function ClientesTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <FilterBar
-            value={q}
-            onChange={setQ}
-            placeholder="Buscar por nombre, apellido, email o teléfono"
-          />
+      {/* Misma tarjeta de filtros que Revendedoras: sube sobre la banda. */}
+      <Card padding="lg" className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="sm:col-span-2">
+          <Field htmlFor="filtro-q" label="Buscar">
+            <FilterBar
+              value={q}
+              onChange={setQ}
+              placeholder="Buscar por nombre, apellido, email o teléfono"
+            />
+          </Field>
         </div>
-        <div className="w-52">
+        <Field htmlFor="filtro-orden" label="Ordenar por">
           <Select
+            id="filtro-orden"
             value={orden}
             onChange={(e) => navegar({ orden: e.target.value as OrdenClientes, page: 1 })}
             disabled={pending}
-            aria-label="Ordenar"
           >
             {(Object.keys(ORDEN_CLIENTES_LABEL) as OrdenClientes[]).map((o) => (
               <option key={o} value={o}>
@@ -180,13 +185,13 @@ export function ClientesTable({
               </option>
             ))}
           </Select>
-        </div>
+        </Field>
         {/* Filtrar vuelve a la página 1: la actual no significa lo mismo
             sobre un conjunto de resultados distinto. */}
-        <Button variant="secondary" onClick={() => navegar({ page: 1 })} disabled={pending}>
+        <Button onClick={() => navegar({ page: 1 })} disabled={pending}>
           Aplicar
         </Button>
-      </div>
+      </Card>
 
       <TableFrame>
         <Table

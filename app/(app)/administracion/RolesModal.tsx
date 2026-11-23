@@ -17,6 +17,7 @@ import {
 } from '@/lib/types/administracion'
 import { createRolAction, deleteRolAction, updateRolAction } from './actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
+import { TARJETA_ACCESO_CLASS, TarjetaAccesoContenido } from './TarjetaAcceso'
 
 /** El modal alterna entre el listado y el formulario (alta o edición). No
  *  apilamos un segundo modal encima: es el mismo diálogo cambiando de vista. */
@@ -71,10 +72,9 @@ export function RolesModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+        className={TARJETA_ACCESO_CLASS}
       >
-        <div className="text-sm text-muted">Roles</div>
-        <div className="mt-1 font-display text-2xl">{roles.length}</div>
+        <TarjetaAccesoContenido label="Roles" value={roles.length.toString()} />
       </button>
 
       <Modal

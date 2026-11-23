@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/Button'
 const initialState: LoginActionState = { ok: false }
 
 /**
- * Fields float directly on the animated backdrop now that the auth card is
- * gone, so they carry their own surface: a translucent panel over a blur,
- * plus the stronger border token. That keeps the input affordance readable
- * against whatever the shader happens to be drawing underneath.
+ * The form sits on its own translucent petrol panel over the animated
+ * backdrop; the fields are one step deeper (--band-deep) so they read as
+ * wells inside it.
  */
 const FIELD_CLASS =
-  'rounded-md border border-border-2 bg-panel/70 px-3 py-2 text-sm text-text backdrop-blur-sm transition-colors focus-visible:border-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink'
+  'h-11 rounded-md border border-band-line bg-band-deep/80 px-3.5 text-[15px] text-band-ink placeholder:text-band-label transition-colors focus-visible:border-band-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-band-muted'
+
+const LABEL_CLASS = 'eyebrow text-band-muted'
 
 /**
  * Login form (design §5, spec 3.1/3.2). `useActionState` is React 19's
@@ -24,9 +25,12 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, initialState)
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium text-text">
+    <form
+      action={formAction}
+      className="flex flex-col gap-5 rounded-lg border border-band-line bg-band/80 p-6 shadow-[0_18px_40px_-20px_rgb(0_0_0/0.6)] backdrop-blur-sm"
+    >
+      <div className="flex flex-col gap-2.5">
+        <label htmlFor="email" className={LABEL_CLASS}>
           Correo electrónico
         </label>
         <input
@@ -34,12 +38,13 @@ export function LoginForm() {
           name="email"
           type="email"
           autoComplete="email"
+          placeholder="nombre@empresa.com"
           required
           className={FIELD_CLASS}
         />
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="text-sm font-medium text-text">
+      <div className="flex flex-col gap-2.5">
+        <label htmlFor="password" className={LABEL_CLASS}>
           Contraseña
         </label>
         <input
@@ -47,6 +52,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••"
           required
           className={FIELD_CLASS}
         />
@@ -56,11 +62,9 @@ export function LoginForm() {
           {state.error}
         </p>
       )}
-      <Button
-        type="submit"
-        disabled={pending}
-      >
+      <Button type="submit" disabled={pending} className="mt-1 h-11 w-full text-[15px]!">
         {pending ? 'Ingresando…' : 'Ingresar'}
+        {!pending && <span aria-hidden className="text-lg leading-none">→</span>}
       </Button>
     </form>
   )

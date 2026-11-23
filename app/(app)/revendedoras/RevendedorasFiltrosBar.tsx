@@ -26,6 +26,8 @@ interface RevendedorasFiltrosBarProps {
   rangoInvertido: boolean
   onAplicar: () => void
   onLimpiar: () => void
+  onExportar: () => void
+  exportarDisabled: boolean
 }
 
 export function RevendedorasFiltrosBar({
@@ -45,13 +47,15 @@ export function RevendedorasFiltrosBar({
   rangoInvertido,
   onAplicar,
   onLimpiar,
+  onExportar,
+  exportarDisabled,
 }: RevendedorasFiltrosBarProps) {
   const tieneFiltrosActivos = Boolean(
     q || desde || hasta || estado !== 'todos' || cuenta !== 'todos' || orden !== 'apellido_asc',
   )
 
   return (
-    <Card className="flex flex-col gap-4">
+    <Card padding="lg" className="flex flex-col gap-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <div className="lg:col-span-2">
           <Field htmlFor="filtro-q" label="Buscar">
@@ -103,7 +107,7 @@ export function RevendedorasFiltrosBar({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end pt-2 border-t border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <div>
           <Field
             htmlFor="filtro-desde"
@@ -152,7 +156,6 @@ export function RevendedorasFiltrosBar({
         <div className="flex gap-2">
           <Button
             className="flex-1"
-            variant="secondary"
             onClick={onAplicar}
             disabled={isPending || rangoInvertido}
           >
@@ -167,6 +170,9 @@ export function RevendedorasFiltrosBar({
               Limpiar
             </Button>
           )}
+          <Button variant="secondary" onClick={onExportar} disabled={exportarDisabled}>
+            Exportar CSV
+          </Button>
         </div>
       </div>
     </Card>

@@ -90,7 +90,7 @@ export function SidebarClient({
     <>
       {/* Desktop rail */}
       <aside
-        className={`hidden h-screen bg-sidebar text-sidebar-ink transition-[width] duration-200 md:sticky md:top-0 md:flex md:shrink-0 md:flex-col ${
+        className={`hidden h-screen bg-sidebar [background-image:var(--sidebar-gradient)] text-sidebar-ink transition-[width] duration-200 md:sticky md:top-0 md:flex md:shrink-0 md:flex-col ${
           collapsed ? 'md:w-[72px]' : 'md:w-[252px]'
         }`}
         aria-label="Navegación principal"
@@ -107,7 +107,7 @@ export function SidebarClient({
             aria-label={collapsed ? 'Expandir barra lateral' : 'Minimizar barra lateral'}
             aria-expanded={!collapsed}
             title={collapsed ? 'Expandir' : 'Minimizar'}
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sidebar-ink-2 transition-colors hover:bg-white/[0.06] hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi ${
+            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sidebar-ink-2 transition-colors hover:bg-band-surface hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi ${
               collapsed ? '' : 'absolute right-3 top-1/2 -translate-y-1/2'
             }`}
           >
@@ -149,7 +149,7 @@ export function SidebarClient({
             role="dialog"
             aria-modal="true"
             aria-label="Navegación"
-            className="absolute inset-y-0 left-0 flex w-[252px] max-w-[80%] flex-col bg-sidebar text-sidebar-ink shadow-[8px_0_32px_rgb(0_0_0/0.35)] motion-safe:animate-[slideInLeft_0.22s_cubic-bezier(0.2,0.8,0.2,1)]"
+            className="absolute inset-y-0 left-0 flex w-[252px] max-w-[80%] flex-col bg-sidebar [background-image:var(--sidebar-gradient)] text-sidebar-ink shadow-[8px_0_32px_rgb(0_0_0/0.35)] motion-safe:animate-[slideInLeft_0.22s_cubic-bezier(0.2,0.8,0.2,1)]"
           >
             <div className="relative flex items-center justify-center px-5 pb-5 pt-[22px]">
               <Logo nombre={marca.nombre} logoUrl={marca.logoUrl} />
@@ -157,7 +157,7 @@ export function SidebarClient({
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Cerrar menú"
-                className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-ink-2 transition-colors hover:bg-white/[0.06] hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi"
+                className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-ink-2 transition-colors hover:bg-band-surface hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi"
               >
                 <CloseIcon />
               </button>
@@ -233,14 +233,14 @@ function NavContent({
                       aria-label={item.label}
                       className={`group relative flex items-center gap-[11px] rounded-md py-2 text-[13.5px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi ${
                         active
-                          ? 'bg-white/[0.07] font-semibold text-sidebar-ink-hi-2 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)]'
-                          : 'font-medium text-sidebar-ink hover:bg-white/[0.04] hover:text-sidebar-ink-hi'
+                          ? 'bg-[linear-gradient(90deg,var(--sidebar-line)_0%,transparent_100%)] font-semibold text-sidebar-ink-hi-2'
+                          : 'font-medium text-sidebar-ink hover:bg-band-surface hover:text-sidebar-ink-hi'
                       } ${collapsed ? 'justify-center px-0' : 'px-[13px]'}`}
                     >
                       {active && (
                         <span
                           aria-hidden
-                          className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
+                          className={`absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-copper ${collapsed ? 'right-1.5' : 'right-3'}`}
                         />
                       )}
                       <span
@@ -264,13 +264,13 @@ function NavContent({
 
       <div className="border-t border-sidebar-line px-3 py-3.5">
         <div
-          className={`flex items-center gap-[11px] rounded-md ${
-            collapsed ? 'justify-center' : 'bg-white/[0.03] px-2.5 py-2'
+          className={`flex items-center gap-[11px] rounded-[8px] ${
+            collapsed ? 'justify-center' : 'border border-sidebar-line bg-band-surface px-2.5 py-2'
           }`}
         >
           <span
             aria-hidden
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-[13px] text-sidebar-ink-hi-2 ring-1 ring-white/10"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-[13px] text-accent-ink"
             style={{ background: 'var(--sidebar-avatar)' }}
           >
             {initialOf(email)}
@@ -292,7 +292,7 @@ function NavContent({
             type="submit"
             title={collapsed ? 'Cerrar sesión' : undefined}
             aria-label="Cerrar sesión"
-            className={`mt-1 flex w-full items-center gap-[11px] rounded-md py-2 text-[13px] font-medium text-sidebar-ink transition-colors hover:bg-white/[0.06] hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi ${
+            className={`mt-1 flex w-full items-center gap-[11px] rounded-md py-2 text-[13px] font-medium text-sidebar-ink transition-colors hover:bg-band-surface hover:text-sidebar-ink-hi-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ink-hi ${
               collapsed ? 'justify-center px-0' : 'px-[13px]'
             }`}
           >

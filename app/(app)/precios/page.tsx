@@ -13,6 +13,27 @@ import { GananciaProyectadaClient } from './GananciaProyectadaClient'
 
 const GANANCIA_PAGE_SIZE = 20
 
+const TARJETAS_CONFIG = [
+  {
+    href: '/precios/reglas',
+    titulo: 'Reglas de precios',
+    descripcion:
+      'Margen, descuentos, recargos por forma de pago. Cascada: producto > categoría > proveedor > global.',
+  },
+  {
+    href: '/precios/cuentas',
+    titulo: 'Cuentas de cobro',
+    descripcion:
+      'Dónde entra la plata: caja, banco, billetera virtual. Y el tarifario de cada una: cuánto retiene el procesador y en cuántos días acredita.',
+  },
+  {
+    href: '/precios/cotizacion',
+    titulo: 'Cotización USD',
+    descripcion:
+      'Tipo de cambio oficial para conversión de costos: modo automático desde el BCRA o valor manual.',
+  },
+] as const
+
 export default async function PreciosHome(props: {
   searchParams: Promise<{ gq?: string; gcat?: string; gpage?: string }>
 }) {
@@ -69,38 +90,29 @@ export default async function PreciosHome(props: {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
 
         <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Link
-            href="/precios/reglas"
-            className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-          >
-            <div className="text-sm text-muted">Configurar</div>
-            <div className="mt-1 font-display text-xl">Reglas de precios</div>
-            <p className="mt-2 text-sm text-muted">
-              Margen, descuentos, recargos por forma de pago. Cascada: producto &gt; categoría &gt; proveedor &gt; global.
-            </p>
-          </Link>
-          <Link
-            href="/precios/cuentas"
-            className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-          >
-            <div className="text-sm text-muted">Configurar</div>
-            <div className="mt-1 font-display text-xl">Cuentas de cobro</div>
-            <p className="mt-2 text-sm text-muted">
-              Dónde entra la plata: caja, banco, billetera virtual. Y el
-              tarifario de cada una: cuánto retiene el procesador y en cuántos
-              días acredita.
-            </p>
-          </Link>
-          <Link
-            href="/precios/cotizacion"
-            className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-          >
-            <div className="text-sm text-muted">Configurar</div>
-            <div className="mt-1 font-display text-xl">Cotización USD</div>
-            <p className="mt-2 text-sm text-muted">
-              Tipo de cambio oficial para conversión de costos: modo automático desde el BCRA o valor manual.
-            </p>
-          </Link>
+          {TARJETAS_CONFIG.map((t, i) => (
+            <Link
+              key={t.href}
+              href={t.href}
+              className="band-lift flex flex-col rounded-lg border border-line-2 bg-card p-5 transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-petrol focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="eyebrow text-petrol">Configurar</span>
+                <span className="font-mono text-[11px] text-dim">{String(i + 1).padStart(2, '0')}</span>
+              </div>
+              <div className="mt-3 font-display text-xl">{t.titulo}</div>
+              <p className="mb-5 mt-2 text-sm text-muted">{t.descripcion}</p>
+              <div className="mt-auto flex items-center justify-between border-t border-line pt-3">
+                <span className="text-sm font-semibold text-petrol">Abrir</span>
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-band text-band-ink"
+                >
+                  →
+                </span>
+              </div>
+            </Link>
+          ))}
         </section>
 
         {puedeVerMargenes && (

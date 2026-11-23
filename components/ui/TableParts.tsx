@@ -34,7 +34,7 @@ export function TableFrame({ className = '', ...rest }: HTMLAttributes<HTMLDivEl
   return (
     <div
       className={join(
-        'overflow-x-auto rounded-lg border border-line bg-panel shadow-[0_1px_2px_rgb(0_0_0/0.04)]',
+        'overflow-x-auto rounded-lg border border-line-2 bg-panel',
         className,
       )}
       {...rest}

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Table, type Column } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { escapeCsvField, downloadCsv, csvNegative } from '@/lib/utils/csv'
@@ -290,17 +289,7 @@ export function RevendedorasPanelView({
 
   return (
     <div className="flex flex-col gap-6">
-
-      {/* Acciones principales */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={exportarCsv} disabled={data.length === 0}>
-            Exportar CSV
-          </Button>
-        </div>
-      </div>
-
-      {/* Barra de Filtros Unificada */}
+      {/* Barra de filtros unificada: es la tarjeta que sube sobre la banda. */}
       <RevendedorasFiltrosBar
         q={q}
         setQ={setQ}
@@ -318,6 +307,8 @@ export function RevendedorasPanelView({
         rangoInvertido={rangoInvertido}
         onAplicar={() => aplicarFiltros()}
         onLimpiar={limpiarFiltros}
+        onExportar={exportarCsv}
+        exportarDisabled={data.length === 0}
       />
 
       {/* Tabla de Resultados */}

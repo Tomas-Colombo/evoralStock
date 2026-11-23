@@ -10,8 +10,8 @@ import type { ReactNode } from 'react'
 type DotTone = 'ok' | 'ink' | 'alerta'
 
 const DOT_TONE: Record<DotTone, string> = {
-  // "Pagada" / "Registrada": punto en tinta, sin verde.
-  ok: 'bg-ok',
+  // "Pagada" / "Registrada": punto petróleo, sin verde.
+  ok: 'bg-petrol',
   ink: 'bg-ink',
   // Errores y anulaciones: el canal de alerta.
   alerta: 'bg-alerta',

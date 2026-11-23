@@ -46,7 +46,7 @@ export function BandAction({ href, onClick, title, description, tone = 'secondar
   }
 
   const className =
-    'flex items-center justify-between gap-3 rounded-md border border-band-line px-4 py-2.5 text-left transition-colors duration-150 hover:border-white/20 hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-band-ink active:translate-y-px'
+    'flex items-center justify-between gap-3 rounded-md border border-band-line px-4 py-2.5 text-left transition-colors duration-150 hover:bg-band-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-band-ink active:translate-y-px'
   const content = (
     <>
       <span className="flex flex-col gap-0.5">

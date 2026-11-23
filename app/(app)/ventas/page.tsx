@@ -162,7 +162,7 @@ export default async function VentasHome(props: {
           </>
         }
       />
-      <main className="band-follow flex-1 p-4 sm:p-6 space-y-6">
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
 
         {/* Alerta de deuda vencida. Vive acá y no sólo en /cuotas porque es
             la pantalla que se mira todos los días: una deuda vencida que hay
@@ -172,7 +172,7 @@ export default async function VentasHome(props: {
             vez por todo lo que debe. Con el link de WhatsApp al lado, que es
             lo que se hace efectivamente con esta información. */}
         {alertasCuotas.length > 0 && (
-          <section className="rounded-lg border border-alerta-ink bg-card p-4">
+          <section className="rounded-lg border border-alerta-line bg-card p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-display text-lg text-alerta-ink">Cuotas vencidas</h3>
               <span className="text-xs text-muted">
@@ -188,7 +188,7 @@ export default async function VentasHome(props: {
                 return (
                   <div
                     key={a.id_cliente}
-                    className="flex items-center justify-between gap-2 rounded-md bg-card-2 px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-2 rounded-md bg-alerta-bg px-3 py-2 text-sm"
                   >
                     <div className="min-w-0">
                       <Link
@@ -281,7 +281,7 @@ export default async function VentasHome(props: {
                         <Td>
                           <span
                             className={`text-xs font-mono uppercase ${
-                              v.canal === 'revendedora' ? 'text-ink' : 'text-muted'
+                              v.canal === 'revendedora' ? 'text-ink' : 'text-petrol'
                             }`}
                           >
                             {v.canal === 'revendedora' ? 'Revendedora' : 'Local'}

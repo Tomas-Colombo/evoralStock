@@ -16,16 +16,12 @@ import { ConfiguracionLogoCard } from './ConfiguracionLogoCard'
 import { ConfiguracionEtiquetasCard } from './ConfiguracionEtiquetasCard'
 import { PlantillasEtiquetaCard } from './PlantillasEtiquetaCard'
 import { RolesModal } from './RolesModal'
+import { TARJETA_ACCESO_CLASS, TarjetaAccesoContenido } from './TarjetaAcceso'
 
 function cardLink(c: { href: string; label: string; value: string }) {
   return (
-    <Link
-      key={c.href}
-      href={c.href}
-      className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-line-2 hover:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-    >
-      <div className="text-sm text-muted">{c.label}</div>
-      <div className="mt-1 font-display text-2xl">{c.value}</div>
+    <Link key={c.href} href={c.href} className={TARJETA_ACCESO_CLASS}>
+      <TarjetaAccesoContenido label={c.label} value={c.value} />
     </Link>
   )
 }
@@ -56,7 +52,7 @@ export default async function AdministracionHome() {
     <>
       <Topbar title="Configuración" session={session} />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {cards.slice(0, 1).map(cardLink)}
           <RolesModal
             roles={cap.revendedoras ? roles : roles.filter((r) => r.nombre !== 'Revendedora')}

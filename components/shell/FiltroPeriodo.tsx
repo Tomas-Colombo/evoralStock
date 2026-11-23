@@ -152,7 +152,7 @@ export function FiltroPeriodo({
       ))}
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap rounded-[5px] bg-white/[0.06] p-[3px]">
+        <div className="flex flex-wrap rounded-md border border-band-line p-[3px]">
         {PRESETS.map((p) => (
           <Button
             key={p.id}

@@ -34,7 +34,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   primary: 'bg-block text-block-ink font-bold hover:opacity-90 focus-visible:ring-ink',
   accent: 'bg-accent text-accent-ink font-bold hover:brightness-95 focus-visible:ring-ink',
   neutral: 'bg-ink text-bg hover:opacity-90 focus-visible:ring-ink',
-  secondary: 'border border-line-2 bg-transparent text-muted hover:bg-hover hover:text-ink focus-visible:ring-ink',
+  secondary: 'border border-control-line bg-transparent text-muted hover:bg-hover hover:text-ink focus-visible:ring-ink',
   ghost: 'text-ink hover:bg-hover focus-visible:ring-ink',
   danger: 'bg-alerta-ink text-alerta-on hover:opacity-90 focus-visible:ring-alerta-ink',
   bare: 'focus-visible:ring-ink',

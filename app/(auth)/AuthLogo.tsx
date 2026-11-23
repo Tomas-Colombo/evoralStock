@@ -1,10 +1,8 @@
 /**
  * Brand mark sitting above the auth forms.
  *
- * Deliberately understated: the animated backdrop already carries the screen,
- * so the mark is dialled back through `--logo-auth` rather than competing with
- * the form. That token is themed — brushed chrome is invisible on a light
- * surface, so light mode darkens it into pewter instead of just fading it.
+ * The asset is violet graphite; `--logo-auth` recolours it to the petrol
+ * palette and lifts it so it does not sink into the dark auth surface.
  *
  * To swap in the full "Utopía" wordmark, drop the transparent PNG in /public
  * and change SRC below. The asset MUST have a real alpha channel; a mark on a

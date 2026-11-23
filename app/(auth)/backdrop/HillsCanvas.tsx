@@ -126,7 +126,7 @@ export function HillsCanvas({ tier, onReady, onDegraded }: HillsCanvasProps) {
 
     const uniforms = {
       time: { value: 0 },
-      uColor: { value: new THREE.Vector3(...readInk()) },
+      uColor: { value: new THREE.Vector3(...readInk(container)) },
       uOpacity: { value: 0.6 },
     }
 
@@ -221,7 +221,7 @@ export function HillsCanvas({ tier, onReady, onDegraded }: HillsCanvasProps) {
     // The ridge colour follows the theme toggle, which flips `data-theme` on
     // the root element.
     const themeObserver = new MutationObserver(() => {
-      uniforms.uColor.value.set(...readInk())
+      uniforms.uColor.value.set(...readInk(container))
     })
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -258,12 +258,13 @@ export function HillsCanvas({ tier, onReady, onDegraded }: HillsCanvasProps) {
 }
 
 /**
- * Resolves a design token to a linear-ish RGB triple for the shader.
+ * Resolves a design token to a linear-ish RGB triple for the shader. Read from
+ * the canvas container, not <html>: the auth surface re-seats its own palette.
  * Falls back to neutral grey if the token is missing or not a plain hex —
  * `color-mix()` values, for instance, are not parsed here.
  */
-function readInk(): [number, number, number] {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(INK_TOKEN).trim()
+function readInk(el: Element): [number, number, number] {
+  const raw = getComputedStyle(el).getPropertyValue(INK_TOKEN).trim()
   const match = /^#([0-9a-f]{6})$/i.exec(raw)
   if (!match) return FALLBACK_INK
 

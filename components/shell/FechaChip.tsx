@@ -18,7 +18,7 @@ export function FechaChip({ onDark = false }: { onDark?: boolean }) {
     <span
       suppressHydrationWarning
       className={`hidden font-mono text-[10.5px] uppercase tracking-[0.06em] sm:inline ${
-        onDark ? 'text-band-muted' : 'text-muted'
+        onDark ? 'text-band-label' : 'text-muted'
       }`}
     >
       {label}

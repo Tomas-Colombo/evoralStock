@@ -34,9 +34,10 @@ interface PageBandProps {
 }
 
 /**
- * Dark strip on top of a page (tema Grafito + Lino): breadcrumb, title, period
+ * Dark strip on top of a page (tema Petróleo): breadcrumb, title, period
  * filters, KPIs separated by `band-line`, and the page actions on the right.
- * The area below it is the light `bg`, with the table on `panel`.
+ * It ends in rounded corners and the first row of the light content below
+ * rides over that edge (see `.page-band` in globals.css).
  *
  * It replaces `Topbar` on the pages that adopt it, so it keeps the same
  * contract: ONE `<h1>` holding exactly the title (e2e asserts it), the
@@ -53,19 +54,11 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
   return (
     <header
       aria-label="Barra superior"
-      className="band-scope relative isolate overflow-hidden w-full min-w-full bg-band text-band-ink [--band-fade:2rem] md:[--band-fade:2.5rem]"
+      // `page-band` (globals.css) owns the bottom padding: 92px when the <main>
+      // that follows climbs over the band, shorter when it cannot.
+      className="page-band band-scope relative isolate w-full min-w-full rounded-b-[28px] bg-band text-band-ink"
     >
-      <div
-        aria-hidden="true"
-        className="band-tatau pointer-events-none absolute inset-0 hidden sm:block print:hidden"
-      />
-      <div
-        aria-hidden="true"
-        className="band-fade pointer-events-none absolute inset-x-0 bottom-0 z-[1] print:hidden"
-      />
-      {/* Bottom padding = fade height: actions are band-themed (light ink) and
-          lost contrast where the gradient reaches the light page background. */}
-      <div className="relative z-10 flex flex-col gap-3.5 pb-[var(--band-fade)] pl-16 pr-4 pt-3 sm:pr-6 md:px-6">
+      <div className="relative z-10 flex flex-col gap-3.5 pl-16 pr-4 pt-3 sm:pr-6 md:px-6">
         <div className="flex items-center justify-between gap-4">
           <nav aria-label="Ubicación" className="min-w-0">
             <ol className="eyebrow flex flex-wrap items-center gap-x-2 gap-y-1 text-band-label">
@@ -142,7 +135,7 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
                     <dd
                       // Sized from the whole strip (cqi of the <dl>), not per cell: every
                       // value gets the same height whatever its column width.
-                      className={`font-figure text-[clamp(1.75rem,3.8cqi,2.5rem)] font-bold leading-none [font-stretch:100%] [overflow-wrap:anywhere] ${
+                      className={`font-figure whitespace-nowrap text-[clamp(1.75rem,3.8cqi,2.5rem)] font-bold leading-none [font-stretch:100%] ${
                         k.tone === 'warn' ? 'text-warn-on-dark' : 'text-band-ink'
                       }`}
                     >

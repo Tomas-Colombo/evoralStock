@@ -23,7 +23,7 @@ const PADDING_CLASS: Record<CardPadding, string> = {
 export function Card({ as: Tag = 'div', padding = 'md', className = '', ...rest }: CardProps) {
   return (
     <Tag
-      className={['rounded-lg border border-line bg-card', PADDING_CLASS[padding], className]
+      className={['rounded-lg border border-line-2 bg-card', PADDING_CLASS[padding], className]
         .filter(Boolean)
         .join(' ')}
       {...rest}
