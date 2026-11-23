@@ -264,6 +264,20 @@ begin
     return;
   end if;
 
+  -- El precio se sella al confirmar el ingreso, cuando el proveedor ya resuelve
+  -- (evita sellar una regla global/categoría mientras el ingreso sigue en borrador).
+  if exists (
+    select 1
+      from ingreso_mercaderia_detalle d
+      join ingreso_mercaderia im on im.id_ingreso = d.id_ingreso
+     where d.id_tenant = v_tenant
+       and d.id_producto = p_id_producto
+       and im.id_tenant = v_tenant
+       and im.confirmado = false
+  ) then
+    return;
+  end if;
+
   select costo
     into v_costo
     from costo_producto
