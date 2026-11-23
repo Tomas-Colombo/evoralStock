@@ -22,7 +22,7 @@ test.describe('Permisos por rol', () => {
     await expect(shell.navLink('Clientes')).toBeVisible()
 
     await expect(shell.navLink('Inventario')).toHaveCount(0)
-    await expect(shell.navLink('Administración')).toHaveCount(0)
+    await expect(shell.navLink('Configuración')).toHaveCount(0)
     await expect(shell.navLink('Gastos')).toHaveCount(0)
   })
 

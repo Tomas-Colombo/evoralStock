@@ -54,7 +54,7 @@ export default async function AdministracionHome() {
 
   return (
     <>
-      <Topbar title="Administración" session={session} />
+      <Topbar title="Configuración" session={session} />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {cards.slice(0, 1).map(cardLink)}

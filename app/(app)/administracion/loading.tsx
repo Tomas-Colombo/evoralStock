@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
 export default function LoadingAdministracion() {
   return (
     <>
-      <SkeletonTopbar title="Administración" />
+      <SkeletonTopbar title="Configuración" />
       <main className="flex-1 p-4 sm:p-6 space-y-6" aria-busy="true">
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Card padding="lg">

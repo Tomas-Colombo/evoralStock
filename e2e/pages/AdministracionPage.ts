@@ -11,7 +11,7 @@ export class AdministracionPage {
 
   async abrir(): Promise<void> {
     await this.page.goto('/administracion')
-    await expect(this.shell.titulo).toHaveText('Administración')
+    await expect(this.shell.titulo).toHaveText('Configuración')
   }
 
   async abrirUsuarios(): Promise<void> {

@@ -44,7 +44,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/gastos', label: 'Gastos', icon: 'gastos', moduloCodigo: 'gastos', group: 'FINANZAS' },
   { href: '/rendiciones', label: 'Rendiciones', icon: 'rendiciones', moduloCodigo: 'rendiciones', group: 'FINANZAS' },
   { href: '/reportes', label: 'Reportes', icon: 'reportes', moduloCodigo: 'reportes', group: 'FINANZAS' },
-  { href: '/administracion', label: 'Administración', icon: 'administracion', moduloCodigo: 'administracion', group: 'SISTEMA' },
+  { href: '/administracion', label: 'Configuración', icon: 'administracion', moduloCodigo: 'administracion', group: 'SISTEMA' },
 ] as const
 
 /**

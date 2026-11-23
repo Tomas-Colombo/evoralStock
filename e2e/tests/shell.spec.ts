@@ -15,7 +15,7 @@ const RUTAS: Array<{ link: string; titulo: string }> = [
   { link: 'Gastos', titulo: 'Gastos' },
   { link: 'Rendiciones', titulo: 'Rendiciones' },
   { link: 'Reportes', titulo: 'Reportes' },
-  { link: 'Administración', titulo: 'Administración' },
+  { link: 'Configuración', titulo: 'Configuración' },
 ]
 
 test.describe('Shell de la aplicación', () => {
