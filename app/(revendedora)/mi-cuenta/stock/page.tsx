@@ -3,7 +3,7 @@ import { listarMiStock } from '@/lib/dal/revendedoras'
 import { StockRevendedoraView } from './StockRevendedoraView'
 
 export const metadata = {
-  title: 'Mi stock | Revendedoras',
+  title: 'Mi stock | Revendedor',
 }
 
 export default async function MiStockPage() {

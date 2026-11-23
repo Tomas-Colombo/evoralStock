@@ -8,7 +8,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver'],
     alias: ['vendedoras por catalogo', 'red de revendedoras'],
     pasos: [
-      'Ingresá a Revendedoras desde el menú de navegación principal.',
+      'Ingresá a Revendedor desde el menú de navegación principal.',
       'Consultá en la barra superior los indicadores de piezas en poder, en local, deuda y liquidaciones pendientes.',
       'Filtrá por estado (activas, inactivas), saldo de cuenta o buscá por nombre en el buscador.',
       'Revisá en la tabla el saldo acumulado, piezas a cargo y últimas operaciones de cada revendedora.',
@@ -21,7 +21,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     alias: ['nueva vendedora', 'sumar revendedora'],
     pasos: [
-      'En Revendedoras, hacé clic en "Nueva revendedora".',
+      'En Revendedor, hacé clic en "Nueva revendedora".',
       'Completá los campos obligatorios "Nombre" y "Apellido".',
       'Ingresá opcionalmente los datos de contacto en "Teléfono" y "Email".',
       'Escribí observaciones adicionales en el campo "Notas".',
@@ -35,7 +35,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver'],
     alias: ['perfil de revendedora'],
     pasos: [
-      'Desde el listado de Revendedoras, hacé clic en el nombre de la revendedora para abrir su perfil.',
+      'Desde el listado de Revendedor, hacé clic en el nombre de la revendedora para abrir su perfil.',
       'Consultá sus datos personales, información de contacto y notas registradas.',
       'Navegá entre las pestañas para revisar sus artículos en poder, ventas, consignaciones, cuenta y liquidaciones.',
     ],
@@ -47,7 +47,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     alias: ['modificar revendedora'],
     pasos: [
-      'Ingresá a Revendedoras y hacé clic en el nombre de la colaboradora deseada.',
+      'Ingresá a Revendedor y hacé clic en el nombre de la colaboradora deseada.',
       'Modificá los campos de "Nombre", "Apellido", "Teléfono", "Email" o "Notas".',
       'Hacé clic en "Guardar cambios" para asentar las actualizaciones.',
     ],
@@ -72,7 +72,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar', 'administracion.eliminar'],
     alias: ['quitar acceso a revendedora', 'bloquear revendedora'],
     pasos: [
-      'En Revendedoras, abrí la ficha de la colaboradora que ya tiene usuario vinculado.',
+      'En Revendedor, abrí la ficha de la colaboradora que ya tiene usuario vinculado.',
       'En el formulario, hacé clic en el botón "Revocar acceso".',
       'Confirmá la acción en el cuadro de advertencia del navegador.',
       'El acceso quedará revocado inmediatamente impidiendo nuevos inicios de sesión.',
@@ -85,7 +85,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver'],
     alias: ['porcentaje de revendedoras'],
     pasos: [
-      'Ingresá a Revendedoras y hacé clic en el acceso a "Comisiones".',
+      'Ingresá a Revendedor y hacé clic en el acceso a "Comisiones".',
       'Consultá la regla general vigente que aplica a todas las revendedoras sin regla propia.',
       'Revisá las reglas específicas activas y el historial de esquemas de comisión finalizados.',
     ],
@@ -111,7 +111,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     alias: ['comision especial', 'comision distinta'],
     pasos: [
-      'En Revendedoras, abrí la ficha de la colaboradora deseada.',
+      'En Revendedor, abrí la ficha de la colaboradora deseada.',
       'En la tarjeta de comisión, hacé clic en "Asignar comisión propia".',
       'Seleccioná si la comisión será un porcentaje fijo o una escala por objetivos.',
       'Indicá los porcentajes correspondientes y la fecha de inicio de vigencia.',
@@ -125,7 +125,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     alias: ['finalizar comision'],
     pasos: [
-      'Ingresá a Revendedoras y hacé clic en "Comisiones".',
+      'Ingresá a Revendedor y hacé clic en "Comisiones".',
       'En la tabla de reglas de comisión, localizá la regla vigente.',
       'Hacé clic en "Finalizar hoy" en la columna de acciones.',
       'Confirmá en el mensaje del navegador para cerrar la vigencia de la regla a partir de la fecha actual.',
@@ -139,7 +139,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.crear'],
     alias: ['entregar prendas','dar ropa para vender','mercaderia a revendedora'],
     pasos: [
-      'Desde la lista de Revendedoras, abrí la ficha de la colaboradora y entrá en la pestaña "Consignaciones".',
+      'Desde la lista de Revendedor, abrí la ficha de la colaboradora y entrá en la pestaña "Consignaciones".',
       'Hacé clic en "Nueva consignación".',
       'Buscá los productos disponibles en el local por nombre o escaneá sus códigos y seleccioná los talles.',
       'Opcionalmente definí las fechas del período y anotá observaciones.',
@@ -153,7 +153,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.editar'],
     alias: ['revendedora devuelve', 'devolucion de revendedora'],
     pasos: [
-      'En la lista de Revendedoras, buscá a la revendedora y hacé clic en "Devolución".',
+      'En la lista de Revendedor, buscá a la revendedora y hacé clic en "Devolución".',
       'Marcá las casillas de los artículos a devolver en la tabla de artículos en su poder.',
       'Indicá la condición en "¿Cómo vuelve la mercadería?" y escribí un "Motivo (opcional)".',
       'Hacé clic en "Guardar" para abrir la confirmación.',
@@ -167,7 +167,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver'],
     alias: ['ventas informadas', 'declaraciones pendientes'],
     pasos: [
-      'Ingresá a Revendedoras y hacé clic en "Declaraciones" en la cabecera.',
+      'Ingresá a Revendedor y hacé clic en "Declaraciones" en la cabecera.',
       'Filtrá por estado entre pendientes, confirmadas, rechazadas o retiradas.',
       'Revisá los datos de cada declaración enviada: fecha, revendedora, artículo vendido y precio declarado.',
     ],
@@ -205,7 +205,7 @@ export const GUIA_REVENDEDORAS: readonly EntradaGuia[] = [
     permisos: ['revendedoras.ver', 'revendedoras.liquidar'],
     alias: ['liquidacion de revendedora', 'cerrar cuenta de revendedora'],
     pasos: [
-      'En Revendedoras, abrí la ficha de la colaboradora y hacé clic en la pestaña "Liquidaciones".',
+      'En Revendedor, abrí la ficha de la colaboradora y hacé clic en la pestaña "Liquidaciones".',
       'Hacé clic en "Nueva liquidación" para previsualizar las ventas del período a liquidar.',
       'Ajustá las fechas desde y hasta si deseás cambiar el período de corte.',
       'Revisá las líneas de venta, las comisiones calculadas y el saldo a cobrar o pagar.',

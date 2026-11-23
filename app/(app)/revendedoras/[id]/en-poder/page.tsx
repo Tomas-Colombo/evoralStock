@@ -13,7 +13,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'En su poder | Revendedoras | Utopía',
+  title: 'En su poder | Revendedor | Utopía',
 }
 
 export default async function ItemsEnPoderPage(props: PageProps) {

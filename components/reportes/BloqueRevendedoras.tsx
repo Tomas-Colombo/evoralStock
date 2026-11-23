@@ -83,7 +83,7 @@ export function BloqueRevendedoras({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
         <div>
           <h2 id="h2-revendedoras" className="font-display text-xl font-bold text-ink">
-            Canal Revendedoras
+            Canal Revendedor
           </h2>
           <p className="text-sm text-muted">
             Desempeño, comisiones, stock en consignación y cumplimiento de metas del período.

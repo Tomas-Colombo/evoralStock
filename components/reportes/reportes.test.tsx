@@ -184,7 +184,7 @@ describe('BloqueRevendedoras (Reportes)', () => {
         hasta="2026-10-31"
       />
     )
-    expect(screen.getByText('Canal Revendedoras')).toBeDefined()
+    expect(screen.getByText('Canal Revendedor')).toBeDefined()
     expect(screen.getByText('Gómez, Lucía')).toBeDefined()
     expect(screen.getByText('Pérez, Ana')).toBeDefined()
     expect(screen.getByText('Exportar CSV')).toBeDefined()

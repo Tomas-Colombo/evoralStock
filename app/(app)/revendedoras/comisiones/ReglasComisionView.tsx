@@ -117,7 +117,7 @@ export function ReglasComisionView({ reglas, canEdit }: ReglasComisionViewProps)
       label: 'Ámbito',
       render: (r) => (
         <Badge variant={r.ambito === 'revendedora' ? 'info' : 'neutral'}>
-          {r.ambito === 'revendedora' ? 'Revendedoras' : 'Local'}
+          {r.ambito === 'revendedora' ? 'Revendedor' : 'Local'}
         </Badge>
       ),
     },
@@ -230,7 +230,7 @@ export function ReglasComisionView({ reglas, canEdit }: ReglasComisionViewProps)
                   value={ambito}
                   onChange={(e) => setAmbito(e.target.value as AmbitoComision)}
                 >
-                  <option value="revendedora">Revendedoras (General)</option>
+                  <option value="revendedora">Revendedor (General)</option>
                   <option value="local">Vendedor Local</option>
                 </Select>
               </div>

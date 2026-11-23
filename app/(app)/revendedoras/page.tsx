@@ -9,7 +9,7 @@ import { NuevaRevendedoraModalButton } from './NuevaRevendedoraModalButton'
 import { getPermisosNuevaRevendedora } from './permisos'
 
 export const metadata = {
-  title: 'Revendedoras | Utopía',
+  title: 'Revendedor | Utopía',
 }
 
 interface PageProps {
@@ -60,7 +60,7 @@ export default async function RevendedorasPage(props: PageProps) {
   return (
     <>
       <Topbar
-        title="Revendedoras"
+        title="Revendedor"
         session={session}
         kpis={[
           {

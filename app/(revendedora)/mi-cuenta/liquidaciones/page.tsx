@@ -4,7 +4,7 @@ import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
 
 export const metadata = {
-  title: 'Mis liquidaciones | Revendedoras',
+  title: 'Mis liquidaciones | Revendedor',
 }
 
 export default async function MisLiquidacionesPage() {

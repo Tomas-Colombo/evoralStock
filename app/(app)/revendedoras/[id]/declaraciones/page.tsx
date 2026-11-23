@@ -11,7 +11,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'Declaraciones | Revendedoras | Utopía',
+  title: 'Declaraciones | Revendedor | Utopía',
 }
 
 export default async function DeclaracionesRevendedoraPage(props: PageProps) {

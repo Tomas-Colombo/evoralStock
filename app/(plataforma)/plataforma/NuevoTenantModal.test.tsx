@@ -34,7 +34,7 @@ describe('NuevoTenantModal', () => {
     expect(screen.getByLabelText(/Subdominio/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Nombre del administrador/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Email del administrador/i)).toBeInTheDocument()
-    expect(screen.getByText('Revendedoras')).toBeInTheDocument()
+    expect(screen.getByText('Revendedor')).toBeInTheDocument()
     expect(screen.getByText('Consignación de proveedor')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Crear tenant' })).toBeInTheDocument()
   })
@@ -60,7 +60,7 @@ describe('NuevoTenantModal', () => {
     await user.type(screen.getByLabelText(/Email del administrador/i), 'laura@primavera.com')
 
     // Seleccionar paquete Revendedoras
-    await user.click(screen.getByLabelText(/Revendedoras/i))
+    await user.click(screen.getByLabelText(/Revendedor/i))
 
     await user.click(screen.getByRole('button', { name: 'Crear tenant' }))
 

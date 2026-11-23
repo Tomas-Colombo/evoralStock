@@ -69,7 +69,7 @@ export default async function RevendedoraLayout({
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-display text-lg text-band-ink">
-                Portal Revendedoras
+                Portal Revendedor
               </span>
               <span className="eyebrow rounded-full border border-band-line px-2 py-0.5 text-band-muted">
                 Revendedora

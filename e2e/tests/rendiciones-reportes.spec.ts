@@ -54,13 +54,13 @@ test.describe('Reportes', () => {
     await expect(page).toHaveURL(/hasta=\d{4}-\d{2}-\d{2}/)
   })
 
-  test('el bloque Canal Revendedoras está visible con módulo y permiso activos', async ({ page }) => {
+  test('el bloque Canal Revendedor está visible con módulo y permiso activos', async ({ page }) => {
     await page.goto('/reportes')
-    await expect(page.getByText('Canal Revendedoras')).toBeVisible()
-    await expect(page.locator('section').filter({ hasText: 'Canal Revendedoras' }).getByRole('button', { name: 'Exportar CSV' })).toBeVisible()
+    await expect(page.getByText('Canal Revendedor')).toBeVisible()
+    await expect(page.locator('section').filter({ hasText: 'Canal Revendedor' }).getByRole('button', { name: 'Exportar CSV' })).toBeVisible()
   })
 
-  test('el bloque Canal Revendedoras se oculta cuando el módulo está deshabilitado', async ({ page, seed }) => {
+  test('el bloque Canal Revendedor se oculta cuando el módulo está deshabilitado', async ({ page, seed }) => {
     const sr = serviceRoleClient()
     const { data: mod } = await sr
       .from('modulo')
@@ -79,7 +79,7 @@ test.describe('Reportes', () => {
     try {
       await page.goto('/reportes')
       await expect(page.getByRole('heading', { name: 'Tablero financiero' })).toBeVisible()
-      await expect(page.getByText('Canal Revendedoras')).toHaveCount(0)
+      await expect(page.getByText('Canal Revendedor')).toHaveCount(0)
     } finally {
       // Restaurar módulo revendedoras
       await sr
@@ -90,7 +90,7 @@ test.describe('Reportes', () => {
     }
   })
 
-  test('el bloque Canal Revendedoras se oculta si el rol no tiene permiso revendedoras:ver', async ({ page, seed }) => {
+  test('el bloque Canal Revendedor se oculta si el rol no tiene permiso revendedoras:ver', async ({ page, seed }) => {
     const sr = serviceRoleClient()
     // Obtener el rol del usuario admin del seed
     const { data: usuario } = await sr
@@ -115,7 +115,7 @@ test.describe('Reportes', () => {
     try {
       await page.goto('/reportes')
       await expect(page.getByRole('heading', { name: 'Tablero financiero' })).toBeVisible()
-      await expect(page.getByText('Canal Revendedoras')).toHaveCount(0)
+      await expect(page.getByText('Canal Revendedor')).toHaveCount(0)
     } finally {
       // Restaurar permisos originales
       await sr

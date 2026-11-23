@@ -36,7 +36,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/cuotas', label: 'Cuotas', icon: 'cuotas', moduloCodigo: 'ventas', group: 'OPERACIONES' },
   // Proveedores vive bajo el módulo 'inventario' (mismo permiso) — es sub-módulo funcional.
   { href: '/proveedores', label: 'Proveedores', icon: 'proveedores', moduloCodigo: 'inventario', group: 'OPERACIONES' },
-  { href: '/revendedoras', label: 'Revendedoras', icon: 'revendedoras', moduloCodigo: 'revendedoras', group: 'OPERACIONES' },
+  { href: '/revendedoras', label: 'Revendedor', icon: 'revendedoras', moduloCodigo: 'revendedoras', group: 'OPERACIONES' },
   // Módulo `consignaciones` en DB, pero UI-visible como "Devoluciones a
   // proveedor" — es lo que la sección hace (lote de devolución). Label
   // abreviado para que entre en el rail sin truncar.

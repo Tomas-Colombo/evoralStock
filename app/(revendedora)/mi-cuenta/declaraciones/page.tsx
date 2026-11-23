@@ -3,7 +3,7 @@ import { listarMisDeclaraciones } from '@/lib/dal/revendedoras'
 import { DeclaracionesRevendedoraView } from './DeclaracionesRevendedoraView'
 
 export const metadata = {
-  title: 'Mis declaraciones | Revendedoras',
+  title: 'Mis declaraciones | Revendedor',
 }
 
 export default async function MisDeclaracionesPage() {

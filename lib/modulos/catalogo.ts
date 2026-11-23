@@ -33,7 +33,7 @@ export const PAQUETES_INFO: Record<
   { nombre: string; descripcion: string }
 > = {
   revendedoras: {
-    nombre: 'Revendedoras',
+    nombre: 'Revendedor',
     descripcion:
       'Módulo de venta por catálogo, asignación de stock en poder y liquidaciones.',
   },

@@ -100,7 +100,7 @@ export const MODULO_NOMBRE: Record<string, string> = {
   gastos: 'Gastos',
   reportes: 'Reportes',
   administracion: 'Administración',
-  revendedoras: 'Revendedoras',
+  revendedoras: 'Revendedor',
   ayuda: 'Ayuda',
 }
 

@@ -161,7 +161,7 @@ export function ClientesTable({
 
   return (
     <div className="space-y-3">
-      {/* Misma tarjeta de filtros que Revendedoras: sube sobre la banda. */}
+      {/* Misma tarjeta de filtros que Revendedor: sube sobre la banda. */}
       <Card padding="lg" className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2">
           <Field htmlFor="filtro-q" label="Buscar">

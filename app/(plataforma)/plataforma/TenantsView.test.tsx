@@ -121,7 +121,7 @@ describe('TenantsView', () => {
     expect(badgesActivo.length).toBe(3)
     expect(screen.getAllByText('Suspendido').length).toBe(2)
 
-    expect(screen.getByText('Revendedoras')).toBeInTheDocument()
+    expect(screen.getByText('Revendedor')).toBeInTheDocument()
     expect(screen.getByText('Consignación de proveedor')).toBeInTheDocument()
 
     expect(screen.getByText(/\(deuda\)/)).toBeInTheDocument()

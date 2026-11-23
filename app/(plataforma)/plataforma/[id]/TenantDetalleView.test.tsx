@@ -119,7 +119,7 @@ describe('TenantDetalleView', () => {
   it('renderiza paquetes opcionales con estados encendido y apagado', () => {
     renderView()
 
-    const checkRevendedoras = screen.getByLabelText(/Revendedoras/i) as HTMLInputElement
+    const checkRevendedoras = screen.getByLabelText(/Revendedor/i) as HTMLInputElement
     const checkConsignacion = screen.getByLabelText(/Consignación de proveedor/i) as HTMLInputElement
 
     expect(checkRevendedoras.checked).toBe(true)
@@ -147,11 +147,11 @@ describe('TenantDetalleView', () => {
     const user = userEvent.setup()
     renderView()
 
-    const checkRevendedoras = screen.getByLabelText(/Revendedoras/i)
+    const checkRevendedoras = screen.getByLabelText(/Revendedor/i)
     await user.click(checkRevendedoras)
 
     // Se debe abrir el diálogo de confirmación
-    expect(screen.getByText('¿Desactivar paquete Revendedoras?')).toBeInTheDocument()
+    expect(screen.getByText('¿Desactivar paquete Revendedor?')).toBeInTheDocument()
     expect(mockTogglePaquete).not.toHaveBeenCalled()
 
     // Confirmar en el diálogo
@@ -176,7 +176,7 @@ describe('TenantDetalleView', () => {
     })
     renderView()
 
-    const checkRevendedoras = screen.getByLabelText(/Revendedoras/i)
+    const checkRevendedoras = screen.getByLabelText(/Revendedor/i)
     await user.click(checkRevendedoras)
 
     const btnDesactivar = screen.getByRole('button', { name: 'Desactivar' })

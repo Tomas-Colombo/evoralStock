@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { DevolucionRevendedoraForm } from './DevolucionRevendedoraForm'
 
 export const metadata = {
-  title: 'Devolución | Revendedoras | Utopía',
+  title: 'Devolución | Revendedor | Utopía',
 }
 
 export default async function DevolucionRevendedoraPage(props: { params: Promise<{ id: string }> }) {

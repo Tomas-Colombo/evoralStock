@@ -11,7 +11,7 @@ interface PageProps {
 }
 
 export const metadata = {
-  title: 'Bandeja de declaraciones | Revendedoras | Utopía',
+  title: 'Bandeja de declaraciones | Revendedor | Utopía',
 }
 
 const ESTADOS = [

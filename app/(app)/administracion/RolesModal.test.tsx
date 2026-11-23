@@ -22,5 +22,5 @@ it('RolesModal renderiza el módulo revendedoras', async () => {
   const button = screen.getByRole('button', { name: /Roles/ })
   await user.click(button)
 
-  expect(screen.getByText(/Revendedoras/)).toBeDefined()
+  expect(screen.getByText(/Revendedor/)).toBeDefined()
 })
