@@ -7,10 +7,13 @@ import { verifySession, type Session } from '@/lib/dal/session'
 import { capacidades, tiposIngresoPermitidos } from '@/lib/modulos/capacidades'
 import {
   crearIngresoCompletoSchema,
+  createCategoriaSchema,
   createProductoSchema,
   confirmarIngresoSchema,
   importarRemitoSchema,
   completarCostoIngresoSchema,
+  updateCategoriaSchema,
+  updateProductoSchema,
   extraerReasonZod,
 } from '@/lib/validation/inventario'
 import { getClientIp } from '@/lib/utils/ip'
@@ -168,16 +171,23 @@ export async function createCategoriaAction(input: {
   nombre: string
   descripcion?: string | null
   talles?: string[]
+  llevaPeso?: boolean
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guarded('crear')
   if ('error' in g) return { ok: false, reason: g.error }
 
+  const parsed = createCategoriaSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
   try {
     const row = await createCategoria({
       tenantId: g.tenantId,
-      nombre: input.nombre.trim(),
-      descripcion: input.descripcion?.trim() || null,
-      talles: normalizarTalles(input.talles),
+      nombre: parsed.data.nombre.trim(),
+      descripcion: parsed.data.descripcion?.trim() || null,
+      talles: normalizarTalles(parsed.data.talles),
+      llevaPeso: parsed.data.llevaPeso,
     })
     revalidatePath('/inventario/categorias')
     revalidatePath('/inventario')
@@ -193,15 +203,25 @@ export async function updateCategoriaAction(
     nombre?: string
     descripcion?: string | null
     talles?: string[]
+    lleva_peso?: boolean
   },
 ): Promise<ActionResult> {
   const g = await guarded('editar')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const parsed = updateCategoriaSchema.safeParse(patch)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
   try {
     await updateCategoria(id, {
-      ...(patch.nombre !== undefined ? { nombre: patch.nombre.trim() } : {}),
-      ...(patch.descripcion !== undefined ? { descripcion: patch.descripcion?.trim() || null } : {}),
-      ...(patch.talles !== undefined ? { talles: normalizarTalles(patch.talles) } : {}),
+      ...(parsed.data.nombre !== undefined ? { nombre: parsed.data.nombre.trim() } : {}),
+      ...(parsed.data.descripcion !== undefined
+        ? { descripcion: parsed.data.descripcion?.trim() || null }
+        : {}),
+      ...(parsed.data.talles !== undefined ? { talles: normalizarTalles(parsed.data.talles) } : {}),
+      ...(parsed.data.lleva_peso !== undefined ? { lleva_peso: parsed.data.lleva_peso } : {}),
     })
     revalidatePath('/inventario/categorias')
     revalidatePath('/inventario')
@@ -234,6 +254,7 @@ export async function createProductoAction(input: {
   sku?: string | null
   stockMinimo?: number
   descripcion?: string | null
+  pesoGramos?: number | null
   costoInicial?: number | null
   moneda?: string
   // Proveedor opcional: si viene, el stock inicial se carga como un ingreso
@@ -287,6 +308,7 @@ export async function createProductoAction(input: {
       sku: parsed.data.sku?.trim() || null,
       stockMinimo: parsed.data.stockMinimo ?? 0,
       descripcion: parsed.data.descripcion?.trim() || null,
+      pesoGramos: parsed.data.pesoGramos ?? null,
     })
     const entraPorIngreso = stock.length > 0 && Boolean(parsed.data.idProveedor)
     if (!entraPorIngreso && parsed.data.costoInicial != null && parsed.data.costoInicial > 0) {
@@ -356,13 +378,19 @@ export async function updateProductoAction(
     stock_minimo?: number
     id_categoria?: string
     activo?: boolean
+    peso_gramos?: number | null
   },
 ): Promise<ActionResult> {
   const g = await guarded('editar')
   if ('error' in g) return { ok: false, reason: g.error }
+
+  const parsed = updateProductoSchema.safeParse(patch)
+  if (!parsed.success) {
+    return { ok: false, reason: extraerReasonZod(parsed.error) }
+  }
+
   try {
-    await updateProducto(id, patch)
-    revalidatePath('/inventario')
+    await updateProducto(id, parsed.data)
     revalidatePath('/inventario')
     return { ok: true }
   } catch (e) {

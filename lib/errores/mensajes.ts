@@ -200,6 +200,7 @@ const MENSAJES: Record<string, string> = {
   'sin-permiso-cargar-costos':
     'Tu rol no te permite cargar costos en el inventario.',
   'costo-invalido': 'El costo ingresado no es válido: debe ser mayor a cero.',
+  'peso-invalido': 'El peso en gramos debe ser mayor a cero.',
   'detalle-not-found': 'Esa línea del ingreso ya no existe. Recargá la página.',
   'no-es-pdf': 'El archivo tiene que ser un PDF.',
   'archivo-invalido': 'No se pudo leer el archivo. Revisá que no esté dañado.',

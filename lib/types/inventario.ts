@@ -68,6 +68,8 @@ export interface CategoriaRow {
   activa: boolean
   // 00032: talles/medidas propios de la categoría (ej: ['S','M','L','XL']).
   talles: string[]
+  // 00167: habilita carga de peso (g) y cálculo de costo por peso.
+  lleva_peso: boolean
   created_at: string
   updated_at: string
 }
@@ -95,6 +97,8 @@ export interface ProductoRow {
   nombre: string
   descripcion: string | null
   stock_minimo: number
+  // 00167: peso opcional en gramos (solo UI/cálculo, no es dinero).
+  peso_gramos: number | null
   activo: boolean
   // 00031: creado automáticamente desde import de remito PDF (revisar).
   es_nuevo: boolean
@@ -193,6 +197,7 @@ export interface CategoriaInsert {
   descripcion?: string | null
   activa?: boolean
   talles?: string[]
+  lleva_peso?: boolean
 }
 
 export interface ProveedorInsert {
@@ -232,7 +237,7 @@ export interface IngresoMercaderiaDetalleInsert {
 
 /** Producto + su costo vigente + su categoría (lo que muestra el listado maestro). */
 export interface ProductoConDetalle extends ProductoRow {
-  categoria: Pick<CategoriaRow, 'id_categoria' | 'nombre'> | null
+  categoria: Pick<CategoriaRow, 'id_categoria' | 'nombre' | 'lleva_peso'> | null
   costo_vigente: number | null
   moneda_vigente: string | null
   stock_disponible: number

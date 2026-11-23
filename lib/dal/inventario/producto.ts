@@ -34,9 +34,10 @@ const num = (v: number | string | null | undefined): number | null =>
 interface ListarProductosRpc {
   total: number | string
   rows: Array<
-    Omit<ProductoConDetalle, 'costo_vigente' | 'precio_venta'> & {
+    Omit<ProductoConDetalle, 'costo_vigente' | 'precio_venta' | 'peso_gramos'> & {
       costo_vigente: number | string | null
       precio_venta: number | string | null
+      peso_gramos: number | string | null
     }
   >
 }
@@ -72,6 +73,7 @@ async function queryProductos(
     ...r,
     precio_venta: num(r.precio_venta),
     costo_vigente: num(r.costo_vigente),
+    peso_gramos: num(r.peso_gramos),
   }))
 
   return { rows, total: paginate ? Number(payload.total ?? 0) : rows.length }
@@ -193,7 +195,9 @@ export async function getProducto(id: string): Promise<ProductoRow | null> {
   const { data, error } = await supabase
     .from('producto').select('*').eq('id_producto', id).maybeSingle()
   if (error) throw new Error(`getProducto: ${error.message}`)
-  return (data ?? null) as ProductoRow | null
+  if (!data) return null
+  const row = data as ProductoRow & { peso_gramos: number | string | null }
+  return { ...row, peso_gramos: num(row.peso_gramos) }
 }
 
 /**
@@ -241,6 +245,7 @@ export async function spCreateProducto(input: {
   sku?: string | null
   stockMinimo?: number
   descripcion?: string | null
+  pesoGramos?: number | null
 }): Promise<string> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_create_producto', {
@@ -249,6 +254,7 @@ export async function spCreateProducto(input: {
     p_sku: input.sku ?? null,
     p_stock_minimo: input.stockMinimo ?? 0,
     p_descripcion: input.descripcion ?? null,
+    p_peso_gramos: input.pesoGramos ?? null,
   })
   if (error) throw new Error(errorDeRpc('sp_create_producto', error))
   return data as string
@@ -315,6 +321,7 @@ export async function updateProducto(
     id_categoria?: string
     activo?: boolean
     es_nuevo?: boolean
+    peso_gramos?: number | null
   },
 ): Promise<void> {
   const supabase = await createServerClient()

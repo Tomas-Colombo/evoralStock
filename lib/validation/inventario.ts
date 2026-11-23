@@ -29,6 +29,33 @@ export function crearIngresoCompletoSchema(tipos: readonly [TipoIngreso, ...Tipo
   )
 }
 
+export const PESO_GRAMOS_MAX = 100_000
+
+const pesoGramosSchema = z
+  .number()
+  .positive('peso-invalido')
+  .max(PESO_GRAMOS_MAX, 'peso-invalido')
+
+export const createCategoriaSchema = z.strictObject(
+  {
+    nombre: z.string('nombre-requerido').trim().min(1, 'nombre-requerido'),
+    descripcion: z.string().nullable().optional(),
+    talles: z.array(z.string()).optional(),
+    llevaPeso: z.boolean().optional(),
+  },
+  payloadParams,
+)
+
+export const updateCategoriaSchema = z.strictObject(
+  {
+    nombre: z.string('nombre-requerido').trim().min(1, 'nombre-requerido').optional(),
+    descripcion: z.string().nullable().optional(),
+    talles: z.array(z.string()).optional(),
+    lleva_peso: z.boolean().optional(),
+  },
+  payloadParams,
+)
+
 export const createProductoSchema = z.object(
   {
     idCategoria: z.string().min(1, 'falta-categoria'),
@@ -36,6 +63,7 @@ export const createProductoSchema = z.object(
     sku: z.string().nullable().optional(),
     stockMinimo: z.number().nonnegative().optional(),
     descripcion: z.string().nullable().optional(),
+    pesoGramos: pesoGramosSchema.nullable().optional(),
     costoInicial: z.number().nonnegative('costo-invalido').nullable().optional(),
     moneda: z.string().optional(),
     idProveedor: z.string().nullable().optional(),
@@ -48,6 +76,19 @@ export const createProductoSchema = z.object(
       )
       .optional(),
   },
+)
+
+export const updateProductoSchema = z.strictObject(
+  {
+    nombre: z.string('nombre-requerido').trim().min(1, 'nombre-requerido').optional(),
+    sku: z.string().nullable().optional(),
+    descripcion: z.string().nullable().optional(),
+    stock_minimo: z.number().nonnegative().optional(),
+    id_categoria: z.string().min(1, 'falta-categoria').optional(),
+    activo: z.boolean().optional(),
+    peso_gramos: pesoGramosSchema.nullable().optional(),
+  },
+  payloadParams,
 )
 
 export const confirmarIngresoSchema = z.object(

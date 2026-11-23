@@ -49,6 +49,7 @@ export async function createCategoria(input: {
   nombre: string
   descripcion?: string | null
   talles?: string[]
+  llevaPeso?: boolean
 }): Promise<CategoriaRow> {
   const supabase = await createServerClient()
   const { data, error } = await supabase
@@ -58,6 +59,7 @@ export async function createCategoria(input: {
       nombre: input.nombre,
       descripcion: input.descripcion ?? null,
       talles: input.talles ?? [],
+      lleva_peso: input.llevaPeso ?? false,
     })
     .select('*')
     .single()
@@ -66,7 +68,7 @@ export async function createCategoria(input: {
   return data as CategoriaRow
 }
 
-/** Update de metadatos de la categoría (nombre, descripción, talles, activa). */
+/** Update de metadatos de la categoría (nombre, descripción, talles, activa, lleva_peso). */
 export async function updateCategoria(
   id: string,
   patch: {
@@ -74,6 +76,7 @@ export async function updateCategoria(
     descripcion?: string | null
     talles?: string[]
     activa?: boolean
+    lleva_peso?: boolean
   },
 ): Promise<void> {
   const supabase = await createServerClient()
