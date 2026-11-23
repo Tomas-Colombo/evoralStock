@@ -59,6 +59,8 @@ describe('omitirCostoProducto', () => {
       nombre: 'Remera Lisa',
       descripcion: 'Algodón peinado',
       stock_minimo: 5,
+      // REQ-CPP-02: el peso no es dinero, así que no se purga con el costo.
+      peso_gramos: null,
       activo: true,
       es_nuevo: false,
       precio_venta: 12000,
@@ -66,7 +68,7 @@ describe('omitirCostoProducto', () => {
       precio_venta_desactualizado: false,
       created_at: '2026-11-01T10:00:00Z',
       updated_at: '2026-11-10T12:00:00Z',
-      categoria: { id_categoria: 'cat-1', nombre: 'Remeras' },
+      categoria: { id_categoria: 'cat-1', nombre: 'Remeras', lleva_peso: false },
       stock_disponible: 10,
       stock_total: 12,
     })

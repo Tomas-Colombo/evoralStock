@@ -97,6 +97,8 @@ describe('Server Actions — Permiso inventario.cargar_costos y costo opcional',
         sku: null,
         stockMinimo: 0,
         descripcion: null,
+        // REQ-CPP-02: el peso es opcional; sin peso viaja null, no se omite.
+        pesoGramos: null,
       })
       expect(dalProducto.spSetCostoProducto).not.toHaveBeenCalled()
     })
