@@ -200,7 +200,7 @@ describe.skipIf(!hasTestDb)('REQ-RLSP-01 - Helper auth_tiene_permiso', () => {
       .insert({
         id_tenant: fixture.tenantId,
         nombre: 'Revendedora',
-        permisos: { revendedoras: ['ver_propio', 'declarar'], gastos: ['ver'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'], gastos: ['ver'] },
       })
       .select('id_rol')
       .single()
@@ -405,7 +405,7 @@ async function createRevendedoraClient(fixture: TenantFixture) {
       id_tenant: fixture.tenantId,
       nombre: 'Revendedora',
       permisos: {
-        revendedoras: ['ver_propio', 'declarar'],
+        revendedoras: ['ver_propio', 'vender'],
         gastos: ['ver', 'crear', 'editar'],
         inventario: ['ver', 'crear', 'editar', 'eliminar'],
         rendiciones: ['ver', 'crear', 'editar'],
@@ -1539,20 +1539,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
     })
     expect(errConf).toBeNull()
 
-    // Crear declaración de venta
-    const { data: dec, error: errDec } = await fA.serviceRole
-      .from('declaracion_venta_revendedora')
-      .insert({
-        id_tenant: fA.tenantId,
-        id_revendedora: idRev,
-        id_item: fA.items[0],
-        estado: 'pendiente',
-        fecha: hoy,
-      })
-      .select('id_declaracion')
-      .single()
-    expect(errDec).toBeNull()
-
     // Operador con revendedoras.crear SIN ventas.crear ni revendedoras.editar
     const { error: errRol } = await fA.serviceRole
       .from('rol')
@@ -1560,10 +1546,12 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
       .eq('id_rol', fA.rolId)
     expect(errRol).toBeNull()
 
-    const { data: idVenta, error: errConfDec } = await fA.authenticated.rpc('sp_confirmar_declaracion_venta', {
-      p_id_declaracion: dec!.id_declaracion,
+    const { data: idVenta, error: errVentaRev } = await fA.authenticated.rpc('sp_registrar_venta', {
+      p_lineas: [{ id_item: fA.items[0] }],
+      p_canal: 'revendedora',
+      p_id_revendedora: idRev,
     })
-    expect(errConfDec).toBeNull()
+    expect(errVentaRev).toBeNull()
     expect(idVenta).toBeDefined()
   })
 
@@ -2794,19 +2782,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
         },
       },
       {
-        sp: 'sp_confirmar_declaracion_venta',
-        params: {
-          p_id_declaracion: randomUUID(),
-        },
-      },
-      {
-        sp: 'sp_rechazar_declaracion_venta',
-        params: {
-          p_id_declaracion: randomUUID(),
-          p_motivo: 'rechazo test',
-        },
-      },
-      {
         sp: 'sp_editar_revendedora',
         params: {
           p_id: randomUUID(),
@@ -3101,98 +3076,6 @@ describe.skipIf(!hasTestDb)('Fase 5b-M5 - Chequeo de permisos en sp_* de Revende
     })
     expect(errDev).toBeNull()
     expect(devueltos).toBe(1)
-  })
-
-  it('sp_confirmar_declaracion_venta: pasa con solo revendedoras.crear (cubre llamada interna a sp_registrar_venta)', async () => {
-    const fixture = await createTenantWithUser('rlsp_m5_conf_dec')
-    await habilitarPaqueteRevendedoras(fixture.tenantId, fixture.serviceRole)
-
-    const { data: cat } = await fixture.serviceRole
-      .from('categoria')
-      .insert({ id_tenant: fixture.tenantId, nombre: withScopedTenant('CatDec'), talles: ['U'] })
-      .select('id_categoria')
-      .single()
-    const { data: prod } = await fixture.serviceRole
-      .from('producto')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_categoria: cat!.id_categoria,
-        nombre: withScopedTenant('ProdDec'),
-        precio_venta: 5000,
-      })
-      .select('id_producto')
-      .single()
-    const { data: item } = await fixture.serviceRole
-        .from('item_producto')
-        .insert({
-        id_tenant: fixture.tenantId,
-        id_producto: prod!.id_producto,
-        estado_item: 'en_revendedora',
-        tipo_ingreso: 'compra',
-        
-        qr_code: randomUUID(),
-      })
-        .select('id_item')
-        .single()
-      await fixture.serviceRole.from('item_costo').insert({ id_item: item!.id_item, id_tenant: fixture.tenantId, costo_ingreso: 1000 })
-
-    const { data: rev } = await fixture.serviceRole
-      .from('revendedora')
-      .insert({
-        id_tenant: fixture.tenantId,
-        nombre: 'RevDec',
-        apellido: 'Test',
-        activo: true,
-      })
-      .select('id_revendedora')
-      .single()
-
-    const { data: cons } = await fixture.serviceRole
-      .from('consignacion_revendedora')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_revendedora: rev!.id_revendedora,
-        id_usuario_alta: fixture.userId,
-        estado: 'abierta',
-        confirmada: true,
-      })
-      .select('id_consignacion_revendedora')
-      .single()
-
-    await fixture.serviceRole
-      .from('consignacion_revendedora_detalle')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_consignacion_revendedora: cons!.id_consignacion_revendedora,
-        id_item: item!.id_item,
-        id_producto: prod!.id_producto,
-        estado_detalle: 'en_poder',
-      })
-
-    const { data: dec } = await fixture.serviceRole
-      .from('declaracion_venta_revendedora')
-      .insert({
-        id_tenant: fixture.tenantId,
-        id_revendedora: rev!.id_revendedora,
-        id_item: item!.id_item,
-        estado: 'pendiente',
-      })
-      .select('id_declaracion')
-      .single()
-
-    const client = await signInAs(fixture)
-
-    // Solo revendedoras.crear (sin ventas.crear)
-    await fixture.serviceRole
-      .from('rol')
-      .update({ permisos: { revendedoras: ['crear', 'ver'], ventas: ['ver'] } })
-      .eq('id_rol', fixture.rolId)
-
-    const { data: idVenta, error: errConfDec } = await client.rpc('sp_confirmar_declaracion_venta', {
-      p_id_declaracion: dec!.id_declaracion,
-    })
-    expect(errConfDec).toBeNull()
-    expect(idVenta).toBeDefined()
   })
 })
 

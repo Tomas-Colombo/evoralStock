@@ -304,7 +304,7 @@ describe.skipIf(!hasTestDb)('Módulo ayuda en DB — REQ-AYUDA-10/11 y spec §5'
         .insert({
           id_tenant: tenant.tenantId,
           nombre: 'Revendedora',
-          permisos: { revendedoras: ['ver_propio', 'declarar'] },
+          permisos: { revendedoras: ['ver_propio', 'vender'] },
         })
         .select('id_rol')
         .single()

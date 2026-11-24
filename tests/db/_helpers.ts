@@ -76,12 +76,12 @@ export interface TenantFixture {
  * with NO claim — and every RLS policy then silently matches zero rows, which
  * reads exactly like "isolation works" while proving nothing.
  */
-// Permisos completos del catálogo (menos ver_propio/declarar de revendedoras) para que RLS restrictivas por permiso no bloqueen al admin del fixture (igual que provision-tenant).
+// Permisos completos del catálogo (menos ver_propio/vender de revendedoras) para que RLS restrictivas por permiso no bloqueen al admin del fixture (igual que provision-tenant).
 const PERMISOS_ADMIN_FIXTURE: Record<string, string[]> = Object.fromEntries(
   Object.entries(CATALOGO_PERMISOS).map(([modulo, acciones]) => [
     modulo,
     modulo === 'revendedoras'
-      ? acciones.filter((a) => a !== 'ver_propio' && a !== 'declarar')
+      ? acciones.filter((a) => a !== 'ver_propio' && a !== 'vender' && a !== 'declarar')
       : [...acciones],
   ]),
 )

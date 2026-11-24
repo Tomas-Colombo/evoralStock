@@ -22,7 +22,7 @@ describe.skipIf(!hasTestDb)('Slice 2 — Cotización USD (DB, RLS restrictiva y 
       .insert({
         id_tenant: tenantId,
         nombre: 'Revendedora',
-        permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'] },
       })
       .select('id_rol')
       .single()

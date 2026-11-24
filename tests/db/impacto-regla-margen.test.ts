@@ -86,7 +86,7 @@ describe.skipIf(!hasTestDb)('confirmar-impacto-regla — Capa de datos (REQ-CIR-
       .insert({
         id_tenant: fixture.tenantId,
         nombre: withScopedTenant(`RolRev-${prefix}`),
-        permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'] },
       })
       .select('id_rol')
       .single()

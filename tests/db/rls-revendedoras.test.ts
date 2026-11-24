@@ -48,7 +48,7 @@ describe.skipIf(!hasTestDb)('RLS revendedoras — restricción por usuario (ACC-
       .insert({
         id_tenant: tenantIdA,
         nombre: 'Revendedora',
-        permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'] },
       })
       .select('id_rol')
       .single()
@@ -58,7 +58,7 @@ describe.skipIf(!hasTestDb)('RLS revendedoras — restricción por usuario (ACC-
       .insert({
         id_tenant: tenantIdB,
         nombre: 'Revendedora',
-        permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'] },
       })
       .select('id_rol')
       .single()
@@ -306,8 +306,7 @@ describe.skipIf(!hasTestDb)('RLS revendedoras — restricción por usuario (ACC-
     const procNames = output.split('\n').map((s) => s.trim()).filter(Boolean)
 
     const WHITELIST_REVENDEDORA = new Set([
-      'sp_declarar_venta_revendedora',
-      'sp_retirar_declaracion',
+      'sp_registrar_venta_revendedora',
       'sp_session_context',
       'sp_change_password_user',
     ])
@@ -363,8 +362,8 @@ describe.skipIf(!hasTestDb)('RLS revendedoras — restricción por usuario (ACC-
       const { error: errLiq } = await authRevA.rpc('rvp_mis_liquidaciones')
       expect(errLiq?.message).toContain('modulo-revendedoras-deshabilitado')
 
-      const { error: errDec } = await authRevA.rpc('rvp_mis_declaraciones')
-      expect(errDec?.message).toContain('modulo-revendedoras-deshabilitado')
+      const { error: errRes } = await authRevA.rpc('rvp_resolver_item_stock', { p_codigo: 'X' })
+      expect(errRes?.message).toContain('modulo-revendedoras-deshabilitado')
 
       const { error: errPoder } = await authRevA.rpc('rvp_item_en_mi_poder', {
         p_id_item: '00000000-0000-0000-0000-000000000000',

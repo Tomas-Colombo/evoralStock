@@ -447,4 +447,37 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     expect(res.ok).toBe(false)
     expect(res.status).toBeGreaterThanOrEqual(400)
   })
+
+  test('Seguridad: /graphql/v1 no expone funciones de interno en introspección (operador y revendedora)', async () => {
+    const ctx = await setupContext()
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL_TEST!
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_TEST!
+
+    const query = '{ __schema { types { name fields { name } } } }'
+    const funcionesInternas = [
+      'fn_registrar_venta_nucleo',
+      'fn_sellar_costo_venta_nucleo',
+      'fn_transicion_item_producto_nucleo',
+    ]
+
+    for (const client of [ctx.fA.authenticated, ctx.ana.auth]) {
+      const { data: sess } = await client.auth.getSession()
+      const token = sess.session!.access_token
+
+      const res = await fetch(`${url}/graphql/v1`, {
+        method: 'POST',
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      })
+      expect(res.ok).toBe(true)
+      const jsonText = JSON.stringify(await res.json())
+      for (const fn of funcionesInternas) {
+        expect(jsonText).not.toContain(fn)
+      }
+    }
+  })
 })

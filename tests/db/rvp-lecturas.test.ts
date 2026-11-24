@@ -50,7 +50,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       .insert({
         id_tenant: fA.tenantId,
         nombre: 'Revendedora',
-        permisos: { revendedoras: ['ver_propio', 'declarar'] },
+        permisos: { revendedoras: ['ver_propio', 'vender'] },
       })
       .select('id_rol')
       .single()
@@ -141,20 +141,9 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
   test('1. Snapshot por función: payload no contiene ninguna columna prohibida (ACC-22)', async () => {
     const ctx = await setupRvpFixture()
 
-    // Preparar ventas, liquidación y declaración para Ana
-    // Declaración
-    await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[0],
-      p_nota: 'Para snapshot',
-    })
-
-    // Venta confirmada por el operador para item 1
-    const { data: idDec1 } = await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[1],
-      p_nota: 'Venta a liquidar',
-    })
-    await ctx.fA.authenticated.rpc('sp_confirmar_declaracion_venta', {
-      p_id_declaracion: idDec1,
+    // Preparar venta directa para Ana (item 1); items 0 y 2 quedan en stock
+    await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsAna[1]],
     })
 
     // Liquidación para Ana usando fecha del tenant
@@ -231,28 +220,32 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'monto_vendido', 'periodo_desde', 'periodo_hasta', 'porcentaje_aplicado', 'total_filas'
     ].sort())
 
-    // 5. rvp_mis_declaraciones
-    const { data: decs, error: errDecs } = await ctx.authAna.rpc('rvp_mis_declaraciones')
-    expect(errDecs).toBeNull()
-    expect(decs!.length).toBeGreaterThan(0)
-    const decKeys = Object.keys(decs![0]).sort()
+    // 5. rvp_resolver_item_stock
+    const { data: itemMeta } = await serviceRole
+      .from('item_producto')
+      .select('qr_code')
+      .eq('id_item', ctx.itemsAna[0])
+      .single()
+    const { data: resItem, error: errResItem } = await ctx.authAna.rpc('rvp_resolver_item_stock', {
+      p_codigo: itemMeta!.qr_code,
+    })
+    expect(errResItem).toBeNull()
+    expect(resItem!.length).toBeGreaterThan(0)
+    const resKeys = Object.keys(resItem![0]).sort()
     for (const forbidden of FORBIDDEN_COLS) {
-      expect(decKeys).not.toContain(forbidden)
+      expect(resKeys).not.toContain(forbidden)
     }
-    expect(decKeys).toEqual([
-      'color', 'created_at', 'descripcion', 'estado', 'fecha',
-      'id_declaracion', 'id_item', 'motivo_rechazo', 'nota',
-      'precio_venta', 'sku', 'talle', 'total_filas'
+    expect(resKeys).toEqual([
+      'descripcion', 'id_item', 'id_producto', 'precio_venta', 'sku', 'talle'
     ].sort())
   })
 
   test('2. Aislamiento: A no ve filas ni conteos de B ni de otro tenant', async () => {
     const ctx = await setupRvpFixture()
 
-    // Berta declara su ítem 3
-    await ctx.authBerta.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsBerta[0],
-      p_nota: 'De Berta',
+    // Berta vende su ítem 0
+    await ctx.authBerta.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsBerta[0]],
     })
 
     // Ana consulta su stock -> no contiene itemsBerta
@@ -262,10 +255,10 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(itemIdsAna).not.toContain(ctx.itemsBerta[0])
     expect(itemIdsAna).not.toContain(ctx.itemsBerta[1])
 
-    // Ana consulta declaraciones -> no contiene la de Berta
-    const { data: decsAna } = await ctx.authAna.rpc('rvp_mis_declaraciones')
-    const decItemIds = decsAna!.map((d: { id_item: string }) => d.id_item)
-    expect(decItemIds).not.toContain(ctx.itemsBerta[0])
+    // Ana consulta sus ventas -> no contiene la de Berta
+    const { data: ventasAna } = await ctx.authAna.rpc('rvp_mis_ventas')
+    const ventaItemIds = ventasAna!.map((v: { id_item: string }) => v.id_item)
+    expect(ventaItemIds).not.toContain(ctx.itemsBerta[0])
 
     // Ana consulta cuenta -> piezas_en_poder es 3 (sus items)
     const { data: cuentaAna } = await ctx.authAna.rpc('rvp_mi_cuenta')
@@ -288,8 +281,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     const { error: eLiqs } = await ctx.fA.authenticated.rpc('rvp_mis_liquidaciones')
     expect(eLiqs?.message).toMatch(/no-revendedora/)
 
-    const { error: eDecs } = await ctx.fA.authenticated.rpc('rvp_mis_declaraciones')
-    expect(eDecs?.message).toMatch(/no-revendedora/)
+    const { error: eRes } = await ctx.fA.authenticated.rpc('rvp_resolver_item_stock', { p_codigo: 'X' })
+    expect(eRes?.message).toMatch(/no-revendedora/)
   })
 
   test('4. Módulo apagado -> modulo-revendedoras-deshabilitado en cada rvp_*', async () => {
@@ -357,8 +350,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     const { error: eLiqs } = await authOff.rpc('rvp_mis_liquidaciones')
     expect(eLiqs?.message).toMatch(/modulo-revendedoras-deshabilitado/)
 
-    const { error: eDecs } = await authOff.rpc('rvp_mis_declaraciones')
-    expect(eDecs?.message).toMatch(/modulo-revendedoras-deshabilitado/)
+    const { error: eRes } = await authOff.rpc('rvp_resolver_item_stock', { p_codigo: 'X' })
+    expect(eRes?.message).toMatch(/modulo-revendedoras-deshabilitado/)
   })
 
   test('5. Sesión de revendedora no puede hacer SELECT directo ni INSERT/UPDATE fuera de lista blanca', async () => {
@@ -391,12 +384,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     const ctx = await setupRvpFixture()
 
     // 1 venta liquidada
-    const { data: idDec1 } = await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[0],
-      p_nota: 'Venta 1',
-    })
-    await ctx.fA.authenticated.rpc('sp_confirmar_declaracion_venta', {
-      p_id_declaracion: idDec1,
+    await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsAna[0]],
     })
     const hoy = new Date().toISOString().slice(0, 10)
     const { data: idLiq } = await ctx.fA.authenticated.rpc('sp_generar_liquidacion', {
@@ -421,12 +410,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     })
 
     // 1 venta sin liquidar
-    const { data: idDec2 } = await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[1],
-      p_nota: 'Venta 2 sin liquidar',
-    })
-    await ctx.fA.authenticated.rpc('sp_confirmar_declaracion_venta', {
-      p_id_declaracion: idDec2,
+    await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsAna[1]],
     })
 
     // Llamar a rf_cuenta_corriente_revendedora como operador
@@ -547,11 +532,9 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
   test('10. Filtros de período en rvp_mi_cuenta: solo afectan total_vendido, comision_liquidada y comision_estimada', async () => {
     const ctx = await setupRvpFixture()
 
-    const { data: idDec1 } = await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[0],
-      p_nota: 'Venta período',
+    await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsAna[0]],
     })
-    await ctx.fA.authenticated.rpc('sp_confirmar_declaracion_venta', { p_id_declaracion: idDec1 })
 
     const { data: baseRows } = await ctx.authAna.rpc('rvp_mi_cuenta')
     const base = Array.isArray(baseRows) ? baseRows[0] : baseRows
@@ -575,14 +558,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(Number(vacio.porcentaje_comision_actual)).toBe(Number(base.porcentaje_comision_actual))
   })
 
-  test('11. Filtros en listas: estado, búsqueda segura, período y total_filas independiente de limit/offset', async () => {
+  test('11. Filtros en listas: búsqueda segura, período y total_filas independiente de limit/offset', async () => {
     const ctx = await setupRvpFixture()
-
-    // Declarar 1 ítem de Ana (queda con declaración pendiente)
-    await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsAna[0],
-      p_nota: 'Pendiente',
-    })
 
     // rvp_mi_stock con limit=1 devuelve 1 fila pero total_filas=3
     const { data: stockPag1, error: errPag } = await ctx.authAna.rpc('rvp_mi_stock', {
@@ -593,33 +570,20 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(stockPag1).toHaveLength(1)
     expect(Number(stockPag1![0].total_filas)).toBe(3)
 
-    // rvp_mi_stock filtrado por estado con_pendiente -> 1 fila
-    const { data: stockPend } = await ctx.authAna.rpc('rvp_mi_stock', {
-      p_estado: 'con_pendiente',
-    })
-    expect(stockPend).toHaveLength(1)
-    expect(stockPend![0].id_item).toBe(ctx.itemsAna[0])
-
-    // rvp_mi_stock filtrado por estado sin_declaracion -> 2 filas
-    const { data: stockSin } = await ctx.authAna.rpc('rvp_mi_stock', {
-      p_estado: 'sin_declaracion',
-    })
-    expect(stockSin).toHaveLength(2)
-
     // Búsqueda con comodines escapados no debe actuar como wildcard total
     const { data: stockWild } = await ctx.authAna.rpc('rvp_mi_stock', {
       p_busqueda: '\\%\\_',
     })
     expect(stockWild).toHaveLength(0)
 
-    // Declaraciones en rango pasado -> 0 filas
-    const { data: decsPasado, error: errDecPasado } = await ctx.authAna.rpc('rvp_mis_declaraciones', {
+    // Ventas en rango pasado -> 0 filas
+    const { data: ventasPasado, error: errVentasPasado } = await ctx.authAna.rpc('rvp_mis_ventas', {
       p_desde: '2020-01-01',
       p_hasta: '2020-01-31',
       p_estado: 'pendiente',
     })
-    expect(errDecPasado).toBeNull()
-    expect(decsPasado).toHaveLength(0)
+    expect(errVentasPasado).toBeNull()
+    expect(ventasPasado).toHaveLength(0)
   })
 
   test('12. Whitelist de p_estado: valor inválido lanza estado-filtro-invalido', async () => {
@@ -633,29 +597,26 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
 
     const { error: eLiqs } = await ctx.authAna.rpc('rvp_mis_liquidaciones', { p_estado: 'confirmada' })
     expect(eLiqs?.message).toMatch(/estado-filtro-invalido/)
-
-    const { error: eDecs } = await ctx.authAna.rpc('rvp_mis_declaraciones', { p_estado: 'invalido' })
-    expect(eDecs?.message).toMatch(/estado-filtro-invalido/)
   })
 
   test('13. Aislamiento con filtros: búsqueda y estado no exponen filas de otra revendedora', async () => {
     const ctx = await setupRvpFixture()
 
-    await ctx.authBerta.rpc('sp_declarar_venta_revendedora', {
-      p_id_item: ctx.itemsBerta[0],
-      p_nota: 'Secreto Berta',
+    await ctx.authBerta.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.itemsBerta[0]],
     })
 
-    const { data: decsAna } = await ctx.authAna.rpc('rvp_mis_declaraciones', {
+    const { data: ventasAna } = await ctx.authAna.rpc('rvp_mis_ventas', {
       p_estado: 'pendiente',
     })
-    const idsAna = (decsAna ?? []).map((d: { id_item: string }) => d.id_item)
+    const idsAna = (ventasAna ?? []).map((d: { id_item: string }) => d.id_item)
     expect(idsAna).not.toContain(ctx.itemsBerta[0])
 
     const { data: stockAna } = await ctx.authAna.rpc('rvp_mi_stock', {
-      p_estado: 'con_pendiente',
+      p_busqueda: '',
     })
     const stockIdsAna = (stockAna ?? []).map((s: { id_item: string }) => s.id_item)
     expect(stockIdsAna).not.toContain(ctx.itemsBerta[0])
+    expect(stockIdsAna).not.toContain(ctx.itemsBerta[1])
   })
 })

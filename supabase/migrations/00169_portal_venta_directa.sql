@@ -1051,7 +1051,7 @@ update rol
          '{revendedoras}',
          (
            select coalesce(
-             jsonb_agg(case when elem = 'declarar' then 'vender' else elem end),
+             jsonb_agg(distinct case when elem = 'declarar' then 'vender' else elem end),
              '[]'::jsonb
            )
            from jsonb_array_elements_text(permisos->'revendedoras') as elem
@@ -1101,7 +1101,7 @@ grant execute on function sp_registrar_venta_revendedora(uuid[]) to authenticate
 --          '{revendedoras}',
 --          (
 --            select coalesce(
---              jsonb_agg(case when elem = 'vender' then 'declarar' else elem end),
+--              jsonb_agg(distinct case when elem = 'vender' then 'declarar' else elem end),
 --              '[]'::jsonb
 --            )
 --            from jsonb_array_elements_text(permisos->'revendedoras') as elem
