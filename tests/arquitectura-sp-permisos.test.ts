@@ -31,10 +31,6 @@ export const SP_SIN_CHEQUEO: Record<string, string> = {
   sp_enlazar_revendedora_usuario: 'Service-role en creación unificada de revendedora (SECURITY DEFINER)',
   sp_reactivar_acceso_revendedora: 'Service-role en reactivación de acceso revendedora',
 
-  // Portal de revendedora (2): gobernados exclusivamente por claim auth_revendedora_id()
-  sp_declarar_venta_revendedora: 'Portal de revendedora gobernado por claim auth_revendedora_id()',
-  sp_retirar_declaracion: 'Portal de revendedora gobernado por claim auth_revendedora_id()',
-
   // Execute revocado (2): revocado el execute a authenticated en migraciones posteriores
   sp_crear_consignacion: 'Execute revocado a authenticated (00054/00056); reemplazado por sp_crear_consignacion_con_items',
   sp_toggle_tenant_modulo: 'Execute revocado a authenticated (00117); reemplazado por sp_toggle_tenant_modulo_admin',

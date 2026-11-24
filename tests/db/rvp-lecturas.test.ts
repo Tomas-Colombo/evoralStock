@@ -484,6 +484,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'fn_sellar_costo_devolucion', // sellador de costo recuperado en devolución (00156, REQ-CPC §6.1)
       'fn_sellar_costo_ingreso', // sellador de costo en ingreso (00157, REQ-CPC §6.1)
       'fn_sellar_precio_inicial', // sellador de precio inicial al primer costo (00166)
+      'sp_registrar_venta_revendedora', // venta directa del portal (00169, REQ-RVP-VTA-02)
     ]
 
     const actualNonRvp = defProcs
