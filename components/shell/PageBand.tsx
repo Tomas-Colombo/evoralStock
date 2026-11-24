@@ -113,29 +113,34 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
             {kpis && (
               <dl
-                style={{ ["--kpi-cols" as string]: `minmax(0,1.7fr) repeat(${kpis.length - 1},minmax(0,1fr))` }}
+                style={{
+                  ["--kpi-cols" as string]: `minmax(0,1.7fr) repeat(${kpis.length - 1},minmax(0,1fr))`,
+                  ["--kpi-count" as string]: kpis.length,
+                }}
                 // Each KPI spans the same row tracks (subgrid): a label that wraps to two
                 // lines in a narrow column grows the shared label row instead of pushing
                 // only its own number down, so every value stays on one baseline.
                 // `content-start self-start`: the grid row is as tall as the actions
                 // column, and stretched auto tracks left a tall gap between label and value.
-                className="@container grid grid-cols-2 content-start self-start border-t border-band-line lg:[grid-template-columns:var(--kpi-cols)]"
+                className="@container grid grid-cols-2 content-start self-start border-t border-band-line [--kpi-n:2] lg:[--kpi-n:var(--kpi-count)] lg:[grid-template-columns:var(--kpi-cols)]"
               >
                 {kpis.map((k) => (
                   <div
                     key={k.label}
                     className={`grid min-w-0 grid-rows-subgrid content-start gap-y-3 pb-2 pr-4 pt-4 ${filasKpi} lg:[&:not(:first-child)]:border-l lg:[&:not(:first-child)]:border-band-line lg:[&:not(:first-child)]:pl-5`}
                   >
-                    <dt className="flex min-w-0 items-baseline justify-between gap-2">
+                    <dt className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                       <span className={`eyebrow ${k.tone === 'warn' ? 'text-warn-on-dark' : 'text-band-label'}`}>
                         {k.label}
                       </span>
-                      {k.hint && <span className="shrink-0 text-xs text-band-muted">{k.hint}</span>}
+                      {k.hint && <span className="min-w-0 text-xs text-band-muted">{k.hint}</span>}
                     </dt>
                     <dd
-                      // Sized from the whole strip (cqi of the <dl>), not per cell: every
-                      // value gets the same height whatever its column width.
-                      className={`font-figure whitespace-nowrap text-[clamp(1.75rem,3.8cqi,2.5rem)] font-bold leading-none [font-stretch:100%] ${
+                      // Sized from the whole strip (cqi of the <dl>), not per cell, so every
+                      // value keeps the same height and baseline. `--kpi-n` divides by the
+                      // actual column count (2 below `lg`, `kpis.length` from `lg`) so 6 KPIs
+                      // or narrow mobile columns don't overflow their cell.
+                      className={`font-figure whitespace-nowrap text-[clamp(1.5rem,calc(100cqi/(5.5*var(--kpi-n)+4)),2.5rem)] font-bold leading-none [font-stretch:100%] ${
                         k.tone === 'warn' ? 'text-warn-on-dark' : 'text-band-ink'
                       }`}
                     >
