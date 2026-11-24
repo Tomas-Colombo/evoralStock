@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { verifySession } from '@/lib/dal/session'
 import { obtenerMiCuenta } from '@/lib/dal/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
-import { Badge } from '@/components/ui/Badge'
+import { BandAction } from '@/components/shell/BandAction'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { PageBand } from '@/components/shell/PageBand'
 import { parsearPeriodoPortal } from './filtros'
 
 export const metadata = {
@@ -18,184 +19,109 @@ export default async function MiCuentaResumenPage(props: {
   const { desde, hasta } = parsearPeriodoPortal(searchParams.desde, searchParams.hasta)
 
   const res = await obtenerMiCuenta(session, { desde, hasta })
+  const hayPeriodo = Boolean(desde || hasta)
+
+  const filtroPeriodo = (
+    <FiltroPeriodo
+      ariaLabel="Filtrar resumen por período"
+      idPrefix="mi-cuenta"
+      desde={desde ?? ''}
+      hasta={hasta ?? ''}
+    />
+  )
 
   if (!res.ok) {
     return (
-      <div className="p-6 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive">
-        <p className="font-medium">No se pudo cargar tu resumen de cuenta.</p>
-      </div>
+      <>
+        <PageBand
+          breadcrumb={['Mi cuenta']}
+          title="Tu resumen de cuenta"
+          subtitle="Estado actual de mercadería, ventas y comisión con el local."
+          filters={filtroPeriodo}
+        />
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+          <div className="p-6 rounded-lg border border-destructive/30 bg-card text-destructive">
+            <p className="font-medium">No se pudo cargar tu resumen de cuenta.</p>
+          </div>
+        </main>
+      </>
     )
   }
 
   const cuenta = res.data
-  const hayPeriodo = Boolean(desde || hasta)
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight">Tu resumen de cuenta</h1>
-          <p className="text-sm text-muted mt-1">
-            Estado actual de mercadería, ventas y comisión con el local.
-          </p>
-        </div>
-
-        <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-          <FiltroPeriodo
-            apilado
-            ariaLabel="Filtrar resumen por período"
-            idPrefix="mi-cuenta"
-            desde={desde ?? ''}
-            hasta={hasta ?? ''}
-          />
-          {hayPeriodo && (
+    <>
+      <PageBand
+        breadcrumb={['Mi cuenta']}
+        title="Tu resumen de cuenta"
+        subtitle="Estado actual de mercadería, ventas y comisión con el local."
+        filters={filtroPeriodo}
+        kpis={[
+          {
+            label: 'Mercadería en tu poder',
+            hint: 'Estado actual',
+            value: cuenta.piezas_en_poder.toString(),
+            sub: `Valor de venta: ${formatearMoneda(cuenta.valor_en_poder)}`,
+          },
+          {
+            label: 'Total vendido',
+            hint: 'Del período',
+            value: formatearMoneda(cuenta.total_vendido),
+            sub: `Comisión liquidada: ${formatearMoneda(cuenta.comision_liquidada)}`,
+          },
+          {
+            label: 'Saldo a rendir al local',
+            hint: 'Estado actual',
+            value: formatearMoneda(cuenta.total_adeudado),
+            sub: `Total pagado: ${formatearMoneda(cuenta.total_pagado)}`,
+          },
+          {
+            label: 'Comisión estimada',
+            hint: 'Del período · Estimada',
+            value: formatearMoneda(cuenta.comision_estimada),
+            sub: 'Ventas confirmadas sin liquidar aún por el local.',
+          },
+          {
+            label: 'Tu comisión vigente',
+            hint: 'Estado actual',
+            value: `${cuenta.porcentaje_comision_actual}%`,
+            sub: `Tramo: ${cuenta.tramo_comision_actual || 'Vigente'}`,
+          },
+          {
+            label: 'Declaraciones de venta',
+            hint: 'Estado actual',
+            value: cuenta.declaraciones_pendientes.toString(),
+            sub:
+              cuenta.declaraciones_pendientes === 1
+                ? '1 venta pendiente de confirmar por el local'
+                : `${cuenta.declaraciones_pendientes} ventas pendientes de confirmar por el local`,
+          },
+        ]}
+        actions={
+          <>
+            <BandAction href="/mi-cuenta/stock" title="Ver mi stock" />
+            <BandAction href="/mi-cuenta/ventas" title="Ver mis ventas" />
+            <BandAction href="/mi-cuenta/liquidaciones" title="Ver liquidaciones" />
+            <BandAction href="/mi-cuenta/declaraciones" title="Ver declaraciones" />
+          </>
+        }
+      />
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
+        {hayPeriodo && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+            <span className="text-muted">
+              Período filtrado{desde ? ` desde ${desde}` : ''}{hasta ? ` hasta ${hasta}` : ''}.
+            </span>
             <Link
               href="/mi-cuenta"
               className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
             >
               Ver todo el histórico
             </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Grid de KPIs principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Piezas en poder (foto actual) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Mercadería en tu poder
-            </span>
-            <Badge variant="neutral">Estado actual</Badge>
           </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-bold font-display">{cuenta.piezas_en_poder}</span>
-            <span className="text-xs text-muted">piezas</span>
-          </div>
-          <p className="text-xs text-muted">
-            Valor de venta: <span className="font-semibold text-text">{formatearMoneda(cuenta.valor_en_poder)}</span>
-          </p>
-          <div className="pt-2">
-            <Link
-              href="/mi-cuenta/stock"
-              className="min-h-[44px] inline-flex items-center text-sm font-medium text-accent-fg hover:underline"
-            >
-              Ver mi stock &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Total vendido (del período) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Total vendido
-            </span>
-            <Badge variant="info">Del período</Badge>
-          </div>
-          <div className="text-3xl font-bold font-display">
-            {formatearMoneda(cuenta.total_vendido)}
-          </div>
-          <p className="text-xs text-muted">
-            Comisión liquidada (del período):{' '}
-            <span className="font-semibold text-text">{formatearMoneda(cuenta.comision_liquidada)}</span>
-          </p>
-          <div className="pt-2">
-            <Link
-              href="/mi-cuenta/ventas"
-              className="min-h-[44px] inline-flex items-center text-sm font-medium text-accent-fg hover:underline"
-            >
-              Ver mis ventas &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Saldo adeudado (foto actual) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Saldo a rendir al local
-            </span>
-            <Badge variant="neutral">Estado actual</Badge>
-          </div>
-          <div className="text-3xl font-bold font-display text-accent-fg">
-            {formatearMoneda(cuenta.total_adeudado)}
-          </div>
-          <p className="text-xs text-muted">
-            Total pagado: <span className="font-semibold text-text">{formatearMoneda(cuenta.total_pagado)}</span>
-          </p>
-          <div className="pt-2">
-            <Link
-              href="/mi-cuenta/liquidaciones"
-              className="min-h-[44px] inline-flex items-center text-sm font-medium text-accent-fg hover:underline"
-            >
-              Ver liquidaciones &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Comisión estimada (del período) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Comisión estimada
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Badge variant="info">Del período</Badge>
-              <Badge variant="warning">Estimada</Badge>
-            </div>
-          </div>
-          <div className="text-3xl font-bold font-display">
-            {formatearMoneda(cuenta.comision_estimada)}
-          </div>
-          <p className="text-xs text-muted">
-            Ventas confirmadas sin liquidar aún por el local.
-          </p>
-        </div>
-
-        {/* Tu escala o tramo de comisión (foto actual) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Tu comisión vigente
-            </span>
-            <Badge variant="neutral">Estado actual</Badge>
-          </div>
-          <div className="text-3xl font-bold font-display">
-            {cuenta.porcentaje_comision_actual}%
-          </div>
-          <p className="text-xs text-muted">
-            Tramo: {cuenta.tramo_comision_actual || 'Vigente'}
-          </p>
-        </div>
-
-        {/* Declaraciones pendientes (foto actual) */}
-        <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Declaraciones de venta
-            </span>
-            <Badge variant="neutral">Estado actual</Badge>
-          </div>
-          <div className="text-3xl font-bold font-display">
-            {cuenta.declaraciones_pendientes}
-          </div>
-          <p className="text-xs text-muted">
-            {cuenta.declaraciones_pendientes === 1
-              ? '1 venta pendiente de confirmar por el local'
-              : `${cuenta.declaraciones_pendientes} ventas pendientes de confirmar por el local`}
-          </p>
-          <div className="pt-2">
-            <Link
-              href="/mi-cuenta/declaraciones"
-              className="min-h-[44px] inline-flex items-center text-sm font-medium text-accent-fg hover:underline"
-            >
-              Ver declaraciones &rarr;
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </main>
+    </>
   )
 }

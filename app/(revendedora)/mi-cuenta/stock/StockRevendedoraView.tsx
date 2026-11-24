@@ -63,19 +63,7 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Mercadería en tu poder</h1>
-          <p className="text-sm text-muted">
-            Artículos consignados que tenés disponibles para vender.
-          </p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {total} {total === 1 ? 'artículo' : 'artículos'}
-        </span>
-      </div>
-
+    <>
       <div className="p-4 rounded-lg border border-border bg-card flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="flex-1">
           <BusquedaUrl
@@ -219,6 +207,6 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

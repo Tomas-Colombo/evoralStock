@@ -4,7 +4,6 @@ import Link from 'next/link'
 import type { RvpMisLiquidacionesRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
-import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface Props {
@@ -29,49 +28,18 @@ export function LiquidacionesRevendedoraView({
   const hayFiltros = Boolean(desde || hasta || estado)
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Liquidaciones de cuenta</h1>
-          <p className="text-sm text-muted">
-            Cierres periódicos de ventas y rendiciones con el local.
-          </p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {total} {total === 1 ? 'cierre' : 'cierres'}
-        </span>
-      </div>
-
-      <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-        <FiltroPeriodo
-          apilado
-          ariaLabel="Filtrar liquidaciones por período y estado"
-          idPrefix="mi-cuenta-liquidaciones"
-          desde={desde}
-          hasta={hasta}
-          extras={[
-            {
-              param: 'estado',
-              label: 'Estado',
-              value: estado,
-              ancho: 'w-40',
-              options: [
-                { value: '', label: 'Todos' },
-                { value: 'pendiente', label: 'Pendiente' },
-                { value: 'pagada', label: 'Pagada' },
-              ],
-            },
-          ]}
-        />
-        {hayFiltros && (
+    <>
+      {hayFiltros && (
+        <div className="p-4 rounded-lg border border-border bg-card flex items-center justify-between gap-3">
+          <span className="text-xs text-muted">Mostrando liquidaciones filtradas.</span>
           <Link
             href="/mi-cuenta/liquidaciones"
             className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
           >
             Limpiar filtros
           </Link>
-        )}
-      </div>
+        </div>
+      )}
 
       {liquidaciones.length === 0 ? (
         <div className="p-8 text-center rounded-lg border border-dashed border-border bg-card">
@@ -139,6 +107,6 @@ export function LiquidacionesRevendedoraView({
         pageSize={pageSize}
         total={total}
       />
-    </div>
+    </>
   )
 }

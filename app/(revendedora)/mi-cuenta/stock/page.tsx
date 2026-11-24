@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { verifySession } from '@/lib/dal/session'
 import { listarMiStock } from '@/lib/dal/revendedoras'
 import type { EstadoFiltroStock } from '@/lib/types/revendedoras'
+import { PageBand } from '@/components/shell/PageBand'
 import {
   PORTAL_PAGE_SIZE,
   parsearBusquedaPortal,
@@ -36,9 +37,18 @@ export default async function MiStockPage(props: {
 
   if (!res.ok) {
     return (
-      <div className="p-6 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive">
-        <p className="font-medium">No se pudo cargar el stock en tu poder.</p>
-      </div>
+      <>
+        <PageBand
+          breadcrumb={['Mi cuenta', 'Mi stock']}
+          title="Mercadería en tu poder"
+          subtitle="Artículos consignados que tenés disponibles para vender."
+        />
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+          <div className="p-6 rounded-lg border border-destructive/30 bg-card text-destructive">
+            <p className="font-medium">No se pudo cargar el stock en tu poder.</p>
+          </div>
+        </main>
+      </>
     )
   }
 
@@ -47,13 +57,22 @@ export default async function MiStockPage(props: {
   }
 
   return (
-    <StockRevendedoraView
-      items={res.data.rows}
-      total={res.data.total}
-      pagina={pagina}
-      pageSize={PORTAL_PAGE_SIZE}
-      estado={estado ?? ''}
-      q={q ?? ''}
-    />
+    <>
+      <PageBand
+        breadcrumb={['Mi cuenta', 'Mi stock']}
+        title="Mercadería en tu poder"
+        subtitle={`Artículos consignados que tenés disponibles para vender · ${res.data.total} ${res.data.total === 1 ? 'artículo' : 'artículos'}`}
+      />
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
+        <StockRevendedoraView
+          items={res.data.rows}
+          total={res.data.total}
+          pagina={pagina}
+          pageSize={PORTAL_PAGE_SIZE}
+          estado={estado ?? ''}
+          q={q ?? ''}
+        />
+      </main>
+    </>
   )
 }

@@ -4,7 +4,6 @@ import Link from 'next/link'
 import type { RvpMisVentasRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
-import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
@@ -32,20 +31,8 @@ export function VentasRevendedoraView({
   const hayFiltros = Boolean(desde || hasta || estado || q)
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Artículos vendidos</h1>
-          <p className="text-sm text-muted">
-            Detalle por artículo de las ventas registradas y confirmadas a tu nombre.
-          </p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {total} {total === 1 ? 'artículo' : 'artículos'}
-        </span>
-      </div>
-
-      <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+    <>
+      <div className="p-4 rounded-lg border border-border bg-card">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <BusquedaUrl
@@ -62,26 +49,6 @@ export function VentasRevendedoraView({
             </Link>
           )}
         </div>
-        <FiltroPeriodo
-          apilado
-          ariaLabel="Filtrar ventas por período y estado"
-          idPrefix="mi-cuenta-ventas"
-          desde={desde}
-          hasta={hasta}
-          extras={[
-            {
-              param: 'estado',
-              label: 'Estado',
-              value: estado,
-              ancho: 'w-40',
-              options: [
-                { value: '', label: 'Todos' },
-                { value: 'liquidada', label: 'Liquidada' },
-                { value: 'pendiente', label: 'Pendiente' },
-              ],
-            },
-          ]}
-        />
       </div>
 
       {ventas.length === 0 ? (
@@ -147,6 +114,6 @@ export function VentasRevendedoraView({
         pageSize={pageSize}
         total={total}
       />
-    </div>
+    </>
   )
 }

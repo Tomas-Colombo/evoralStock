@@ -11,7 +11,6 @@ import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { retirarDeclaracionAction } from '../actions'
 import { Badge } from '@/components/ui/Badge'
-import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
@@ -61,20 +60,8 @@ export function DeclaracionesRevendedoraView({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">Declaraciones de venta</h1>
-          <p className="text-sm text-muted">
-            Artículos que declaraste como vendidos pendientes de confirmar por el local.
-          </p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {total} {total === 1 ? 'declaración' : 'declaraciones'}
-        </span>
-      </div>
-
-      <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+    <>
+      <div className="p-4 rounded-lg border border-border bg-card">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <BusquedaUrl
@@ -91,28 +78,6 @@ export function DeclaracionesRevendedoraView({
             </Link>
           )}
         </div>
-        <FiltroPeriodo
-          apilado
-          ariaLabel="Filtrar declaraciones por período y estado"
-          idPrefix="mi-cuenta-declaraciones"
-          desde={desde}
-          hasta={hasta}
-          extras={[
-            {
-              param: 'estado',
-              label: 'Estado',
-              value: estado,
-              ancho: 'w-40',
-              options: [
-                { value: '', label: 'Todos' },
-                { value: 'pendiente', label: 'Pendiente' },
-                { value: 'confirmada', label: 'Confirmada' },
-                { value: 'rechazada', label: 'Rechazada' },
-                { value: 'retirada', label: 'Retirada' },
-              ],
-            },
-          ]}
-        />
       </div>
 
       {declaraciones.length === 0 ? (
@@ -237,6 +202,6 @@ export function DeclaracionesRevendedoraView({
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

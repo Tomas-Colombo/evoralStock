@@ -84,10 +84,7 @@ export default async function RevendedoraLayout({
           rolNombre={session.rolNombre}
           marca={session.marca}
         />
-        {/* pt-16 en el celular: deja lugar a la hamburguesa fija (top-3, h-10). */}
-        <main className="min-w-0 flex-1 px-4 pb-6 pt-16 sm:px-6 md:pt-6">
-          <div className="mx-auto max-w-4xl space-y-6">{children}</div>
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col w-full">{children}</div>
       </div>
     </ToastProvider>
   )

@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { verifySession } from '@/lib/dal/session'
 import { listarMisVentas } from '@/lib/dal/revendedoras'
 import type { EstadoFiltroVentas } from '@/lib/types/revendedoras'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { PageBand } from '@/components/shell/PageBand'
 import {
   PORTAL_PAGE_SIZE,
   parsearBusquedaPortal,
@@ -44,11 +46,43 @@ export default async function MisVentasPage(props: {
     q,
   })
 
+  const filtroPeriodo = (
+    <FiltroPeriodo
+      ariaLabel="Filtrar ventas por período y estado"
+      idPrefix="mi-cuenta-ventas"
+      desde={desde ?? ''}
+      hasta={hasta ?? ''}
+      extras={[
+        {
+          param: 'estado',
+          label: 'Estado',
+          value: estado ?? '',
+          ancho: 'w-40',
+          options: [
+            { value: '', label: 'Todos' },
+            { value: 'liquidada', label: 'Liquidada' },
+            { value: 'pendiente', label: 'Pendiente' },
+          ],
+        },
+      ]}
+    />
+  )
+
   if (!res.ok) {
     return (
-      <div className="p-6 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive">
-        <p className="font-medium">No se pudieron cargar tus ventas.</p>
-      </div>
+      <>
+        <PageBand
+          breadcrumb={['Mi cuenta', 'Mis ventas']}
+          title="Artículos vendidos"
+          subtitle="Detalle por artículo de las ventas registradas y confirmadas a tu nombre."
+          filters={filtroPeriodo}
+        />
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+          <div className="p-6 rounded-lg border border-destructive/30 bg-card text-destructive">
+            <p className="font-medium">No se pudieron cargar tus ventas.</p>
+          </div>
+        </main>
+      </>
     )
   }
 
@@ -57,15 +91,25 @@ export default async function MisVentasPage(props: {
   }
 
   return (
-    <VentasRevendedoraView
-      ventas={res.data.rows}
-      total={res.data.total}
-      pagina={pagina}
-      pageSize={PORTAL_PAGE_SIZE}
-      desde={desde ?? ''}
-      hasta={hasta ?? ''}
-      estado={estado ?? ''}
-      q={q ?? ''}
-    />
+    <>
+      <PageBand
+        breadcrumb={['Mi cuenta', 'Mis ventas']}
+        title="Artículos vendidos"
+        subtitle={`Detalle por artículo de las ventas registradas y confirmadas a tu nombre · ${res.data.total} ${res.data.total === 1 ? 'artículo' : 'artículos'}`}
+        filters={filtroPeriodo}
+      />
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
+        <VentasRevendedoraView
+          ventas={res.data.rows}
+          total={res.data.total}
+          pagina={pagina}
+          pageSize={PORTAL_PAGE_SIZE}
+          desde={desde ?? ''}
+          hasta={hasta ?? ''}
+          estado={estado ?? ''}
+          q={q ?? ''}
+        />
+      </main>
+    </>
   )
 }
