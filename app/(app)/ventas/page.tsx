@@ -120,7 +120,6 @@ export default async function VentasHome(props: {
                       label: 'Canal',
                       value: canalFiltro ?? '',
                       ancho: 'w-36',
-                      aplicarAlCambiar: true,
                       options: [
                         { value: '', label: 'Todos' },
                         { value: 'local', label: 'Local' },

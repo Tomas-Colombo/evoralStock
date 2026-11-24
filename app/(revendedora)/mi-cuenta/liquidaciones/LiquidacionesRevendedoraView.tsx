@@ -42,8 +42,9 @@ export function LiquidacionesRevendedoraView({
         </span>
       </div>
 
-      <div className="p-4 rounded-lg border border-border bg-card flex flex-wrap items-end justify-between gap-3">
+      <div className="p-4 rounded-lg border border-border bg-card space-y-3">
         <FiltroPeriodo
+          apilado
           key={`${desde}-${hasta}-${estado}`}
           basePath="/mi-cuenta/liquidaciones"
           ariaLabel="Filtrar liquidaciones por período y estado"
@@ -56,7 +57,6 @@ export function LiquidacionesRevendedoraView({
               label: 'Estado',
               value: estado,
               ancho: 'w-40',
-              aplicarAlCambiar: true,
               options: [
                 { value: '', label: 'Todos' },
                 { value: 'pendiente', label: 'Pendiente' },

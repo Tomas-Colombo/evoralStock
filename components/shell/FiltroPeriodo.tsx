@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
@@ -32,14 +32,14 @@ export interface FiltroExtra {
   options: Array<{ value: string; label: string }>
   /** Clase de ancho de Tailwind (estática, para que el JIT la vea). */
   ancho?: string
-  /** Aplica en el momento de elegir, sin esperar a "Aplicar". */
-  aplicarAlCambiar?: boolean
 }
 
 /**
- * Filtro de período de las pages con franja (`PageBand`): Desde / Hasta,
- * desplegables opcionales, presets y "Aplicar". Pensado para ir en el slot
- * `filters` de la franja.
+ * Filtro de período compartido (franja `PageBand` y portal revendedor):
+ * Desde / Hasta, desplegables opcionales y presets. Sin botón "Aplicar": cada
+ * cambio filtra solo. Las fechas esperan un momento porque el input nativo
+ * dispara un cambio por cada dígito del año (0002, 0020, 0202, 2026) y serían
+ * cuatro navegaciones.
  *
  * Todo vive en la URL (`?desde=&hasta=` + los params de los extras, días
  * calendario inclusivos) para que el filtro sea compartible y sobreviva a un
@@ -57,6 +57,7 @@ export function FiltroPeriodo({
   hasta,
   extras = [],
   conservar = {},
+  apilado = false,
 }: RangoFechas & {
   basePath: string
   ariaLabel: string
@@ -65,6 +66,12 @@ export function FiltroPeriodo({
   extras?: FiltroExtra[]
   /** Query params externos (p. ej. `q`) que se preservan al cambiar período o estado. */
   conservar?: Record<string, string>
+  /**
+   * Para una card angosta (portal revendedor) en vez de la franja: campos en
+   * grilla pareja y presets en su propia fila. En la fila suelta, los
+   * presets caían solos a la derecha y quedaba desordenado.
+   */
+  apilado?: boolean
 }) {
   const router = useRouter()
   const [d, setD] = useState(desde)
@@ -75,9 +82,21 @@ export function FiltroPeriodo({
   const [pendiente, startTransition] = useTransition()
 
   const rangoInvertido = d > h
+  const timerFecha = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerFecha.current) clearTimeout(timerFecha.current)
+    }
+  }, [])
 
   function aplicar(nd: string, nh: string, nv: Record<string, string>) {
-    const params = new URLSearchParams({ desde: nd, hasta: nh })
+    if (timerFecha.current) clearTimeout(timerFecha.current)
+    // Una fecha vacía no se manda: si se borra un extremo, el filtro queda
+    // abierto de ese lado y la page aplica su default.
+    const params = new URLSearchParams()
+    if (nd) params.set('desde', nd)
+    if (nh) params.set('hasta', nh)
     for (const e of extras) {
       if (nv[e.param]) params.set(e.param, nv[e.param])
     }
@@ -85,6 +104,14 @@ export function FiltroPeriodo({
       if (v) params.set(k, v)
     }
     startTransition(() => router.push(`${basePath}?${params.toString()}`))
+  }
+
+  function cambiarFecha(nd: string, nh: string) {
+    setD(nd)
+    setH(nh)
+    if (timerFecha.current) clearTimeout(timerFecha.current)
+    if (nd && nh && nd > nh) return
+    timerFecha.current = setTimeout(() => aplicar(nd, nh, vals), 600)
   }
 
   function aplicarPreset(preset: Preset) {
@@ -100,11 +127,14 @@ export function FiltroPeriodo({
         e.preventDefault()
         if (!rangoInvertido) aplicar(d, h, vals)
       }}
-      className="flex w-full flex-wrap items-end gap-3 lg:w-auto"
+      className={apilado ? 'flex w-full flex-col gap-3' : 'flex w-full flex-wrap items-end gap-3 lg:w-auto'}
       aria-label={ariaLabel}
     >
+      {/* `contents` keeps the band layout untouched: the fields stay direct
+          flex items of the form. */}
+      <div className={apilado ? 'grid grid-cols-2 items-start gap-3 sm:grid-cols-3' : 'contents'}>
       {/* Desde/Hasta side by side at 375px instead of one per row. */}
-      <div className="w-[calc(50%-0.375rem)] sm:w-40">
+      <div className={apilado ? undefined : 'w-[calc(50%-0.375rem)] sm:w-40'}>
         <Field
           htmlFor={`${idPrefix}-desde`}
           label="Desde"
@@ -116,26 +146,26 @@ export function FiltroPeriodo({
             value={d}
             max={h}
             invalid={rangoInvertido}
-            onChange={(e) => setD(e.target.value)}
+            onChange={(e) => cambiarFecha(e.target.value, h)}
             disabled={pendiente}
           />
         </Field>
       </div>
-      <div className="w-[calc(50%-0.375rem)] sm:w-40">
+      <div className={apilado ? undefined : 'w-[calc(50%-0.375rem)] sm:w-40'}>
         <Field htmlFor={`${idPrefix}-hasta`} label="Hasta">
           <Input
             id={`${idPrefix}-hasta`}
             type="date"
             value={h}
             min={d}
-            onChange={(e) => setH(e.target.value)}
+            onChange={(e) => cambiarFecha(d, e.target.value)}
             disabled={pendiente}
           />
         </Field>
       </div>
 
       {extras.map((x) => (
-        <div key={x.param} className={`max-w-full ${x.ancho ?? 'w-40'}`}>
+        <div key={x.param} className={apilado ? 'col-span-2 sm:col-span-1' : `max-w-full ${x.ancho ?? 'w-40'}`}>
           <Field htmlFor={`${idPrefix}-${x.param}`} label={x.label}>
             <Select
               id={`${idPrefix}-${x.param}`}
@@ -143,7 +173,7 @@ export function FiltroPeriodo({
               onChange={(e) => {
                 const next = { ...vals, [x.param]: e.target.value }
                 setVals(next)
-                if (x.aplicarAlCambiar && !rangoInvertido) aplicar(d, h, next)
+                if (!rangoInvertido) aplicar(d, h, next)
               }}
               disabled={pendiente}
             >
@@ -156,9 +186,10 @@ export function FiltroPeriodo({
           </Field>
         </div>
       ))}
+      </div>
 
-      <div className="ml-auto flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap rounded-md border border-band-line p-[3px]">
+      <div className={apilado ? 'flex flex-wrap items-center justify-between gap-2' : 'ml-auto flex flex-wrap items-center gap-2'}>
+        <div className="flex flex-wrap rounded-md border border-control-line p-[3px]">
         {PRESETS.map((p) => (
           <Button
             key={p.id}
@@ -172,9 +203,7 @@ export function FiltroPeriodo({
           </Button>
         ))}
         </div>
-        <Button type="submit" disabled={pendiente || rangoInvertido}>
-          {pendiente ? 'Filtrando…' : 'Aplicar'}
-        </Button>
+        {pendiente && <span className="text-xs text-muted" role="status">Filtrando…</span>}
       </div>
     </form>
   )

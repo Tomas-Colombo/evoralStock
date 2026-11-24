@@ -33,7 +33,6 @@ test.describe('Devoluciones a proveedor', () => {
     await page.goto('/consignaciones')
 
     await barraSuperior(page).getByLabel(/^Proveedor/).selectOption({ label: seed.proveedorConsignatario.nombre })
-    await page.getByRole('button', { name: 'Aplicar' }).click()
 
     await expect(page).toHaveURL(new RegExp(`proveedor=${seed.proveedorConsignatario.id}`))
     await expect(page.getByText('Sin devoluciones con estos filtros')).toBeVisible()

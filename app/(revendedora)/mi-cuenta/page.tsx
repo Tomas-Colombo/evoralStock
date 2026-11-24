@@ -40,8 +40,9 @@ export default async function MiCuentaResumenPage(props: {
           </p>
         </div>
 
-        <div className="p-4 rounded-lg border border-border bg-card flex flex-wrap items-end justify-between gap-3">
+        <div className="p-4 rounded-lg border border-border bg-card space-y-3">
           <FiltroPeriodo
+            apilado
             key={`${desde ?? ''}-${hasta ?? ''}`}
             basePath="/mi-cuenta"
             ariaLabel="Filtrar resumen por período"

@@ -75,32 +75,15 @@ export function DeclaracionesRevendedoraView({
       </div>
 
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <FiltroPeriodo
-            key={`${desde}-${hasta}-${estado}`}
-            basePath="/mi-cuenta/declaraciones"
-            ariaLabel="Filtrar declaraciones por período y estado"
-            idPrefix="mi-cuenta-declaraciones"
-            desde={desde}
-            hasta={hasta}
-            conservar={{ q }}
-            extras={[
-              {
-                param: 'estado',
-                label: 'Estado',
-                value: estado,
-                ancho: 'w-40',
-                aplicarAlCambiar: true,
-                options: [
-                  { value: '', label: 'Todos' },
-                  { value: 'pendiente', label: 'Pendiente' },
-                  { value: 'confirmada', label: 'Confirmada' },
-                  { value: 'rechazada', label: 'Rechazada' },
-                  { value: 'retirada', label: 'Retirada' },
-                ],
-              },
-            ]}
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <PortalBusqueda
+              key={q}
+              basePath="/mi-cuenta/declaraciones"
+              initialValue={q}
+              placeholder="Buscar por nombre o SKU..."
+            />
+          </div>
           {hayFiltros && (
             <Link
               href="/mi-cuenta/declaraciones"
@@ -110,11 +93,30 @@ export function DeclaracionesRevendedoraView({
             </Link>
           )}
         </div>
-        <PortalBusqueda
-          key={q}
+        <FiltroPeriodo
+          apilado
+          key={`${desde}-${hasta}-${estado}`}
           basePath="/mi-cuenta/declaraciones"
-          initialValue={q}
-          placeholder="Buscar por nombre o SKU..."
+          ariaLabel="Filtrar declaraciones por período y estado"
+          idPrefix="mi-cuenta-declaraciones"
+          desde={desde}
+          hasta={hasta}
+          conservar={{ q }}
+          extras={[
+            {
+              param: 'estado',
+              label: 'Estado',
+              value: estado,
+              ancho: 'w-40',
+              options: [
+                { value: '', label: 'Todos' },
+                { value: 'pendiente', label: 'Pendiente' },
+                { value: 'confirmada', label: 'Confirmada' },
+                { value: 'rechazada', label: 'Rechazada' },
+                { value: 'retirada', label: 'Retirada' },
+              ],
+            },
+          ]}
         />
       </div>
 

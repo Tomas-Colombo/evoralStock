@@ -4,10 +4,22 @@ import { capacidades } from '@/lib/modulos/capacidades'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { AuthorizationError } from '@/lib/dal/errors'
 import { ToastProvider } from '@/components/ui/Toast'
-import { ThemeToggle } from '@/components/theming/ThemeToggle'
 import { logoutAction } from '@/lib/auth/actions'
-import { PortalNav } from './PortalNav'
+import { SidebarClient, type SidebarNavGroup } from '@/components/shell/SidebarClient'
 import { Button } from '@/components/ui/Button'
+
+const PORTAL_NAV: SidebarNavGroup[] = [
+  {
+    label: 'MI CUENTA',
+    items: [
+      { href: '/mi-cuenta', label: 'Resumen', icon: 'reportes' },
+      { href: '/mi-cuenta/stock', label: 'Mi stock', icon: 'inventario' },
+      { href: '/mi-cuenta/ventas', label: 'Mis ventas', icon: 'ventas' },
+      { href: '/mi-cuenta/liquidaciones', label: 'Liquidaciones', icon: 'rendiciones' },
+      { href: '/mi-cuenta/declaraciones', label: 'Declaraciones', icon: 'consignaciones' },
+    ],
+  },
+]
 
 export default async function RevendedoraLayout({
   children,
@@ -63,41 +75,19 @@ export default async function RevendedoraLayout({
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-bg text-text flex flex-col">
-        {/* Header superior móvil / desktop */}
-        <header className="band-scope sticky top-0 z-30 bg-band px-4 py-3 text-band-ink">
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-display text-lg text-band-ink">
-                Portal Revendedor
-              </span>
-              <span className="eyebrow rounded-full border border-band-line px-2 py-0.5 text-band-muted">
-                Revendedora
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <ThemeToggle />
-              <form action={logoutAction}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  type="submit"
-                  aria-label="Cerrar sesión"
-                  title="Cerrar sesión"
-                  className="min-h-[44px] min-w-[44px]"
-                >
-                  Salir
-                </Button>
-              </form>
-            </div>
-          </div>
-        </header>
-
-        {/* Contenido principal móvil primero */}
-        <div className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
-          <PortalNav />
-          <main className="space-y-6">{children}</main>
-        </div>
+      <div className="flex min-h-screen w-full bg-bg text-text">
+        {/* Mismo menú lateral que la app: barra colapsable en escritorio y
+            hamburguesa con cajón en el celular, con el logo del tenant. */}
+        <SidebarClient
+          groups={PORTAL_NAV}
+          email={session.user.email}
+          rolNombre={session.rolNombre}
+          marca={session.marca}
+        />
+        {/* pt-16 en el celular: deja lugar a la hamburguesa fija (top-3, h-10). */}
+        <main className="min-w-0 flex-1 px-4 pb-6 pt-16 sm:px-6 md:pt-6">
+          <div className="mx-auto max-w-4xl space-y-6">{children}</div>
+        </main>
       </div>
     </ToastProvider>
   )

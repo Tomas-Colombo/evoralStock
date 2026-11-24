@@ -46,30 +46,15 @@ export function VentasRevendedoraView({
       </div>
 
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <FiltroPeriodo
-            key={`${desde}-${hasta}-${estado}`}
-            basePath="/mi-cuenta/ventas"
-            ariaLabel="Filtrar ventas por período y estado"
-            idPrefix="mi-cuenta-ventas"
-            desde={desde}
-            hasta={hasta}
-            conservar={{ q }}
-            extras={[
-              {
-                param: 'estado',
-                label: 'Estado',
-                value: estado,
-                ancho: 'w-40',
-                aplicarAlCambiar: true,
-                options: [
-                  { value: '', label: 'Todos' },
-                  { value: 'liquidada', label: 'Liquidada' },
-                  { value: 'pendiente', label: 'Pendiente' },
-                ],
-              },
-            ]}
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <PortalBusqueda
+              key={q}
+              basePath="/mi-cuenta/ventas"
+              initialValue={q}
+              placeholder="Buscar por descripción..."
+            />
+          </div>
           {hayFiltros && (
             <Link
               href="/mi-cuenta/ventas"
@@ -79,11 +64,28 @@ export function VentasRevendedoraView({
             </Link>
           )}
         </div>
-        <PortalBusqueda
-          key={q}
+        <FiltroPeriodo
+          apilado
+          key={`${desde}-${hasta}-${estado}`}
           basePath="/mi-cuenta/ventas"
-          initialValue={q}
-          placeholder="Buscar por descripción..."
+          ariaLabel="Filtrar ventas por período y estado"
+          idPrefix="mi-cuenta-ventas"
+          desde={desde}
+          hasta={hasta}
+          conservar={{ q }}
+          extras={[
+            {
+              param: 'estado',
+              label: 'Estado',
+              value: estado,
+              ancho: 'w-40',
+              options: [
+                { value: '', label: 'Todos' },
+                { value: 'liquidada', label: 'Liquidada' },
+                { value: 'pendiente', label: 'Pendiente' },
+              ],
+            },
+          ]}
         />
       </div>
 
