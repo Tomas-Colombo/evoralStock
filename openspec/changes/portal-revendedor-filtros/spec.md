@@ -1,6 +1,6 @@
 # Spec — portal-revendedor-filtros / Portal Revendedora (`/mi-cuenta`)
 
-**Change**: `portal-revendedor-filtros` · **Requisitos**: `REQ-RVP-FIL-01…09` · **Decisiones**: `DR-13` (whitelist de columnas en `rvp_*`)
+**Change**: `portal-revendedor-filtros` · **Requisitos**: `REQ-RVP-FIL-01…06` · **Decisiones**: `DR-13` (whitelist de columnas en `rvp_*`)
 
 ---
 
