@@ -2,7 +2,7 @@ import { describe, expect, test, afterAll } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceRoleTestClient } from '@/lib/dal/supabase-test'
-import { hasTestDb, signInAs } from './_helpers'
+import { hasTestDb, signInAsWithToken, unwrapFixture, withScopedTenant } from './_helpers'
 import { ventaFixture } from './_fixtures-ventas'
 
 describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revendedora y rvp_resolver_item_stock', () => {
@@ -26,67 +26,84 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     items: string[],
     permisos: string[] = ['ver_propio', 'vender'],
   ) {
-    const { data: idRev } = await fixture.authenticated.rpc('sp_crear_revendedora', {
-      p_nombre: nombre,
-      p_apellido: 'Test',
-      p_email: `${emailPrefix}@test.com`,
-    })
+    const idRev = unwrapFixture(
+      `sp_crear_revendedora (${nombre})`,
+      await fixture.authenticated.rpc('sp_crear_revendedora', {
+        p_nombre: nombre,
+        p_apellido: 'Test',
+        p_email: `${withScopedTenant(emailPrefix)}@test.com`,
+      }),
+    )
 
-    const { data: rolRev } = await serviceRole
-      .from('rol')
-      .insert({
-        id_tenant: fixture.tenantId,
-        nombre: `Rev_${nombre}_${Date.now()}`,
-        permisos: { revendedoras: permisos },
-      })
-      .select('id_rol')
-      .single()
+    const rolRev = unwrapFixture(
+      `rol insert (${nombre})`,
+      await serviceRole
+        .from('rol')
+        .insert({
+          id_tenant: fixture.tenantId,
+          nombre: withScopedTenant(`Rev_${nombre}`),
+          permisos: { revendedoras: permisos },
+        })
+        .select('id_rol')
+        .single(),
+    )
 
-    const email = `${emailPrefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@test.com`
-    const { data: user } = await serviceRole.auth.admin.createUser({
+    const email = `${withScopedTenant(emailPrefix)}_auth@test.com`
+    const { data: user, error: errUser } = await serviceRole.auth.admin.createUser({
       email,
       password: 'Password123!',
       email_confirm: true,
     })
+    expect(errUser, `createUser (${nombre})`).toBeNull()
+    expect(user?.user, `createUser returned user (${nombre})`).toBeTruthy()
     usersToClean.push(user.user!.id)
 
-    await serviceRole.rpc('sp_enlazar_revendedora_usuario', {
+    const { error: errEnlazar } = await serviceRole.rpc('sp_enlazar_revendedora_usuario', {
       p_id_revendedora: idRev,
       p_id_usuario: user.user!.id,
       p_id_tenant: fixture.tenantId,
       p_email: email,
       p_nombre: nombre,
-      p_id_rol: rolRev!.id_rol,
+      p_id_rol: rolRev.id_rol,
     })
+    expect(errEnlazar, `sp_enlazar_revendedora_usuario (${nombre})`).toBeNull()
 
     if (items.length > 0) {
       const hoy = new Date().toISOString().slice(0, 10)
-      const { data: idCons } = await fixture.authenticated.rpc('sp_crear_consignacion_revendedora_con_items', {
-        p_id_revendedora: idRev,
-        p_items: items,
-        p_periodo_desde: hoy,
-      })
-      await fixture.authenticated.rpc('sp_confirmar_consignacion_revendedora', {
+      const idCons = unwrapFixture(
+        `sp_crear_consignacion_revendedora_con_items (${nombre})`,
+        await fixture.authenticated.rpc('sp_crear_consignacion_revendedora_con_items', {
+          p_id_revendedora: idRev,
+          p_items: items,
+          p_periodo_desde: hoy,
+        }),
+      )
+      const { error: errConf } = await fixture.authenticated.rpc('sp_confirmar_consignacion_revendedora', {
         p_id_consignacion_revendedora: idCons,
       })
+      expect(errConf, `sp_confirmar_consignacion_revendedora (${nombre})`).toBeNull()
     }
 
-    const auth = await signInAs({ email, password: 'Password123!' })
-    return { idRev: idRev as string, auth }
+    const { client: auth, accessToken } = await signInAsWithToken({ email, password: 'Password123!' })
+    return { idRev: idRev as string, auth, accessToken }
   }
 
   async function setupContext() {
     const fA = await ventaFixture('VtaDirA', 7, { tipoIngreso: 'compra' })
     tenantsToClean.push(fA.tenantId)
 
-    const { data: mod } = await serviceRole
-      .from('modulo')
-      .select('id_modulo')
-      .eq('codigo', 'revendedoras')
-      .single()
-    await serviceRole
+    const mod = unwrapFixture(
+      'modulo revendedoras lookup',
+      await serviceRole
+        .from('modulo')
+        .select('id_modulo')
+        .eq('codigo', 'revendedoras')
+        .single(),
+    )
+    const { error: errTmA } = await serviceRole
       .from('tenant_modulo')
-      .insert({ id_tenant: fA.tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+      .insert({ id_tenant: fA.tenantId, id_modulo: mod.id_modulo, habilitado: true })
+    expect(errTmA, 'tenant_modulo insert A').toBeNull()
 
     const ana = await crearRevendedoraConStock(fA, 'Ana', 'ana_vd', [
       fA.items[0],
@@ -100,25 +117,31 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
 
     // Consignar itemSinCosto a Ana y eliminar su item_costo para probar N6
     const hoy = new Date().toISOString().slice(0, 10)
-    const { data: idConsSinCosto } = await fA.authenticated.rpc('sp_crear_consignacion_revendedora_con_items', {
-      p_id_revendedora: ana.idRev,
-      p_items: [itemSinCosto],
-      p_periodo_desde: hoy,
-    })
-    await fA.authenticated.rpc('sp_confirmar_consignacion_revendedora', {
+    const idConsSinCosto = unwrapFixture(
+      'sp_crear_consignacion_revendedora_con_items (sinCosto)',
+      await fA.authenticated.rpc('sp_crear_consignacion_revendedora_con_items', {
+        p_id_revendedora: ana.idRev,
+        p_items: [itemSinCosto],
+        p_periodo_desde: hoy,
+      }),
+    )
+    const { error: errConfSinCosto } = await fA.authenticated.rpc('sp_confirmar_consignacion_revendedora', {
       p_id_consignacion_revendedora: idConsSinCosto,
     })
-    await serviceRole.from('item_costo').delete().eq('id_item', itemSinCosto)
+    expect(errConfSinCosto, 'confirmar sinCosto').toBeNull()
+    const { error: errDelCosto } = await serviceRole.from('item_costo').delete().eq('id_item', itemSinCosto)
+    expect(errDelCosto, 'delete item_costo').toBeNull()
 
     // Tenant B para aislamiento cruzado
     const fB = await ventaFixture('VtaDirB', 2, { tipoIngreso: 'compra' })
     tenantsToClean.push(fB.tenantId)
-    await serviceRole
+    const { error: errTmB } = await serviceRole
       .from('tenant_modulo')
-      .insert({ id_tenant: fB.tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+      .insert({ id_tenant: fB.tenantId, id_modulo: mod.id_modulo, habilitado: true })
+    expect(errTmB, 'tenant_modulo insert B').toBeNull()
     const carla = await crearRevendedoraConStock(fB, 'Carla', 'carla_vd', [fB.items[0]])
 
-    return { fA, fB, ana, berta, carla, itemLocal, itemSinCosto, idModuloRev: mod!.id_modulo }
+    return { fA, fB, ana, berta, carla, itemLocal, itemSinCosto, idModuloRev: mod.id_modulo }
   }
 
   test('Caso feliz de lote (3 ítems): venta, detalles, pago cuenta_revendedora, costos sellados y snapshot de precio', async () => {
@@ -460,10 +483,9 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
       'fn_transicion_item_producto_nucleo',
     ]
 
-    for (const client of [ctx.fA.authenticated, ctx.ana.auth]) {
-      const { data: sess } = await client.auth.getSession()
-      const token = sess.session!.access_token
+    const { accessToken: tokenOperador } = await signInAsWithToken(ctx.fA)
 
+    for (const token of [tokenOperador, ctx.ana.accessToken]) {
       const res = await fetch(`${url}/graphql/v1`, {
         method: 'POST',
         headers: {

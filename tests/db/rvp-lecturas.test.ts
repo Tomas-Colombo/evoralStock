@@ -142,9 +142,10 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     const ctx = await setupRvpFixture()
 
     // Preparar venta directa para Ana (item 1); items 0 y 2 quedan en stock
-    await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
+    const { error: errVtaAna } = await ctx.authAna.rpc('sp_registrar_venta_revendedora', {
       p_items: [ctx.itemsAna[1]],
     })
+    expect(errVtaAna).toBeNull()
 
     // Liquidación para Ana usando fecha del tenant
     const { data: hoy } = await ctx.fA.authenticated.rpc('fn_hoy_tenant')

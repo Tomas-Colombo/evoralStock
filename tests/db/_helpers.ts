@@ -152,10 +152,7 @@ export async function createTenantWithUser(prefix: string): Promise<TenantFixtur
  * claim the Auth Hook actually issues. A hand-rolled JWT would test our own
  * idea of the token, not GoTrue's.
  */
-export async function signInAs(fixture: { email: string; password: string }) {
-  // Signs in through an ANON client, the way the app does. Using the
-  // service_role client for this would work, but it muddles which key is
-  // being exercised — and that confusion is what hid the session-leak bug.
+export async function signInAsWithToken(fixture: { email: string; password: string }) {
   const { data, error } = await createAnonTestClient().auth.signInWithPassword({
     email: fixture.email,
     password: fixture.password,
@@ -165,8 +162,14 @@ export async function signInAs(fixture: { email: string; password: string }) {
   const token = data?.session?.access_token
   if (!token) throw new Error('fixture sign-in returned no access token')
 
-  return createAnonTestClient(token)
+  return { client: createAnonTestClient(token), accessToken: token }
 }
+
+export async function signInAs(fixture: { email: string; password: string }) {
+  const { client } = await signInAsWithToken(fixture)
+  return client
+}
+
 
 /**
  * Returns an anon-key client with NO session — the `anon` role, pre-login.

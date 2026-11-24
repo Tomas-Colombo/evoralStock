@@ -654,10 +654,7 @@ declare
   v_tenant uuid := auth_tenant_id();
   v_actor  uuid := auth.uid();
 begin
-  if not (
-    (select auth_tiene_permiso('ventas', 'crear'))
-    or (select auth_tiene_permiso('revendedoras', 'crear'))
-  ) then
+  if not (select auth_tiene_permiso('ventas', 'crear')) then
     raise exception 'no-permission' using errcode = '42501';
   end if;
   if v_tenant is null then
@@ -713,7 +710,18 @@ begin
     raise exception 'no-revendedora' using errcode = '42501';
   end if;
 
-  if not (select auth_tiene_permiso('revendedoras', 'vender')) then
+  -- auth_tiene_permiso() exige auth_revendedora_id() is null y siempre devuelve false
+  -- para una sesión de revendedora; dentro del DEFINER leemos su rol directamente.
+  if not exists (
+    select 1
+      from usuario u
+      join rol r on r.id_rol = u.id_rol
+     where u.id_usuario = auth.uid()
+       and u.id_tenant = v_tenant
+       and r.id_tenant = v_tenant
+       and u.estado_usuario <> 'inactivo'
+       and r.permisos -> 'revendedoras' ? 'vender'
+  ) then
     raise exception 'no-permission' using errcode = '42501';
   end if;
 
@@ -987,7 +995,18 @@ begin
     raise exception 'no-revendedora' using errcode = '42501';
   end if;
 
-  if not (select auth_tiene_permiso('revendedoras', 'vender')) then
+  -- auth_tiene_permiso() exige auth_revendedora_id() is null y siempre devuelve false
+  -- para una sesión de revendedora; dentro del DEFINER leemos su rol directamente.
+  if not exists (
+    select 1
+      from usuario u
+      join rol r on r.id_rol = u.id_rol
+     where u.id_usuario = auth.uid()
+       and u.id_tenant = v_tenant
+       and r.id_tenant = v_tenant
+       and u.estado_usuario <> 'inactivo'
+       and r.permisos -> 'revendedoras' ? 'vender'
+  ) then
     raise exception 'no-permission' using errcode = '42501';
   end if;
 

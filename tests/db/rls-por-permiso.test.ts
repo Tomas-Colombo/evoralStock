@@ -1506,7 +1506,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
     expect(idVenta).toBeDefined()
   })
 
-  it('un rol con revendedoras.crear SIN ventas.crear sigue confirmando una declaración', async () => {
+  it('sp_registrar_venta: operador con revendedoras.crear y sin ventas.crear recibe no-permission', async () => {
     const fA = await ventaFixture('rlsp_m1_rev', 1, { tipoIngreso: 'compra' })
 
     // Habilitar módulo revendedoras
@@ -1539,7 +1539,7 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
     })
     expect(errConf).toBeNull()
 
-    // Operador con revendedoras.crear SIN ventas.crear ni revendedoras.editar
+    // Operador con revendedoras.crear SIN ventas.crear -> sp_registrar_venta rechaza con no-permission
     const { error: errRol } = await fA.serviceRole
       .from('rol')
       .update({ permisos: { revendedoras: ['crear', 'ver'], inventario: ['ver'] } })
@@ -1551,8 +1551,9 @@ describe.skipIf(!hasTestDb)('Fase 5b-M1 - Chequeo de permisos en sp_* de Ventas,
       p_canal: 'revendedora',
       p_id_revendedora: idRev,
     })
-    expect(errVentaRev).toBeNull()
-    expect(idVenta).toBeDefined()
+    expect(errVentaRev).not.toBeNull()
+    expect(errVentaRev!.message).toContain('no-permission')
+    expect(idVenta).toBeNull()
   })
 
   it('el admin fixture no se rompe al registrar venta', async () => {

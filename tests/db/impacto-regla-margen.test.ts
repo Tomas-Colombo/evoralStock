@@ -63,51 +63,58 @@ describe.skipIf(!hasTestDb)('confirmar-impacto-regla — Capa de datos (REQ-CIR-
     fixture: TenantFixture,
     prefix: string,
   ) {
-    const { data: mod } = await serviceRole
-      .from('modulo')
-      .select('id_modulo')
-      .eq('codigo', 'revendedoras')
-      .single()
-    if (mod) {
+    const mod = unwrapFixture(
+      'modulo revendedoras lookup',
+      await serviceRole.from('modulo').select('id_modulo').eq('codigo', 'revendedoras').single(),
+    )
+    const { error: tmErr } = await serviceRole
+      .from('tenant_modulo')
+      .upsert({ id_tenant: fixture.tenantId, id_modulo: mod.id_modulo, habilitado: true })
+    if (tmErr) throw new Error(`createRevendedoraClient tenant_modulo failed: ${tmErr.message}`)
+
+    const idRev = unwrapFixture(
+      'sp_crear_revendedora',
+      await adminClient.rpc('sp_crear_revendedora', {
+        p_nombre: 'Revendedora',
+        p_apellido: prefix,
+        p_email: `${withScopedTenant(prefix)}@rev.test`,
+      }),
+    )
+
+    const rolRev = unwrapFixture(
+      'rol revendedora insert',
       await serviceRole
-        .from('tenant_modulo')
-        .upsert({ id_tenant: fixture.tenantId, id_modulo: mod.id_modulo, habilitado: true })
-    }
-
-    const { data: idRev, error: revErr } = await adminClient.rpc('sp_crear_revendedora', {
-      p_nombre: 'Revendedora',
-      p_apellido: prefix,
-      p_email: `${withScopedTenant(prefix)}@rev.test`,
-    })
-    if (revErr) throw new Error(`createRevendedoraClient failed: ${revErr.message}`)
-
-    const { data: rolRev } = await serviceRole
-      .from('rol')
-      .insert({
-        id_tenant: fixture.tenantId,
-        nombre: withScopedTenant(`RolRev-${prefix}`),
-        permisos: { revendedoras: ['ver_propio', 'vender'] },
-      })
-      .select('id_rol')
-      .single()
+        .from('rol')
+        .insert({
+          id_tenant: fixture.tenantId,
+          nombre: withScopedTenant(`RolRev-${prefix}`),
+          permisos: { revendedoras: ['ver_propio', 'vender'] },
+        })
+        .select('id_rol')
+        .single(),
+    )
 
     const emailRev = `${withScopedTenant(prefix)}_auth@rev.test`
     const passwordRev = 'Password123!'
-    const { data: userRev } = await serviceRole.auth.admin.createUser({
+    const { data: userRev, error: userErr } = await serviceRole.auth.admin.createUser({
       email: emailRev,
       password: passwordRev,
       email_confirm: true,
     })
-    usersToClean.push(userRev!.user!.id)
+    if (userErr || !userRev?.user) {
+      throw new Error(`createRevendedoraClient createUser failed: ${userErr?.message ?? 'no user'}`)
+    }
+    usersToClean.push(userRev.user.id)
 
-    await serviceRole.rpc('sp_enlazar_revendedora_usuario', {
+    const { error: enlErr } = await serviceRole.rpc('sp_enlazar_revendedora_usuario', {
       p_id_revendedora: idRev,
-      p_id_usuario: userRev!.user!.id,
+      p_id_usuario: userRev.user.id,
       p_id_tenant: fixture.tenantId,
       p_email: emailRev,
       p_nombre: 'Revendedora User',
-      p_id_rol: rolRev!.id_rol,
+      p_id_rol: rolRev.id_rol,
     })
+    if (enlErr) throw new Error(`createRevendedoraClient enlazar failed: ${enlErr.message}`)
 
     return signInAs({ email: emailRev, password: passwordRev })
   }
