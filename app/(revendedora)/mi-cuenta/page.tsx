@@ -3,14 +3,21 @@ import { verifySession } from '@/lib/dal/session'
 import { obtenerMiCuenta } from '@/lib/dal/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { parsearPeriodoPortal } from './filtros'
 
 export const metadata = {
   title: 'Mi cuenta | Revendedor',
 }
 
-export default async function MiCuentaResumenPage() {
+export default async function MiCuentaResumenPage(props: {
+  searchParams: Promise<{ desde?: string; hasta?: string }>
+}) {
   const session = await verifySession()
-  const res = await obtenerMiCuenta(session)
+  const searchParams = await props.searchParams
+  const { desde, hasta } = parsearPeriodoPortal(searchParams.desde, searchParams.hasta)
+
+  const res = await obtenerMiCuenta(session, { desde, hasta })
 
   if (!res.ok) {
     return (
@@ -21,23 +28,48 @@ export default async function MiCuentaResumenPage() {
   }
 
   const cuenta = res.data
+  const hayPeriodo = Boolean(desde || hasta)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-display tracking-tight">Tu resumen de cuenta</h1>
-        <p className="text-sm text-muted mt-1">
-          Estado actual de mercadería, ventas y comisión con el local.
-        </p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold font-display tracking-tight">Tu resumen de cuenta</h1>
+          <p className="text-sm text-muted mt-1">
+            Estado actual de mercadería, ventas y comisión con el local.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-lg border border-border bg-card flex flex-wrap items-end justify-between gap-3">
+          <FiltroPeriodo
+            key={`${desde ?? ''}-${hasta ?? ''}`}
+            basePath="/mi-cuenta"
+            ariaLabel="Filtrar resumen por período"
+            idPrefix="mi-cuenta"
+            desde={desde ?? ''}
+            hasta={hasta ?? ''}
+          />
+          {hayPeriodo && (
+            <Link
+              href="/mi-cuenta"
+              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
+            >
+              Ver todo el histórico
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Grid de KPIs principales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Piezas en poder */}
+        {/* Piezas en poder (foto actual) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Mercadería en tu poder
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Mercadería en tu poder
+            </span>
+            <Badge variant="neutral">Estado actual</Badge>
+          </div>
           <div className="flex items-baseline justify-between">
             <span className="text-3xl font-bold font-display">{cuenta.piezas_en_poder}</span>
             <span className="text-xs text-muted">piezas</span>
@@ -55,16 +87,20 @@ export default async function MiCuentaResumenPage() {
           </div>
         </div>
 
-        {/* Total vendido */}
+        {/* Total vendido (del período) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Total vendido
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Total vendido
+            </span>
+            <Badge variant="info">Del período</Badge>
+          </div>
           <div className="text-3xl font-bold font-display">
             {formatearMoneda(cuenta.total_vendido)}
           </div>
           <p className="text-xs text-muted">
-            Comisión liquidada: <span className="font-semibold text-text">{formatearMoneda(cuenta.comision_liquidada)}</span>
+            Comisión liquidada (del período):{' '}
+            <span className="font-semibold text-text">{formatearMoneda(cuenta.comision_liquidada)}</span>
           </p>
           <div className="pt-2">
             <Link
@@ -76,11 +112,14 @@ export default async function MiCuentaResumenPage() {
           </div>
         </div>
 
-        {/* Saldo adeudado */}
+        {/* Saldo adeudado (foto actual) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Saldo a rendir al local
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Saldo a rendir al local
+            </span>
+            <Badge variant="neutral">Estado actual</Badge>
+          </div>
           <div className="text-3xl font-bold font-display text-accent-fg">
             {formatearMoneda(cuenta.total_adeudado)}
           </div>
@@ -97,15 +136,16 @@ export default async function MiCuentaResumenPage() {
           </div>
         </div>
 
-        {/* Comisión estimada (rotulada claramente) */}
+        {/* Comisión estimada (del período) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-muted uppercase tracking-wider">
               Comisión estimada
             </span>
-            <Badge variant="warning">
-              Estimada
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="info">Del período</Badge>
+              <Badge variant="warning">Estimada</Badge>
+            </div>
           </div>
           <div className="text-3xl font-bold font-display">
             {formatearMoneda(cuenta.comision_estimada)}
@@ -115,11 +155,14 @@ export default async function MiCuentaResumenPage() {
           </p>
         </div>
 
-        {/* Tu escala o tramo de comisión */}
+        {/* Tu escala o tramo de comisión (foto actual) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Tu comisión vigente
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Tu comisión vigente
+            </span>
+            <Badge variant="neutral">Estado actual</Badge>
+          </div>
           <div className="text-3xl font-bold font-display">
             {cuenta.porcentaje_comision_actual}%
           </div>
@@ -128,11 +171,14 @@ export default async function MiCuentaResumenPage() {
           </p>
         </div>
 
-        {/* Declaraciones pendientes */}
+        {/* Declaraciones pendientes (foto actual) */}
         <div className="p-5 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04)] space-y-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Declaraciones de venta
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Declaraciones de venta
+            </span>
+            <Badge variant="neutral">Estado actual</Badge>
+          </div>
           <div className="text-3xl font-bold font-display">
             {cuenta.declaraciones_pendientes}
           </div>

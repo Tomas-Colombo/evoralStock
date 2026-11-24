@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { RvpMiStockRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Modal } from '@/components/ui/Modal'
@@ -11,17 +11,41 @@ import { mensajeDeError } from '@/lib/errores/mensajes'
 import { declararVentaAction } from '../actions'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
+import { Select } from '@/components/ui/Select'
+import { Field } from '@/components/ui/Field'
+import { PortalBusqueda } from '../PortalBusqueda'
+import { PortalPaginacion } from '../PortalPaginacion'
 
 interface Props {
   items: RvpMiStockRow[]
+  total: number
+  pagina: number
+  pageSize: number
+  estado: string
+  q: string
 }
 
-export function StockRevendedoraView({ items }: Props) {
+export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const toast = useToast()
   const [selectedItem, setSelectedItem] = useState<RvpMiStockRow | null>(null)
   const [nota, setNota] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [filtrando, startFilterTransition] = useTransition()
+
+  const hayFiltros = Boolean(estado || q)
+
+  function handleEstadoChange(nuevoEstado: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (nuevoEstado) params.set('estado', nuevoEstado)
+    else params.delete('estado')
+    params.delete('pagina')
+    const qs = params.toString()
+    startFilterTransition(() =>
+      router.push(qs ? `/mi-cuenta/stock?${qs}` : '/mi-cuenta/stock'),
+    )
+  }
 
   const handleOpenModal = (item: RvpMiStockRow) => {
     setSelectedItem(item)
@@ -62,13 +86,42 @@ export function StockRevendedoraView({ items }: Props) {
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
+          {total} {total === 1 ? 'artículo' : 'artículos'}
         </span>
+      </div>
+
+      <div className="p-4 rounded-lg border border-border bg-card flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="flex-1">
+          <PortalBusqueda
+            key={q}
+            basePath="/mi-cuenta/stock"
+            initialValue={q}
+            placeholder="Buscar por nombre o SKU..."
+          />
+        </div>
+        <div className="w-full sm:w-56">
+          <Field htmlFor="stock-estado" label="Estado">
+            <Select
+              id="stock-estado"
+              value={estado}
+              onChange={(e) => handleEstadoChange(e.target.value)}
+              disabled={filtrando}
+            >
+              <option value="">Todos</option>
+              <option value="con_pendiente">Con declaración pendiente</option>
+              <option value="sin_declaracion">Sin declaración</option>
+            </Select>
+          </Field>
+        </div>
       </div>
 
       {items.length === 0 ? (
         <div className="p-8 text-center rounded-lg border border-dashed border-border bg-card">
-          <p className="text-muted text-sm">No tenés artículos en tu poder en este momento.</p>
+          <p className="text-muted text-sm">
+            {hayFiltros
+              ? 'No hay artículos que coincidan con los filtros elegidos.'
+              : 'No tenés artículos en tu poder en este momento.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -85,6 +138,9 @@ export function StockRevendedoraView({ items }: Props) {
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted">
+                  {item.sku && (
+                    <span className="font-mono px-2 py-0.5 rounded bg-muted/10">{item.sku}</span>
+                  )}
                   {item.talle && (
                     <span className="px-2 py-0.5 rounded bg-muted/10">Talle: {item.talle}</span>
                   )}
@@ -113,6 +169,13 @@ export function StockRevendedoraView({ items }: Props) {
           ))}
         </div>
       )}
+
+      <PortalPaginacion
+        basePath="/mi-cuenta/stock"
+        page={pagina}
+        pageSize={pageSize}
+        total={total}
+      />
 
       {/* Modal para declarar venta */}
       {selectedItem && (

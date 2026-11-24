@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { RvpMisDeclaracionesRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Button } from '@/components/ui/Button'
@@ -9,15 +11,37 @@ import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { retirarDeclaracionAction } from '../actions'
 import { Badge } from '@/components/ui/Badge'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { PortalBusqueda } from '../PortalBusqueda'
+import { PortalPaginacion } from '../PortalPaginacion'
 
 interface Props {
   declaraciones: RvpMisDeclaracionesRow[]
+  total: number
+  pagina: number
+  pageSize: number
+  desde: string
+  hasta: string
+  estado: string
+  q: string
 }
 
-export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
+export function DeclaracionesRevendedoraView({
+  declaraciones,
+  total,
+  pagina,
+  pageSize,
+  desde,
+  hasta,
+  estado,
+  q,
+}: Props) {
+  const router = useRouter()
   const toast = useToast()
   const [selectedParaRetirar, setSelectedParaRetirar] = useState<RvpMisDeclaracionesRow | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const hayFiltros = Boolean(desde || hasta || estado || q)
 
   const handleRetirar = () => {
     if (!selectedParaRetirar) return
@@ -29,6 +53,7 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
       if (res.ok) {
         toast.success('Declaración retirada', 'El artículo volvió a figurar disponible en tu stock.')
         setSelectedParaRetirar(null)
+        router.refresh()
       } else {
         toast.error('Error al retirar', mensajeDeError(res.reason))
       }
@@ -45,13 +70,60 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent-fg/10 text-accent-fg">
-          {declaraciones.length} {declaraciones.length === 1 ? 'declaración' : 'declaraciones'}
+          {total} {total === 1 ? 'declaración' : 'declaraciones'}
         </span>
+      </div>
+
+      <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <FiltroPeriodo
+            key={`${desde}-${hasta}-${estado}`}
+            basePath="/mi-cuenta/declaraciones"
+            ariaLabel="Filtrar declaraciones por período y estado"
+            idPrefix="mi-cuenta-declaraciones"
+            desde={desde}
+            hasta={hasta}
+            extras={[
+              {
+                param: 'estado',
+                label: 'Estado',
+                value: estado,
+                ancho: 'w-40',
+                aplicarAlCambiar: true,
+                options: [
+                  { value: '', label: 'Todos' },
+                  { value: 'pendiente', label: 'Pendiente' },
+                  { value: 'confirmada', label: 'Confirmada' },
+                  { value: 'rechazada', label: 'Rechazada' },
+                  { value: 'retirada', label: 'Retirada' },
+                ],
+              },
+            ]}
+          />
+          {hayFiltros && (
+            <Link
+              href="/mi-cuenta/declaraciones"
+              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
+            >
+              Limpiar filtros
+            </Link>
+          )}
+        </div>
+        <PortalBusqueda
+          key={q}
+          basePath="/mi-cuenta/declaraciones"
+          initialValue={q}
+          placeholder="Buscar por nombre o SKU..."
+        />
       </div>
 
       {declaraciones.length === 0 ? (
         <div className="p-8 text-center rounded-lg border border-dashed border-border bg-card">
-          <p className="text-muted text-sm">No tenés declaraciones de venta registradas.</p>
+          <p className="text-muted text-sm">
+            {hayFiltros
+              ? 'No hay declaraciones que coincidan con los filtros elegidos.'
+              : 'No tenés declaraciones de venta registradas.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -64,6 +136,7 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
                 <div>
                   <h2 className="font-semibold text-base">{d.nombre_producto}</h2>
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted">
+                    {d.sku && <span className="font-mono">{d.sku} ·</span>}
                     {d.talle && <span>Talle {d.talle} ·</span>}
                     <span>Declarada el {new Date(d.fecha).toLocaleDateString('es-AR')}</span>
                   </div>
@@ -124,6 +197,13 @@ export function DeclaracionesRevendedoraView({ declaraciones }: Props) {
           ))}
         </div>
       )}
+
+      <PortalPaginacion
+        basePath="/mi-cuenta/declaraciones"
+        page={pagina}
+        pageSize={pageSize}
+        total={total}
+      />
 
       {/* Modal para confirmar retiro de declaración */}
       {selectedParaRetirar && (
