@@ -3,7 +3,7 @@
 import { useActionState, useState, type FormEvent } from 'react'
 import { changePasswordAction, type ChangePasswordActionState } from './settings/password-actions'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 
 const initialState: ChangePasswordActionState = { ok: false }
 const MIN_PASSWORD_LENGTH = 8
@@ -49,10 +49,9 @@ export function PasswordChangeForm() {
         <label htmlFor="current_password" className="text-sm font-medium text-text">
           Current password
         </label>
-        <Input
+        <PasswordInput
           id="current_password"
           name="current_password"
-          type="password"
           autoComplete="current-password"
           required
         />
@@ -61,10 +60,9 @@ export function PasswordChangeForm() {
         <label htmlFor="new_password" className="text-sm font-medium text-text">
           New password
         </label>
-        <Input
+        <PasswordInput
           id="new_password"
           name="new_password"
-          type="password"
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           required
@@ -74,10 +72,9 @@ export function PasswordChangeForm() {
         <label htmlFor="confirm_new_password" className="text-sm font-medium text-text">
           Confirm new password
         </label>
-        <Input
+        <PasswordInput
           id="confirm_new_password"
           name="confirm_new_password"
-          type="password"
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           required

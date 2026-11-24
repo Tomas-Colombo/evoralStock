@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { cambiarMiPasswordAction } from './actions'
@@ -60,9 +60,8 @@ export function CambiarPasswordCard() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-3xl pt-2">
         <Field htmlFor="cfg-pwd-actual" label="Contraseña actual">
-          <Input
+          <PasswordInput
             id="cfg-pwd-actual"
-            type="password"
             autoComplete="current-password"
             value={passwordActual}
             onChange={(e) => setPasswordActual(e.target.value)}
@@ -72,9 +71,8 @@ export function CambiarPasswordCard() {
         </Field>
 
         <Field htmlFor="cfg-pwd-nuevo" label="Nueva contraseña">
-          <Input
+          <PasswordInput
             id="cfg-pwd-nuevo"
-            type="password"
             autoComplete="new-password"
             value={passwordNuevo}
             onChange={(e) => setPasswordNuevo(e.target.value)}
@@ -85,9 +83,8 @@ export function CambiarPasswordCard() {
         </Field>
 
         <Field htmlFor="cfg-pwd-confirmar" label="Confirmar contraseña">
-          <Input
+          <PasswordInput
             id="cfg-pwd-confirmar"
-            type="password"
             autoComplete="new-password"
             value={passwordConfirmacion}
             onChange={(e) => setPasswordConfirmacion(e.target.value)}

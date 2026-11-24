@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { loginAction, type LoginActionState } from './actions'
 import { Button } from '@/components/ui/Button'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 
 const initialState: LoginActionState = { ok: false }
 
@@ -47,14 +48,15 @@ export function LoginForm() {
         <label htmlFor="password" className={LABEL_CLASS}>
           Contraseña
         </label>
-        <input
+        <PasswordInput
+          bare
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           placeholder="••••••••"
           required
           className={FIELD_CLASS}
+          toggleClassName="text-band-label hover:text-band-ink focus-visible:ring-band-muted"
         />
       </div>
       {state.error && (
