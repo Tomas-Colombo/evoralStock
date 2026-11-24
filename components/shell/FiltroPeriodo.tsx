@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
+import { useFiltrosUrl, useValorSincronizado } from '@/components/filtros/useFiltrosUrl'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import {
   anioActual,
   hoyRango,
@@ -30,6 +30,8 @@ export interface FiltroExtra {
   label: string
   value: string
   options: Array<{ value: string; label: string }>
+  /** Si se elige este valor, se borra el param de la URL. */
+  valorPorDefecto?: string
   /** Clase de ancho de Tailwind (estática, para que el JIT la vea). */
   ancho?: string
 }
@@ -50,36 +52,29 @@ export interface FiltroExtra {
  * por `lib/fechas`, que evita el corrimiento de día de `toISOString()`.
  */
 export function FiltroPeriodo({
-  basePath,
   ariaLabel,
   idPrefix,
   desde,
   hasta,
   extras = [],
-  conservar = {},
   apilado = false,
+  paramPagina,
 }: RangoFechas & {
-  basePath: string
   ariaLabel: string
   /** Prefijo de los ids de los controles (únicos por page). */
   idPrefix: string
   extras?: FiltroExtra[]
-  /** Query params externos (p. ej. `q`) que se preservan al cambiar período o estado. */
-  conservar?: Record<string, string>
   /**
    * Para una card angosta (portal revendedor) en vez de la franja: campos en
    * grilla pareja y presets en su propia fila. En la fila suelta, los
    * presets caían solos a la derecha y quedaba desordenado.
    */
   apilado?: boolean
+  paramPagina?: string
 }) {
-  const router = useRouter()
-  const [d, setD] = useState(desde)
-  const [h, setH] = useState(hasta)
-  const [vals, setVals] = useState<Record<string, string>>(() =>
-    Object.fromEntries(extras.map((e) => [e.param, e.value])),
-  )
-  const [pendiente, startTransition] = useTransition()
+  const { aplicar: aplicarUrl, pendiente } = useFiltrosUrl({ paramPagina })
+  const [d, setD] = useValorSincronizado(desde)
+  const [h, setH] = useValorSincronizado(hasta)
 
   const rangoInvertido = d > h
   const timerFecha = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -90,20 +85,14 @@ export function FiltroPeriodo({
     }
   }, [])
 
-  function aplicar(nd: string, nh: string, nv: Record<string, string>) {
+  function aplicarFechas(nd: string, nh: string) {
     if (timerFecha.current) clearTimeout(timerFecha.current)
     // Una fecha vacía no se manda: si se borra un extremo, el filtro queda
     // abierto de ese lado y la page aplica su default.
-    const params = new URLSearchParams()
-    if (nd) params.set('desde', nd)
-    if (nh) params.set('hasta', nh)
-    for (const e of extras) {
-      if (nv[e.param]) params.set(e.param, nv[e.param])
-    }
-    for (const [k, v] of Object.entries(conservar)) {
-      if (v) params.set(k, v)
-    }
-    startTransition(() => router.push(`${basePath}?${params.toString()}`))
+    aplicarUrl({
+      desde: nd || null,
+      hasta: nh || null,
+    })
   }
 
   function cambiarFecha(nd: string, nh: string) {
@@ -111,21 +100,21 @@ export function FiltroPeriodo({
     setH(nh)
     if (timerFecha.current) clearTimeout(timerFecha.current)
     if (nd && nh && nd > nh) return
-    timerFecha.current = setTimeout(() => aplicar(nd, nh, vals), 600)
+    timerFecha.current = setTimeout(() => aplicarFechas(nd, nh), 600)
   }
 
   function aplicarPreset(preset: Preset) {
     const { desde: nd, hasta: nh } = PRESETS.find((p) => p.id === preset)!.rango()
     setD(nd)
     setH(nh)
-    aplicar(nd, nh, vals)
+    aplicarFechas(nd, nh)
   }
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        if (!rangoInvertido) aplicar(d, h, vals)
+        if (!rangoInvertido) aplicarFechas(d, h)
       }}
       className={apilado ? 'flex w-full flex-col gap-3' : 'flex w-full flex-wrap items-end gap-3 lg:w-auto'}
       aria-label={ariaLabel}
@@ -140,6 +129,7 @@ export function FiltroPeriodo({
           label="Desde"
           error={rangoInvertido ? 'Posterior a "Hasta"' : undefined}
         >
+          {/* No se deshabilitan mientras está pendiente para no perder el foco al tipear. */}
           <Input
             id={`${idPrefix}-desde`}
             type="date"
@@ -147,7 +137,6 @@ export function FiltroPeriodo({
             max={h}
             invalid={rangoInvertido}
             onChange={(e) => cambiarFecha(e.target.value, h)}
-            disabled={pendiente}
           />
         </Field>
       </div>
@@ -159,31 +148,21 @@ export function FiltroPeriodo({
             value={h}
             min={d}
             onChange={(e) => cambiarFecha(d, e.target.value)}
-            disabled={pendiente}
           />
         </Field>
       </div>
 
       {extras.map((x) => (
         <div key={x.param} className={apilado ? 'col-span-2 sm:col-span-1' : `max-w-full ${x.ancho ?? 'w-40'}`}>
-          <Field htmlFor={`${idPrefix}-${x.param}`} label={x.label}>
-            <Select
-              id={`${idPrefix}-${x.param}`}
-              value={vals[x.param] ?? ''}
-              onChange={(e) => {
-                const next = { ...vals, [x.param]: e.target.value }
-                setVals(next)
-                if (!rangoInvertido) aplicar(d, h, next)
-              }}
-              disabled={pendiente}
-            >
-              {x.options.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <SelectUrl
+            id={`${idPrefix}-${x.param}`}
+            param={x.param}
+            valor={x.value}
+            opciones={x.options}
+            valorPorDefecto={x.valorPorDefecto}
+            label={x.label}
+            paramPagina={paramPagina}
+          />
         </div>
       ))}
       </div>
