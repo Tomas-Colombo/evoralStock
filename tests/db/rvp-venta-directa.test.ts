@@ -41,7 +41,7 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
         .from('rol')
         .insert({
           id_tenant: fixture.tenantId,
-          nombre: withScopedTenant(`Rev_${nombre}`),
+          nombre: 'Revendedora',
           permisos: { revendedoras: permisos },
         })
         .select('id_rol')
@@ -280,20 +280,35 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
   })
 
   test('N3: módulo revendedoras apagado -> modulo-revendedoras-deshabilitado', async () => {
-    const ctx = await setupContext()
-
+    // Tenant propio y revendedora SIN consignaciones: la guarda de tenant_modulo
+    // (modulo-con-estado-vivo) no deja apagar el módulo con consignaciones abiertas.
+    const fOff = await ventaFixture('VtaDirOff', 1, { tipoIngreso: 'compra' })
+    tenantsToClean.push(fOff.tenantId)
+    const { data: mod } = await serviceRole
+      .from('modulo')
+      .select('id_modulo')
+      .eq('codigo', 'revendedoras')
+      .single()
     await serviceRole
       .from('tenant_modulo')
-      .update({ habilitado: false })
-      .eq('id_tenant', ctx.fA.tenantId)
-      .eq('id_modulo', ctx.idModuloRev)
+      .insert({ id_tenant: fOff.tenantId, id_modulo: mod!.id_modulo, habilitado: true })
+    const dora = await crearRevendedoraConStock(fOff, 'Dora', 'dora_vd', [])
 
-    const { error: errMod } = await ctx.ana.auth.rpc('sp_registrar_venta_revendedora', {
-      p_items: [ctx.fA.items[0]],
+    const { data: apagado, error: errApagar } = await serviceRole
+      .from('tenant_modulo')
+      .update({ habilitado: false })
+      .eq('id_tenant', fOff.tenantId)
+      .eq('id_modulo', mod!.id_modulo)
+      .select('habilitado')
+    expect(errApagar, 'apagar módulo revendedoras').toBeNull()
+    expect(apagado).toEqual([{ habilitado: false }])
+
+    const { error: errMod } = await dora.auth.rpc('sp_registrar_venta_revendedora', {
+      p_items: [fOff.items[0]],
     })
     expect(errMod?.message).toMatch(/modulo-revendedoras-deshabilitado/)
 
-    const { error: errRes } = await ctx.ana.auth.rpc('rvp_resolver_item_stock', {
+    const { error: errRes } = await dora.auth.rpc('rvp_resolver_item_stock', {
       p_codigo: 'CUALQUIERA',
     })
     expect(errRes?.message).toMatch(/modulo-revendedoras-deshabilitado/)

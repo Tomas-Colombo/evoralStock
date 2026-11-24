@@ -1110,7 +1110,54 @@ grant execute on function rvp_resolver_item_stock(text, uuid[]) to authenticated
 revoke all on function sp_registrar_venta_revendedora(uuid[]) from public, anon;
 grant execute on function sp_registrar_venta_revendedora(uuid[]) to authenticated;
 
+-- 9. Cuadre de pagos diferido: DEFINER
+-- tr_venta_cuadre_pagos es diferido: corre en el COMMIT, ya fuera de
+-- sp_registrar_venta_revendedora, con el rol de la sesión. Para una revendedora
+-- la RLS de pago_venta esconde el pago cuenta_revendedora recién insertado, la
+-- suma da 0 y toda venta directa fallaba con cuadre-pagos-fallido. El cuadre es
+-- un invariante de la venta, no una lectura del usuario: no puede depender de lo
+-- que el llamador ve. Es función de trigger (no invocable por RPC) y solo
+-- compara montos de la venta que se está insertando.
+create or replace function tg_venta_cuadre_pagos()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_suma numeric(14, 2) := 0;
+begin
+  select coalesce(sum(monto), 0) into v_suma
+    from pago_venta
+   where id_venta = new.id_venta and id_tenant = new.id_tenant;
+  select v_suma + coalesce(sum(monto), 0) into v_suma
+    from cuota_financiada
+   where id_venta = new.id_venta and id_tenant = new.id_tenant;
+
+  if v_suma <> new.total then
+    raise exception 'cuadre-pagos-fallido: total de venta % no coincide con suma de pagos y cuotas %', new.total, v_suma using errcode = '22023';
+  end if;
+  return new;
+end $$;
+
+revoke all on function tg_venta_cuadre_pagos() from public, anon, authenticated;
+
 -- DOWN:
+-- create or replace function tg_venta_cuadre_pagos()
+-- returns trigger language plpgsql as $$
+-- declare
+--   v_suma numeric(14, 2) := 0;
+-- begin
+--   select coalesce(sum(monto), 0) into v_suma from pago_venta where id_venta = new.id_venta;
+--   select v_suma + coalesce(sum(monto), 0) into v_suma from cuota_financiada where id_venta = new.id_venta;
+--
+--   if v_suma <> new.total then
+--     raise exception 'cuadre-pagos-fallido: total de venta % no coincide con suma de pagos y cuotas %', new.total, v_suma using errcode = '22023';
+--   end if;
+--   return new;
+-- end $$;
+-- grant execute on function tg_venta_cuadre_pagos() to public;
+--
 -- drop function if exists sp_registrar_venta_revendedora(uuid[]);
 -- drop function if exists rvp_resolver_item_stock(text, uuid[]);
 --
