@@ -327,3 +327,12 @@ export interface DeclaracionVentaLocalRow {
   created_at: string
 }
 
+export interface RvpItemStockResuelto {
+  id_item: string
+  id_producto: string
+  descripcion: string
+  sku: string
+  talle: string | null
+  precio_venta: number | null
+}
+

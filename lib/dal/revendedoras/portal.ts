@@ -4,14 +4,15 @@ import type { Session } from '@/lib/dal/session'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { escaparPatronLike } from '@/lib/inventario/codigo'
 import type {
-  DeclararVentaRevendedoraPayload,
-  RetirarDeclaracionPayload,
+  RegistrarVentaRevendedoraPayload,
+  ResolverItemStockPayload,
 } from '@/lib/validation/revendedoras'
 import type {
   EstadoFiltroDeclaraciones,
   EstadoFiltroLiquidaciones,
   EstadoFiltroStock,
   EstadoFiltroVentas,
+  RvpItemStockResuelto,
   RvpListaPaginada,
   RvpMiCuentaRow,
   RvpMiStockRow,
@@ -27,6 +28,10 @@ const REGLAS_SLUG: readonly ReglaSlug[] = [
   { slug: 'no-revendedora' },
   { slug: 'estado-filtro-invalido' },
   { slug: 'item-no-en-poder' },
+  { slug: 'item-costo-pendiente' },
+  { slug: 'lineas-vacias' },
+  { slug: 'payload-invalido' },
+  { slug: 'precio-no-resoluble', conDetalle: true },
   { slug: 'declaracion-duplicada' },
   { slug: 'declaracion-no-encontrada' },
   { slug: 'declaracion-no-pendiente' },
@@ -277,37 +282,49 @@ export async function listarMisDeclaraciones(
   }
 }
 
-export async function declararVentaRevendedora(
+export async function registrarVentaRevendedora(
   session: Session,
-  payload: DeclararVentaRevendedoraPayload,
-): Promise<{ ok: true; data: string } | { ok: false; reason: string }> {
-  await requireModuleRole(session, 'revendedoras', 'declarar')
+  payload: RegistrarVentaRevendedoraPayload,
+): Promise<{ ok: true; data: { id_venta: string } } | { ok: false; reason: string }> {
+  await requireModuleRole(session, 'revendedoras', 'vender')
   const supabase = await createServerClient()
-  const { data, error } = await supabase.rpc('sp_declarar_venta_revendedora', {
-    p_id_item: payload.id_item,
-    p_nota: payload.nota ?? '',
+  const { data, error } = await supabase.rpc('sp_registrar_venta_revendedora', {
+    p_items: payload.id_items,
   })
 
   if (error) {
     return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
   }
 
-  return { ok: true, data: data as string }
+  return { ok: true, data: { id_venta: String(data) } }
 }
 
-export async function retirarDeclaracion(
+export async function resolverItemStockRevendedora(
   session: Session,
-  payload: RetirarDeclaracionPayload,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  await requireModuleRole(session, 'revendedoras', 'declarar')
+  payload: ResolverItemStockPayload,
+): Promise<{ ok: true; data: RvpItemStockResuelto[] } | { ok: false; reason: string }> {
+  await requireModuleRole(session, 'revendedoras', 'vender')
   const supabase = await createServerClient()
-  const { error } = await supabase.rpc('sp_retirar_declaracion', {
-    p_id_declaracion: payload.id_declaracion,
+  const { data, error } = await supabase.rpc('rvp_resolver_item_stock', {
+    p_codigo: payload.codigo,
+    p_excluir: payload.excluir,
   })
 
   if (error) {
     return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
   }
 
-  return { ok: true }
+  const filas = (data ?? []) as unknown as Record<string, unknown>[]
+  return {
+    ok: true,
+    data: filas.map((r) => ({
+      id_item: String(r.id_item),
+      id_producto: String(r.id_producto),
+      descripcion: String(r.descripcion ?? ''),
+      sku: String(r.sku ?? ''),
+      talle: r.talle ? String(r.talle) : null,
+      precio_venta:
+        r.precio_venta !== null && r.precio_venta !== undefined ? Number(r.precio_venta) : null,
+    })),
+  }
 }

@@ -99,7 +99,7 @@ describe('ACC-42: Cada Server Action administrativa invocada con sesión de reve
     idRevendedora: '00000000-0000-0000-0000-000000000001',
     modulosHabilitados: ['revendedoras', 'ventas', 'inventario', 'administracion'],
     permisos: {
-      revendedoras: ['ver_propio', 'declarar'],
+      revendedoras: ['ver_propio', 'vender'],
     },
     subdominioOk: true,
     marca: { nombre: 'Tenant 1', logoUrl: null },

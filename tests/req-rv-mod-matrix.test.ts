@@ -68,7 +68,7 @@ describe('C.3: Matriz de bloqueo REQ-RV-MOD (un test por fila)', () => {
     it('Módulo prendido pero rol sin permiso ver -> lanza no-permission', async () => {
       const sessionSinPermiso = mockSession({
         modulosHabilitados: ['revendedoras'],
-        permisos: { revendedoras: ['declarar'] },
+        permisos: { revendedoras: ['vender'] },
       })
       await expect(requireModuleRole(sessionSinPermiso, 'revendedoras', 'ver')).rejects.toThrow(
         new AuthorizationError('no-permission'),
@@ -138,7 +138,7 @@ describe('C.3: Matriz de bloqueo REQ-RV-MOD (un test por fila)', () => {
 
       const sessionSinVer = mockSession({
         modulosHabilitados: ['revendedoras'],
-        permisos: { revendedoras: ['declarar'] },
+        permisos: { revendedoras: ['vender'] },
       })
       expect(hasPermission(sessionSinVer, 'revendedoras', 'ver')).toBe(false)
     })

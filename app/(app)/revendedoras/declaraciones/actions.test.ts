@@ -44,7 +44,7 @@ describe('revendedoras declaraciones actions (bandeja local)', () => {
     tenantId: 'tenant-1',
     rolId: 'rol-revendedora',
     rolNombre: 'Revendedora',
-    permisos: { revendedoras: ['ver_propio', 'declarar'] },
+    permisos: { revendedoras: ['ver_propio', 'vender'] },
     modulosHabilitados: ['revendedoras'],
     subdominioOk: true,
     idRevendedora: 'rev-uuid-123',

@@ -14,7 +14,7 @@ const ACCIONES_BASICAS = ['ver', 'crear', 'editar', 'eliminar'] as const
 // Acciones exclusivas del portal de revendedoras (no asignables a roles internos de empleados,
 // mismo criterio que scripts/provision-tenant.mts).
 const ACCIONES_PORTAL: Record<string, readonly string[]> = {
-  revendedoras: ['ver_propio', 'declarar'],
+  revendedoras: ['ver_propio', 'vender'],
 }
 
 function esAccionEspecialVisible(modulo: string, accion: string): boolean {

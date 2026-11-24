@@ -69,7 +69,7 @@ const _CATALOGO = {
   gastos: ['ver', 'crear', 'editar'],
   reportes: ['ver'],
   administracion: ['ver', 'crear', 'editar', 'eliminar'],
-  revendedoras: ['ver', 'crear', 'editar', 'eliminar', 'liquidar', 'ver_propio', 'declarar'],
+  revendedoras: ['ver', 'crear', 'editar', 'eliminar', 'liquidar', 'ver_propio', 'vender'],
   ayuda: ['consultar'],
 } as const satisfies Record<string, readonly string[]>
 
@@ -115,7 +115,7 @@ export const ACCION_LABEL: Record<string, string> = {
   editar_cotizacion: 'Editar cotización',
   liquidar: 'Liquidar',
   ver_propio: 'Ver propio',
-  declarar: 'Declarar',
+  vender: 'Vender',
   consultar: 'Consultar',
 }
 

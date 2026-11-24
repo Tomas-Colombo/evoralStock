@@ -280,7 +280,7 @@ describe('revendedoras actions', () => {
       tenantId: 'tenant-1',
       rolId: 'rol-rev',
       rolNombre: 'Revendedora',
-      permisos: { revendedoras: ['ver_propio', 'declarar'] },
+      permisos: { revendedoras: ['ver_propio', 'vender'] },
       modulosHabilitados: ['revendedoras'],
       subdominioOk: true,
       idRevendedora: 'rev-uuid-1',

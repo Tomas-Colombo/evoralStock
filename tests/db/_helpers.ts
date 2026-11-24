@@ -81,7 +81,7 @@ const PERMISOS_ADMIN_FIXTURE: Record<string, string[]> = Object.fromEntries(
   Object.entries(CATALOGO_PERMISOS).map(([modulo, acciones]) => [
     modulo,
     modulo === 'revendedoras'
-      ? acciones.filter((a) => a !== 'ver_propio' && a !== 'vender' && a !== 'declarar')
+      ? acciones.filter((a) => a !== 'ver_propio' && a !== 'vender')
       : [...acciones],
   ]),
 )

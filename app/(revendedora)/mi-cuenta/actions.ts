@@ -5,32 +5,36 @@ import { verifySession } from '@/lib/dal/session'
 import { classifyAuthError, requireModuleRole } from '@/lib/dal/guard'
 import { AuthorizationError } from '@/lib/dal/errors'
 import {
-  declararVentaRevendedoraSchema,
-  retirarDeclaracionSchema,
+  registrarVentaRevendedoraSchema,
+  resolverItemStockSchema,
 } from '@/lib/validation/revendedoras'
 import * as dal from '@/lib/dal/revendedoras'
 
-export async function declararVentaAction(input: unknown) {
+export async function registrarVentaRevendedoraAction(input: unknown) {
   try {
     const session = await verifySession()
     if (!session.idRevendedora) {
       throw new AuthorizationError('no-permission')
     }
-    await requireModuleRole(session, 'revendedoras', 'declarar')
+    await requireModuleRole(session, 'revendedoras', 'vender')
 
-    const parsed = declararVentaRevendedoraSchema.safeParse(input)
+    const parsed = registrarVentaRevendedoraSchema.safeParse(input)
     if (!parsed.success) {
-      return { ok: false as const, reason: 'payload-invalido' }
+      const firstMsg = parsed.error.issues[0]?.message
+      return {
+        ok: false as const,
+        reason: firstMsg === 'lineas-vacias' ? 'lineas-vacias' : 'payload-invalido',
+      }
     }
 
-    const res = await dal.declararVentaRevendedora(session, parsed.data)
+    const res = await dal.registrarVentaRevendedora(session, parsed.data)
     if (!res.ok) {
       return res
     }
 
     revalidatePath('/mi-cuenta')
     revalidatePath('/mi-cuenta/stock')
-    revalidatePath('/mi-cuenta/declaraciones')
+    revalidatePath('/mi-cuenta/ventas')
     return { ok: true as const, data: res.data }
   } catch (err) {
     const auth = classifyAuthError(err)
@@ -39,28 +43,20 @@ export async function declararVentaAction(input: unknown) {
   }
 }
 
-export async function retirarDeclaracionAction(input: unknown) {
+export async function buscarItemStockRevendedoraAction(input: unknown) {
   try {
     const session = await verifySession()
     if (!session.idRevendedora) {
       throw new AuthorizationError('no-permission')
     }
-    await requireModuleRole(session, 'revendedoras', 'declarar')
+    await requireModuleRole(session, 'revendedoras', 'vender')
 
-    const parsed = retirarDeclaracionSchema.safeParse(input)
+    const parsed = resolverItemStockSchema.safeParse(input)
     if (!parsed.success) {
       return { ok: false as const, reason: 'payload-invalido' }
     }
 
-    const res = await dal.retirarDeclaracion(session, parsed.data)
-    if (!res.ok) {
-      return res
-    }
-
-    revalidatePath('/mi-cuenta')
-    revalidatePath('/mi-cuenta/stock')
-    revalidatePath('/mi-cuenta/declaraciones')
-    return { ok: true as const }
+    return await dal.resolverItemStockRevendedora(session, parsed.data)
   } catch (err) {
     const auth = classifyAuthError(err)
     if (auth.kind === 'auth') return { ok: false as const, reason: auth.reason }

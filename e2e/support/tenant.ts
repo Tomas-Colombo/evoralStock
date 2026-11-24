@@ -188,7 +188,7 @@ export async function provisionTenant(): Promise<SeedData> {
     const permitidas = accionesDelModulo(m.codigo) ?? [...ACCIONES]
     PERMISOS_ADMIN[m.codigo] =
       m.codigo === 'revendedoras'
-        ? permitidas.filter((a) => a !== 'ver_propio' && a !== 'declarar')
+        ? permitidas.filter((a) => a !== 'ver_propio' && a !== 'vender')
         : [...permitidas]
   }
 

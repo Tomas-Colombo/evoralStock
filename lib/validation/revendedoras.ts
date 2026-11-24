@@ -242,21 +242,23 @@ export const altaRevendedoraUnificadaSchema = z.strictObject({
 })
 export type AltaRevendedoraUnificadaPayload = z.infer<typeof altaRevendedoraUnificadaSchema>
 
-export const declararVentaRevendedoraSchema = z.strictObject({
-  id_item: z.string().uuid('id-item-invalido'),
-  nota: z
-    .string()
-    .trim()
-    .max(500, 'observaciones-largas')
-    .optional()
-    .default(''),
+export const registrarVentaRevendedoraSchema = z.strictObject({
+  id_items: z
+    .array(z.string().uuid('payload-invalido'))
+    .min(1, 'lineas-vacias')
+    .max(50, 'payload-invalido')
+    .transform((items) => Array.from(new Set(items))),
 })
-export type DeclararVentaRevendedoraPayload = z.infer<typeof declararVentaRevendedoraSchema>
+export type RegistrarVentaRevendedoraPayload = z.infer<typeof registrarVentaRevendedoraSchema>
 
-export const retirarDeclaracionSchema = z.strictObject({
-  id_declaracion: z.string().uuid('id-declaracion-invalido'),
+export const resolverItemStockSchema = z.strictObject({
+  codigo: z.string().trim().min(1, 'payload-invalido').max(100, 'payload-invalido'),
+  excluir: z
+    .array(z.string().uuid('payload-invalido'))
+    .max(50, 'payload-invalido')
+    .default([]),
 })
-export type RetirarDeclaracionPayload = z.infer<typeof retirarDeclaracionSchema>
+export type ResolverItemStockPayload = z.infer<typeof resolverItemStockSchema>
 
 export const confirmarDeclaracionVentaSchema = z.strictObject({
   id_declaracion: z.string().uuid('id-declaracion-invalido'),

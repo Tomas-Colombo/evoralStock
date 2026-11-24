@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
-import { declararVentaAction } from '../actions'
+import { registrarVentaRevendedoraAction } from '../actions'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
@@ -47,9 +47,8 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
   const handleConfirmarDeclaracion = () => {
     if (!selectedItem) return
     startTransition(async () => {
-      const res = await declararVentaAction({
-        id_item: selectedItem.id_item,
-        nota,
+      const res = await registrarVentaRevendedoraAction({
+        id_items: [selectedItem.id_item],
       })
 
       if (res.ok) {

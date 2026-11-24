@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { mensajeDeError } from '@/lib/errores/mensajes'
-import { retirarDeclaracionAction } from '../actions'
 import { Badge } from '@/components/ui/Badge'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
@@ -45,17 +44,9 @@ export function DeclaracionesRevendedoraView({
   const handleRetirar = () => {
     if (!selectedParaRetirar) return
     startTransition(async () => {
-      const res = await retirarDeclaracionAction({
-        id_declaracion: selectedParaRetirar.id_declaracion,
-      })
-
-      if (res.ok) {
-        toast.success('Declaración retirada', 'El artículo volvió a figurar disponible en tu stock.')
-        setSelectedParaRetirar(null)
-        router.refresh()
-      } else {
-        toast.error('Error al retirar', mensajeDeError(res.reason))
-      }
+      toast.error('Error al retirar', mensajeDeError('no-permission'))
+      setSelectedParaRetirar(null)
+      router.refresh()
     })
   }
 

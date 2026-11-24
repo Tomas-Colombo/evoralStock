@@ -156,7 +156,7 @@ export const verifySession = cache(async (): Promise<Session> => {
 
     const rolObj = userRow?.rol as { nombre?: string; permisos?: RolePermissions } | null
     const rolNombre = rolObj?.nombre ?? 'Revendedora'
-    const permisos = rolObj?.permisos ?? { revendedoras: ['ver_propio', 'declarar'] }
+    const permisos = rolObj?.permisos ?? { revendedoras: ['ver_propio', 'vender'] }
     const moduloHabilitado = Boolean(modRow?.habilitado)
     const subdominioOk = subdominio ? Boolean(tenantRow) : false
 

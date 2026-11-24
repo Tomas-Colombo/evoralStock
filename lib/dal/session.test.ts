@@ -202,7 +202,7 @@ describe('verifySession — sesión de revendedora (REQ-RV-ACC-01/03/40)', () =>
                 id_rol: 'rol-rev-uuid',
                 rol: {
                   nombre: 'Revendedora',
-                  permisos: { revendedoras: ['ver_propio', 'declarar'] },
+                  permisos: { revendedoras: ['ver_propio', 'vender'] },
                 },
               },
               error: null,
@@ -232,7 +232,7 @@ describe('verifySession — sesión de revendedora (REQ-RV-ACC-01/03/40)', () =>
 
     expect(session.idRevendedora).toBe('rev-uuid-1')
     expect(session.rolNombre).toBe('Revendedora')
-    expect(session.permisos).toEqual({ revendedoras: ['ver_propio', 'declarar'] })
+    expect(session.permisos).toEqual({ revendedoras: ['ver_propio', 'vender'] })
     expect(session.modulosHabilitados).toEqual(['revendedoras'])
   })
 
@@ -257,7 +257,7 @@ describe('verifySession — sesión de revendedora (REQ-RV-ACC-01/03/40)', () =>
                 id_rol: 'rol-rev-uuid',
                 rol: {
                   nombre: 'Revendedora',
-                  permisos: { revendedoras: ['ver_propio', 'declarar'] },
+                  permisos: { revendedoras: ['ver_propio', 'vender'] },
                 },
               },
               error: null,

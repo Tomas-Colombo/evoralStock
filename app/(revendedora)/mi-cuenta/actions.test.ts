@@ -1,9 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { revalidatePath } from 'next/cache'
 import * as dal from '@/lib/dal/revendedoras'
 import * as guard from '@/lib/dal/guard'
 import * as sessionModule from '@/lib/dal/session'
 import { AuthorizationError } from '@/lib/dal/errors'
-import { declararVentaAction, retirarDeclaracionAction } from './actions'
+import {
+  registrarVentaRevendedoraAction,
+  buscarItemStockRevendedoraAction,
+} from './actions'
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
@@ -22,9 +26,19 @@ vi.mock('@/lib/dal/guard', async (importOriginal) => {
 })
 
 vi.mock('@/lib/dal/revendedoras', () => ({
-  declararVentaRevendedora: vi.fn(),
-  retirarDeclaracion: vi.fn(),
+  registrarVentaRevendedora: vi.fn(),
+  resolverItemStockRevendedora: vi.fn(),
 }))
+
+const UUID_1 = '123e4567-e89b-12d3-a456-426614174000'
+const UUID_2 = '123e4567-e89b-12d3-a456-426614174001'
+
+function generarUuids(n: number): string[] {
+  return Array.from({ length: n }, (_, i) => {
+    const hex = i.toString(16).padStart(12, '0')
+    return `123e4567-e89b-12d3-a456-${hex}`
+  })
+}
 
 describe('mi-cuenta actions (portal revendedora)', () => {
   const mockRevendedoraSession = {
@@ -32,7 +46,7 @@ describe('mi-cuenta actions (portal revendedora)', () => {
     tenantId: 'tenant-1',
     rolId: 'rol-revendedora',
     rolNombre: 'Revendedora',
-    permisos: { revendedoras: ['ver_propio', 'declarar'] },
+    permisos: { revendedoras: ['ver_propio', 'vender'] },
     modulosHabilitados: ['revendedoras'],
     subdominioOk: true,
     idRevendedora: 'rev-uuid-123',
@@ -57,125 +71,172 @@ describe('mi-cuenta actions (portal revendedora)', () => {
     vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
   })
 
-  describe('declararVentaAction', () => {
+  describe('registrarVentaRevendedoraAction', () => {
     it('falla con no-permission si la sesión es de un operador (sin idRevendedora)', async () => {
       vi.mocked(sessionModule.verifySession).mockResolvedValue(mockOperadorSession)
 
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-      })
+      const res = await registrarVentaRevendedoraAction({ id_items: [UUID_1] })
 
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
-      expect(dal.declararVentaRevendedora).not.toHaveBeenCalled()
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
     })
 
-    it('falla con no-permission si el rol no tiene revendedoras/declarar', async () => {
+    it('falla con no-permission si el rol no tiene revendedoras/vender', async () => {
       vi.mocked(guard.requireModuleRole).mockRejectedValueOnce(new AuthorizationError('no-permission'))
 
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-      })
+      const res = await registrarVentaRevendedoraAction({ id_items: [UUID_1] })
 
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
-      expect(dal.declararVentaRevendedora).not.toHaveBeenCalled()
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
     })
 
     it('falla con module-disabled si el módulo está deshabilitado', async () => {
       vi.mocked(guard.requireModuleRole).mockRejectedValueOnce(new AuthorizationError('module-disabled'))
 
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-      })
+      const res = await registrarVentaRevendedoraAction({ id_items: [UUID_1] })
 
       expect(res).toEqual({ ok: false, reason: 'module-disabled' })
-      expect(dal.declararVentaRevendedora).not.toHaveBeenCalled()
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
     })
 
-    it('falla con payload-invalido si falta id_item o no es uuid', async () => {
-      const res = await declararVentaAction({ id_item: 'no-es-uuid' })
+    it('falla con lineas-vacias si el carrito está vacío', async () => {
+      const res = await registrarVentaRevendedoraAction({ id_items: [] })
+
+      expect(res).toEqual({ ok: false, reason: 'lineas-vacias' })
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
+    })
+
+    it('falla con payload-invalido si supera los 50 ítems', async () => {
+      const res = await registrarVentaRevendedoraAction({ id_items: generarUuids(51) })
+
       expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
-      expect(dal.declararVentaRevendedora).not.toHaveBeenCalled()
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
     })
 
-    it('falla con payload-invalido si se intenta inyectar id_revendedora o tenantId (strictObject)', async () => {
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
+    it('falla con payload-invalido si algún id_item no es uuid', async () => {
+      const res = await registrarVentaRevendedoraAction({ id_items: ['no-es-uuid'] })
+
+      expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
+    })
+
+    it('falla con payload-invalido si se intenta inyectar campos extras (strictObject)', async () => {
+      const res = await registrarVentaRevendedoraAction({
+        id_items: [UUID_1],
         id_revendedora: 'rev-otra',
       })
+
       expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
-      expect(dal.declararVentaRevendedora).not.toHaveBeenCalled()
+      expect(dal.registrarVentaRevendedora).not.toHaveBeenCalled()
     })
 
-    it('éxito: valida permisos, pasa parsed.data al DAL y retorna data', async () => {
-      vi.mocked(dal.declararVentaRevendedora).mockResolvedValue({
+    it('deduplica id_items, delega al DAL con parsed.data y revalida las tres rutas', async () => {
+      vi.mocked(dal.registrarVentaRevendedora).mockResolvedValue({
         ok: true,
-        data: 'dec-uuid-1',
+        data: { id_venta: 'venta-uuid-1' },
       })
 
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-        nota: 'Pago acordado',
+      const res = await registrarVentaRevendedoraAction({
+        id_items: [UUID_1, UUID_2, UUID_1],
       })
 
-      expect(res).toEqual({ ok: true, data: 'dec-uuid-1' })
-      expect(guard.requireModuleRole).toHaveBeenCalledWith(mockRevendedoraSession, 'revendedoras', 'declarar')
-      expect(dal.declararVentaRevendedora).toHaveBeenCalledWith(mockRevendedoraSession, {
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-        nota: 'Pago acordado',
+      expect(res).toEqual({ ok: true, data: { id_venta: 'venta-uuid-1' } })
+      expect(guard.requireModuleRole).toHaveBeenCalledWith(
+        mockRevendedoraSession,
+        'revendedoras',
+        'vender',
+      )
+      expect(dal.registrarVentaRevendedora).toHaveBeenCalledWith(mockRevendedoraSession, {
+        id_items: [UUID_1, UUID_2],
       })
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta')
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta/stock')
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta/ventas')
+      expect(revalidatePath).toHaveBeenCalledTimes(3)
     })
 
-    it('retorna error del DAL cuando el ítem no está en su poder o está duplicado', async () => {
-      vi.mocked(dal.declararVentaRevendedora).mockResolvedValue({
+    it('retorna error del DAL sin revalidar si falla el RPC', async () => {
+      vi.mocked(dal.registrarVentaRevendedora).mockResolvedValue({
         ok: false,
         reason: 'item-no-en-poder',
       })
 
-      const res = await declararVentaAction({
-        id_item: '123e4567-e89b-12d3-a456-426614174000',
-      })
+      const res = await registrarVentaRevendedoraAction({ id_items: [UUID_1] })
 
       expect(res).toEqual({ ok: false, reason: 'item-no-en-poder' })
+      expect(revalidatePath).not.toHaveBeenCalled()
     })
   })
 
-  describe('retirarDeclaracionAction', () => {
-    it('falla con no-permission si la sesión es de operador', async () => {
+  describe('buscarItemStockRevendedoraAction', () => {
+    it('falla con no-permission si la sesión es de operador (sin idRevendedora)', async () => {
       vi.mocked(sessionModule.verifySession).mockResolvedValue(mockOperadorSession)
 
-      const res = await retirarDeclaracionAction({
-        id_declaracion: '123e4567-e89b-12d3-a456-426614174001',
-      })
+      const res = await buscarItemStockRevendedoraAction({ codigo: 'REM-0001' })
 
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
-      expect(dal.retirarDeclaracion).not.toHaveBeenCalled()
+      expect(dal.resolverItemStockRevendedora).not.toHaveBeenCalled()
     })
 
-    it('falla con payload-invalido si id_declaracion no es uuid', async () => {
-      const res = await retirarDeclaracionAction({ id_declaracion: '123' })
-      expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
-      expect(dal.retirarDeclaracion).not.toHaveBeenCalled()
+    it('falla con no-permission si el rol no tiene revendedoras/vender', async () => {
+      vi.mocked(guard.requireModuleRole).mockRejectedValueOnce(new AuthorizationError('no-permission'))
+
+      const res = await buscarItemStockRevendedoraAction({ codigo: 'REM-0001' })
+
+      expect(res).toEqual({ ok: false, reason: 'no-permission' })
+      expect(dal.resolverItemStockRevendedora).not.toHaveBeenCalled()
     })
 
-    it('falla con payload-invalido si se intentan enviar campos extras', async () => {
-      const res = await retirarDeclaracionAction({
-        id_declaracion: '123e4567-e89b-12d3-a456-426614174001',
-        extra: 'campo',
+    it('falla con payload-invalido si codigo está vacío o tiene campos extras', async () => {
+      const resVacio = await buscarItemStockRevendedoraAction({ codigo: '   ' })
+      expect(resVacio).toEqual({ ok: false, reason: 'payload-invalido' })
+
+      const resExtra = await buscarItemStockRevendedoraAction({
+        codigo: 'REM-0001',
+        extra: true,
       })
-      expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
-      expect(dal.retirarDeclaracion).not.toHaveBeenCalled()
+      expect(resExtra).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(dal.resolverItemStockRevendedora).not.toHaveBeenCalled()
     })
 
-    it('éxito: valida permisos, llama al DAL y retorna ok', async () => {
-      vi.mocked(dal.retirarDeclaracion).mockResolvedValue({ ok: true })
-
-      const res = await retirarDeclaracionAction({
-        id_declaracion: '123e4567-e89b-12d3-a456-426614174001',
+    it('delega al DAL con parsed.data (excluir por defecto [])', async () => {
+      vi.mocked(dal.resolverItemStockRevendedora).mockResolvedValue({
+        ok: true,
+        data: [
+          {
+            id_item: UUID_1,
+            id_producto: UUID_2,
+            descripcion: 'Remera',
+            sku: 'REM-0001',
+            talle: 'M',
+            precio_venta: 15000,
+          },
+        ],
       })
 
-      expect(res).toEqual({ ok: true })
-      expect(dal.retirarDeclaracion).toHaveBeenCalledWith(mockRevendedoraSession, {
-        id_declaracion: '123e4567-e89b-12d3-a456-426614174001',
+      const res = await buscarItemStockRevendedoraAction({ codigo: '  REM-0001  ' })
+
+      expect(res).toEqual({
+        ok: true,
+        data: [
+          {
+            id_item: UUID_1,
+            id_producto: UUID_2,
+            descripcion: 'Remera',
+            sku: 'REM-0001',
+            talle: 'M',
+            precio_venta: 15000,
+          },
+        ],
+      })
+      expect(guard.requireModuleRole).toHaveBeenCalledWith(
+        mockRevendedoraSession,
+        'revendedoras',
+        'vender',
+      )
+      expect(dal.resolverItemStockRevendedora).toHaveBeenCalledWith(mockRevendedoraSession, {
+        codigo: 'REM-0001',
+        excluir: [],
       })
     })
   })
