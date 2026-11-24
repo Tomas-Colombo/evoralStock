@@ -65,7 +65,7 @@ const SLUGS_DE_LA_APP = [
   'talle-no-valido', 'usuario-not-found', 'vencimiento-invalido', 'venta-anulada',
   'venta-con-incobrables', 'venta-not-found', 'venta-ya-rendida', 'venta-liquidada', 'venta-revendedora-sin-id', 'canal-no-disponible', 'devolucion-venta-revendedora', 'item-no-en-revendedora', 'medio-solo-revendedora', 'venta-revendedora-con-pagos', 'canal-invalido', 'revendedora-invalida',
   'liquidacion-vacia', 'liquidacion-ya-pagada', 'cuenta-invalida-liquidacion', 'monto-pago-invalido', 'detalle-ya-liquidado', 'detalle-no-en-liquidacion', 'liquidacion-no-encontrada', 'revendedora-invalida-liquidacion', 'pago-revendedora-inmutable',
-  'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora',
+  'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora', 'estado-filtro-invalido',
   'formato-ean12-invalido', 'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-nombre-invalido', 'plantilla-medidas-invalidas',
   'plantilla-predeterminada-no-se-borra', 'plantilla-no-encontrada', 'plantillas-limite', 'codigo-ean-inmutable', 'etiqueta-chica-para-codigo', 'etiqueta-no-entra-en-hoja',
   // Rutas de API

@@ -330,6 +330,7 @@ const MENSAJES: Record<string, string> = {
   'declaracion-no-encontrada': 'Esa declaración de venta ya no existe. Recargá la página.',
   'declaracion-no-pendiente': 'Esta declaración de venta ya no está pendiente.',
   'no-revendedora': 'Esta acción sólo puede ser realizada por una revendedora.',
+  'estado-filtro-invalido': 'El estado elegido para filtrar no es válido.',
 
   'regla-not-found': 'Esa regla ya no existe. Recargá la página.',
   'regla-no-es-margen': 'Esta regla no es de margen.',

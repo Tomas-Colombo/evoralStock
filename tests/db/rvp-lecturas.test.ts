@@ -184,7 +184,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     }
     expect(stockKeys).toEqual([
       'color', 'declarado_pendiente', 'descripcion', 'fecha_consignacion',
-      'id_item', 'id_producto', 'precio_venta', 'talle'
+      'id_item', 'id_producto', 'precio_venta', 'sku', 'talle', 'total_filas'
     ].sort())
 
     // 2. rvp_mis_ventas
@@ -198,7 +198,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(ventasKeys).toEqual([
       'color', 'comision_estimada', 'comision_liquidada', 'descripcion',
       'estado_liquidacion', 'fecha_liquidacion', 'fecha_venta',
-      'id_detalle_venta', 'id_item', 'id_venta', 'precio_venta', 'talle'
+      'id_detalle_venta', 'id_item', 'id_venta', 'precio_venta', 'talle', 'total_filas'
     ].sort())
 
     // 3. rvp_mi_cuenta
@@ -228,7 +228,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(liqKeys).toEqual([
       'cantidad_lineas', 'estado', 'fecha_liquidacion', 'fecha_pago',
       'id_liquidacion', 'monto_a_cobrar', 'monto_comision', 'monto_pagado',
-      'monto_vendido', 'periodo_desde', 'periodo_hasta', 'porcentaje_aplicado'
+      'monto_vendido', 'periodo_desde', 'periodo_hasta', 'porcentaje_aplicado', 'total_filas'
     ].sort())
 
     // 5. rvp_mis_declaraciones
@@ -242,7 +242,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     expect(decKeys).toEqual([
       'color', 'created_at', 'descripcion', 'estado', 'fecha',
       'id_declaracion', 'id_item', 'motivo_rechazo', 'nota',
-      'precio_venta', 'talle'
+      'precio_venta', 'sku', 'talle', 'total_filas'
     ].sort())
   })
 
@@ -541,5 +541,120 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
     // Debe corresponder al primer escalón de A (100000 -> 15%) y NO al de B (500000 -> 30%)
     expect(Number(tramoA.objetivo_desde)).toBe(100000)
     expect(Number(tramoA.proximo_porcentaje)).toBe(15)
+  })
+
+  test('10. Filtros de período en rvp_mi_cuenta: solo afectan total_vendido, comision_liquidada y comision_estimada', async () => {
+    const ctx = await setupRvpFixture()
+
+    const { data: idDec1 } = await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
+      p_id_item: ctx.itemsAna[0],
+      p_nota: 'Venta período',
+    })
+    await ctx.fA.authenticated.rpc('sp_confirmar_declaracion_venta', { p_id_declaracion: idDec1 })
+
+    const { data: baseRows } = await ctx.authAna.rpc('rvp_mi_cuenta')
+    const base = Array.isArray(baseRows) ? baseRows[0] : baseRows
+
+    // Rango pasado sin operaciones: métricas de período = 0, fotos del momento intactas
+    const { data: vacioRows, error: errVacio } = await ctx.authAna.rpc('rvp_mi_cuenta', {
+      p_desde: '2020-01-01',
+      p_hasta: '2020-01-31',
+    })
+    expect(errVacio).toBeNull()
+    const vacio = Array.isArray(vacioRows) ? vacioRows[0] : vacioRows
+
+    expect(Number(vacio.total_vendido)).toBe(0)
+    expect(Number(vacio.comision_liquidada)).toBe(0)
+    expect(Number(vacio.comision_estimada)).toBe(0)
+    expect(Number(vacio.piezas_en_poder)).toBe(Number(base.piezas_en_poder))
+    expect(Number(vacio.monto_en_poder)).toBe(Number(base.monto_en_poder))
+    expect(Number(vacio.total_adeudado)).toBe(Number(base.total_adeudado))
+    expect(Number(vacio.total_pagado)).toBe(Number(base.total_pagado))
+    expect(Number(vacio.declaraciones_pendientes)).toBe(Number(base.declaraciones_pendientes))
+    expect(Number(vacio.porcentaje_comision_actual)).toBe(Number(base.porcentaje_comision_actual))
+  })
+
+  test('11. Filtros en listas: estado, búsqueda segura, período y total_filas independiente de limit/offset', async () => {
+    const ctx = await setupRvpFixture()
+
+    // Declarar 1 ítem de Ana (queda con declaración pendiente)
+    await ctx.authAna.rpc('sp_declarar_venta_revendedora', {
+      p_id_item: ctx.itemsAna[0],
+      p_nota: 'Pendiente',
+    })
+
+    // rvp_mi_stock con limit=1 devuelve 1 fila pero total_filas=3
+    const { data: stockPag1, error: errPag } = await ctx.authAna.rpc('rvp_mi_stock', {
+      p_limit: 1,
+      p_offset: 0,
+    })
+    expect(errPag).toBeNull()
+    expect(stockPag1).toHaveLength(1)
+    expect(Number(stockPag1![0].total_filas)).toBe(3)
+
+    // rvp_mi_stock filtrado por estado con_pendiente -> 1 fila
+    const { data: stockPend } = await ctx.authAna.rpc('rvp_mi_stock', {
+      p_estado: 'con_pendiente',
+    })
+    expect(stockPend).toHaveLength(1)
+    expect(stockPend![0].id_item).toBe(ctx.itemsAna[0])
+
+    // rvp_mi_stock filtrado por estado sin_declaracion -> 2 filas
+    const { data: stockSin } = await ctx.authAna.rpc('rvp_mi_stock', {
+      p_estado: 'sin_declaracion',
+    })
+    expect(stockSin).toHaveLength(2)
+
+    // Búsqueda con comodines escapados no debe actuar como wildcard total
+    const { data: stockWild } = await ctx.authAna.rpc('rvp_mi_stock', {
+      p_busqueda: '\\%\\_',
+    })
+    expect(stockWild).toHaveLength(0)
+
+    // Declaraciones en rango pasado -> 0 filas
+    const { data: decsPasado, error: errDecPasado } = await ctx.authAna.rpc('rvp_mis_declaraciones', {
+      p_desde: '2020-01-01',
+      p_hasta: '2020-01-31',
+      p_estado: 'pendiente',
+    })
+    expect(errDecPasado).toBeNull()
+    expect(decsPasado).toHaveLength(0)
+  })
+
+  test('12. Whitelist de p_estado: valor inválido lanza estado-filtro-invalido', async () => {
+    const ctx = await setupRvpFixture()
+
+    const { error: eStock } = await ctx.authAna.rpc('rvp_mi_stock', { p_estado: 'invalido' })
+    expect(eStock?.message).toMatch(/estado-filtro-invalido/)
+
+    const { error: eVentas } = await ctx.authAna.rpc('rvp_mis_ventas', { p_estado: 'pagada' })
+    expect(eVentas?.message).toMatch(/estado-filtro-invalido/)
+
+    const { error: eLiqs } = await ctx.authAna.rpc('rvp_mis_liquidaciones', { p_estado: 'confirmada' })
+    expect(eLiqs?.message).toMatch(/estado-filtro-invalido/)
+
+    const { error: eDecs } = await ctx.authAna.rpc('rvp_mis_declaraciones', { p_estado: 'invalido' })
+    expect(eDecs?.message).toMatch(/estado-filtro-invalido/)
+  })
+
+  test('13. Aislamiento con filtros: búsqueda y estado no exponen filas de otra revendedora', async () => {
+    const ctx = await setupRvpFixture()
+
+    await ctx.authBerta.rpc('sp_declarar_venta_revendedora', {
+      p_id_item: ctx.itemsBerta[0],
+      p_nota: 'Secreto Berta',
+    })
+
+    const { data: decsAna } = await ctx.authAna.rpc('rvp_mis_declaraciones', {
+      p_estado: 'pendiente',
+    })
+    const idsAna = (decsAna ?? []).map((d: { id_item: string }) => d.id_item)
+    expect(idsAna).not.toContain(ctx.itemsBerta[0])
+
+    const { data: stockAna } = await ctx.authAna.rpc('rvp_mi_stock', {
+      p_estado: 'con_pendiente',
+    })
+    const stockIdsAna = (stockAna ?? []).map((s: { id_item: string }) => s.id_item)
+    expect(stockIdsAna).not.toContain(ctx.itemsBerta[0])
   })
 })
