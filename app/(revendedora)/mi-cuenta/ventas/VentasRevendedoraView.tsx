@@ -54,6 +54,7 @@ export function VentasRevendedoraView({
             idPrefix="mi-cuenta-ventas"
             desde={desde}
             hasta={hasta}
+            conservar={{ q }}
             extras={[
               {
                 param: 'estado',

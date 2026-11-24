@@ -56,12 +56,15 @@ export function FiltroPeriodo({
   desde,
   hasta,
   extras = [],
+  conservar = {},
 }: RangoFechas & {
   basePath: string
   ariaLabel: string
   /** Prefijo de los ids de los controles (únicos por page). */
   idPrefix: string
   extras?: FiltroExtra[]
+  /** Query params externos (p. ej. `q`) que se preservan al cambiar período o estado. */
+  conservar?: Record<string, string>
 }) {
   const router = useRouter()
   const [d, setD] = useState(desde)
@@ -77,6 +80,9 @@ export function FiltroPeriodo({
     const params = new URLSearchParams({ desde: nd, hasta: nh })
     for (const e of extras) {
       if (nv[e.param]) params.set(e.param, nv[e.param])
+    }
+    for (const [k, v] of Object.entries(conservar)) {
+      if (v) params.set(k, v)
     }
     startTransition(() => router.push(`${basePath}?${params.toString()}`))
   }

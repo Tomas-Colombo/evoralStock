@@ -17,17 +17,21 @@ export function PortalBusqueda({
   const searchParams = useSearchParams()
   const [valor, setValor] = useState(initialValue)
   const [, startTransition] = useTransition()
-  const esPrimerRender = useRef(true)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (esPrimerRender.current) {
-      esPrimerRender.current = false
-      return
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
+  }, [])
 
-    const timer = setTimeout(() => {
+  function handleChange(nuevoValor: string) {
+    setValor(nuevoValor)
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    timerRef.current = setTimeout(() => {
       const actualUrl = searchParams.get('q') ?? ''
-      const limpio = valor.trim()
+      const limpio = nuevoValor.trim()
       if (limpio === actualUrl) return
 
       const params = new URLSearchParams(searchParams.toString())
@@ -37,14 +41,12 @@ export function PortalBusqueda({
       const qs = params.toString()
       startTransition(() => router.push(qs ? `${basePath}?${qs}` : basePath))
     }, 300)
-
-    return () => clearTimeout(timer)
-  }, [valor, basePath, router, searchParams])
+  }
 
   return (
     <FilterBar
       value={valor}
-      onChange={setValor}
+      onChange={handleChange}
       placeholder={placeholder}
       keyboardShortcut={false}
     />

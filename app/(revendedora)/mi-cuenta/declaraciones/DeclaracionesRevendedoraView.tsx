@@ -83,6 +83,7 @@ export function DeclaracionesRevendedoraView({
             idPrefix="mi-cuenta-declaraciones"
             desde={desde}
             hasta={hasta}
+            conservar={{ q }}
             extras={[
               {
                 param: 'estado',
