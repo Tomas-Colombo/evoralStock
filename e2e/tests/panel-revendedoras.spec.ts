@@ -32,12 +32,11 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
     // 4. Filtrar por búsqueda
     const searchInput = page.getByPlaceholder(/Buscar por nombre, apellido/i)
     await searchInput.fill(nombreRev)
-    await page.getByRole('button', { name: 'Aplicar filtros' }).click()
     await page.waitForURL(/q=/)
     await expect(filaRev).toBeVisible()
 
     // Limpiar filtro
-    await page.getByRole('button', { name: 'Limpiar' }).click()
+    await page.getByRole('link', { name: 'Limpiar' }).click()
     await page.waitForURL(/\/revendedoras(\?|$)/)
     await expect(filaRev).toBeVisible()
 

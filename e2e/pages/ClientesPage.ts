@@ -88,7 +88,7 @@ export class ClientesPage {
 
   async buscar(termino: string): Promise<void> {
     await this.buscador.fill(termino)
-    await this.page.getByRole('button', { name: 'Aplicar' }).click()
-    await this.page.waitForURL(/\/clientes(\?|$)/)
+    const recortado = termino.trim()
+    await this.page.waitForURL((url) => (url.searchParams.get('q') ?? '') === recortado)
   }
 }

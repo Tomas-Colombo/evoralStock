@@ -34,8 +34,8 @@ export class CuotasPage {
 
   async buscar(q: string): Promise<void> {
     await this.buscador.fill(q)
-    await this.page.getByRole('button', { name: 'Aplicar' }).click()
-    await this.page.waitForURL(/\/cuotas(\?|$)/)
+    const recortado = q.trim()
+    await this.page.waitForURL((url) => (url.searchParams.get('q') ?? '') === recortado)
   }
 
   async aplicarFiltro(estado: string): Promise<void> {
