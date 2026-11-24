@@ -64,12 +64,15 @@ supabase/      migrations + stored procedures  — business invariants live here
 - Allowed SQL outside `lib/dal`: auth (`app/(auth)/login/actions.ts`,
   `logoutAction`) and `proxy.ts`. **Known debt, do not add to it**:
   `components/theming/persistThemePreference.ts`.
-- **Dependency direction**: `app/**` → `components/**` → `lib/**`, never backwards.
-  `components/**` and `lib/**` do not import from `app/**`, and one route group
-  or module under `app/` does not import from another. Used by one module → it
-  lives in that module's folder; `components/` only when two modules share it.
-  A Server Action shared across route groups or modules lives in `lib/<domain>/actions.ts`.
-  Enforced by `tests/arquitectura-imports.test.ts`; no exceptions.
+- **Dependency direction**: `app/**` → `components/**` → `lib/**`, never backwards;
+  no route group or module under `app/` imports from another. A Server Action
+  shared across modules lives in `lib/<domain>/actions.ts`. Enforced by
+  `tests/arquitectura-imports.test.ts`; no exceptions.
+- **Reuse before writing (never broken)**: search `components/` first. Logic that
+  another screen already has is extracted to `components/`, never copied; a
+  behavior change goes into the shared component for every consumer, never as a
+  per-screen flag. URL filters, search and paging: only `components/filtros/` and
+  `FiltroPeriodo`. Only code no other screen could use lives in the module folder.
 
 ## Every mutation is a Server Action with three gates
 
@@ -106,17 +109,14 @@ folder name — see `docs/modulos.md`.
   (prose lines as `-- NOTE:`); `pnpm gate:db` executes it.
 - **Changing an `sp_*`**: run `pnpm sp:last <name>` first, copy that
   definition, and show only the intended diff.
-- **Config**: do not modify tsconfig, next, eslint, playwright or vitest
-  config, nor keep tool-regenerated changes: revert them.
-- **Specs**: do not tick human gates in `tasks.md`; do not edit
-  `specs/golden.md` without the user's OK.
+- **Config**: never modify tsconfig/next/eslint/playwright/vitest config; revert tool-regenerated changes.
+- **Specs**: never tick human gates in `tasks.md` nor edit `specs/golden.md` without the user's OK.
 - **STOP AND ASK** when existing behavior conflicts with the spec or with the
   finance logic: do not change a shared `sp_*`, config, a merged migration or
   the golden on your own.
 - **A test fails**: say whether the test or the code is wrong, citing the spec
   line, before touching an assertion. Before deleting a file, `rg` who imports it.
-- **"Not verified" is a valid report; fabricating output is the only serious error.**
-- **Reports**: detail to files; chat summary ≤ 10 lines.
+- **"Not verified" is a valid report; fabricating output is the only serious error.** Reports: detail to files, chat ≤ 10 lines.
 
 # Conventions
 
