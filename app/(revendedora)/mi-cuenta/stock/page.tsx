@@ -18,5 +18,5 @@ export default async function MiStockPage() {
     )
   }
 
-  return <StockRevendedoraView items={res.data} />
+  return <StockRevendedoraView items={res.data.rows} />
 }

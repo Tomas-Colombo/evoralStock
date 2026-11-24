@@ -18,5 +18,5 @@ export default async function MisDeclaracionesPage() {
     )
   }
 
-  return <DeclaracionesRevendedoraView declaraciones={res.data} />
+  return <DeclaracionesRevendedoraView declaraciones={res.data.rows} />
 }

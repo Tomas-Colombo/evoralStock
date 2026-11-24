@@ -19,7 +19,7 @@ export default async function MisVentasPage() {
     )
   }
 
-  const ventas = res.data
+  const ventas = res.data.rows
 
   return (
     <div className="space-y-4">

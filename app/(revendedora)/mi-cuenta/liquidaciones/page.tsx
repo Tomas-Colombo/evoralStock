@@ -19,7 +19,7 @@ export default async function MisLiquidacionesPage() {
     )
   }
 
-  const liquidaciones = res.data
+  const liquidaciones = res.data.rows
 
   return (
     <div className="space-y-4">

@@ -235,6 +235,16 @@ export const ORDEN_PANEL_REVENDEDORAS_LABEL: Record<string, string> = {
 
 export type OrdenPanelRevendedoras = keyof typeof ORDEN_PANEL_REVENDEDORAS_LABEL
 
+export type EstadoFiltroStock = 'con_pendiente' | 'sin_declaracion'
+export type EstadoFiltroVentas = 'liquidada' | 'pendiente'
+export type EstadoFiltroLiquidaciones = 'pendiente' | 'pagada'
+export type EstadoFiltroDeclaraciones = 'pendiente' | 'confirmada' | 'rechazada' | 'retirada'
+
+export interface RvpListaPaginada<T> {
+  rows: T[]
+  total: number
+}
+
 export interface RvpMiCuentaRow {
   piezas_en_poder: number
   valor_en_poder: number
