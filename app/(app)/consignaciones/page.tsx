@@ -81,7 +81,6 @@ export default async function ConsignacionesPage(props: {
         session={session}
         filters={
           <FiltroPeriodo
-            basePath="/consignaciones"
             ariaLabel="Filtrar devoluciones"
             idPrefix="cons"
             desde={desde}

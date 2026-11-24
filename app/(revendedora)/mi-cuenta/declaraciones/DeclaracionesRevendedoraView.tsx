@@ -12,8 +12,8 @@ import { mensajeDeError } from '@/lib/errores/mensajes'
 import { retirarDeclaracionAction } from '../actions'
 import { Badge } from '@/components/ui/Badge'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
-import { PortalBusqueda } from '../PortalBusqueda'
-import { PortalPaginacion } from '../PortalPaginacion'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface Props {
   declaraciones: RvpMisDeclaracionesRow[]
@@ -77,10 +77,8 @@ export function DeclaracionesRevendedoraView({
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <PortalBusqueda
-              key={q}
-              basePath="/mi-cuenta/declaraciones"
-              initialValue={q}
+            <BusquedaUrl
+              valor={q}
               placeholder="Buscar por nombre o SKU..."
             />
           </div>
@@ -95,13 +93,10 @@ export function DeclaracionesRevendedoraView({
         </div>
         <FiltroPeriodo
           apilado
-          key={`${desde}-${hasta}-${estado}`}
-          basePath="/mi-cuenta/declaraciones"
           ariaLabel="Filtrar declaraciones por período y estado"
           idPrefix="mi-cuenta-declaraciones"
           desde={desde}
           hasta={hasta}
-          conservar={{ q }}
           extras={[
             {
               param: 'estado',
@@ -201,8 +196,7 @@ export function DeclaracionesRevendedoraView({
         </div>
       )}
 
-      <PortalPaginacion
-        basePath="/mi-cuenta/declaraciones"
+      <PaginacionUrl
         page={pagina}
         pageSize={pageSize}
         total={total}

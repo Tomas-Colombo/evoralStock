@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { FilterBar } from '@/components/ui/FilterBar'
-import { Pagination } from '@/components/ui/Pagination'
-import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { Table, type Column } from '@/components/ui/Table'
 import { useToast } from '@/components/ui/Toast'
 import { waMeLink } from '@/lib/utils/waMeLink'
@@ -40,24 +40,8 @@ export function ClientesTable({
 }) {
   const router = useRouter()
   const toast = useToast()
-  const [q, setQ] = useState(initialSearch)
   const [editando, setEditando] = useState<ClienteRow | null>(null)
   const [pending, start] = useTransition()
-
-  /**
-   * Todo el estado del listado vive en la URL: el filtro es compartible y
-   * sobrevive a un refresh, y el server re-consulta con el mismo recorte.
-   */
-  function navegar(next: { q?: string; orden?: OrdenClientes; page?: number }) {
-    const params = new URLSearchParams()
-    const texto = (next.q ?? q).trim()
-    const ord = next.orden ?? orden
-    if (texto) params.set('q', texto)
-    if (ord !== 'apellido_asc') params.set('orden', ord)
-    if ((next.page ?? 1) > 1) params.set('page', String(next.page))
-    const qs = params.toString()
-    start(() => router.push(qs ? `/clientes?${qs}` : '/clientes'))
-  }
 
   function toggle(row: ClienteRow) {
     start(async () => {
@@ -162,35 +146,28 @@ export function ClientesTable({
   return (
     <div className="space-y-3">
       {/* Misma tarjeta de filtros que Revendedor: sube sobre la banda. */}
-      <Card padding="lg" className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Card padding="lg" className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2">
           <Field htmlFor="filtro-q" label="Buscar">
-            <FilterBar
-              value={q}
-              onChange={setQ}
+            <BusquedaUrl
+              valor={initialSearch}
               placeholder="Buscar por nombre, apellido, email o teléfono"
+              paramPagina="page"
             />
           </Field>
         </div>
-        <Field htmlFor="filtro-orden" label="Ordenar por">
-          <Select
-            id="filtro-orden"
-            value={orden}
-            onChange={(e) => navegar({ orden: e.target.value as OrdenClientes, page: 1 })}
-            disabled={pending}
-          >
-            {(Object.keys(ORDEN_CLIENTES_LABEL) as OrdenClientes[]).map((o) => (
-              <option key={o} value={o}>
-                {ORDEN_CLIENTES_LABEL[o]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {/* Filtrar vuelve a la página 1: la actual no significa lo mismo
-            sobre un conjunto de resultados distinto. */}
-        <Button onClick={() => navegar({ page: 1 })} disabled={pending}>
-          Aplicar
-        </Button>
+        <SelectUrl
+          id="filtro-orden"
+          param="orden"
+          valor={orden}
+          valorPorDefecto="apellido_asc"
+          label="Ordenar por"
+          paramPagina="page"
+          opciones={(Object.keys(ORDEN_CLIENTES_LABEL) as OrdenClientes[]).map((o) => ({
+            value: o,
+            label: ORDEN_CLIENTES_LABEL[o],
+          }))}
+        />
       </Card>
 
       <TableFrame>
@@ -203,12 +180,11 @@ export function ClientesTable({
         />
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={(p) => navegar({ page: p })}
-        disabled={pending}
+        param="page"
       />
 
       <EditarClienteModal

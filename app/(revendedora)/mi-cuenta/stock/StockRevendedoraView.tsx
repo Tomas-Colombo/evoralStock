@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import type { RvpMiStockRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Modal } from '@/components/ui/Modal'
@@ -11,10 +11,9 @@ import { mensajeDeError } from '@/lib/errores/mensajes'
 import { declararVentaAction } from '../actions'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { Select } from '@/components/ui/Select'
-import { Field } from '@/components/ui/Field'
-import { PortalBusqueda } from '../PortalBusqueda'
-import { PortalPaginacion } from '../PortalPaginacion'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface Props {
   items: RvpMiStockRow[]
@@ -27,25 +26,12 @@ interface Props {
 
 export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q }: Props) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const toast = useToast()
   const [selectedItem, setSelectedItem] = useState<RvpMiStockRow | null>(null)
   const [nota, setNota] = useState('')
   const [isPending, startTransition] = useTransition()
-  const [filtrando, startFilterTransition] = useTransition()
 
   const hayFiltros = Boolean(estado || q)
-
-  function handleEstadoChange(nuevoEstado: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (nuevoEstado) params.set('estado', nuevoEstado)
-    else params.delete('estado')
-    params.delete('pagina')
-    const qs = params.toString()
-    startFilterTransition(() =>
-      router.push(qs ? `/mi-cuenta/stock?${qs}` : '/mi-cuenta/stock'),
-    )
-  }
 
   const handleOpenModal = (item: RvpMiStockRow) => {
     setSelectedItem(item)
@@ -92,26 +78,23 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
 
       <div className="p-4 rounded-lg border border-border bg-card flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="flex-1">
-          <PortalBusqueda
-            key={q}
-            basePath="/mi-cuenta/stock"
-            initialValue={q}
+          <BusquedaUrl
+            valor={q}
             placeholder="Buscar por nombre o SKU..."
           />
         </div>
         <div className="w-full sm:w-56">
-          <Field htmlFor="stock-estado" label="Estado">
-            <Select
-              id="stock-estado"
-              value={estado}
-              onChange={(e) => handleEstadoChange(e.target.value)}
-              disabled={filtrando}
-            >
-              <option value="">Todos</option>
-              <option value="con_pendiente">Con declaración pendiente</option>
-              <option value="sin_declaracion">Sin declaración</option>
-            </Select>
-          </Field>
+          <SelectUrl
+            id="stock-estado"
+            param="estado"
+            valor={estado}
+            label="Estado"
+            opciones={[
+              { value: '', label: 'Todos' },
+              { value: 'con_pendiente', label: 'Con declaración pendiente' },
+              { value: 'sin_declaracion', label: 'Sin declaración' },
+            ]}
+          />
         </div>
       </div>
 
@@ -170,8 +153,7 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
         </div>
       )}
 
-      <PortalPaginacion
-        basePath="/mi-cuenta/stock"
+      <PaginacionUrl
         page={pagina}
         pageSize={pageSize}
         total={total}

@@ -1,13 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { FilterBar } from '@/components/ui/FilterBar'
-import { Pagination } from '@/components/ui/Pagination'
-import { Select } from '@/components/ui/Select'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { Table, type Column } from '@/components/ui/Table'
 import { waMeLink } from '@/lib/utils/waMeLink'
 import {
@@ -41,21 +39,6 @@ export function CuotasView({
   /** `YYYY-MM-DD` del server: la misma con la que se calcularon los KPIs. */
   hoy: string
 }) {
-  const router = useRouter()
-  const [pending, start] = useTransition()
-  const [q, setQ] = useState(initialSearch)
-
-  function navegar(next: { estado?: FiltroEstadoCuotas; q?: string; page?: number }) {
-    const params = new URLSearchParams()
-    const est = next.estado ?? estado
-    const texto = (next.q ?? q).trim()
-    if (est !== 'con_deuda') params.set('estado', est)
-    if (texto) params.set('q', texto)
-    if ((next.page ?? 1) > 1) params.set('page', String(next.page))
-    const qs = params.toString()
-    start(() => router.push(qs ? `/cuotas?${qs}` : '/cuotas'))
-  }
-
   /** La ficha vuelve a Cuotas y no a Clientes cuando se entra desde acá. */
   function href(d: DeudorRow): string {
     return `/clientes/${d.id_cliente}?from=cuotas`
@@ -183,36 +166,32 @@ export function CuotasView({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
-          <FilterBar
-            value={q}
-            onChange={setQ}
+          <BusquedaUrl
+            valor={initialSearch}
             placeholder="Buscar por nombre o apellido"
+            paramPagina="page"
           />
         </div>
         <div className="w-48">
-          <Select
-            value={estado}
-            onChange={(e) => navegar({ estado: e.target.value as FiltroEstadoCuotas, page: 1 })}
-            disabled={pending}
-            aria-label="Estado"
-          >
-            {(Object.keys(FILTRO_ESTADO_CUOTAS_LABEL) as FiltroEstadoCuotas[]).map((k) => (
-              <option key={k} value={k}>
-                {FILTRO_ESTADO_CUOTAS_LABEL[k]}
-              </option>
-            ))}
-          </Select>
+          <SelectUrl
+            id="cuotas-estado"
+            param="estado"
+            valor={estado}
+            valorPorDefecto="con_deuda"
+            ariaLabel="Estado"
+            paramPagina="page"
+            opciones={(Object.keys(FILTRO_ESTADO_CUOTAS_LABEL) as FiltroEstadoCuotas[]).map((k) => ({
+              value: k,
+              label: FILTRO_ESTADO_CUOTAS_LABEL[k],
+            }))}
+          />
         </div>
-        <Button variant="secondary" onClick={() => navegar({ page: 1 })} disabled={pending}>
-          Aplicar
-        </Button>
       </div>
 
       <TableFrame>
         <Table
           columns={columns}
           data={rows}
-          loading={pending}
           getRowId={(d) => d.id_cliente}
           emptyState={
             estado === 'con_deuda'
@@ -222,12 +201,11 @@ export function CuotasView({
         />
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={(p) => navegar({ page: p })}
-        disabled={pending}
+        param="page"
       />
     </div>
   )

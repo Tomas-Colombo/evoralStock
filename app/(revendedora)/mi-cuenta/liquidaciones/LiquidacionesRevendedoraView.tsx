@@ -5,7 +5,7 @@ import type { RvpMisLiquidacionesRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
-import { PortalPaginacion } from '../PortalPaginacion'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface Props {
   liquidaciones: RvpMisLiquidacionesRow[]
@@ -45,8 +45,6 @@ export function LiquidacionesRevendedoraView({
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
         <FiltroPeriodo
           apilado
-          key={`${desde}-${hasta}-${estado}`}
-          basePath="/mi-cuenta/liquidaciones"
           ariaLabel="Filtrar liquidaciones por período y estado"
           idPrefix="mi-cuenta-liquidaciones"
           desde={desde}
@@ -136,8 +134,7 @@ export function LiquidacionesRevendedoraView({
         </div>
       )}
 
-      <PortalPaginacion
-        basePath="/mi-cuenta/liquidaciones"
+      <PaginacionUrl
         page={pagina}
         pageSize={pageSize}
         total={total}

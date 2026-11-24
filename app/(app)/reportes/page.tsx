@@ -96,7 +96,6 @@ export default async function ReportesPage(props: {
         session={session}
         filters={
           <FiltroPeriodo
-            basePath="/reportes"
             ariaLabel="Filtrar tablero por período"
             idPrefix="rp"
             desde={desde}

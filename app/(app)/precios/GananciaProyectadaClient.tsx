@@ -1,31 +1,25 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { BuscadorProductos, type SugerenciaProducto } from '@/components/inventario/BuscadorProductos'
-import { Pagination } from '@/components/ui/Pagination'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { Table, type Column } from '@/components/ui/Table'
-import { normalizar } from '@/lib/inventario/producto-match'
+import { TableFrame } from '@/components/ui/TableParts'
 import type { ProductoBuscadorItem } from '@/lib/dal/inventario/producto'
 import type { CategoriaRow } from '@/lib/types/inventario'
 import type { GananciaPorProductoRow } from '@/lib/types/reportes'
-import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
-import { TableFrame } from '@/components/ui/TableParts'
 
 export function GananciaProyectadaClient({
   rows,
-  catalogo,
   categorias,
   initialSearch,
   initialCategoria,
   page,
   pageSize,
   total,
-  basePath = '/precios',
 }: {
   rows: GananciaPorProductoRow[]
-  catalogo: ProductoBuscadorItem[]
+  catalogo?: ProductoBuscadorItem[]
   categorias: CategoriaRow[]
   initialSearch: string
   initialCategoria: string
@@ -34,55 +28,6 @@ export function GananciaProyectadaClient({
   total: number
   basePath?: string
 }) {
-  const router = useRouter()
-  const [q, setQ] = useState(initialSearch)
-  const [cat, setCat] = useState(initialCategoria)
-  const [pending, startTransition] = useTransition()
-
-  const sugerencias = useMemo<SugerenciaProducto[]>(() => {
-    const term = normalizar(q)
-    if (!term) return []
-    return catalogo
-      .filter(
-        (p) =>
-          normalizar(p.nombre).includes(term) ||
-          (p.sku ? normalizar(p.sku).includes(term) : false),
-      )
-      .slice(0, 8)
-      .map((p) => ({ id: p.id_producto, nombre: p.nombre, sku: p.sku }))
-  }, [catalogo, q])
-
-  function navigate(params: URLSearchParams) {
-    const qs = params.toString()
-    startTransition(() => {
-      router.push(qs ? `${basePath}?${qs}` : basePath)
-    })
-  }
-
-  function applyFilters(nextQ = q, nextCat = cat) {
-    const params = new URLSearchParams()
-    if (nextQ.trim()) params.set('gq', nextQ.trim())
-    if (nextCat) params.set('gcat', nextCat)
-    navigate(params)
-  }
-
-  function goToPage(nextPage: number) {
-    const params = new URLSearchParams()
-    if (q.trim()) params.set('gq', q.trim())
-    if (cat) params.set('gcat', cat)
-    if (nextPage > 1) params.set('gpage', String(nextPage))
-    navigate(params)
-  }
-
-  function elegirSugerencia(s: SugerenciaProducto) {
-    setQ(s.nombre)
-    applyFilters(s.nombre)
-  }
-
-  function buscarLibre(texto: string) {
-    applyFilters(texto)
-  }
-
   const fmtMoney = (n: number | null) =>
     n == null ? '—' : `$ ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
@@ -134,62 +79,47 @@ export function GananciaProyectadaClient({
 
   return (
     <div className="space-y-3">
-      <BuscadorProductos
-        id="ganancia-buscador"
-        label="Buscar producto"
-        hint="Nombre o SKU. Enter aplica el filtro."
-        placeholder="Buscar por nombre o SKU"
-        value={q}
-        onChange={setQ}
-        sugerencias={sugerencias}
-        onElegir={elegirSugerencia}
-        onSubmit={buscarLibre}
-        disabled={pending}
-        actions={
-          <>
-            <Select
-              value={cat}
-              onChange={(e) => {
-                setCat(e.target.value)
-                applyFilters(q, e.target.value)
-              }}
-              className="w-auto"
-            >
-              <option value="">Todas las categorías</option>
-              {categorias.map((c) => (
-                <option key={c.id_categoria} value={c.id_categoria}>
-                  {c.nombre}
-                </option>
-              ))}
-            </Select>
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => applyFilters()}
-              className="shrink-0"
-            >
-              Aplicar
-            </Button>
-          </>
-        }
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1">
+          <BusquedaUrl
+            param="gq"
+            valor={initialSearch}
+            placeholder="Buscar por nombre o SKU"
+            paramPagina="gpage"
+          />
+        </div>
+        <div className="w-full sm:w-56">
+          <SelectUrl
+            id="ganancia-categoria"
+            param="gcat"
+            valor={initialCategoria}
+            ariaLabel="Categoría"
+            paramPagina="gpage"
+            opciones={[
+              { value: '', label: 'Todas las categorías' },
+              ...categorias.map((c) => ({
+                value: c.id_categoria,
+                label: c.nombre,
+              })),
+            ]}
+          />
+        </div>
+      </div>
 
       <TableFrame>
         <Table
           columns={columns}
           data={rows}
-          loading={pending}
           getRowId={(r) => r.id_producto}
           emptyState="Sin productos que coincidan con los filtros"
         />
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={goToPage}
-        disabled={pending}
+        param="gpage"
       />
     </div>
   )

@@ -19,7 +19,7 @@ import { ESTADO_CONSIGNACION_LABEL } from '@/lib/types/consignaciones'
 import { ESTADO_RENDICION_LABEL } from '@/lib/types/rendiciones'
 import { BajaProveedorButton } from './BajaProveedorButton'
 import { EditarProveedorButton } from './EditarProveedorButton'
-import { PerfilPeriodoForm } from './PerfilPeriodoForm'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { PerfilPaginacion } from './PerfilPaginacion'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
@@ -217,7 +217,14 @@ export default async function ProveedorPerfilPage(props: {
         )}
 
         {/* ─── Filtro de período compartido ────────────── */}
-        <PerfilPeriodoForm id={id} desde={sp.desde ?? ''} hasta={sp.hasta ?? ''} />
+        <div className="rounded-lg border border-border bg-card p-4">
+          <FiltroPeriodo
+            ariaLabel="Filtrar perfil por período"
+            idPrefix="perfil-proveedor"
+            desde={sp.desde ?? ''}
+            hasta={sp.hasta ?? ''}
+          />
+        </div>
 
         {/* ─── Ingresos ────────────────────────────────── */}
         <section className="space-y-2">

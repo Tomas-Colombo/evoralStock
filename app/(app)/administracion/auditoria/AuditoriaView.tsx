@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { Pagination } from '@/components/ui/Pagination'
 import type { AuditoriaConActor } from '@/lib/types/administracion'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
-import { Select } from '@/components/ui/Select'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 /**
  * Visor de auditoría (Etapa 9 §L140). Read-only.
@@ -32,106 +30,42 @@ export function AuditoriaView({
   pageSize: number
   total: number
 }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
-  const [entidad, setEntidad] = useState(filtros.entidad)
-  const [desde, setDesde] = useState(filtros.desde)
-  const [hasta, setHasta] = useState(filtros.hasta)
   const [detalle, setDetalle] = useState<AuditoriaConActor | null>(null)
-
-  const invertido = desde && hasta && desde > hasta
-
-  function navigate(params: URLSearchParams) {
-    const qs = params.toString()
-    startTransition(() =>
-      router.push(qs ? `/administracion/auditoria?${qs}` : '/administracion/auditoria'),
-    )
-  }
-
-  function buildParams(nextPage: number) {
-    const params = new URLSearchParams()
-    if (entidad) params.set('entidad', entidad)
-    if (desde) params.set('desde', desde)
-    if (hasta) params.set('hasta', hasta)
-    if (nextPage > 1) params.set('page', String(nextPage))
-    return params
-  }
-
-  function aplicar() {
-    if (invertido) return
-    navigate(buildParams(1))
-  }
-
-  function limpiar() {
-    setEntidad('')
-    setDesde('')
-    setHasta('')
-    navigate(new URLSearchParams())
-  }
+  const hayFiltros = Boolean(filtros.entidad || filtros.desde || filtros.hasta)
 
   return (
     <div className="space-y-3">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          aplicar()
-        }}
-        className="rounded-lg border border-border bg-card p-4 flex flex-wrap items-end gap-3"
-        aria-label="Filtrar auditoría"
-      >
-        <div className="w-56">
-          <Field htmlFor="a-ent" label="Entidad">
-            <Select
-              id="a-ent"
-              value={entidad}
-              onChange={(e) => setEntidad(e.target.value)}
-              disabled={pending}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <FiltroPeriodo
+          ariaLabel="Filtrar auditoría"
+          idPrefix="auditoria"
+          desde={filtros.desde}
+          hasta={filtros.hasta}
+          paramPagina="page"
+          extras={[
+            {
+              param: 'entidad',
+              label: 'Entidad',
+              value: filtros.entidad,
+              ancho: 'w-56',
+              options: [
+                { value: '', label: 'Todas' },
+                ...entidades.map((e) => ({ value: e, label: e })),
+              ],
+            },
+          ]}
+        />
+        {hayFiltros && (
+          <div>
+            <Link
+              href="/administracion/auditoria"
+              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
             >
-              <option value="">Todas</option>
-              {entidades.map((e) => (
-                <option key={e} value={e}>{e}</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        <div className="w-40">
-          <Field
-            htmlFor="a-d"
-            label="Desde"
-            error={invertido ? 'Posterior a "Hasta"' : undefined}
-          >
-            <Input
-              id="a-d"
-              type="date"
-              value={desde}
-              max={hasta || undefined}
-              invalid={!!invertido}
-              onChange={(e) => setDesde(e.target.value)}
-              disabled={pending}
-            />
-          </Field>
-        </div>
-        <div className="w-40">
-          <Field htmlFor="a-h" label="Hasta">
-            <Input
-              id="a-h"
-              type="date"
-              value={hasta}
-              min={desde || undefined}
-              onChange={(e) => setHasta(e.target.value)}
-              disabled={pending}
-            />
-          </Field>
-        </div>
-        <div className="flex gap-2 ml-auto">
-          <Button type="button" variant="secondary" onClick={limpiar} disabled={pending}>
-            Limpiar
-          </Button>
-          <Button type="submit" disabled={pending || !!invertido}>
-            {pending ? 'Filtrando…' : 'Aplicar'}
-          </Button>
-        </div>
-      </form>
+              Limpiar
+            </Link>
+          </div>
+        )}
+      </div>
 
       <TableFrame>
         {rows.length === 0 ? (
@@ -178,12 +112,11 @@ export function AuditoriaView({
         )}
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={(p) => navigate(buildParams(p))}
-        disabled={pending}
+        param="page"
       />
 
       <Modal

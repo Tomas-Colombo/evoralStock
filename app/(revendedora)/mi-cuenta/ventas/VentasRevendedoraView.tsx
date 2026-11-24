@@ -5,8 +5,8 @@ import type { RvpMisVentasRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
-import { PortalBusqueda } from '../PortalBusqueda'
-import { PortalPaginacion } from '../PortalPaginacion'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface Props {
   ventas: RvpMisVentasRow[]
@@ -48,10 +48,8 @@ export function VentasRevendedoraView({
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <PortalBusqueda
-              key={q}
-              basePath="/mi-cuenta/ventas"
-              initialValue={q}
+            <BusquedaUrl
+              valor={q}
               placeholder="Buscar por descripción..."
             />
           </div>
@@ -66,13 +64,10 @@ export function VentasRevendedoraView({
         </div>
         <FiltroPeriodo
           apilado
-          key={`${desde}-${hasta}-${estado}`}
-          basePath="/mi-cuenta/ventas"
           ariaLabel="Filtrar ventas por período y estado"
           idPrefix="mi-cuenta-ventas"
           desde={desde}
           hasta={hasta}
-          conservar={{ q }}
           extras={[
             {
               param: 'estado',
@@ -147,8 +142,7 @@ export function VentasRevendedoraView({
         </div>
       )}
 
-      <PortalPaginacion
-        basePath="/mi-cuenta/ventas"
+      <PaginacionUrl
         page={pagina}
         pageSize={pageSize}
         total={total}

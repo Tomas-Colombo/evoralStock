@@ -1,19 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
-import { Pagination } from '@/components/ui/Pagination'
 import { useToast } from '@/components/ui/Toast'
 import type { GastoConCategoria } from '@/lib/types/rendiciones'
 import type { GastosOrden } from '@/lib/dal/gastos/gasto'
 import { eliminarGastoAction } from './actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
-import { Select } from '@/components/ui/Select'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 
 interface CatOpt { id: string; nombre: string }
 
@@ -45,53 +44,12 @@ export function GastosTableClient({
 }) {
   const router = useRouter()
   const toast = useToast()
-  const [pending, startTransition] = useTransition()
-  const [desde, setDesde] = useState(initialDesde)
-  const [hasta, setHasta] = useState(initialHasta)
-  const [cat, setCat] = useState(initialCategoria)
-  const [orden, setOrden] = useState<GastosOrden>(initialOrden)
   const [aEliminar, setAEliminar] = useState<GastoConCategoria | null>(null)
   const [eliminando, startEliminar] = useTransition()
 
-  const invertido = desde && hasta && desde > hasta
-
-  function navigate(params: URLSearchParams) {
-    const qs = params.toString()
-    startTransition(() => router.push(qs ? `/gastos?${qs}` : '/gastos'))
-  }
-
-  function buildParams(nextPage: number, next: {
-    desde?: string; hasta?: string; cat?: string; orden?: GastosOrden
-  } = {}) {
-    const d = next.desde ?? desde
-    const h = next.hasta ?? hasta
-    const c = next.cat ?? cat
-    const o = next.orden ?? orden
-    const params = new URLSearchParams()
-    if (d) params.set('desde', d)
-    if (h) params.set('hasta', h)
-    if (c) params.set('cat', c)
-    if (o && o !== 'fecha_desc') params.set('orden', o)
-    if (nextPage > 1) params.set('page', String(nextPage))
-    return params
-  }
-
-  function aplicar() {
-    if (invertido) return
-    navigate(buildParams(1))
-  }
-
-  function limpiar() {
-    setDesde('')
-    setHasta('')
-    setCat('')
-    setOrden('fecha_desc')
-    navigate(new URLSearchParams())
-  }
-
-  function goToPage(nextPage: number) {
-    navigate(buildParams(nextPage))
-  }
+  const hayFiltros = Boolean(
+    initialDesde || initialHasta || initialCategoria || initialOrden !== 'fecha_desc',
+  )
 
   function confirmarEliminar() {
     const gasto = aEliminar
@@ -107,89 +65,50 @@ export function GastosTableClient({
 
   return (
     <div className="space-y-3">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          aplicar()
-        }}
-        className="rounded-lg border border-border bg-card p-4 flex flex-wrap items-end gap-3"
-        aria-label="Filtrar gastos"
-      >
-        <div className="w-40">
-          <Field
-            htmlFor="g-desde"
-            label="Desde"
-            error={invertido ? 'Posterior a "Hasta"' : undefined}
-          >
-            <Input
-              id="g-desde"
-              type="date"
-              value={desde}
-              max={hasta || undefined}
-              invalid={!!invertido}
-              onChange={(e) => setDesde(e.target.value)}
-              disabled={pending}
-            />
-          </Field>
-        </div>
-        <div className="w-40">
-          <Field htmlFor="g-hasta" label="Hasta">
-            <Input
-              id="g-hasta"
-              type="date"
-              value={hasta}
-              min={desde || undefined}
-              onChange={(e) => setHasta(e.target.value)}
-              disabled={pending}
-            />
-          </Field>
-        </div>
-        <div className="w-56">
-          <Field htmlFor="g-cat-f" label="Categoría">
-            <Select
-              id="g-cat-f"
-              value={cat}
-              onChange={(e) => {
-                setCat(e.target.value)
-                navigate(buildParams(1, { cat: e.target.value }))
-              }}
-              disabled={pending}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <FiltroPeriodo
+          ariaLabel="Filtrar gastos"
+          idPrefix="gastos"
+          desde={initialDesde}
+          hasta={initialHasta}
+          paramPagina="page"
+          extras={[
+            {
+              param: 'cat',
+              label: 'Categoría',
+              value: initialCategoria,
+              ancho: 'w-56',
+              options: [
+                { value: '', label: 'Todas' },
+                ...categorias.map((c) => ({ value: c.id, label: c.nombre })),
+              ],
+            },
+            {
+              param: 'orden',
+              label: 'Ordenar por',
+              value: initialOrden,
+              valorPorDefecto: 'fecha_desc',
+              ancho: 'w-48',
+              options: [
+                { value: 'fecha_desc', label: 'Fecha (más reciente)' },
+                { value: 'fecha_asc', label: 'Fecha (más antiguo)' },
+                { value: 'monto_desc', label: 'Monto (mayor a menor)' },
+                { value: 'monto_asc', label: 'Monto (menor a mayor)' },
+              ],
+            },
+          ]}
+        />
+        {hayFiltros && (
+          <div>
+            <Link
+              href="/gastos"
+              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
             >
-              <option value="">Todas</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        <div className="w-48">
-          <Field htmlFor="g-orden" label="Ordenar por">
-            <Select
-              id="g-orden"
-              value={orden}
-              onChange={(e) => {
-                const o = e.target.value as GastosOrden
-                setOrden(o)
-                navigate(buildParams(1, { orden: o }))
-              }}
-              disabled={pending}
-            >
-              <option value="fecha_desc">Fecha (más reciente)</option>
-              <option value="fecha_asc">Fecha (más antiguo)</option>
-              <option value="monto_desc">Monto (mayor a menor)</option>
-              <option value="monto_asc">Monto (menor a mayor)</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="flex gap-2 ml-auto">
-          <Button type="button" variant="secondary" onClick={limpiar} disabled={pending}>
-            Limpiar
-          </Button>
-          <Button type="submit" disabled={pending || !!invertido}>
-            {pending ? 'Filtrando…' : 'Aplicar'}
-          </Button>
-        </div>
-      </form>
+              Limpiar
+            </Link>
+          </div>
+        )}
+      </div>
 
       <TableFrame>
         {rows.length === 0 ? (
@@ -240,12 +159,11 @@ export function GastosTableClient({
         )}
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={goToPage}
-        disabled={pending}
+        param="page"
       />
 
       <ConfirmDialog

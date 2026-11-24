@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Table, type Column } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { escapeCsvField, downloadCsv, csvNegative } from '@/lib/utils/csv'
 import type {
   PanelRevendedoraRow,
@@ -38,59 +37,6 @@ export function RevendedorasPanelView({
   filtros,
 }: RevendedorasPanelViewProps) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-
-  const [q, setQ] = useState(filtros.q ?? '')
-  const [desde, setDesde] = useState(filtros.desde ?? '')
-  const [hasta, setHasta] = useState(filtros.hasta ?? '')
-  const [estado, setEstado] = useState(filtros.estado)
-  const [cuenta, setCuenta] = useState(filtros.cuenta)
-  const [orden, setOrden] = useState(filtros.orden)
-
-  const rangoInvertido = Boolean(desde && hasta && desde > hasta)
-
-  function aplicarFiltros(overrides: Partial<typeof filtros> = {}) {
-    const nextFiltros = {
-      q,
-      desde,
-      hasta,
-      estado,
-      cuenta,
-      orden,
-      page: 1,
-      ...overrides,
-    }
-
-    const params = new URLSearchParams()
-    if (nextFiltros.q) params.set('q', nextFiltros.q)
-    if (nextFiltros.desde) params.set('desde', nextFiltros.desde)
-    if (nextFiltros.hasta) params.set('hasta', nextFiltros.hasta)
-    if (nextFiltros.estado && nextFiltros.estado !== 'todos') params.set('estado', nextFiltros.estado)
-    if (nextFiltros.cuenta && nextFiltros.cuenta !== 'todos') params.set('cuenta', nextFiltros.cuenta)
-    if (nextFiltros.orden && nextFiltros.orden !== 'apellido_asc') params.set('orden', nextFiltros.orden)
-    if (nextFiltros.page && nextFiltros.page > 1) params.set('page', String(nextFiltros.page))
-
-    startTransition(() => {
-      router.push(`/revendedoras?${params.toString()}`)
-    })
-  }
-
-  function limpiarFiltros() {
-    setQ('')
-    setDesde('')
-    setHasta('')
-    setEstado('todos')
-    setCuenta('todos')
-    setOrden('apellido_asc')
-    aplicarFiltros({
-      q: '',
-      desde: '',
-      hasta: '',
-      estado: 'todos',
-      cuenta: 'todos',
-      orden: 'apellido_asc',
-    })
-  }
 
   function exportarCsv() {
     const headers = [
@@ -291,22 +237,7 @@ export function RevendedorasPanelView({
     <div className="flex flex-col gap-6">
       {/* Barra de filtros unificada: es la tarjeta que sube sobre la banda. */}
       <RevendedorasFiltrosBar
-        q={q}
-        setQ={setQ}
-        desde={desde}
-        setDesde={setDesde}
-        hasta={hasta}
-        setHasta={setHasta}
-        estado={estado}
-        setEstado={setEstado}
-        cuenta={cuenta}
-        setCuenta={setCuenta}
-        orden={orden}
-        setOrden={setOrden}
-        isPending={isPending}
-        rangoInvertido={rangoInvertido}
-        onAplicar={() => aplicarFiltros()}
-        onLimpiar={limpiarFiltros}
+        filtros={filtros}
         onExportar={exportarCsv}
         exportarDisabled={data.length === 0}
       />
@@ -318,7 +249,7 @@ export function RevendedorasPanelView({
           description="Probá ajustando la búsqueda o los filtros aplicados."
           cta={{
             label: 'Limpiar filtros',
-            onClick: limpiarFiltros,
+            onClick: () => router.push('/revendedoras'),
           }}
         />
       ) : (
@@ -328,16 +259,14 @@ export function RevendedorasPanelView({
               columns={columns}
               data={data}
               getRowId={(r) => r.id_revendedora}
-              loading={isPending}
             />
           </TableFrame>
 
-          <Pagination
+          <PaginacionUrl
             page={filtros.page}
             pageSize={25}
             total={total}
-            onPageChange={(p) => aplicarFiltros({ page: p })}
-            disabled={isPending}
+            param="page"
           />
         </div>
       )}

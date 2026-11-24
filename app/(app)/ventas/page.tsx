@@ -107,7 +107,6 @@ export default async function VentasHome(props: {
         subtitle={`${resumen.registradas} operaciones registradas`}
         filters={
           <FiltroPeriodo
-            basePath="/ventas"
             ariaLabel="Filtrar ventas por período"
             idPrefix="ventas"
             desde={desde}
