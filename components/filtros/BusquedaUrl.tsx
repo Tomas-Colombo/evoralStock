@@ -29,16 +29,19 @@ export function BusquedaUrl({
   const { aplicar } = useFiltrosUrl({ paramPagina })
   const [texto, setTexto] = useState(valor)
   const [prevValor, setPrevValor] = useState(valor)
-  const [ultimoEnviado, setUltimoEnviado] = useState<string | null>(null)
+  const [enviados, setEnviados] = useState<string[]>([])
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   if (prevValor !== valor) {
     setPrevValor(valor)
-    // Ignorar el eco de la propia navegación para no pisar lo que se sigue tipeando.
-    if (valor === ultimoEnviado) {
-      setUltimoEnviado(null)
+    const indice = enviados.indexOf(valor)
+    if (indice !== -1) {
+      // Cola de envíos en vuelo: un eco tardío de un envío anterior no debe
+      // pisar lo que se siguió tipeando ni desfasar el siguiente eco.
+      setEnviados(enviados.slice(indice + 1))
     } else {
       setTexto(valor)
+      if (enviados.length > 0) setEnviados([])
     }
   }
 
@@ -55,7 +58,7 @@ export function BusquedaUrl({
       const recortado = nuevo.trim()
       const actualEnUrl = new URLSearchParams(window.location.search).get(param) ?? ''
       if (recortado === actualEnUrl) return
-      setUltimoEnviado(recortado)
+      setEnviados((prev) => [...prev, recortado])
       aplicar({ [param]: recortado || null })
     }, DEBOUNCE_MS)
   }
