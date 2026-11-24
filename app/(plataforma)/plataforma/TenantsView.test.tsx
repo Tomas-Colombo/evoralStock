@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TenantsView } from './TenantsView'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -83,6 +83,10 @@ function renderView(
 describe('TenantsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.history.replaceState(null, '', '/plataforma')
+    mockPush.mockImplementation((url: string) => {
+      window.history.replaceState(null, '', url)
+    })
   })
 
   it('renderiza el estado vacío cuando no hay comercios registrados en toda la plataforma', () => {
@@ -142,6 +146,7 @@ describe('TenantsView', () => {
 
   it('D6: cambiar un filtro resetea page a 1', async () => {
     const user = userEvent.setup()
+    window.history.replaceState(null, '', '/plataforma?page=3')
     // Vista en página 3
     renderView(MOCK_TENANTS, 100, 3, 25, {
       ...DEFAULT_FILTROS,
@@ -170,16 +175,16 @@ describe('TenantsView', () => {
       '/plataforma?estado=suspendido&deuda=con-deuda&orden=saldo_desc',
     )
 
-    // 4. Filtrar por texto
+    // 4. Filtrar por texto (aplica automático tras debounce de 300 ms)
     mockPush.mockClear()
     const inputBusqueda = screen.getByPlaceholderText('Buscá por comercio o subdominio')
     await user.type(inputBusqueda, 'Modas')
-    const btnFiltrar = screen.getByRole('button', { name: 'Filtrar' })
-    await user.click(btnFiltrar)
 
-    expect(mockPush).toHaveBeenCalledWith(
-      '/plataforma?q=Modas&estado=suspendido&deuda=con-deuda&orden=saldo_desc',
-    )
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        '/plataforma?estado=suspendido&deuda=con-deuda&orden=saldo_desc&q=Modas',
+      )
+    })
   })
 
   it('Pagination aparece solo con más de 25 comercios en total', () => {

@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { FilterBar } from '@/components/ui/FilterBar'
-import { Pagination } from '@/components/ui/Pagination'
-import { Select } from '@/components/ui/Select'
 import {
   DataTable,
   TableFrame,
@@ -25,9 +25,6 @@ import {
   DEUDA_TENANT_LABEL,
   ORDEN_TENANT_FILTRO,
   ORDEN_TENANT_LABEL,
-  type EstadoTenantFiltro,
-  type DeudaTenantFiltro,
-  type OrdenTenantFiltro,
   type TenantPlataformaResumen,
 } from '@/lib/types/plataforma'
 import type { FiltrosTenantsParsed } from '@/lib/validation/plataforma'
@@ -51,49 +48,11 @@ export function TenantsView({
   filtros,
 }: TenantsViewProps) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
-
-  const [q, setQ] = useState(filtros.q)
-  const [estado, setEstado] = useState<EstadoTenantFiltro>(filtros.estado)
-  const [deuda, setDeuda] = useState<DeudaTenantFiltro>(filtros.deuda)
-  const [orden, setOrden] = useState<OrdenTenantFiltro>(filtros.orden)
   const [modalNuevoOpen, setModalNuevoOpen] = useState(false)
 
   const hayFiltrosActivos = Boolean(
     filtros.q || filtros.estado !== 'todos' || filtros.deuda !== 'todos',
   )
-
-  function navegar(next: {
-    q?: string
-    estado?: EstadoTenantFiltro
-    deuda?: DeudaTenantFiltro
-    orden?: OrdenTenantFiltro
-    page?: number
-  }) {
-    const params = new URLSearchParams()
-    const texto = (next.q !== undefined ? next.q : q).trim()
-    const est = next.estado ?? estado
-    const deu = next.deuda ?? deuda
-    const ord = next.orden ?? orden
-    const pag = next.page ?? 1
-
-    if (texto) params.set('q', texto)
-    if (est && est !== 'todos') params.set('estado', est)
-    if (deu && deu !== 'todos') params.set('deuda', deu)
-    if (ord && ord !== 'nombre_asc') params.set('orden', ord)
-    if (pag > 1) params.set('page', String(pag))
-
-    const qs = params.toString()
-    startTransition(() => router.push(qs ? `/plataforma?${qs}` : '/plataforma'))
-  }
-
-  function limpiarFiltros() {
-    setQ('')
-    setEstado('todos')
-    setDeuda('todos')
-    setOrden('nombre_asc')
-    startTransition(() => router.push('/plataforma'))
-  }
 
   // Estado vacío absoluto (sin comercios en toda la plataforma)
   if (total === 0 && !hayFiltrosActivos) {
@@ -140,85 +99,62 @@ export function TenantsView({
       {/* Barra de filtros (D2, D7) */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex-1">
-          <FilterBar
-            value={q}
-            onChange={setQ}
+          <BusquedaUrl
+            valor={filtros.q}
             placeholder="Buscá por comercio o subdominio"
+            paramPagina="page"
           />
         </div>
         <div className="w-full sm:w-44">
-          <Select
-            value={estado}
-            onChange={(e) => {
-              const val = e.target.value as EstadoTenantFiltro
-              setEstado(val)
-              navegar({ estado: val, page: 1 })
-            }}
-            disabled={pending}
-            aria-label="Filtrar por estado"
-          >
-            {ESTADOS_TENANT_FILTRO.map((est) => (
-              <option key={est} value={est}>
-                {ESTADOS_TENANT_LABEL[est]}
-              </option>
-            ))}
-          </Select>
+          <SelectUrl
+            id="tenants-estado"
+            param="estado"
+            valor={filtros.estado}
+            valorPorDefecto="todos"
+            ariaLabel="Filtrar por estado"
+            paramPagina="page"
+            opciones={ESTADOS_TENANT_FILTRO.map((est) => ({
+              value: est,
+              label: ESTADOS_TENANT_LABEL[est],
+            }))}
+          />
         </div>
         <div className="w-full sm:w-44">
-          <Select
-            value={deuda}
-            onChange={(e) => {
-              const val = e.target.value as DeudaTenantFiltro
-              setDeuda(val)
-              navegar({ deuda: val, page: 1 })
-            }}
-            disabled={pending}
-            aria-label="Filtrar por deuda"
-          >
-            {DEUDA_TENANT_FILTRO.map((deu) => (
-              <option key={deu} value={deu}>
-                {DEUDA_TENANT_LABEL[deu]}
-              </option>
-            ))}
-          </Select>
+          <SelectUrl
+            id="tenants-deuda"
+            param="deuda"
+            valor={filtros.deuda}
+            valorPorDefecto="todos"
+            ariaLabel="Filtrar por deuda"
+            paramPagina="page"
+            opciones={DEUDA_TENANT_FILTRO.map((deu) => ({
+              value: deu,
+              label: DEUDA_TENANT_LABEL[deu],
+            }))}
+          />
         </div>
         <div className="w-full sm:w-48">
-          <Select
-            value={orden}
-            onChange={(e) => {
-              const val = e.target.value as OrdenTenantFiltro
-              setOrden(val)
-              navegar({ orden: val, page: 1 })
-            }}
-            disabled={pending}
-            aria-label="Ordenar comercios"
-          >
-            {ORDEN_TENANT_FILTRO.map((ord) => (
-              <option key={ord} value={ord}>
-                {ORDEN_TENANT_LABEL[ord]}
-              </option>
-            ))}
-          </Select>
+          <SelectUrl
+            id="tenants-orden"
+            param="orden"
+            valor={filtros.orden}
+            valorPorDefecto="nombre_asc"
+            ariaLabel="Ordenar comercios"
+            paramPagina="page"
+            opciones={ORDEN_TENANT_FILTRO.map((ord) => ({
+              value: ord,
+              label: ORDEN_TENANT_LABEL[ord],
+            }))}
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => navegar({ q, page: 1 })}
-            disabled={pending}
+        {hayFiltrosActivos && (
+          <Link
+            href="/plataforma"
+            className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
           >
-            Filtrar
-          </Button>
-          {hayFiltrosActivos && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={limpiarFiltros}
-              disabled={pending}
-            >
-              Limpiar
-            </Button>
-          )}
-        </div>
+            Limpiar
+          </Link>
+        )}
       </div>
 
       {/* Tabla de resultados */}
@@ -304,12 +240,11 @@ export function TenantsView({
       </TableFrame>
 
       {/* Paginación */}
-      <Pagination
+      <PaginacionUrl
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={(p) => navegar({ page: p })}
-        disabled={pending}
+        param="page"
       />
 
       <NuevoTenantModal

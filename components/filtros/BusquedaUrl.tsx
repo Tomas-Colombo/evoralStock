@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FilterBar } from '@/components/ui/FilterBar'
-import { useFiltrosUrl, useValorSincronizado } from './useFiltrosUrl'
+import { useFiltrosUrl } from './useFiltrosUrl'
 
 export interface BusquedaUrlProps {
   /** Nombre del query param. */
@@ -27,8 +27,20 @@ export function BusquedaUrl({
   paramPagina,
 }: BusquedaUrlProps) {
   const { aplicar } = useFiltrosUrl({ paramPagina })
-  const [texto, setTexto] = useValorSincronizado(valor)
+  const [texto, setTexto] = useState(valor)
+  const [prevValor, setPrevValor] = useState(valor)
+  const [ultimoEnviado, setUltimoEnviado] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  if (prevValor !== valor) {
+    setPrevValor(valor)
+    // Ignorar el eco de la propia navegación para no pisar lo que se sigue tipeando.
+    if (valor === ultimoEnviado) {
+      setUltimoEnviado(null)
+    } else {
+      setTexto(valor)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -43,6 +55,7 @@ export function BusquedaUrl({
       const recortado = nuevo.trim()
       const actualEnUrl = new URLSearchParams(window.location.search).get(param) ?? ''
       if (recortado === actualEnUrl) return
+      setUltimoEnviado(recortado)
       aplicar({ [param]: recortado || null })
     }, DEBOUNCE_MS)
   }
