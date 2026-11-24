@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { FilterBar } from '@/components/ui/FilterBar'
 
 export function PortalBusqueda({
@@ -14,7 +14,6 @@ export function PortalBusqueda({
   placeholder?: string
 }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [valor, setValor] = useState(initialValue)
   const [, startTransition] = useTransition()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -30,11 +29,14 @@ export function PortalBusqueda({
     if (timerRef.current) clearTimeout(timerRef.current)
 
     timerRef.current = setTimeout(() => {
-      const actualUrl = searchParams.get('q') ?? ''
+      // Se lee la URL al disparar, no la del render: si en estos 300 ms se
+      // aplicó un período, los searchParams del cierre ya están viejos y el
+      // push lo pisaría.
+      const params = new URLSearchParams(window.location.search)
+      const actualUrl = params.get('q') ?? ''
       const limpio = nuevoValor.trim()
       if (limpio === actualUrl) return
 
-      const params = new URLSearchParams(searchParams.toString())
       if (limpio) params.set('q', limpio)
       else params.delete('q')
       params.delete('pagina')
