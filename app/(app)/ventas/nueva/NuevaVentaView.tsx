@@ -1861,7 +1861,12 @@ export function NuevaVentaView({
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => setCreandoCliente((v) => !v)}
+                    onClick={() => {
+                      // Abrir el alta es dar de alta a OTRO cliente: si quedaba
+                      // uno elegido, la venta se iría a su nombre sin querer.
+                      if (!creandoCliente) seleccionarCliente('', '')
+                      setCreandoCliente((v) => !v)
+                    }}
                     aria-expanded={creandoCliente}
                     disabled={pending}
                   >

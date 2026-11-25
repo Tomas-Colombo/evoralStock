@@ -42,7 +42,7 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
     detalles: [
       {
         tema: 'Financiación en cuotas',
-        texto: 'Si seleccionás venta en cuotas, es obligatorio vincular un cliente para poder generar su plan de pagos.',
+        texto: 'Elegí "No paga ahora" como medio de pago (o cobrá menos del total). Hay que vincular un cliente para generar su plan.',
       },
       {
         tema: 'Venta por revendedora',

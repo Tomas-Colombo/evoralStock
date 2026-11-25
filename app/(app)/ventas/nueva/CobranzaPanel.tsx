@@ -17,6 +17,9 @@ import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
 
 /** Un pago mientras se edita. `recibido` es texto porque puede quedar vacío. */
+/** Opción del selector de medio que no es un medio: quita el pago y deja deuda. */
+const NO_PAGA_AHORA = '__no_paga_ahora__'
+
 export interface PagoBorrador {
   key: string
   medio: MedioPago
@@ -346,6 +349,16 @@ export function CobranzaPanel({
     onChange(pagos.filter((p) => p.key !== key))
   }
 
+  /**
+   * "No paga ahora": ese pago deja de existir y su monto pasa a deuda, que
+   * abre el plan de cuotas del local abajo. Los pagos que quedan se fijan
+   * (`tocado`): si sobrevive uno solo sin tocar, `normalizarPagos` lo
+   * estiraría al total y la deuda desaparecería.
+   */
+  function noPagaAhora(key: string) {
+    onChange(pagos.filter((p) => p.key !== key).map((p) => ({ ...p, tocado: true })))
+  }
+
   /** Este pago absorbe lo que falta asignar. */
   function absorberResto(key: string) {
     const ajustados = pagos.map((p) => (p.key === key ? p : ajustarAlRecibido(p)))
@@ -383,6 +396,12 @@ export function CobranzaPanel({
       </div>
 
       <div className="space-y-3">
+        {pagos.length === 0 && (
+          <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted">
+            No paga ahora: todo el total queda como deuda en cuotas del local. Si deja
+            una seña, tocá «+ Pago».
+          </p>
+        )}
         {pagos.map((p, i) => {
           const esEfectivo = p.medio === 'efectivo'
           const costo = costos[i]
@@ -402,6 +421,10 @@ export function CobranzaPanel({
                 <Select
                   value={p.medio}
                   onChange={(e) => {
+                    if (e.target.value === NO_PAGA_AHORA) {
+                      noPagaAhora(p.key)
+                      return
+                    }
                     const medio = e.target.value as MedioPago
                     // El vuelto sólo existe en efectivo (lo enforcea un check
                     // en la DB); al cambiar de medio se descarta. La cuenta la
@@ -417,6 +440,7 @@ export function CobranzaPanel({
                       {MEDIO_PAGO_LABEL[m]}
                     </option>
                   ))}
+                  <option value={NO_PAGA_AHORA}>No paga ahora (cuotas del local)</option>
                 </Select>
                 {!unico && (
                   <Button
