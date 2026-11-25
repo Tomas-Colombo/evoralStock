@@ -333,9 +333,13 @@ export function CobranzaPanel({
   }
 
   function agregar() {
-    // El pago nuevo arranca con lo que falta asignar: en el caso típico
-    // (un pago que cubría todo) eso es 0, y el vendedor baja el primero.
-    onChange([...pagos, nuevoPago(cuentas, Math.max(0, redondear(restante)))])
+    // El pago nuevo arranca con lo que falta asignar. Si el efectivo ya dice
+    // con cuánto paga el cliente y es menos que su monto, ese es el efectivo
+    // real: antes seguía cubriendo el total y la transferencia quedaba en 0
+    // sin botón "Resto".
+    const ajustados = pagos.map(ajustarAlRecibido)
+    const falta = total - sumaPagos(ajustados)
+    onChange([...ajustados, nuevoPago(cuentas, Math.max(0, redondear(falta)))])
   }
 
   function quitar(key: string) {
@@ -344,14 +348,20 @@ export function CobranzaPanel({
 
   /** Este pago absorbe lo que falta asignar. */
   function absorberResto(key: string) {
-    const otros = pagos.filter((p) => p.key !== key)
+    const ajustados = pagos.map((p) => (p.key === key ? p : ajustarAlRecibido(p)))
+    const otros = ajustados.filter((p) => p.key !== key)
     onChange(
-      pagos.map((p) =>
+      ajustados.map((p) =>
         p.key === key
           ? { ...p, monto: Math.max(0, redondear(total - sumaPagos(otros))), tocado: true }
           : p,
       ),
     )
+  }
+
+  /** Hay algo que absorber: falta plata o otro efectivo recibió menos que su monto. */
+  function puedeAbsorber(key: string) {
+    return !cuadra || pagos.some((p) => p.key !== key && ajustarAlRecibido(p) !== p)
   }
 
   if (cuentas.length === 0) {
@@ -484,7 +494,7 @@ export function CobranzaPanel({
                   aria-label="Monto del pago"
                   className="flex-1 text-right"
                 />
-                {!unico && !cuadra && (
+                {!unico && puedeAbsorber(p.key) && (
                   <Button
                     type="button"
                     size="sm"
@@ -675,6 +685,17 @@ function SelectorCuotas({
       </Select>
     </div>
   )
+}
+
+/**
+ * Un efectivo cuyo "Recibí" es menor que su monto pasa a valer lo recibido.
+ * Devuelve el mismo objeto si no hay nada que ajustar.
+ */
+function ajustarAlRecibido(p: PagoBorrador): PagoBorrador {
+  if (p.medio !== 'efectivo' || p.recibido.trim() === '') return p
+  const recibido = Number(p.recibido.replace(',', '.'))
+  if (!Number.isFinite(recibido) || recibido <= 0 || recibido >= p.monto) return p
+  return { ...p, monto: redondear(recibido), tocado: true }
 }
 
 /** Redondeo a centavos: evita que el "resto" arrastre basura de punto flotante. */
