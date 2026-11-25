@@ -122,11 +122,16 @@ export function cuentasPara(
   return conTarifario.length > 0 ? conTarifario : base
 }
 
-export function nuevoPago(cuentas: CuentaDestinoRow[], monto: number): PagoBorrador {
+export function nuevoPago(
+  cuentas: CuentaDestinoRow[],
+  monto: number,
+  medio: MedioPago = 'efectivo',
+  aranceles: ArancelCobroRow[] = [],
+): PagoBorrador {
   return {
     key: `pago-${secuencia++}`,
-    medio: 'efectivo',
-    idCuenta: cuentasPara(cuentas, 'efectivo')[0]?.id_cuenta_destino ?? '',
+    medio,
+    idCuenta: cuentasPara(cuentas, medio, aranceles)[0]?.id_cuenta_destino ?? '',
     monto,
     cuotas: null,
     tocado: false,
@@ -342,7 +347,14 @@ export function CobranzaPanel({
     // sin botón "Resto".
     const ajustados = pagos.map(ajustarAlRecibido)
     const falta = total - sumaPagos(ajustados)
-    onChange([...ajustados, nuevoPago(cuentas, Math.max(0, redondear(falta)))])
+    // Un segundo pago casi nunca es del mismo medio que el primero: arranca
+    // en el siguiente medio disponible que todavía no se usó.
+    const usados = new Set(pagos.map((p) => p.medio))
+    const medio = medios.find((m) => !usados.has(m)) ?? medios[0] ?? 'efectivo'
+    onChange([
+      ...ajustados,
+      nuevoPago(cuentas, Math.max(0, redondear(falta)), medio, aranceles),
+    ])
   }
 
   function quitar(key: string) {
