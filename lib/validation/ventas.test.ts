@@ -54,34 +54,17 @@ describe('registrarVentaSchema', () => {
       formaPago: 'efectivo',
     })
     expect(r.success).toBe(true)
-    if (r.success) {
-      expect(r.data.canal).toBe('local')
-    }
   })
 
-  it('acepta venta canal revendedora con idRevendedora', () => {
+  it('rechaza canal extra por strictObject', () => {
     const r = registrarVentaSchema.safeParse({
       lineas: [{ id_item: UUID }],
       formaPago: 'efectivo',
-      canal: 'revendedora',
-      idRevendedora: UUID,
-    })
-    expect(r.success).toBe(true)
-    if (r.success) {
-      expect(r.data.canal).toBe('revendedora')
-      expect(r.data.idRevendedora).toBe(UUID)
-    }
-  })
-
-  it('rechaza canal online', () => {
-    const r = registrarVentaSchema.safeParse({
-      lineas: [{ id_item: UUID }],
-      formaPago: 'efectivo',
-      canal: 'online',
+      canal: 'local',
     })
     expect(r.success).toBe(false)
     if (!r.success) {
-      expect(primerReason(r.error)).toMatch(/canal-invalido/)
+      expect(primerReason(r.error)).toBe('campo-desconocido')
     }
   })
 
@@ -101,18 +84,6 @@ describe('registrarVentaSchema', () => {
       lineas: [{ id_item: UUID }],
       formaPago: 'efectivo',
       hack: 'campo-extra',
-    })
-    expect(r.success).toBe(false)
-    if (!r.success) {
-      expect(primerReason(r.error)).toBe('campo-desconocido')
-    }
-  })
-
-  it('rechaza id_revendedora snake_case como campo desconocido (solo idRevendedora)', () => {
-    const r = registrarVentaSchema.safeParse({
-      lineas: [{ id_item: UUID }],
-      formaPago: 'efectivo',
-      id_revendedora: UUID,
     })
     expect(r.success).toBe(false)
     if (!r.success) {

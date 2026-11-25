@@ -73,20 +73,17 @@ describe('registrarVentaAction — 3 gates and permission matrix', () => {
     }
   })
 
-  it('falla en Gate 2 con canal-invalido si canal es online', async () => {
+  it('falla en Gate 2 con campo-desconocido si envían canal (strictObject)', async () => {
     vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
 
     const res = await registrarVentaAction({
       lineas: [{ id_item: UUID_ITEM }],
       formaPago: 'efectivo',
-      canal: 'online' as unknown as 'local',
+      canal: 'revendedora',
     })
 
     expect(dalVentas.spRegistrarVenta).not.toHaveBeenCalled()
-    expect(res.ok).toBe(false)
-    if (!res.ok) {
-      expect(res.reason).toMatch(/^canal-invalido/)
-    }
+    expect(res).toEqual({ ok: false, reason: 'campo-desconocido' })
   })
 
   it('falla en Gate 2 con campo-desconocido si envían claves extra (strictObject)', async () => {
@@ -102,19 +99,6 @@ describe('registrarVentaAction — 3 gates and permission matrix', () => {
     expect(res).toEqual({ ok: false, reason: 'campo-desconocido' })
   })
 
-  it('falla si canal revendedora no incluye idRevendedora', async () => {
-    vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
-
-    const res = await registrarVentaAction({
-      lineas: [{ id_item: UUID_ITEM }],
-      formaPago: 'efectivo',
-      canal: 'revendedora',
-    })
-
-    expect(dalVentas.spRegistrarVenta).not.toHaveBeenCalled()
-    expect(res).toEqual({ ok: false, reason: 'revendedora-invalida' })
-  })
-
   it('falla si hay financiación sin cliente', async () => {
     vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
 
@@ -126,64 +110,6 @@ describe('registrarVentaAction — 3 gates and permission matrix', () => {
 
     expect(dalVentas.spRegistrarVenta).not.toHaveBeenCalled()
     expect(res).toEqual({ ok: false, reason: 'financiacion-sin-cliente' })
-  })
-
-  // ── Matriz de autorización para canal Revendedora ───────────────────────
-  it('devuelve module-disabled si el módulo revendedoras está deshabilitado en canal revendedora', async () => {
-    vi.mocked(guard.requireModuleRole).mockImplementation(
-      async (_session, modulo) => {
-        if (modulo === 'ventas') return
-        if (modulo === 'revendedoras') {
-          throw new AuthorizationError('module-disabled')
-        }
-      },
-    )
-
-    const res = await registrarVentaAction({
-      lineas: [{ id_item: UUID_ITEM }],
-      formaPago: 'efectivo',
-      canal: 'revendedora',
-      idRevendedora: UUID_REV,
-    })
-
-    expect(guard.requireModuleRole).toHaveBeenCalledWith(
-      expect.anything(),
-      'ventas',
-      'crear',
-    )
-    expect(guard.requireModuleRole).toHaveBeenCalledWith(
-      expect.anything(),
-      'revendedoras',
-      'crear',
-    )
-    expect(dalVentas.spRegistrarVenta).not.toHaveBeenCalled()
-    expect(res).toEqual({ ok: false, reason: 'module-disabled' })
-  })
-
-  it('devuelve no-permission si no tiene rol revendedoras:crear en canal revendedora', async () => {
-    vi.mocked(guard.requireModuleRole).mockImplementation(
-      async (_session, modulo) => {
-        if (modulo === 'ventas') return
-        if (modulo === 'revendedoras') {
-          throw new AuthorizationError('no-permission')
-        }
-      },
-    )
-
-    const res = await registrarVentaAction({
-      lineas: [{ id_item: UUID_ITEM }],
-      formaPago: 'efectivo',
-      canal: 'revendedora',
-      idRevendedora: UUID_REV,
-    })
-
-    expect(guard.requireModuleRole).toHaveBeenCalledWith(
-      expect.anything(),
-      'revendedoras',
-      'crear',
-    )
-    expect(dalVentas.spRegistrarVenta).not.toHaveBeenCalled()
-    expect(res).toEqual({ ok: false, reason: 'no-permission' })
   })
 
   // ── Gate 3: Llamada a DAL ───────────────────────────────────────────────
@@ -214,47 +140,18 @@ describe('registrarVentaAction — 3 gates and permission matrix', () => {
     expect(res).toEqual({ ok: true, data: { id: 'venta-uuid-123' } })
   })
 
-  it('registra venta revendedora autorizada pasando id_revendedora y canal', async () => {
-    vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
-    vi.mocked(dalVentas.spRegistrarVenta).mockResolvedValue('venta-rev-uuid')
-
-    const res = await registrarVentaAction({
-      lineas: [{ id_item: UUID_ITEM }],
-      formaPago: 'efectivo',
-      canal: 'revendedora',
-      idRevendedora: UUID_REV,
-    })
-
-    expect(guard.requireModuleRole).toHaveBeenCalledWith(
-      expect.anything(),
-      'revendedoras',
-      'crear',
-    )
-    expect(dalVentas.spRegistrarVenta).toHaveBeenCalledWith(
-      expect.objectContaining({
-        canal: 'revendedora',
-        id_revendedora: UUID_REV,
-      }),
-    )
-    expect(revalidatePath).toHaveBeenCalledWith('/revendedoras')
-    expect(revalidatePath).toHaveBeenCalledWith(`/revendedoras/${UUID_REV}`)
-    expect(res).toEqual({ ok: true, data: { id: 'venta-rev-uuid' } })
-  })
-
   it('propaga error del DAL como reason', async () => {
     vi.mocked(guard.requireModuleRole).mockResolvedValue(undefined)
     vi.mocked(dalVentas.spRegistrarVenta).mockRejectedValue(
-      new Error('item-no-en-revendedora'),
+      new Error('item-no-disponible'),
     )
 
     const res = await registrarVentaAction({
       lineas: [{ id_item: UUID_ITEM }],
       formaPago: 'efectivo',
-      canal: 'revendedora',
-      idRevendedora: UUID_REV,
     })
 
-    expect(res).toEqual({ ok: false, reason: 'item-no-en-revendedora' })
+    expect(res).toEqual({ ok: false, reason: 'item-no-disponible' })
   })
 })
 

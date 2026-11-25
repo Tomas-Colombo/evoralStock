@@ -1,3 +1,4 @@
+import { BASE_URL } from '../config/env'
 import { expect, test, unique } from '../fixtures/test'
 
 test.describe('Liquidaciones de revendedora', () => {
@@ -6,7 +7,7 @@ test.describe('Liquidaciones de revendedora', () => {
     shell,
     nuevoProducto,
     controlPrecios,
-    nuevaVenta,
+    browser,
     seed,
   }) => {
     // 1. Crear dos productos con stock y precio
@@ -30,12 +31,16 @@ test.describe('Liquidaciones de revendedora', () => {
     await page.waitForURL(/\/inventario(\?|$)/)
     await controlPrecios.recalcular(nombreProd2)
 
-    // 2. Dar de alta revendedora
+    // 2. Dar de alta revendedora con acceso al portal
     await page.goto('/revendedoras/nuevo')
     const nombreRev = unique('Laura')
     const apellidoRev = 'Liquidada'
+    const emailRev = `${nombreRev.toLowerCase().replace(/\s+/g, '')}@test.com`
     await page.getByLabel(/^Nombre/).fill(nombreRev)
     await page.getByLabel(/^Apellido/).fill(apellidoRev)
+    await page.getByLabel(/^Email/).fill(emailRev)
+    await page.getByLabel(/Crear acceso al sistema para la revendedora/i).check()
+    await page.locator('#nr_password').fill('Password123!')
     await page.getByRole('button', { name: 'Guardar' }).click()
     await page.waitForURL(/\/revendedoras(\?|$)/)
 
@@ -64,28 +69,38 @@ test.describe('Liquidaciones de revendedora', () => {
     await shell.expectSuccessToast('Consignación guardada')
     await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
 
-    // 4. Registrar ventas en canal revendedora para ambos productos
-    // Venta 1
-    await nuevaVenta.abrir()
-    await nuevaVenta.canal.selectOption('revendedora')
-    await nuevaVenta.revendedora.selectOption({ label: `${nombreRev} ${apellidoRev}` })
-    await nuevaVenta.agregarPorTexto(nombreProd1)
-    await expect(nuevaVenta.lineas).toHaveCount(1)
-    await nuevaVenta.continuarAlCobro.click()
-    await nuevaVenta.confirmar.click()
-    await shell.expectSuccessToast('Venta registrada')
-    await page.waitForURL(/\/ventas\/[0-9a-f-]{36}$/)
+    // 4. Registrar ventas desde el portal de revendedora para ambos productos
+    const revContext = await browser.newContext({ baseURL: BASE_URL })
+    const revPage = await revContext.newPage()
+    try {
+      await revPage.goto('/login')
+      await revPage.getByLabel('Correo electrónico').fill(emailRev)
+      await revPage.getByLabel('Contraseña').fill('Password123!')
+      await revPage.getByRole('button', { name: 'Ingresar' }).click()
+      await revPage.waitForURL(/\/mi-cuenta(\?|$)/)
 
-    // Venta 2
-    await nuevaVenta.abrir()
-    await nuevaVenta.canal.selectOption('revendedora')
-    await nuevaVenta.revendedora.selectOption({ label: `${nombreRev} ${apellidoRev}` })
-    await nuevaVenta.agregarPorTexto(nombreProd2)
-    await expect(nuevaVenta.lineas).toHaveCount(1)
-    await nuevaVenta.continuarAlCobro.click()
-    await nuevaVenta.confirmar.click()
-    await shell.expectSuccessToast('Venta registrada')
-    await page.waitForURL(/\/ventas\/[0-9a-f-]{36}$/)
+      await revPage.goto('/mi-cuenta/stock')
+
+      // Venta 1
+      const cardProd1 = revPage
+        .getByRole('heading', { name: nombreProd1 })
+        .locator('xpath=ancestor::div[contains(@class, "bg-card")]')
+      await cardProd1.getByRole('button', { name: 'Vender' }).click()
+      const modal1 = revPage.getByRole('dialog')
+      await modal1.getByRole('button', { name: /Confirmar venta/i }).click()
+      await expect(revPage.getByText('Venta registrada')).toBeVisible()
+
+      // Venta 2
+      const cardProd2 = revPage
+        .getByRole('heading', { name: nombreProd2 })
+        .locator('xpath=ancestor::div[contains(@class, "bg-card")]')
+      await cardProd2.getByRole('button', { name: 'Vender' }).click()
+      const modal2 = revPage.getByRole('dialog')
+      await modal2.getByRole('button', { name: /Confirmar venta/i }).click()
+      await expect(revPage.getByText('Venta registrada')).toBeVisible()
+    } finally {
+      await revContext.close()
+    }
 
     // 5. Ir a Liquidaciones de la revendedora
     await page.goto(`/revendedoras/${idRevendedora}/liquidaciones`)

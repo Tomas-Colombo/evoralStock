@@ -9,8 +9,6 @@ import {
 import { listProductosSinCosto } from '@/lib/dal/inventario/producto'
 import { listCuentasDestino } from '@/lib/dal/ventas/cuenta-destino'
 import { listArancelesCobro } from '@/lib/dal/ventas/arancel'
-import { hasModuleAccess } from '@/lib/dal/guard'
-import { listarRevendedoras, listReglasComision } from '@/lib/dal/revendedoras'
 import { listPlanesCuotas } from '@/lib/dal/precios/cuotas'
 import { listRecargosCuotas } from '@/lib/dal/precios/recargo'
 import { nombreCliente } from '@/lib/types/ventas'
@@ -23,8 +21,6 @@ export default async function NuevaVentaPage(props: {
   const searchParams = await props.searchParams
   const idReserva = searchParams.reserva ?? null
 
-  const puedeRevendedoras = hasModuleAccess(session, 'revendedoras', 'ver')
-
   const [
     clientes,
     reservasActivas,
@@ -34,8 +30,6 @@ export default async function NuevaVentaPage(props: {
     planesCuotas,
     aranceles,
     recargos,
-    revendedorasRaw,
-    reglasComision,
   ] = await Promise.all([
     listClientes({ soloActivos: true }),
     listReservas({ estado: 'activa' }),
@@ -45,16 +39,7 @@ export default async function NuevaVentaPage(props: {
     listPlanesCuotas({ soloActivos: true }),
     listArancelesCobro(),
     listRecargosCuotas(),
-    puedeRevendedoras ? listarRevendedoras(session) : Promise.resolve([]),
-    puedeRevendedoras ? listReglasComision('revendedora') : Promise.resolve([]),
   ])
-
-  const revendedoras = revendedorasRaw
-    .filter((r) => r.activo)
-    .map((r) => ({
-      id: r.id_revendedora,
-      nombre: `${r.nombre} ${r.apellido}`.trim(),
-    }))
 
   // Acceso directo desde Reservas: la venta arranca con TODO lo que tenía la
   // reserva (ítems, cliente, observaciones). Sólo los QR viajan al cliente —
@@ -100,9 +85,6 @@ export default async function NuevaVentaPage(props: {
           aranceles={aranceles}
           recargos={recargos}
           precargaReserva={precarga}
-          puedeRevendedoras={puedeRevendedoras}
-          revendedoras={revendedoras}
-          reglasComision={reglasComision}
         />
       </main>
     </>

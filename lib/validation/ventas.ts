@@ -89,13 +89,6 @@ export const registrarVentaSchema = z.strictObject(
     pagos: z.array(pagoInputSchema).optional(),
     financiacion: financiacionInputSchema.nullable().optional(),
     financiador: financiadorInputSchema.nullable().optional(),
-    canal: z
-      .enum(['local', 'revendedora'], {
-        error: () => 'canal-invalido',
-      })
-      .optional()
-      .default('local'),
-    idRevendedora: z.string().uuid('revendedora-invalida').nullable().optional(),
   },
   {
     error: (issue: z.core.$ZodRawIssue) =>

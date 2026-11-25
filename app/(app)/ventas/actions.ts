@@ -59,16 +59,6 @@ export async function registrarVentaAction(
   }
   const input = parsed.data
 
-  if (input.canal && input.canal !== 'local') {
-    const gRev = await guarded('revendedoras', 'crear')
-    if (!gRev.ok) return { ok: false, reason: gRev.error }
-  }
-
-  const idRevendedora = input.idRevendedora ?? null
-  if (input.canal === 'revendedora' && !idRevendedora) {
-    return { ok: false, reason: 'revendedora-invalida' }
-  }
-
   // Se chequea acá además de en el SP: el error del RPC llega después de
   // haber empezado la transacción, y este es un dato que la UI ya tiene.
   if (input.financiacion && !input.idCliente) {
@@ -85,16 +75,12 @@ export async function registrarVentaAction(
       pagos: input.pagos,
       financiacion: input.financiacion ?? null,
       financiador: input.financiador ?? null,
-      canal: input.canal,
-      id_revendedora: idRevendedora,
+      canal: 'local',
+      id_revendedora: null,
     })
     revalidatePath('/ventas')
     revalidatePath('/inventario/productos')
     revalidatePath('/inventario')
-    if (input.canal === 'revendedora') {
-      revalidatePath('/revendedoras')
-      if (idRevendedora) revalidatePath(`/revendedoras/${idRevendedora}`)
-    }
     if (input.financiacion) revalidatePath('/cuotas')
     if (input.idReserva) revalidatePath(`/ventas/reservas/${input.idReserva}`)
     return { ok: true, data: { id } }

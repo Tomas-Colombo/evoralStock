@@ -44,14 +44,6 @@ export class NuevaVentaPage {
     await expect(this.shell.titulo).toHaveText('Nueva venta')
   }
 
-  get canal(): Locator {
-    return this.page.getByLabel('Canal de venta')
-  }
-
-  get revendedora(): Locator {
-    return this.page.getByLabel('Revendedora', { exact: true })
-  }
-
   get buscador(): Locator {
     return contenido(this.page).getByLabel(/^Escanear, tipear código/)
   }

@@ -45,6 +45,5 @@ test.describe('Permisos por rol', () => {
 
     await expect(shell.titulo).toHaveText('Nueva venta')
     await expect(contenido(page).getByLabel(/^Escanear, tipear código/)).toBeVisible()
-    await expect(page.getByLabel('Canal de venta')).toHaveCount(0)
   })
 })

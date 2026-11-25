@@ -54,7 +54,7 @@ Los 6 módulos base del sistema:
 
 ### Paquetes opcionales
 Cada paquete agrupa uno o más códigos de módulo de `tenant_modulo`:
-- **`revendedoras`**: código `['revendedoras']`. Canal de venta externa, stock en poder, portal y liquidaciones.
+- **`revendedoras`**: código `['revendedoras']`. Portal de revendedoras, stock en poder, venta directa y liquidaciones.
 - **`consignacionProveedor`**: códigos `['consignaciones', 'rendiciones']`. Ingreso de mercadería por consignación, tipo de proveedor consignatario, devoluciones a proveedor y rendiciones de ventas. Se habilitan y apagan siempre de a par (invariante en DB).
 - **`ayuda`**: código `['ayuda']`. Panel flotante de consulta con asistente IA (permiso `ayuda.consultar`). Sin ruta propia: es un panel flotante y sus actions viven en `app/(app)/ayuda/actions.ts` sin `page.tsx`.
 

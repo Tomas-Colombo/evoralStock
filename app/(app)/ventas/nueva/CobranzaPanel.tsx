@@ -14,7 +14,6 @@ import {
 import type { PlanCuotasRow, RecargoCuotasRow } from '@/lib/types/precios'
 import { calcularCostoCobro, resolverArancel } from '@/lib/cobros/calcular-costo'
 import { Select } from '@/components/ui/Select'
-import { Card } from '@/components/ui/Card'
 import { parsearDecimal } from '@/lib/utils/numero'
 
 /** Un pago mientras se edita. `recibido` es texto porque puede quedar vacío. */
@@ -267,8 +266,6 @@ export function CobranzaPanel({
   recargos,
   planesCuotas,
   onChange,
-  canal = 'local',
-  comisionEstimada,
 }: {
   cuentas: CuentaDestinoRow[]
   pagos: PagoBorrador[]
@@ -280,39 +277,7 @@ export function CobranzaPanel({
   recargos: RecargoCuotasRow[]
   planesCuotas: PlanCuotasRow[]
   onChange: (pagos: PagoBorrador[]) => void
-  canal?: 'local' | 'revendedora'
-  comisionEstimada?: { porcentaje: number; montoEstimado: number } | null
 }) {
-  if (canal === 'revendedora') {
-    return (
-      <div className="space-y-4">
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Cobranza</h4>
-            <Badge variant="info">Pago automático</Badge>
-          </div>
-          <p className="text-xs text-muted">
-            La venta por canal revendedora se imputa automáticamente a la cuenta corriente de la
-            revendedora. No requiere registrar medios de cobro manuales.
-          </p>
-          {comisionEstimada && (
-            <div className="mt-3 rounded-md border border-border bg-card-2 p-3 text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Comisión aplicable</span>
-                <span className="font-mono font-semibold text-warn-ink">
-                  {comisionEstimada.porcentaje}% ({money(comisionEstimada.montoEstimado)})
-                </span>
-              </div>
-              <p className="text-[11px] text-muted italic">
-                * Estimación informativa sobre la venta actual. La comisión definitiva se liquida en el cierre de ciclo.
-              </p>
-            </div>
-          )}
-        </Card>
-      </div>
-    )
-  }
-
   // Los medios que este local puede cobrar, según lo que haya cargado en
   // Precios y Cuentas. No es una lista fija: sin tarifario de tarjeta, la
   // tarjeta no se ofrece.

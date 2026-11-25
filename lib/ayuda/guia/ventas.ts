@@ -44,10 +44,6 @@ export const GUIA_VENTAS: readonly EntradaGuia[] = [
         tema: 'Financiación en cuotas',
         texto: 'Elegí "No paga ahora" como medio de pago (o cobrá menos del total). Hay que vincular un cliente para generar su plan.',
       },
-      {
-        tema: 'Venta por revendedora',
-        texto: 'Si elegís canal revendedora, tenés que seleccionar la revendedora asignada antes de confirmar.',
-      },
     ],
   },
   {

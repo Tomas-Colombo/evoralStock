@@ -53,15 +53,11 @@ import { generarPlanCuotas } from '@/lib/cuotas/generar-plan'
 import { registrarVentaAction } from '../actions'
 import { ClienteQuickCreate, type ClienteCreado } from '../ClienteQuickCreate'
 import { mensajeDeError } from '@/lib/errores/mensajes'
-import type { ReglaComisionConEscalas } from '@/lib/types/comisiones'
-import { estimarComision, resolverComision } from '@/lib/comisiones/resolver-comision'
-import { hoyISO } from '@/lib/utils/hoy'
 import { TableFrame, DataTable, THead, TBody, TFoot, Tr, Th, Td } from '@/components/ui/TableParts'
 import { IconButton } from '@/components/ui/IconButton'
 import { Card } from '@/components/ui/Card'
 
 interface ClienteOption { id: string; nombre: string; telefono: string | null }
-export interface RevendedoraOption { id: string; nombre: string }
 /** Grupo del carrito: N unidades del mismo producto+talle en una sola fila. */
 interface Grupo {
   key: string
@@ -133,9 +129,6 @@ export function NuevaVentaView({
   aranceles,
   recargos,
   precargaReserva,
-  puedeRevendedoras = false,
-  revendedoras = [],
-  reglasComision = [],
 }: {
   clientes: ClienteOption[]
   reservasActivas: ReservaOption[]
@@ -153,9 +146,6 @@ export function NuevaVentaView({
    */
   recargos: RecargoCuotasRow[]
   precargaReserva: PrecargaReserva | null
-  puedeRevendedoras?: boolean
-  revendedoras?: RevendedoraOption[]
-  reglasComision?: ReglaComisionConEscalas[]
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -163,9 +153,6 @@ export function NuevaVentaView({
 
   const [clientes, setClientes] = useState<ClienteOption[]>(clientesIniciales)
   const [idCliente, setIdCliente] = useState<string>(precargaReserva?.idCliente ?? '')
-
-  const [canal, setCanal] = useState<'local' | 'revendedora'>('local')
-  const [idRevendedora, setIdRevendedora] = useState<string>('')
 
   /**
    * Mete el financiador en una query de lookup. Desde 00063 el recargo depende
@@ -194,12 +181,6 @@ export function NuevaVentaView({
   ): string {
     const qs = new URLSearchParams()
     for (const [k, v] of Object.entries(query)) if (v) qs.set(k, v)
-    if (canal === 'revendedora') {
-      qs.set('modo', 'venta')
-      if (idRevendedora) qs.set('id_revendedora', idRevendedora)
-      if (excluir.length > 0) qs.set('excluir', excluir.join(','))
-      return `/api/revendedoras/lookup-item?${qs.toString()}`
-    }
     qs.set('forma_pago', formaPago)
     aplicarFinanciador(qs)
     const rid = reservaOverride ?? idReserva
@@ -769,10 +750,6 @@ export function NuevaVentaView({
   async function agregarPorCodigo(rawCode: string) {
     const codigo = rawCode.trim()
     if (!codigo || buscando) return
-    if (canal === 'revendedora' && !idRevendedora) {
-      setErrorBusqueda('Elegí una revendedora para continuar.')
-      return
-    }
     setBuscando(true)
     setErrorBusqueda(null)
     try {
@@ -845,10 +822,6 @@ export function NuevaVentaView({
     cantidad = 1,
   ): Promise<LineaCarrito[] | null> {
     if (!idProducto || buscando) return null
-    if (canal === 'revendedora' && !idRevendedora) {
-      setErrorBusqueda('Elegí una revendedora para continuar.')
-      return null
-    }
     setBuscando(true)
     setErrorBusqueda(null)
     try {
@@ -1130,33 +1103,26 @@ export function NuevaVentaView({
   }
 
   function confirmar() {
-    if (canal === 'revendedora') {
-      if (!idRevendedora) {
-        toast.error('Revendedora requerida', 'Elegí una revendedora para continuar.')
-        return
-      }
-    } else {
-      // Lo que falta se MARCA, no se explica en un toast que se va solo. El
-      // vendedor tiene que poder ver el campo en rojo y arreglarlo ahí mismo.
-      if (hayDeuda && !idCliente) {
-        setFaltante('cliente')
-        enfocarCampo('v-cli')
-        return
-      }
-      if (hayDeuda && !finPrimerVenc) {
-        setFaltante('vencimiento')
-        enfocarCampo('v-fin-venc')
-        return
-      }
-      if (seExcedio) {
-        // Sin campo que marcar: el exceso ya está en rojo dentro del panel y el
-        // arreglo es bajar un monto, no llenar algo que falta.
-        toast.error(
-          'La cobranza no cierra',
-          `Estás cobrando ${money(anticipo - total)} de más.`,
-        )
-        return
-      }
+    // Lo que falta se MARCA, no se explica en un toast que se va solo. El
+    // vendedor tiene que poder ver el campo en rojo y arreglarlo ahí mismo.
+    if (hayDeuda && !idCliente) {
+      setFaltante('cliente')
+      enfocarCampo('v-cli')
+      return
+    }
+    if (hayDeuda && !finPrimerVenc) {
+      setFaltante('vencimiento')
+      enfocarCampo('v-fin-venc')
+      return
+    }
+    if (seExcedio) {
+      // Sin campo que marcar: el exceso ya está en rojo dentro del panel y el
+      // arreglo es bajar un monto, no llenar algo que falta.
+      toast.error(
+        'La cobranza no cierra',
+        `Estás cobrando ${money(anticipo - total)} de más.`,
+      )
+      return
     }
     setFaltante(null)
 
@@ -1175,12 +1141,12 @@ export function NuevaVentaView({
         observaciones: observaciones || null,
         // Deuda derivada: si no se cobró todo, lo que falta se parte en las
         // MISMAS cuotas con las que se vendió.
-        financiacion: hayDeuda && canal !== 'revendedora'
+        financiacion: hayDeuda
           ? { cuotas: cuotasDeuda, primer_vencimiento: finPrimerVenc }
           : null,
         // Quién financia (00064). Define qué recargo se aplicó al precificar
         // y a qué cuenta va el pago cuando la cobranza no se detalla.
-        financiador: finCuotas && canal !== 'revendedora'
+        financiador: finCuotas
           ? {
               id_cuenta_destino: finCuenta,
               medio: finMedio,
@@ -1190,30 +1156,26 @@ export function NuevaVentaView({
         // Sin anticipo el panel deja un pago en $0: el SP lo rechaza con
         // `pago-monto-invalido`. Se descartan acá — un pago de cero no es una
         // forma de cobrar, es la ausencia de cobro.
-        pagos: canal === 'revendedora'
-          ? []
-          : pagosNormalizados
-              .filter((p) => p.monto > 0)
-              .map((p) => {
-                const recibido = parsearDecimal(p.recibido)
-                return {
-                  medio: p.medio,
-                  id_cuenta_destino: p.idCuenta,
-                  monto: p.monto,
-                  // El SP lo exige en credito y lo rechaza en el resto; ya viene
-                  // normalizado por `normalizarPagos`.
-                  cuotas: p.cuotas,
-                  // El vuelto lo calcula la DB a partir de esto; solo se manda si
-                  // el vendedor lo cargo y es coherente.
-                  monto_recibido:
-                    p.medio === 'efectivo' && recibido !== null && recibido >= p.monto
-                      ? recibido
-                      : null,
-                  referencia: p.referencia.trim() || null,
-                }
-              }),
-        canal,
-        idRevendedora: canal === 'revendedora' ? idRevendedora : null,
+        pagos: pagosNormalizados
+          .filter((p) => p.monto > 0)
+          .map((p) => {
+            const recibido = parsearDecimal(p.recibido)
+            return {
+              medio: p.medio,
+              id_cuenta_destino: p.idCuenta,
+              monto: p.monto,
+              // El SP lo exige en credito y lo rechaza en el resto; ya viene
+              // normalizado por `normalizarPagos`.
+              cuotas: p.cuotas,
+              // El vuelto lo calcula la DB a partir de esto; solo se manda si
+              // el vendedor lo cargo y es coherente.
+              monto_recibido:
+                p.medio === 'efectivo' && recibido !== null && recibido >= p.monto
+                  ? recibido
+                  : null,
+              referencia: p.referencia.trim() || null,
+            }
+          }),
       })
       if (!res.ok) return toast.error('No se pudo registrar la venta', mensajeDeError(res.reason))
       toast.success('Venta registrada', `Total $ ${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`)
@@ -1281,24 +1243,7 @@ export function NuevaVentaView({
 
   // La cobranza se valida ANTES de mandar: el SP la rechaza igual, pero
   // avisar acá es más barato que un error después de haber tocado stock.
-  const cuentasOk =
-    canal === 'revendedora'
-      ? Boolean(idRevendedora)
-      : cuentas.length > 0 && pagosNormalizados.every((p) => p.idCuenta)
-
-  const comisionResolucion = useMemo(() => {
-    if (canal !== 'revendedora' || !idRevendedora) return null
-    return resolverComision(reglasComision, {
-      idRevendedora,
-      fecha: hoyISO(),
-      montoPeriodo: total,
-    })
-  }, [canal, idRevendedora, reglasComision, total])
-
-  const comisionEstimada = useMemo(() => {
-    if (!comisionResolucion) return null
-    return estimarComision(total, comisionResolucion.porcentaje)
-  }, [comisionResolucion, total])
+  const cuentasOk = cuentas.length > 0 && pagosNormalizados.every((p) => p.idCuenta)
   // Cobrar de más nunca es válido; cobrar de menos sí, y es deuda. Lo que la
   // deuda exige es cliente (si no, no se sabe quién debe) y vencimiento.
   const seExcedio = anticipo - total > 0.005
@@ -1309,77 +1254,13 @@ export function NuevaVentaView({
   // Lo demás que el vendedor puede arreglar (el vencimiento, un exceso) no
   // bloquea: apretar marca el campo. Lo que no puede resolver desde acá (un
   // carrito vacío o un tenant sin cuentas) deshabilita el botón.
-  const faltaClienteCredito = canal !== 'revendedora' && hayDeuda && !idCliente
+  const faltaClienteCredito = hayDeuda && !idCliente
   const puedeConfirmar = lineas.length > 0 && !pending && cuentasOk
 
   return (
     <div className="space-y-5">
       {/* Paso 1 — carrito: buscador + tabla de ítems */}
       <section className="space-y-4">
-        {puedeRevendedoras && (
-          <Card>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="w-48">
-                <label
-                  htmlFor="canal-venta"
-                  className="block text-xs font-medium text-muted mb-1"
-                >
-                  Canal de venta
-                </label>
-                <Select
-                  id="canal-venta"
-                  aria-label="Canal de venta"
-                  value={canal}
-                  onChange={(e) => {
-                    const nuevoCanal = e.target.value as 'local' | 'revendedora'
-                    setCanal(nuevoCanal)
-                    if (nuevoCanal === 'local') {
-                      setIdRevendedora('')
-                    }
-                    if (lineas.length > 0) {
-                      setLineas([])
-                    }
-                  }}
-                  className="px-3 py-1.5 text-sm"
-                >
-                  <option value="local">Local</option>
-                  <option value="revendedora">Revendedora</option>
-                </Select>
-              </div>
-
-              {canal === 'revendedora' && (
-                <div className="flex-1 min-w-[220px]">
-                  <label
-                    htmlFor="select-revendedora"
-                    className="block text-xs font-medium text-muted mb-1"
-                  >
-                    Revendedora
-                  </label>
-                  <Select
-                    id="select-revendedora"
-                    aria-label="Revendedora"
-                    value={idRevendedora}
-                    onChange={(e) => {
-                      setIdRevendedora(e.target.value)
-                      if (lineas.length > 0) {
-                        setLineas([])
-                      }
-                    }}
-                    className="px-3 py-1.5 text-sm"
-                  >
-                    <option value="">-- Elegí una revendedora activa --</option>
-                    {revendedoras.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
         {/* Buscador sobre superficie oscura: es la entrada de la pantalla y el
             foco vive acá mientras se escanea. `band-scope` re-tematiza los
             controles compartidos para el fondo oscuro. */}
@@ -1935,10 +1816,6 @@ export function NuevaVentaView({
               debajo del panel, y no arriba junto a un selector que ya no
               existe. */}
           <div className="space-y-3">
-            {/* El canal local trae su propio encabezado de paso. */}
-            {canal === 'revendedora' && (
-              <h3 className="font-display text-xl text-ink">Cobranza</h3>
-            )}
             <CobranzaPanel
               cuentas={cuentas}
               pagos={pagosNormalizados}
@@ -1948,16 +1825,14 @@ export function NuevaVentaView({
               recargos={recargos}
               planesCuotas={planesCuotas}
               onChange={setPagos}
-              canal={canal}
-              comisionEstimada={comisionEstimada}
             />
-            {canal !== 'revendedora' && totalRecargo > 0 && (
+            {totalRecargo > 0 && (
               <p className="text-xs text-warn-ink">
                 Recargo por {finCuotas} cuotas: +{money(totalRecargo)} — ya
                 incluido en el total.
               </p>
             )}
-            {canal !== 'revendedora' && finCuotas !== null && totalRecargo === 0 && lineas.length > 0 && (
+            {finCuotas !== null && totalRecargo === 0 && lineas.length > 0 && (
               <p className="text-xs text-muted">
                 Sin recargo configurado para este plan: se vende al precio de
                 lista. Se carga en Precios y Cuentas.
@@ -1970,7 +1845,7 @@ export function NuevaVentaView({
               llega al total. Antes era una decisión previa que se podía
               olvidar (y la deuda quedaba sin registrar) o dejar prendida por
               error (y se fiaba una venta ya cobrada). */}
-          {hayDeuda && canal !== 'revendedora' && (
+          {hayDeuda && (
             <div className="overflow-hidden rounded-lg border border-line-2 bg-card">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4 sm:px-5">
                 <div className="flex min-w-0 flex-col gap-1">
