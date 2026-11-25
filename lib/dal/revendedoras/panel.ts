@@ -11,7 +11,7 @@ export interface ObtenerPanelRevendedorasParams {
   desde?: string
   hasta?: string
   estado?: 'todos' | 'activa' | 'inactiva'
-  cuenta?: 'todos' | 'con_saldo' | 'atrasada' | 'declaraciones_pendientes'
+  cuenta?: 'todos' | 'con_saldo' | 'atrasada'
   q?: string
   orden?: string
   limit?: number

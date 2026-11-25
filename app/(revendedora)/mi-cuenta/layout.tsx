@@ -16,7 +16,6 @@ const PORTAL_NAV: SidebarNavGroup[] = [
       { href: '/mi-cuenta/stock', label: 'Mi stock', icon: 'inventario' },
       { href: '/mi-cuenta/ventas', label: 'Mis ventas', icon: 'ventas' },
       { href: '/mi-cuenta/liquidaciones', label: 'Liquidaciones', icon: 'rendiciones' },
-      { href: '/mi-cuenta/declaraciones', label: 'Declaraciones', icon: 'consignaciones' },
     ],
   },
 ]

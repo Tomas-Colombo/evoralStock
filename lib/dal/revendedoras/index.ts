@@ -253,7 +253,6 @@ export * from './consignacion'
 export * from './liquidacion'
 export * from './panel'
 export * from './portal'
-export * from './declaraciones'
 export {
   listReglasComision,
   getComisionRevendedora,

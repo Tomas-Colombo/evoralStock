@@ -38,11 +38,6 @@ vi.mock('@/lib/dal/revendedoras/comisiones', () => ({
   terminarRegla: vi.fn(),
 }))
 
-vi.mock('@/lib/dal/declaraciones-revendedora', () => ({
-  confirmarDeclaracionVenta: vi.fn(),
-  rechazarDeclaracionVenta: vi.fn(),
-}))
-
 vi.mock('@/lib/dal/ventas/venta', () => ({
   spRegistrarCambio: vi.fn(),
   spRegistrarVenta: vi.fn(),
@@ -82,11 +77,6 @@ import {
   reincluirDetalleLiquidacionAction,
   marcarLiquidacionPagadaAction,
 } from '@/app/(app)/revendedoras/[id]/liquidaciones/actions'
-
-import {
-  confirmarDeclaracionAction,
-  rechazarDeclaracionAction,
-} from '@/app/(app)/revendedoras/declaraciones/actions'
 
 import { cambiarItemVentaAction, registrarVentaAction } from '@/app/(app)/ventas/actions'
 
@@ -255,23 +245,6 @@ describe('ACC-42: Cada Server Action administrativa invocada con sesión de reve
         id_liquidacion: '00000000-0000-0000-0000-000000000001',
         monto: 1000,
         medio: 'efectivo',
-      })
-      expect(res).toEqual({ ok: false, reason: 'no-permission' })
-    })
-  })
-
-  describe('Acciones de declaraciones/ (bandeja del local)', () => {
-    it('confirmarDeclaracionAction -> no-permission', async () => {
-      const res = await confirmarDeclaracionAction({
-        id_declaracion: '00000000-0000-0000-0000-000000000001',
-      })
-      expect(res).toEqual({ ok: false, reason: 'no-permission' })
-    })
-
-    it('rechazarDeclaracionAction -> no-permission', async () => {
-      const res = await rechazarDeclaracionAction({
-        id_declaracion: '00000000-0000-0000-0000-000000000001',
-        motivo: 'Item no correspondía',
       })
       expect(res).toEqual({ ok: false, reason: 'no-permission' })
     })

@@ -16,7 +16,7 @@ interface RevendedorasFiltrosBarProps {
     desde?: string
     hasta?: string
     estado: 'todos' | 'activa' | 'inactiva'
-    cuenta: 'todos' | 'con_saldo' | 'atrasada' | 'declaraciones_pendientes'
+    cuenta: 'todos' | 'con_saldo' | 'atrasada'
     q?: string
     orden: string
   }
@@ -94,7 +94,6 @@ export function RevendedorasFiltrosBar({
               { value: 'todos', label: 'Todas las cuentas' },
               { value: 'con_saldo', label: 'Con saldo' },
               { value: 'atrasada', label: 'Atrasada' },
-              { value: 'declaraciones_pendientes', label: 'Con declaraciones pendientes' },
             ],
           },
           {

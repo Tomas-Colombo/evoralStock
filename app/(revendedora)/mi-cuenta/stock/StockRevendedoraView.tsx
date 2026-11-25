@@ -4,9 +4,7 @@ import { useState } from 'react'
 import type { RvpMiStockRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
-import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { VenderModal, type ItemCarritoPortal } from '../VenderModal'
 
@@ -15,14 +13,13 @@ interface Props {
   total: number
   pagina: number
   pageSize: number
-  estado: string
   q: string
 }
 
-export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q }: Props) {
+export function StockRevendedoraView({ items, total, pagina, pageSize, q }: Props) {
   const [itemsModal, setItemsModal] = useState<ItemCarritoPortal[] | null>(null)
 
-  const hayFiltros = Boolean(estado || q)
+  const hayFiltros = Boolean(q)
 
   const handleOpenVender = (item: RvpMiStockRow) => {
     setItemsModal([
@@ -38,26 +35,11 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
 
   return (
     <>
-      <div className="p-4 rounded-lg border border-border bg-card flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="flex-1">
-          <BusquedaUrl
-            valor={q}
-            placeholder="Buscar por nombre o SKU..."
-          />
-        </div>
-        <div className="w-full sm:w-56">
-          <SelectUrl
-            id="stock-estado"
-            param="estado"
-            valor={estado}
-            label="Estado"
-            opciones={[
-              { value: '', label: 'Todos' },
-              { value: 'con_pendiente', label: 'Con declaración pendiente' },
-              { value: 'sin_declaracion', label: 'Sin declaración' },
-            ]}
-          />
-        </div>
+      <div className="p-4 rounded-lg border border-border bg-card">
+        <BusquedaUrl
+          valor={q}
+          placeholder="Buscar por nombre o SKU..."
+        />
       </div>
 
       {items.length === 0 ? (
@@ -94,21 +76,14 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
               </div>
 
               <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-                {item.declaracion_pendiente ? (
-                  <Badge variant="warning">
-                    <span className="w-1.5 h-1.5 rounded-full bg-warn motion-safe:animate-pulse" />
-                    Pendiente de confirmar
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="min-h-[44px] px-4 w-full sm:w-auto"
-                    onClick={() => handleOpenVender(item)}
-                  >
-                    Vender
-                  </Button>
-                )}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="min-h-[44px] px-4 w-full sm:w-auto"
+                  onClick={() => handleOpenVender(item)}
+                >
+                  Vender
+                </Button>
               </div>
             </div>
           ))}

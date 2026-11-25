@@ -7,7 +7,6 @@ export type TabKey =
   | 'consignaciones'
   | 'cuenta'
   | 'liquidaciones'
-  | 'declaraciones'
 
 interface RevendedoraTabsProps {
   idRevendedora: string
@@ -22,7 +21,6 @@ export function RevendedoraTabs({ idRevendedora, activeTab }: RevendedoraTabsPro
     { key: 'consignaciones', label: 'Consignaciones', href: `/revendedoras/${idRevendedora}/consignaciones` },
     { key: 'cuenta', label: 'Cuenta', href: `/revendedoras/${idRevendedora}/cuenta` },
     { key: 'liquidaciones', label: 'Liquidaciones', href: `/revendedoras/${idRevendedora}/liquidaciones` },
-    { key: 'declaraciones', label: 'Declaraciones', href: `/revendedoras/${idRevendedora}/declaraciones` },
   ] as const
 
   return (

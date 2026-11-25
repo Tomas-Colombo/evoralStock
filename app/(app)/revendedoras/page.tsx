@@ -88,7 +88,6 @@ export default async function RevendedorasPage(props: PageProps) {
                 canEditComision={canEditComision}
               />
             )}
-            <BandAction href="/revendedoras/declaraciones" title="Declaraciones" description="Ventas declaradas por revisar" />
             <BandAction href="/revendedoras/comisiones" title="Reglas de comisión" />
           </>
         }

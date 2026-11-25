@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { verifySession } from '@/lib/dal/session'
 import { obtenerMiCuenta } from '@/lib/dal/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
-import { BandAction } from '@/components/shell/BandAction'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { PageBand } from '@/components/shell/PageBand'
 import { parsearPeriodoPortal } from './filtros'
@@ -89,25 +88,8 @@ export default async function MiCuentaResumenPage(props: {
             value: `${cuenta.porcentaje_comision_actual}%`,
             sub: `Tramo: ${cuenta.tramo_comision_actual || 'Vigente'}`,
           },
-          {
-            label: 'Declaraciones de venta',
-            hint: 'Estado actual',
-            value: cuenta.declaraciones_pendientes.toString(),
-            sub:
-              cuenta.declaraciones_pendientes === 1
-                ? '1 venta pendiente de confirmar por el local'
-                : `${cuenta.declaraciones_pendientes} ventas pendientes de confirmar por el local`,
-          },
         ]}
-        actions={
-          <>
-            <VenderBandAction />
-            <BandAction href="/mi-cuenta/stock" title="Ver mi stock" />
-            <BandAction href="/mi-cuenta/ventas" title="Ver mis ventas" />
-            <BandAction href="/mi-cuenta/liquidaciones" title="Ver liquidaciones" />
-            <BandAction href="/mi-cuenta/declaraciones" title="Ver declaraciones" />
-          </>
-        }
+        actions={<VenderBandAction />}
       />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         {hayPeriodo && (

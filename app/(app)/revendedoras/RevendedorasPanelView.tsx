@@ -22,7 +22,7 @@ interface RevendedorasPanelViewProps {
     desde?: string
     hasta?: string
     estado: 'todos' | 'activa' | 'inactiva'
-    cuenta: 'todos' | 'con_saldo' | 'atrasada' | 'declaraciones_pendientes'
+    cuenta: 'todos' | 'con_saldo' | 'atrasada'
     q?: string
     orden: string
     page: number
@@ -52,7 +52,6 @@ export function RevendedorasPanelView({
       'Comisión estimada',
       'Adeudado al local',
       'Última venta',
-      'Declaraciones pendientes',
     ]
 
     const rows = data.map((r) => [
@@ -74,7 +73,6 @@ export function RevendedorasPanelView({
       escapeCsvField(r.comision_estimada),
       escapeCsvField(r.adeudado > 0 ? csvNegative(r.adeudado) : r.adeudado),
       escapeCsvField(r.fecha_ultima_venta ?? ''),
-      escapeCsvField(r.declaraciones_pendientes),
     ])
 
     const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
@@ -182,15 +180,6 @@ export function RevendedorasPanelView({
       render: (r) => (
         <span className="text-sm text-muted">
           {r.fecha_ultima_venta ? new Date(r.fecha_ultima_venta).toLocaleDateString('es-AR') : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'declaraciones_pendientes',
-      label: 'Declaraciones',
-      render: (r) => (
-        <span className="text-center block text-sm">
-          {r.declaraciones_pendientes}
         </span>
       ),
     },

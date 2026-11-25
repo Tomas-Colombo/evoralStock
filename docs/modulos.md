@@ -17,7 +17,7 @@ de la tabla `modulo`. Si cambia el mapeo, se actualiza acá en el mismo commit.
 | `rendiciones` | `rendiciones` | `rendiciones` |
 | `reportes` | `reportes` | `reportes` |
 | `revendedoras` | `revendedoras` | `revendedoras` |
-| `app/(revendedora)/mi-cuenta` | `revendedoras` (`ver_propio`) | `revendedoras` (portal) |
+| `app/(revendedora)/mi-cuenta` | `revendedoras` (`ver_propio`, `vender`) | `revendedoras` (portal) |
 | `ventas` | `ventas` | `ventas` |
 | — (sin ruta propia) | — | `reservas` |
 
