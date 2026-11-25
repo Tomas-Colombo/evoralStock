@@ -253,6 +253,12 @@ export function NuevaVentaView({
   const [cliResaltado, setCliResaltado] = useState(0)
 
   const [lineas, setLineas] = useState<LineaCarrito[]>([])
+  // Carrito al día para los handlers async y el escáner (que fija su callback
+  // al montar): leer `lineas` del closure daba un carrito viejo.
+  const lineasRef = useRef<LineaCarrito[]>([])
+  useEffect(() => {
+    lineasRef.current = lineas
+  }, [lineas])
 
   // El SET de productos del carrito (no las unidades): agregar otra unidad del
   // mismo producto no cambia esta clave. Declarado acá arriba porque de él
@@ -729,7 +735,7 @@ export function NuevaVentaView({
 
   /** Ítems ya cargados, opcionalmente sin el de `exceptoQr` (el que se edita). */
   function itemsEnCarrito(exceptoQr?: string): string[] {
-    return lineas.filter((l) => l.qr_code !== exceptoQr).map((l) => l.id_item)
+    return lineasRef.current.filter((l) => l.qr_code !== exceptoQr).map((l) => l.id_item)
   }
 
   function abrirSelectorDesdeRespuesta(
@@ -787,6 +793,13 @@ export function NuevaVentaView({
         return
       }
       const nueva = data.linea as LineaCarrito
+      // El QR es una prenda puntual: volver a escanearla significa "otra
+      // igual", así que se pide otra unidad del mismo producto/talle (el
+      // lookup por producto saltea lo que ya está en el carrito).
+      if (lineasRef.current.some((l) => l.qr_code === nueva.qr_code)) {
+        await agregarPorProducto(nueva.id_producto, nueva.talle ?? undefined)
+        return
+      }
       if (pushLinea(nueva)) setQrInput('')
       else setErrorBusqueda('Ese ítem ya está en el carrito')
     } catch (e) {
@@ -796,15 +809,15 @@ export function NuevaVentaView({
     }
   }
 
-  // Agrega una línea al carrito evitando duplicados por QR. Devuelve la línea
   // Agrega evitando duplicados por QR. Devuelve las líneas efectivamente agregadas.
+  // Antes leía `agregadas` desde dentro del updater de setLineas, que React
+  // corre recién en el próximo render: volvía [] aunque la línea entraba, y la
+  // UI decía "Ese ítem ya está en el carrito" y dejaba el texto en el buscador.
   function pushLineas(nuevas: LineaCarrito[]): LineaCarrito[] {
-    let agregadas: LineaCarrito[] = []
-    setLineas((ls) => {
-      const res = agregarSinDuplicados(ls, nuevas, (l) => l.qr_code)
-      agregadas = res.agregadas
-      return res.siguientes
-    })
+    const { agregadas } = agregarSinDuplicados(lineasRef.current, nuevas, (l) => l.qr_code)
+    if (agregadas.length === 0) return []
+    lineasRef.current = [...lineasRef.current, ...agregadas]
+    setLineas((ls) => agregarSinDuplicados(ls, agregadas, (l) => l.qr_code).siguientes)
     return agregadas
   }
 
