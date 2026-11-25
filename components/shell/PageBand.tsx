@@ -58,8 +58,11 @@ export function PageBand({ breadcrumb, title, subtitle, filters, kpis, actions, 
       // that follows climbs over the band, shorter when it cannot.
       className="page-band band-scope relative isolate w-full min-w-full rounded-b-[28px] bg-band text-band-ink"
     >
-      <div className="relative z-10 flex flex-col gap-3.5 pl-16 pr-4 pt-3 sm:pr-6 md:px-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="relative z-10 flex flex-col gap-3.5 px-4 pt-3 sm:px-6">
+        {/* Only this row makes room for the fixed mobile hamburger (left-3 top-3,
+            40px): it sits beside the button, and everything below takes the full
+            width instead of the whole band being pushed 64px right. */}
+        <div className="flex min-h-10 items-center justify-between gap-4 pl-12 sm:pl-10 md:pl-0">
           <nav aria-label="Ubicación" className="min-w-0">
             <ol className="eyebrow flex flex-wrap items-center gap-x-2 gap-y-1 text-band-label">
               {breadcrumb.map((item, i) => {
