@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import type { RvpMisLiquidacionesRow } from '@/lib/types/revendedoras'
+import { formatearFecha } from '@/lib/fechas'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Badge } from '@/components/ui/Badge'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
@@ -59,11 +60,11 @@ export function LiquidacionesRevendedoraView({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-2">
                 <div>
                   <span className="font-semibold text-sm">
-                    Liquidación del {new Date(l.fecha_liquidacion).toLocaleDateString('es-AR')}
+                    Liquidación del {formatearFecha(l.fecha_liquidacion)}
                   </span>
                   <p className="text-xs text-muted">
-                    Período: {new Date(l.periodo_desde).toLocaleDateString('es-AR')} al{' '}
-                    {new Date(l.periodo_hasta).toLocaleDateString('es-AR')}
+                    Período: {formatearFecha(l.periodo_desde)} al{' '}
+                    {formatearFecha(l.periodo_hasta)}
                   </p>
                 </div>
                 <div>

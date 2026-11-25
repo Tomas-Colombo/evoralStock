@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { RvpMisVentasRow } from '@/lib/types/revendedoras'
+import { formatearFecha } from '@/lib/fechas'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Badge } from '@/components/ui/Badge'
@@ -147,7 +148,7 @@ export function VentasRevendedoraView({
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-base">
-                        {new Date(v.fecha_venta).toLocaleDateString('es-AR')}
+                        {formatearFecha(v.fecha_venta)}
                       </span>
                       {anulada ? (
                         <Badge variant="danger">Anulada</Badge>
@@ -262,7 +263,7 @@ export function VentasRevendedoraView({
             <p className="text-muted">
               Vas a anular la venta del{' '}
               <strong className="text-ink">
-                {new Date(ventaAnular.fecha_venta).toLocaleDateString('es-AR')}
+                {formatearFecha(ventaAnular.fecha_venta)}
               </strong>{' '}
               por{' '}
               <strong className="text-ink">

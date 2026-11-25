@@ -100,3 +100,19 @@ export function periodoAnterior(desde: string, hasta: string): RangoFechas {
   const pHasta = new Date(aH, mH - 1, dH - difDias)
   return { desde: aFechaLocal(pDesde), hasta: aFechaLocal(pHasta) }
 }
+
+/**
+ * Formatea una fecha calendario `YYYY-MM-DD` a `es-AR` sin corrimiento UTC.
+ * `new Date('2026-11-25')` se interpreta como medianoche UTC y en UTC-3 muestra
+ * el día anterior; construir la fecha en hora local evita ese corrimiento.
+ */
+export function formatearFecha(fecha: string | null | undefined): string {
+  if (!fecha) return '—'
+  const parteFecha = fecha.slice(0, 10)
+  if (!esFechaValida(parteFecha)) {
+    const d = new Date(fecha)
+    return Number.isNaN(d.getTime()) ? fecha : d.toLocaleDateString('es-AR')
+  }
+  const [anio, mes, dia] = parteFecha.split('-').map(Number)
+  return new Date(anio, mes - 1, dia).toLocaleDateString('es-AR')
+}

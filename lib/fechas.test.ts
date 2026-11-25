@@ -3,6 +3,7 @@ import {
   aFechaLocal,
   anioActual,
   esFechaValida,
+  formatearFecha,
   hoyRango,
   inicioDelDia,
   inicioDelDiaSiguiente,
@@ -138,5 +139,18 @@ describe('bordes del rango', () => {
 
   it('cruza el 28 de febrero no bisiesto', () => {
     expect(inicioDelDiaSiguiente('2026-02-28')).toBe('2026-03-01T00:00:00')
+  })
+})
+
+describe('formatearFecha', () => {
+  it('formatea YYYY-MM-DD sin corrimiento UTC', () => {
+    expect(formatearFecha('2026-11-25')).toBe(new Date(2026, 10, 25).toLocaleDateString('es-AR'))
+    expect(formatearFecha('2026-01-01')).toBe(new Date(2026, 0, 1).toLocaleDateString('es-AR'))
+  })
+
+  it('devuelve — si es null, undefined o vacío', () => {
+    expect(formatearFecha(null)).toBe('—')
+    expect(formatearFecha(undefined)).toBe('—')
+    expect(formatearFecha('')).toBe('—')
   })
 })

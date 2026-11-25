@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { RvpMiStockRow } from '@/lib/types/revendedoras'
+import { formatearFecha } from '@/lib/fechas'
 import { formatearMoneda } from '@/lib/utils/moneda'
 import { Button } from '@/components/ui/Button'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
@@ -71,7 +72,7 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, q }: Prop
                   {item.talle && (
                     <span className="px-2 py-0.5 rounded bg-muted/10">Talle: {item.talle}</span>
                   )}
-                  <span>Entregado: {new Date(item.fecha_entrega).toLocaleDateString('es-AR')}</span>
+                  <span>Entregado: {formatearFecha(item.fecha_entrega)}</span>
                 </div>
               </div>
 
