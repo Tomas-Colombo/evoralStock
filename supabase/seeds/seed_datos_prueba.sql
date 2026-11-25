@@ -12,11 +12,11 @@
 -- config.toml ni en supabase/seed.sql.
 --
 -- Por qué sp_* y no INSERT: ventas, pagos, cuotas, consignaciones,
--- rendiciones, liquidaciones, cambios, declaraciones y transiciones de
+-- rendiciones, liquidaciones, cambios y transiciones de
 -- item_producto tienen invariantes (cuadre de pagos, máquina de estados,
 -- auditoría) que viven en los stored procedures. Se llaman igual que desde
 -- lib/dal: con sesión `authenticated` y claims JWT del admin (o de la
--- revendedora para declarar), así la RLS y auth_tenant_id() aplican. Sólo
+-- revendedora para vender desde el portal), así la RLS y auth_tenant_id() aplican. Sólo
 -- van por INSERT directo las filas que la app también inserta directo
 -- (proveedor, cliente, cabecera de ingreso_mercaderia).
 --
@@ -51,6 +51,47 @@ update rol r
    and t.subdominio in ('utopia-demo', 'boutique-alfa')
    and r.nombre = 'Administrador'
    and r.permisos is distinct from src.permisos;
+
+-- Regla general de comisión para revendedoras. Sin ella fn_resolver_comision
+-- devuelve 0 y el portal muestra "Tu comisión $0" en cada venta. Va en su
+-- propio bloque, antes de las ventas, para que el snapshot
+-- porcentaje_comision_preview ya salga con el porcentaje del primer tramo;
+-- y es idempotente aparte del marcador, para bases ya sembradas.
+do $$
+declare
+  v_tenant uuid;
+  v_admin  uuid;
+begin
+  select id_tenant into v_tenant from tenant where subdominio = 'utopia-local';
+  if v_tenant is null then
+    raise exception 'seed comisión: falta el tenant utopia-local (correr seed_dev.sql antes)';
+  end if;
+
+  if exists (select 1 from regla_comision
+              where id_tenant = v_tenant and ambito = 'revendedora'
+                and id_revendedora is null and activo) then
+    raise notice 'seed comisión: ya hay regla general de revendedoras, se saltea';
+    return;
+  end if;
+
+  select u.id_usuario into v_admin
+    from usuario u join rol ro on ro.id_rol = u.id_rol
+   where u.id_tenant = v_tenant and ro.nombre = 'Administrador'
+   order by u.created_at limit 1;
+
+  perform set_config('request.jwt.claims', json_build_object(
+    'sub', v_admin, 'tenant_id', v_tenant, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  perform sp_crear_regla_comision(
+    'revendedora', 'Escala general revendedoras', null, date '2025-01-01', null,
+    '[{"objetivo_desde": 0, "porcentaje": 20},
+      {"objetivo_desde": 300000, "porcentaje": 25},
+      {"objetivo_desde": 600000, "porcentaje": 30}]'::jsonb);
+
+  reset role;
+  raise notice 'seed comisión: regla general de revendedoras 20/25/30%%';
+end $$;
 
 do $$
 declare
@@ -196,7 +237,7 @@ begin
             where im.id_tenant = v_tenant and im.numero_remito like 'SEED-PRUEBA-%') d;
 
   -- ── Operaciones en orden. `ref` según tipo: venta/reserva → cliente
-  --    (0 = sin cliente); entrega/declarar/liquidar → revendedora;
+  --    (0 = sin cliente); entrega/vender_rev/liquidar → revendedora;
   --    rendir/devolver → proveedor; anular/cambio/cobrar → nº de op de la venta.
   --    items = 'Producto|talle'. pagos: plantilla (cuenta por tipo; el pago
   --    sin "monto" se lleva el resto). fin: financiación propia o cuota a cobrar.
@@ -223,8 +264,8 @@ begin
       (16, 'devolver', 3, array['Vestido de fiesta largo|S'], null, null, null, 'Devolución de fin de temporada'),
       (17, 'entrega',  1, array['Remera lisa algodón peinado|M', 'Buzo frisa oversize|L', 'Short deportivo|40'], null, null, null, 'Entrega de prueba'),
       (18, 'entrega',  2, array['Pantalón sastrero|40', 'Vestido midi estampado|M'], null, null, null, 'Entrega de prueba'),
-      (19, 'declarar', 1, array['Remera lisa algodón peinado|M'], 'confirmar', null, null, 'Vendida a una vecina'),
-      (20, 'declarar', 2, array['Vestido midi estampado|M'], null, null, null, 'Vendido en feria'),
+      (19, 'vender_rev', 1, array['Remera lisa algodón peinado|M'], null, null, null, 'Vendida a una vecina'),
+      (20, 'vender_rev', 2, array['Vestido midi estampado|M'], null, null, null, 'Vendido en feria'),
       (21, 'liquidar', 1, '{}', null, null, null, 'Liquidación de prueba')
     ) as o(n, tipo, ref, items, forma, pagos, fin, nota) order by n loop
 
@@ -238,7 +279,7 @@ begin
            where p.id_tenant = v_tenant
              and p.nombre = split_part(s.spec, '|', 1)
              and ip.talle is not distinct from nullif(split_part(s.spec, '|', 2), '')
-             and ip.estado_item = (case when r.tipo = 'declarar' then 'en_revendedora' else 'disponible' end)::estado_item
+             and ip.estado_item = (case when r.tipo = 'vender_rev' then 'en_revendedora' else 'disponible' end)::estado_item
              and not exists (select 1 from detalle_reserva dr where dr.id_item = ip.id_item and dr.estado = 'activa')
            order by ip.qr_code limit 1) x;
       if cardinality(v_items) <> cardinality(r.items) then
@@ -291,15 +332,16 @@ begin
       perform sp_confirmar_consignacion(sp_crear_consignacion_con_items(v_prov[r.ref], r.nota, v_items, r.nota, null), null);
     elsif r.tipo = 'entrega' then
       perform sp_entregar_consignacion_revendedora(v_rev[r.ref], v_items, v_hoy - 15, v_hoy + 15, r.nota, null, null);
-    elsif r.tipo = 'declarar' then
-      -- La declaración la hace la revendedora: sus claims, no los del admin.
-      perform set_config('request.jwt.claims', json_build_object(
-        'tenant_id', v_tenant, 'id_revendedora', v_rev[r.ref], 'role', 'authenticated')::text, true);
-      v_id := sp_declarar_venta_revendedora(v_items[1], r.nota);
-      perform set_config('request.jwt.claims', v_claims, true);
-      if r.forma = 'confirmar' then
-        perform sp_confirmar_declaracion_venta(v_id);
-      end if;
+    elsif r.tipo = 'vender_rev' then
+      -- Venta firme de revendedora (00169). Estas revendedoras no tienen
+      -- usuario para entrar al portal, así que la registra el admin por el
+      -- camino del local: mismo resultado (canal revendedora, pago
+      -- cuenta_revendedora automático). La venta desde el portal la cubre el
+      -- bloque de Sofía, que sí tiene login.
+      v_ventas[r.n] := sp_registrar_venta(
+        (select jsonb_agg(jsonb_build_object('id_item', i)) from unnest(v_items) i),
+        'efectivo', null, null, r.nota, null, null, null, null,
+        'revendedora', v_rev[r.ref]);
     elsif r.tipo = 'liquidar' then
       perform sp_generar_liquidacion(v_rev[r.ref], v_hoy - 30, v_hoy, r.nota, null);
     end if;
@@ -329,6 +371,186 @@ begin
 
   reset role;
   raise notice 'seed_datos_prueba: OK en utopia-local';
+end $$;
+
+commit;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- Revendedora Sofía Benítez (utopia-local): acceso al portal con clave fija
+-- y mercadería en consignación para probar el portal.
+-- ═══════════════════════════════════════════════════════════════════
+-- Clave en texto plano a propósito: es dev, igual que el admin de seed_dev §12.
+-- Idempotente: la clave se reescribe siempre; la entrega se saltea si Sofía ya
+-- tiene una consignación.
+begin;
+
+do $$
+declare
+  v_email    text := 'sofia.benitez@example.com';
+  v_password text := 'Admin123!';
+  v_nombre   text := 'Sofía Benítez';
+  v_cant     int  := 8;
+  v_tenant   uuid;
+  v_rev      uuid;
+  v_uid      uuid;
+  v_rol      uuid;
+  v_admin    uuid;
+  v_items    uuid[];
+begin
+  select id_tenant into v_tenant from tenant where subdominio = 'utopia-local';
+  select id_revendedora, id_usuario into v_rev, v_uid
+    from revendedora where id_tenant = v_tenant and email = v_email;
+  if v_rev is null then
+    raise exception 'seed Sofía: no existe la revendedora % en utopia-local (correr seed_dev.sql)', v_email;
+  end if;
+
+  select id_rol into v_rol from rol where id_tenant = v_tenant and nombre = 'Revendedora';
+  if v_rol is null then
+    raise exception 'seed Sofía: falta el rol Revendedora en utopia-local';
+  end if;
+
+  if v_uid is null then
+    select id into v_uid from auth.users where lower(email) = v_email;
+  end if;
+
+  if v_uid is null then
+    v_uid := gen_random_uuid();
+    -- Tokens en '' y no NULL: GoTrue revienta con NULL (ver seed_dev §12).
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+                            confirmation_token, recovery_token,
+                            email_change_token_new, email_change_token_current,
+                            email_change, phone_change, phone_change_token,
+                            reauthentication_token, created_at, updated_at)
+    values ('00000000-0000-0000-0000-000000000000', v_uid,
+            'authenticated', 'authenticated', v_email,
+            extensions.crypt(v_password, extensions.gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}'::jsonb,
+            jsonb_build_object('nombre_completo', v_nombre),
+            '', '', '', '', '', '', '', '', now(), now());
+  else
+    update auth.users
+       set encrypted_password = extensions.crypt(v_password, extensions.gen_salt('bf')),
+           email_confirmed_at = coalesce(email_confirmed_at, now()),
+           updated_at         = now()
+     where id = v_uid;
+  end if;
+
+  insert into auth.identities (provider_id, user_id, identity_data, provider,
+                               last_sign_in_at, created_at, updated_at)
+  select v_uid::text, v_uid,
+         jsonb_build_object('sub', v_uid::text, 'email', v_email,
+                            'email_verified', true, 'phone_verified', false),
+         'email', now(), now(), now()
+   where not exists (select 1 from auth.identities i
+                      where i.user_id = v_uid and i.provider = 'email');
+
+  insert into usuario (id_usuario, id_tenant, email, nombre_completo, id_rol, estado_usuario)
+  values (v_uid, v_tenant, v_email, v_nombre, v_rol, 'activo')
+  on conflict (id_usuario) do update set estado_usuario = 'activo';
+
+  update revendedora set id_usuario = v_uid where id_revendedora = v_rev;
+
+  if exists (select 1 from consignacion_revendedora where id_revendedora = v_rev) then
+    raise notice 'seed Sofía: ya tiene consignación, se saltea la entrega (clave: %)', v_password;
+    return;
+  end if;
+
+  select u.id_usuario into v_admin
+    from usuario u join rol ro on ro.id_rol = u.id_rol
+   where u.id_tenant = v_tenant and ro.nombre = 'Administrador'
+   order by u.created_at limit 1;
+
+  -- Una unidad disponible por producto, sin reservas activas.
+  select array_agg(id_item) into v_items from (
+    select distinct on (ip.id_producto) ip.id_item
+      from item_producto ip join producto p on p.id_producto = ip.id_producto
+     where p.id_tenant = v_tenant and ip.estado_item = 'disponible'
+       and not exists (select 1 from detalle_reserva dr
+                        where dr.id_item = ip.id_item and dr.estado = 'activa')
+     order by ip.id_producto, ip.qr_code
+     limit v_cant) s;
+
+  -- La entrega pasa por el sp_* con sesión del admin, como desde la app.
+  perform set_config('request.jwt.claims', json_build_object(
+    'sub', v_admin, 'tenant_id', v_tenant, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  perform sp_entregar_consignacion_revendedora(v_rev, v_items, current_date - 7, current_date + 23,
+                                               'Consignación de prueba (seed Sofía)', null, null);
+  reset role;
+
+  raise notice 'seed Sofía: % ítems entregados, login % / %', cardinality(v_items), v_email, v_password;
+end $$;
+
+commit;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- Sofía Benítez: ventas desde el portal para probar liquidación.
+-- ═══════════════════════════════════════════════════════════════════
+-- Sobre los ítems en consignación: una venta de 4 artículos en un solo lote y
+-- otra de 1, las dos hechas por ella con sus claims (sp_registrar_venta_revendedora,
+-- 00169) y sin liquidar; 2 quedan en su poder para probar el modal de venta,
+-- 1 se devuelve al stock, y una segunda entrega de 4 ítems queda en su poder.
+-- La liquidación NO se genera: es lo que se prueba. Idempotente: se saltea si
+-- ya tiene ventas.
+begin;
+
+do $$
+declare
+  v_tenant uuid;
+  v_rev    uuid;
+  v_admin  uuid;
+  v_adm    text;
+  v_sofia  text;
+  v_items  uuid[];
+  v_nuevos uuid[];
+begin
+  select id_tenant into v_tenant from tenant where subdominio = 'utopia-local';
+  select id_revendedora into v_rev from revendedora
+   where id_tenant = v_tenant and email = 'sofia.benitez@example.com';
+  if exists (select 1 from venta where id_tenant = v_tenant and canal = 'revendedora'
+                                   and id_revendedora = v_rev) then
+    raise notice 'seed Sofía ventas: ya cargadas, se saltea';
+    return;
+  end if;
+
+  select u.id_usuario into v_admin from usuario u join rol ro on ro.id_rol = u.id_rol
+   where u.id_tenant = v_tenant and ro.nombre = 'Administrador' order by u.created_at limit 1;
+  v_adm   := json_build_object('sub', v_admin, 'tenant_id', v_tenant, 'role', 'authenticated')::text;
+  v_sofia := json_build_object('sub', (select id_usuario from revendedora where id_revendedora = v_rev),
+                               'tenant_id', v_tenant, 'id_revendedora', v_rev, 'role', 'authenticated')::text;
+
+  select array_agg(ip.id_item order by ip.qr_code) into v_items
+    from item_producto ip join producto p on p.id_producto = ip.id_producto
+   where p.id_tenant = v_tenant and ip.estado_item = 'en_revendedora'
+     and exists (select 1 from consignacion_revendedora_detalle d
+                   join consignacion_revendedora c using (id_consignacion_revendedora)
+                  where d.id_item = ip.id_item and c.id_revendedora = v_rev);
+  if coalesce(cardinality(v_items), 0) < 8 then
+    raise exception 'seed Sofía ventas: tiene % ítems en consignación, hacen falta 8',
+                    coalesce(cardinality(v_items), 0);
+  end if;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims', v_sofia, true);
+  perform sp_registrar_venta_revendedora(v_items[1:4]);
+  perform sp_registrar_venta_revendedora(array[v_items[5]]);
+  -- v_items[6] y v_items[7] quedan en su poder.
+
+  perform set_config('request.jwt.claims', v_adm, true);
+  perform sp_devolver_items_revendedora(v_rev, array[v_items[8]], 'disponible', 'No se vendió', null);
+
+  select array_agg(id_item) into v_nuevos from (
+    select distinct on (ip.id_producto) ip.id_item
+      from item_producto ip join producto p on p.id_producto = ip.id_producto
+     where p.id_tenant = v_tenant and ip.estado_item = 'disponible'
+       and not exists (select 1 from detalle_reserva dr where dr.id_item = ip.id_item and dr.estado = 'activa')
+     order by ip.id_producto desc, ip.qr_code limit 4) s;
+  perform sp_entregar_consignacion_revendedora(v_rev, v_nuevos, current_date, current_date + 30,
+                                               'Segunda entrega (seed Sofía)', null, null);
+  reset role;
+
+  raise notice 'seed Sofía ventas: 2 ventas (4 + 1 artículos) sin liquidar, 2 en su poder, 1 devuelto, 4 nuevos en consignación';
 end $$;
 
 commit;
