@@ -290,6 +290,8 @@ export function NuevaVentaView({
    * el vendedor todavía no llegó a llenar es regañarlo por ir en orden.
    */
   const [faltante, setFaltante] = useState<'cliente' | 'vencimiento' | null>(null)
+  // Cartel flotante sobre «Confirmar venta» cuando el crédito no tiene cliente.
+  const [avisoCliente, setAvisoCliente] = useState(false)
 
   const total = useMemo(
     () => calcularTotalCarrito(lineas, (l) => l.precio_final),
@@ -1299,13 +1301,14 @@ export function NuevaVentaView({
   // Cobrar de más nunca es válido; cobrar de menos sí, y es deuda. Lo que la
   // deuda exige es cliente (si no, no se sabe quién debe) y vencimiento.
   const seExcedio = anticipo - total > 0.005
-  // El botón NO se deshabilita por lo que el vendedor puede arreglar. Un
-  // botón gris no dice QUÉ falta: hay que salir a buscarlo por la pantalla, y
-  // en el caso del cliente el campo está arriba de todo, fuera de cuadro.
-  // Apretar y que se marque el campo que falta es la forma de enterarse.
+  // Fiar sin cliente no se confirma: la deuda quedaría sin nadie a quien
+  // cobrarle. El botón se bloquea pero NO queda mudo: al intentar confirmar
+  // aparece un cartel que dice qué falta y lleva al campo.
   //
-  // Lo único que sigue bloqueando es lo que el vendedor no puede resolver
-  // desde acá: un carrito vacío o un tenant sin cuentas cargadas.
+  // Lo demás que el vendedor puede arreglar (el vencimiento, un exceso) no
+  // bloquea: apretar marca el campo. Lo que no puede resolver desde acá (un
+  // carrito vacío o un tenant sin cuentas) deshabilita el botón.
+  const faltaClienteCredito = canal !== 'revendedora' && hayDeuda && !idCliente
   const puedeConfirmar = lineas.length > 0 && !pending && cuentasOk
 
   return (
@@ -1931,7 +1934,7 @@ export function NuevaVentaView({
               debajo del panel, y no arriba junto a un selector que ya no
               existe. */}
           <div className="space-y-3">
-            {/* El canal local trae su propio encabezado de paso (con «+ Pago»). */}
+            {/* El canal local trae su propio encabezado de paso. */}
             {canal === 'revendedora' && (
               <h3 className="font-display text-xl text-ink">Cobranza</h3>
             )}
@@ -2135,15 +2138,76 @@ export function NuevaVentaView({
           </div>
         </div>
         {cobranzaOpen ? (
-          <Button
-            className="w-full sm:w-auto"
-            size="lg"
-            type="button"
-            onClick={confirmar}
-            disabled={!puedeConfirmar}
+          <div
+            className="relative w-full sm:w-auto"
+            onMouseEnter={() => faltaClienteCredito && setAvisoCliente(true)}
+            onMouseLeave={() => setAvisoCliente(false)}
           >
-            {pending ? 'Registrando…' : `Confirmar venta · ${money(total)}`}
-          </Button>
+            {avisoCliente && faltaClienteCredito && (
+              // `pb-3` y no `mb-3`: el puente mantiene el hover al bajar el
+              // mouse del cartel al botón.
+              <div className="absolute bottom-full right-0 z-30 w-[min(340px,calc(100vw-2rem))] pb-3">
+                <div
+                  role="alert"
+                  className="band-scope rounded-lg bg-band p-4 text-band-ink shadow-[0_18px_40px_-16px_rgb(0_0_0/0.55)]"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-copper text-[11px] font-bold text-band"
+                    >
+                      !
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-semibold">No podés confirmar todavía</p>
+                      <p className="text-xs text-band-muted">
+                        Queda debiendo {money(aFinanciar)} en crédito del local y falta el
+                        cliente: sin eso perdés el rastro de quién te debe.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setAvisoCliente(false)
+                          setFaltante('cliente')
+                          enfocarCampo('v-cli')
+                        }}
+                        className="self-start"
+                      >
+                        Elegir cliente
+                      </Button>
+                    </div>
+                  </div>
+                  <span
+                    aria-hidden
+                    className="absolute right-8 h-3 w-3 rotate-45 bg-band"
+                    style={{ bottom: 'calc(0.75rem - 6px)' }}
+                  />
+                </div>
+              </div>
+            )}
+            <Button
+              className={`w-full sm:w-auto ${faltaClienteCredito ? 'cursor-not-allowed opacity-50' : ''}`}
+              size="lg"
+              type="button"
+              // `aria-disabled` y no `disabled`: un botón deshabilitado no
+              // recibe foco ni clic, y el cartel tiene que poder abrirse
+              // también con teclado o con un toque en el celular.
+              aria-disabled={faltaClienteCredito || undefined}
+              onClick={() => {
+                if (faltaClienteCredito) {
+                  setAvisoCliente(true)
+                  return
+                }
+                confirmar()
+              }}
+              onBlur={() => setTimeout(() => setAvisoCliente(false), 150)}
+              disabled={!puedeConfirmar}
+            >
+              {pending ? 'Registrando…' : `Confirmar venta · ${money(total)}`}
+            </Button>
+          </div>
         ) : (
           <Button
             className="w-full sm:w-auto"

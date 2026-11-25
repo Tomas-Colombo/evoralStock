@@ -406,21 +406,9 @@ export function CobranzaPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="eyebrow text-petrol">Paso 2 · Medios de cobro</span>
-          <h3 className="font-display text-xl text-ink">Pagos</h3>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={agregar}
-          disabled={disabled}
-          className="border-ink! font-semibold text-ink!"
-        >
-          + Pago
-        </Button>
+      <div className="flex flex-col gap-1">
+        <span className="eyebrow text-petrol">Paso 2 · Medios de cobro</span>
+        <h3 className="font-display text-xl text-ink">Pagos</h3>
       </div>
 
       {/* Resumen del cobro sobre la franja oscura: cuánto es, cuánto entra hoy
@@ -484,7 +472,7 @@ export function CobranzaPanel({
         {pagos.length === 0 && (
           <p className="px-4 py-4 text-xs text-muted">
             No paga ahora: todo el total queda como deuda en cuotas del local. Si deja
-            una seña, tocá «+ Pago».
+            una seña, tocá «Agregar otra forma de pago».
           </p>
         )}
 
@@ -693,6 +681,26 @@ export function CobranzaPanel({
             </div>
           )
         })}
+
+        {/* Agregar pago como última fila de la tabla, donde aparece el pago
+            nuevo: un botón chico en el encabezado quedaba lejos de la acción
+            y se pasaba por alto. */}
+        <div className="px-4 py-3">
+          <button
+            type="button"
+            onClick={agregar}
+            disabled={disabled}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-petrol/50 bg-petrol/5 px-4 py-3 text-sm font-semibold text-ink transition-colors hover:bg-petrol/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-petrol disabled:pointer-events-none disabled:opacity-50"
+          >
+            <span
+              aria-hidden
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-petrol text-sm leading-none text-band-ink"
+            >
+              +
+            </span>
+            Agregar otra forma de pago
+          </button>
+        </div>
 
         {/* Lo que falta NO es un error: es lo que el cliente queda debiendo, y
             el bloque de crédito de abajo lo explica con su plan y su
