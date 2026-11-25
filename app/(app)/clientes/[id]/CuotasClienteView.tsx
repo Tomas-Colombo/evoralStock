@@ -29,6 +29,7 @@ import { cobrarCuotaAction, marcarCuotaIncobrableAction } from '../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { Card } from '@/components/ui/Card'
 import { TableFrame } from '@/components/ui/TableParts'
+import { parsearDecimal } from '@/lib/utils/numero'
 
 const VARIANT: Record<EstadoCuota, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
   pendiente: 'info',
@@ -128,9 +129,9 @@ export function CuotasClienteView({
 
   function confirmarCobro() {
     if (!cobrando) return
-    const monto = Number(montoCobro.replace(',', '.'))
+    const monto = parsearDecimal(montoCobro)
     const saldo = saldoCuota(cobrando)
-    if (!Number.isFinite(monto) || monto <= 0) return setErrCobro('Monto inválido')
+    if (monto === null || monto <= 0) return setErrCobro('Monto inválido')
     if (monto > saldo) return setErrCobro(`No puede superar el saldo (${money(saldo)})`)
     if (!idCuenta) return setErrCobro('Elegí una cuenta destino')
     setErrCobro(null)

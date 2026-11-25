@@ -19,6 +19,7 @@ import {
   type TalleOpcion,
 } from '@/components/ventas/SelectorTalleMulti'
 import { agregarSinDuplicados, calcularTotalCarrito } from '@/components/ventas/carrito'
+import { parsearDecimal } from '@/lib/utils/numero'
 import {
   buscarMatchNombre,
   indexarPorNombre,
@@ -1194,7 +1195,7 @@ export function NuevaVentaView({
           : pagosNormalizados
               .filter((p) => p.monto > 0)
               .map((p) => {
-                const recibido = Number(p.recibido.replace(',', '.'))
+                const recibido = parsearDecimal(p.recibido)
                 return {
                   medio: p.medio,
                   id_cuenta_destino: p.idCuenta,
@@ -1205,7 +1206,7 @@ export function NuevaVentaView({
                   // El vuelto lo calcula la DB a partir de esto; solo se manda si
                   // el vendedor lo cargo y es coherente.
                   monto_recibido:
-                    p.medio === 'efectivo' && Number.isFinite(recibido) && recibido >= p.monto
+                    p.medio === 'efectivo' && recibido !== null && recibido >= p.monto
                       ? recibido
                       : null,
                   referencia: p.referencia.trim() || null,

@@ -15,6 +15,7 @@ import type { PlanCuotasRow, RecargoCuotasRow } from '@/lib/types/precios'
 import { calcularCostoCobro, resolverArancel } from '@/lib/cobros/calcular-costo'
 import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
+import { parsearDecimal } from '@/lib/utils/numero'
 
 /** Un pago mientras se edita. `recibido` es texto porque puede quedar vacío. */
 /** Opción del selector de medio que no es un medio: quita el pago y deja deuda. */
@@ -483,9 +484,9 @@ export function CobranzaPanel({
           // Con efectivo la plata va a la caja, y con una sola cuenta cargada
           // no hay decisión que tomar: preguntar sería ruido.
           const opcionesCuenta = cuentasPara(cuentas, p.medio, aranceles)
-          const recibido = Number(p.recibido.replace(',', '.'))
+          const recibido = parsearDecimal(p.recibido)
           const vuelto =
-            esEfectivo && p.recibido.trim() !== '' && Number.isFinite(recibido)
+            esEfectivo && recibido !== null
               ? recibido - p.monto
               : null
           const conComision = !costo.sin_tarifario && costo.costo_total > 0
@@ -819,9 +820,9 @@ function SelectorCuotas({
  * Devuelve el mismo objeto si no hay nada que ajustar.
  */
 function ajustarAlRecibido(p: PagoBorrador): PagoBorrador {
-  if (p.medio !== 'efectivo' || p.recibido.trim() === '') return p
-  const recibido = Number(p.recibido.replace(',', '.'))
-  if (!Number.isFinite(recibido) || recibido <= 0 || recibido >= p.monto) return p
+  if (p.medio !== 'efectivo') return p
+  const recibido = parsearDecimal(p.recibido)
+  if (recibido === null || recibido <= 0 || recibido >= p.monto) return p
   return { ...p, monto: redondear(recibido), tocado: true }
 }
 
