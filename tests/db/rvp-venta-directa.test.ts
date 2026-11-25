@@ -562,6 +562,12 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     expect(errAjena).not.toBeNull()
 
     // 3. Sin permiso 'vender' -> no-permission
+    const { data: usuarioAnaAntes } = await serviceRole
+      .from('usuario')
+      .select('id_rol')
+      .eq('id_usuario', ctx.ana.userId)
+      .single()
+
     const { data: idRolSinVender } = await serviceRole
       .from('rol')
       .insert({
@@ -582,15 +588,9 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     expect(errSinPerm?.message).toMatch(/no-permission/)
 
     // Restaurar rol con permiso 'vender'
-    const { data: rolRev } = await serviceRole
-      .from('rol')
-      .select('id_rol')
-      .eq('id_tenant', ctx.fA.tenantId)
-      .eq('nombre', 'Revendedora')
-      .single()
     await serviceRole
       .from('usuario')
-      .update({ id_rol: rolRev!.id_rol })
+      .update({ id_rol: usuarioAnaAntes!.id_rol })
       .eq('id_usuario', ctx.ana.userId)
 
     // 4. Anulación propia -> OK y los artículos vuelven a en_revendedora / en_poder
