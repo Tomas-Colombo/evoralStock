@@ -398,22 +398,96 @@ export function CobranzaPanel({
     )
   }
 
+  // Segmentos de la barra: un tramo por pago y el faltante en cobre. La escala
+  // es lo mayor entre el total y lo asignado, así un exceso no desborda.
+  const escala = Math.max(total, asignado, 1)
+  const deuda = Math.max(0, restante)
+  const excedido = restante < -EPSILON
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium">Pagos</span>
-        <Button type="button" size="sm" variant="secondary" onClick={agregar} disabled={disabled}>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="eyebrow text-petrol">Paso 2 · Medios de cobro</span>
+          <h3 className="font-display text-xl text-ink">Pagos</h3>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={agregar}
+          disabled={disabled}
+          className="border-ink! font-semibold text-ink!"
+        >
           + Pago
         </Button>
       </div>
 
-      <div className="space-y-3">
+      {/* Resumen del cobro sobre la franja oscura: cuánto es, cuánto entra hoy
+          y cuánto queda en cuenta. La barra muestra lo mismo de un vistazo. */}
+      <div className="band-scope rounded-lg bg-band p-4 text-band-ink sm:p-5">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-0">
+          <div className="flex flex-col gap-1.5 sm:pr-5">
+            <dt className="eyebrow text-band-label">Total de la venta</dt>
+            <dd className="font-figure whitespace-nowrap text-2xl font-bold leading-none sm:text-[26px]">
+              {money(total)}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1.5 border-t border-band-line pt-3 sm:border-l sm:border-t-0 sm:px-5 sm:pt-0">
+            <dt className="eyebrow text-band-label">Paga hoy</dt>
+            <dd className="font-figure whitespace-nowrap text-2xl font-bold leading-none sm:text-[26px]">
+              {money(asignado)}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1.5 border-t border-band-line pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+            <dt className={`eyebrow ${excedido ? 'text-alerta' : 'text-copper'}`}>
+              {excedido ? 'Te pasaste por' : 'Queda debiendo'}
+            </dt>
+            <dd
+              className={`font-figure whitespace-nowrap text-2xl font-bold leading-none sm:text-[26px] ${
+                excedido ? 'text-alerta' : deuda > EPSILON ? 'text-copper' : ''
+              }`}
+            >
+              {money(cuadra ? 0 : Math.abs(restante))}
+            </dd>
+          </div>
+        </dl>
+        <div aria-hidden className="mt-4 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-band-line">
+          {pagos.map((p, i) =>
+            p.monto > 0 ? (
+              <span
+                key={p.key}
+                className={i % 2 === 0 ? 'bg-band-muted' : 'bg-band-label'}
+                style={{ width: `${(p.monto / escala) * 100}%` }}
+              />
+            ) : null,
+          )}
+          {deuda > EPSILON && (
+            <span className="bg-copper" style={{ width: `${(deuda / escala) * 100}%` }} />
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-line-2 bg-card">
+        <div
+          aria-hidden
+          className="eyebrow hidden grid-cols-[28px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_96px_64px] items-center gap-3 border-b border-line bg-panel-2 px-4 py-2.5 text-dim lg:grid"
+        >
+          <span>#</span>
+          <span>Medio</span>
+          <span className="text-right">Monto</span>
+          <span className="text-right">Recibí</span>
+          <span />
+          <span />
+        </div>
+
         {pagos.length === 0 && (
-          <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted">
+          <p className="px-4 py-4 text-xs text-muted">
             No paga ahora: todo el total queda como deuda en cuotas del local. Si deja
             una seña, tocá «+ Pago».
           </p>
         )}
+
         {pagos.map((p, i) => {
           const esEfectivo = p.medio === 'efectivo'
           const costo = costos[i]
@@ -426,128 +500,109 @@ export function CobranzaPanel({
             esEfectivo && p.recibido.trim() !== '' && Number.isFinite(recibido)
               ? recibido - p.monto
               : null
+          const conComision = !costo.sin_tarifario && costo.costo_total > 0
+          const sinArancel = !esEfectivo && costo.sin_tarifario
+          const hayDetalle =
+            opcionesCuenta.length > 1 ||
+            p.medio === 'tarjeta_credito' ||
+            p.medio === 'transferencia' ||
+            (vuelto != null && vuelto !== 0) ||
+            conComision ||
+            sinArancel
 
           return (
-            <div key={p.key} className="rounded-md border border-border bg-card-2 p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <Select
-                  value={p.medio}
-                  onChange={(e) => {
-                    if (e.target.value === NO_PAGA_AHORA) {
-                      noPagaAhora(p.key)
-                      return
-                    }
-                    const medio = e.target.value as MedioPago
-                    // El vuelto sólo existe en efectivo (lo enforcea un check
-                    // en la DB); al cambiar de medio se descarta. La cuenta la
-                    // reacomoda `normalizarPagos`.
-                    actualizar(p.key, { medio, recibido: medio === 'efectivo' ? p.recibido : '' })
-                  }}
-                  disabled={disabled}
-                  aria-label="Medio de pago"
-                  className="w-auto flex-1"
-                >
-                  {medios.map((m) => (
-                    <option key={m} value={m}>
-                      {MEDIO_PAGO_LABEL[m]}
-                    </option>
-                  ))}
-                  <option value={NO_PAGA_AHORA}>No paga ahora (cuotas del local)</option>
-                </Select>
+            <div
+              key={p.key}
+              className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 border-b border-line px-4 py-3 last:border-b-0 lg:grid-cols-[28px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_96px_64px]"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-petrol/10 font-mono text-[11px] text-petrol">
+                {i + 1}
+              </span>
+
+              <Select
+                value={p.medio}
+                onChange={(e) => {
+                  if (e.target.value === NO_PAGA_AHORA) {
+                    noPagaAhora(p.key)
+                    return
+                  }
+                  const medio = e.target.value as MedioPago
+                  // El vuelto sólo existe en efectivo (lo enforcea un check
+                  // en la DB); al cambiar de medio se descarta. La cuenta la
+                  // reacomoda `normalizarPagos`.
+                  actualizar(p.key, { medio, recibido: medio === 'efectivo' ? p.recibido : '' })
+                }}
+                disabled={disabled}
+                aria-label="Medio de pago"
+                className="w-full"
+              >
+                {medios.map((m) => (
+                  <option key={m} value={m}>
+                    {MEDIO_PAGO_LABEL[m]}
+                  </option>
+                ))}
+                <option value={NO_PAGA_AHORA}>No paga ahora (cuotas del local)</option>
+              </Select>
+
+              <div className="flex justify-end lg:col-start-6 lg:row-start-1">
                 {!unico && (
                   <Button
                     type="button"
-                    size="sm"
-                    variant="ghost"
+                    variant="bare"
                     onClick={() => quitar(p.key)}
                     disabled={disabled}
                     aria-label="Quitar pago"
+                    className="px-1 py-1 text-[13px] text-alerta-ink hover:underline"
                   >
                     Quitar
                   </Button>
                 )}
               </div>
 
-              {opcionesCuenta.length > 1 && (
-                <Select
-                  value={p.idCuenta}
-                  onChange={(e) =>
-                    // El plan vuelve a 1 al cambiar de cuenta: los planes los
-                    // configura cada cuenta, y el que estaba elegido puede no
-                    // existir en la nueva.
-                    actualizar(p.key, { idCuenta: e.target.value, cuotas: null })
-                  }
-                  disabled={disabled}
-                  aria-label="Cuenta destino"
-                >
-                  {opcionesCuenta.map((c) => (
-                    <option key={c.id_cuenta_destino} value={c.id_cuenta_destino}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </Select>
-              )}
-
-              {/* El plan de cuotas se elige acá, sobre la cuenta que ya está
-                  seleccionada, y sólo ofrece los planes que esa cuenta tiene
-                  configurados. Es lo que hace imposible la contradicción de
-                  antes: marcar un plan arriba y cobrarlo por un medio que no
-                  lo financia.
-
-                  Cambiarlo mueve el precio de la venta (recargo) y el costo
-                  de este pago (arancel). Los dos se recalculan solos. */}
-              {p.medio === 'tarjeta_credito' && (
-                <SelectorCuotas
-                  cuotas={p.cuotas ?? 1}
-                  planes={planesDeCuenta(
-                    planesCuotas,
-                    aranceles,
-                    recargos,
-                    p.idCuenta,
-                    p.medio,
-                  )}
-                  disabled={disabled}
-                  onChange={(cuotas) => actualizar(p.key, { cuotas })}
-                />
-              )}
-
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-muted w-16 shrink-0">Monto</label>
-                <NumberInput
-                  thousands
-                  value={p.monto}
-                  disabled={disabled}
-                  // Editar el monto lo desengancha del total para siempre. Es
-                  // la única forma de dejar saldo, y por eso no se puede
-                  // deshacer solo: si volviera a engancharse al bajar y subir,
-                  // el vendedor no podría cobrar justo el total a mano.
-                  onChange={(e) =>
-                    actualizar(p.key, {
-                      monto: Number(e.target.value || 0),
-                      tocado: true,
-                    })
-                  }
-                  aria-label="Monto del pago"
-                  className="flex-1 text-right"
-                />
-                {!unico && puedeAbsorber(p.key) && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => absorberResto(p.key)}
+              {/* Monto + Resto: juntos en mobile, celdas propias en escritorio. */}
+              <div className="col-span-3 flex items-center gap-2 lg:contents">
+                <div className="relative flex-1 lg:col-start-3 lg:row-start-1">
+                  <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs text-dim">
+                    $
+                  </span>
+                  <NumberInput
+                    thousands
+                    value={p.monto}
                     disabled={disabled}
-                  >
-                    Resto
-                  </Button>
+                    // Editar el monto lo desengancha del total para siempre. Es
+                    // la única forma de dejar saldo, y por eso no se puede
+                    // deshacer solo: si volviera a engancharse al bajar y subir,
+                    // el vendedor no podría cobrar justo el total a mano.
+                    onChange={(e) =>
+                      actualizar(p.key, {
+                        monto: Number(e.target.value || 0),
+                        tocado: true,
+                      })
+                    }
+                    aria-label="Monto del pago"
+                    className="pl-7 text-right font-mono"
+                  />
+                </div>
+                {!unico && puedeAbsorber(p.key) && (
+                  <div className="w-24 shrink-0 lg:col-start-5 lg:row-start-1 lg:w-auto">
+                    <Button
+                      type="button"
+                      variant="bare"
+                      onClick={() => absorberResto(p.key)}
+                      disabled={disabled}
+                      className="w-full rounded-md border border-petrol/25 bg-petrol/10 px-3 py-2 text-xs font-semibold text-petrol hover:bg-petrol/15"
+                    >
+                      Resto
+                    </Button>
+                  </div>
                 )}
               </div>
 
               {esEfectivo && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted w-16 shrink-0" htmlFor={`recibido-${p.key}`}>
-                    Recibí
-                  </label>
+                <div className="relative col-span-3 lg:col-span-1 lg:col-start-4 lg:row-start-1">
+                  <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs text-dim">
+                    $
+                  </span>
                   {/* Opcional: si el vendedor no lo carga, la venta se registra
                       igual y el pago queda sin vuelto. */}
                   <NumberInput
@@ -557,96 +612,124 @@ export function CobranzaPanel({
                     onChange={(e) => actualizar(p.key, { recibido: e.target.value })}
                     disabled={disabled}
                     placeholder="Opcional — con cuánto paga"
-                    className="flex-1 text-right"
+                    aria-label="Recibí"
+                    className="border-dashed bg-transparent! pl-7 text-right font-mono"
                   />
                 </div>
               )}
 
-              {vuelto != null && vuelto > 0 && (
-                <div className="flex items-center justify-between rounded bg-line px-2 py-1 text-sm">
-                  <span className="text-muted">Vuelto</span>
-                  <span className="font-mono font-semibold text-ink">{money(vuelto)}</span>
-                </div>
-              )}
-              {vuelto != null && vuelto < 0 && (
-                <p className="text-xs text-warn-ink">
-                  Recibiste menos que el monto del pago.
-                </p>
-              )}
+              {hayDetalle && (
+                <div className="col-span-3 flex flex-col gap-2 lg:col-span-5 lg:col-start-2 lg:flex-row lg:flex-wrap lg:items-center">
+                  {opcionesCuenta.length > 1 && (
+                    <Select
+                      value={p.idCuenta}
+                      onChange={(e) =>
+                        // El plan vuelve a 1 al cambiar de cuenta: los planes los
+                        // configura cada cuenta, y el que estaba elegido puede no
+                        // existir en la nueva.
+                        actualizar(p.key, { idCuenta: e.target.value, cuotas: null })
+                      }
+                      disabled={disabled}
+                      aria-label="Cuenta destino"
+                      className="w-full lg:w-56"
+                    >
+                      {opcionesCuenta.map((c) => (
+                        <option key={c.id_cuenta_destino} value={c.id_cuenta_destino}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
 
-              {p.medio === 'transferencia' && (
-                <Input
-                  value={p.referencia}
-                  onChange={(e) => actualizar(p.key, { referencia: e.target.value })}
-                  disabled={disabled}
-                  placeholder="Nro. de operación (opcional)"
-                  aria-label="Referencia"
-                />
-              )}
+                  {/* El plan de cuotas se elige acá, sobre la cuenta que ya está
+                      seleccionada, y sólo ofrece los planes que esa cuenta tiene
+                      configurados. Cambiarlo mueve el precio de la venta
+                      (recargo) y el costo de este pago (arancel). */}
+                  {p.medio === 'tarjeta_credito' && (
+                    <SelectorCuotas
+                      cuotas={p.cuotas ?? 1}
+                      planes={planesDeCuenta(planesCuotas, aranceles, recargos, p.idCuenta, p.medio)}
+                      disabled={disabled}
+                      onChange={(cuotas) => actualizar(p.key, { cuotas })}
+                    />
+                  )}
 
-              {/* Lo que retiene el procesador de ESTE pago. Se muestra sólo
-                  cuando hay algo que descontar: un "comisión $0" en cada
-                  cobro en efectivo es ruido. */}
-              {!costo.sin_tarifario && costo.costo_total > 0 && (
-                <div className="flex items-center justify-between border-t border-border-2 pt-2 text-xs">
-                  <span className="text-muted">
-                    Comisión {costo.arancel_pct}%
-                    {costo.dias_acreditacion > 0 && ` · acredita en ${costo.dias_acreditacion} días`}
-                  </span>
-                  <span className="font-mono text-warn-ink">−{money(costo.costo_total)}</span>
-                </div>
-              )}
-              {!esEfectivo && costo.sin_tarifario && (
-                <div className="border-t border-border-2 pt-2">
-                  <Badge variant="warning">Sin arancel configurado</Badge>
+                  {p.medio === 'transferencia' && (
+                    <Input
+                      value={p.referencia}
+                      onChange={(e) => actualizar(p.key, { referencia: e.target.value })}
+                      disabled={disabled}
+                      placeholder="Nro. de operación (opcional)"
+                      aria-label="Referencia"
+                      className="lg:w-64"
+                    />
+                  )}
+
+                  {vuelto != null && vuelto > 0 && (
+                    <span className="inline-flex items-center justify-between gap-3 rounded-md bg-petrol/10 px-3 py-1.5 text-sm lg:justify-start">
+                      <span className="text-muted">Vuelto</span>
+                      <span className="font-mono font-semibold text-petrol">{money(vuelto)}</span>
+                    </span>
+                  )}
+                  {vuelto != null && vuelto < 0 && (
+                    <span className="text-xs text-warn-ink">Recibiste menos que el monto del pago.</span>
+                  )}
+
+                  {/* Lo que retiene el procesador de ESTE pago. Se muestra sólo
+                      cuando hay algo que descontar: un "comisión $0" en cada
+                      cobro en efectivo es ruido. */}
+                  {conComision && (
+                    <span className="flex items-center justify-between gap-3 text-xs lg:ml-auto">
+                      <span className="text-muted">
+                        Comisión {costo.arancel_pct}%
+                        {costo.dias_acreditacion > 0 && ` · acredita en ${costo.dias_acreditacion} días`}
+                      </span>
+                      <span className="font-mono text-warn-ink">−{money(costo.costo_total)}</span>
+                    </span>
+                  )}
+                  {sinArancel && <Badge variant="warning">Sin arancel configurado</Badge>}
                 </div>
               )}
             </div>
           )
         })}
+
+        {/* Lo que falta NO es un error: es lo que el cliente queda debiendo, y
+            el bloque de crédito de abajo lo explica con su plan y su
+            vencimiento. Sólo se marca en rojo el exceso, que sí es un error:
+            nadie paga de más sin que sea un tipeo. */}
+        {!unico && (
+          <div className="flex items-center justify-between gap-3 border-t border-line bg-panel-2 px-4 py-3 text-sm">
+            <span className={excedido ? 'text-alerta-ink' : 'text-muted'}>
+              {cuadra ? 'Cobranza completa' : restante > 0 ? 'Queda debiendo' : 'Te pasaste por'}
+            </span>
+            <span
+              className={`font-mono font-semibold ${
+                excedido ? 'text-alerta-ink' : cuadra ? 'text-petrol' : 'text-copper'
+              }`}
+            >
+              {cuadra ? money(total) : money(Math.abs(restante))}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Lo que falta NO es un error: es lo que el cliente queda debiendo, y
-          el bloque de deuda de arriba ya lo explica con su plan y su
-          vencimiento. Sólo se marca en rojo el exceso, que sí es un error —
-          nadie paga de más sin que sea un tipeo. */}
-      {!unico && (
-        <div
-          className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
-            restante < -EPSILON
-              ? 'border-warn text-warn-ink'
-              : 'border-border bg-card-2 text-muted'
-          }`}
-        >
-          <span>
-            {cuadra
-              ? 'Cobranza completa'
-              : restante > 0
-                ? 'Queda debiendo'
-                : 'Te pasaste por'}
-          </span>
-          <span className="font-mono font-semibold">
-            {cuadra ? money(total) : money(Math.abs(restante))}
-          </span>
-        </div>
-      )}
-
       {/* Neto: lo que realmente vas a cobrar. Aparece sólo si hay algo que
-          descontar — sin costo, el total ya está arriba y repetirlo no
+          descontar; sin costo, el total ya está arriba y repetirlo no
           agrega nada. */}
       {costoTotal > 0 && (
-        <div className="space-y-1 rounded-md border border-border bg-card-2 p-3 text-sm">
-          <div className="flex items-center justify-between text-muted">
+        <div className="space-y-1.5 rounded-lg border border-line-2 bg-card px-4 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3 text-muted">
             <span>Total de la venta</span>
             <span className="font-mono">{money(total)}</span>
           </div>
-          <div className="flex items-center justify-between text-warn-ink">
+          <div className="flex items-center justify-between gap-3 text-warn-ink">
             <span>Costo de cobro</span>
             <span className="font-mono">−{money(costoTotal)}</span>
           </div>
-          <div className="flex items-center justify-between border-t border-border pt-1 font-semibold">
+          <div className="flex items-center justify-between gap-3 border-t border-line pt-1.5 font-semibold">
             <span>Neto que vas a cobrar</span>
-            <span className="font-mono">{money(total - costoTotal)}</span>
+            <span className="font-mono text-petrol">{money(total - costoTotal)}</span>
           </div>
           {diasMax > 0 && (
             <p className="pt-1 text-xs text-muted">
@@ -660,7 +743,7 @@ export function CobranzaPanel({
           opción que no existe y no tiene forma de saber que el problema está
           en otra pantalla. */}
       {faltanTarjetas.length > 0 && (
-        <p className="rounded-md border border-border bg-card-2 px-3 py-2 text-xs text-muted">
+        <p className="rounded-lg border border-line-2 bg-panel-2 px-4 py-2.5 text-xs text-muted">
           No figura{faltanTarjetas.length === 1 ? '' : 'n'}{' '}
           {faltanTarjetas.map((m) => MEDIO_PAGO_LABEL[m].toLowerCase()).join(' ni ')}:
           ninguna cuenta tiene ese tarifario cargado. Se habilita solo al
@@ -669,7 +752,7 @@ export function CobranzaPanel({
       )}
 
       {faltaTarifario && (
-        <p className="rounded-md border border-border bg-card-2 px-3 py-2 text-xs text-muted">
+        <p className="rounded-lg border border-line-2 bg-panel-2 px-4 py-2.5 text-xs text-muted">
           Hay pagos sin arancel cargado: se registran con costo cero. Cargalos
           en Precios y Cuentas para que el neto sea real.
         </p>
@@ -704,13 +787,13 @@ function SelectorCuotas({
 
   return (
     <div className="flex items-center gap-2">
-      <label className="w-16 shrink-0 text-xs text-muted">Plan</label>
+      <label className="shrink-0 text-xs text-muted">Plan</label>
       <Select
         value={cuotas}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}
         aria-label="Cuotas"
-        className="w-auto flex-1"
+        className="w-auto flex-1 lg:w-40 lg:flex-none"
       >
         <option value={1}>1 pago</option>
         {opciones.map((c) => (

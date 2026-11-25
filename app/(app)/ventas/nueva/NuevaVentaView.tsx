@@ -1742,18 +1742,19 @@ export function NuevaVentaView({
       {cobranzaOpen && (
         <section
           ref={cobroRef}
-          className="rounded-lg border border-line-2 bg-card p-4 space-y-4"
+          className="space-y-5"
           aria-label="Cobro"
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-lg text-text">Cobro</h2>
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-line-2 pb-3">
+            <h2 className="font-display text-2xl text-ink sm:text-3xl">Cobro</h2>
             <Button
               variant="bare"
               type="button"
               onClick={() => setCobranzaOpen(false)}
               disabled={pending}
-              className="text-xs text-muted underline-offset-2 hover:text-text hover:underline"
+              className="gap-1 text-sm font-medium text-petrol underline-offset-2 hover:underline"
             >
+              <span aria-hidden>←</span>
               Volver al carrito
             </Button>
           </div>
@@ -1764,9 +1765,12 @@ export function NuevaVentaView({
               hace falta. Ya no aplica: con la deuda derivada del faltante, el
               cliente puede volverse obligatorio recién abajo, y tenerlo al
               fondo obligaba a bajar, descubrirlo y volver a subir. */}
-          <div className="space-y-3 border-t border-border pt-4">
-            <h3 className="text-sm font-medium text-text">Cliente</h3>
-            <div className="max-w-xl">
+          <div className="grid gap-4 rounded-lg border border-line-2 bg-card p-4 sm:p-5 md:grid-cols-[180px_minmax(0,1fr)]">
+            <div className="flex flex-col gap-1">
+              <span className="eyebrow text-dim">Paso 1</span>
+              <h3 className="font-display text-xl text-ink">Cliente</h3>
+            </div>
+            <div className="max-w-2xl">
               <div>
               <Field
                 htmlFor="v-cli"
@@ -1781,8 +1785,15 @@ export function NuevaVentaView({
               >
                 <div className="flex gap-2">
                   <div className="relative flex-1">
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    >
+                      ⌕
+                    </span>
                     <Input
                       id="v-cli"
+                      className="pl-8"
                       invalid={faltante === 'cliente'}
                       value={cliInput}
                       placeholder="— Mostrador —"
@@ -1869,6 +1880,7 @@ export function NuevaVentaView({
                     }}
                     aria-expanded={creandoCliente}
                     disabled={pending}
+                    className="shrink-0 border-ink! font-semibold text-ink!"
                   >
                     {creandoCliente ? 'Cerrar' : '+ Nuevo'}
                   </Button>
@@ -1888,10 +1900,11 @@ export function NuevaVentaView({
               elegido ya viene dentro del total: por eso se lo desagrega
               debajo del panel, y no arriba junto a un selector que ya no
               existe. */}
-          <div className="space-y-3 border-t border-border pt-4">
-            <h3 className="text-sm font-medium text-text">
-              {canal === 'revendedora' ? 'Cobranza' : 'Medios de cobro'}
-            </h3>
+          <div className="space-y-3">
+            {/* El canal local trae su propio encabezado de paso (con «+ Pago»). */}
+            {canal === 'revendedora' && (
+              <h3 className="font-display text-xl text-ink">Cobranza</h3>
+            )}
             <CobranzaPanel
               cuentas={cuentas}
               pagos={pagosNormalizados}
@@ -1924,27 +1937,40 @@ export function NuevaVentaView({
               olvidar (y la deuda quedaba sin registrar) o dejar prendida por
               error (y se fiaba una venta ya cobrada). */}
           {hayDeuda && canal !== 'revendedora' && (
-            <div className="space-y-3 rounded-md border border-warn/40 bg-card-2 p-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-sm font-medium text-text">
-                  Crédito del local
-                </h3>
-                <span className="font-mono font-semibold text-warn-ink">
-                  {money(aFinanciar)}
-                </span>
+            <div className="overflow-hidden rounded-lg border border-line-2 bg-card">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4 sm:px-5">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <h3 className="flex items-center gap-2 font-display text-lg text-ink">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-copper" />
+                    Crédito del local
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {anticipo > 0 ? (
+                      <>
+                        Paga hoy <span className="text-petrol">{money(anticipo)}</span> de{' '}
+                        <span className="text-petrol">{money(total)}</span>. El resto queda en
+                        cuenta del local.
+                      </>
+                    ) : (
+                      'Se lleva la compra sin pagar nada hoy: queda en cuenta del local.'
+                    )}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="eyebrow text-dim">A financiar</span>
+                  <span className="font-figure whitespace-nowrap text-2xl font-bold leading-none text-ink sm:text-[28px]">
+                    {money(aFinanciar)}
+                  </span>
+                </div>
               </div>
 
-              <p className="text-xs text-muted">
-                {anticipo > 0
-                  ? `Paga hoy ${money(anticipo)} de ${money(total)}. El resto queda en cuenta del local.`
-                  : 'Se lleva la compra sin pagar nada hoy: queda en cuenta del local.'}
-              </p>
+              <div className="space-y-4 px-4 py-4 sm:px-5">
 
               {/* En cuántas partes lo cobra el local. Es el único lugar
                   donde se elige un plan que no pasa por ningún procesador:
                   acá el riesgo de crédito lo toma el comercio, y por eso el
                   recargo sale de su propia fila del tarifario. */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field
                   htmlFor="v-fin-cuotas"
                   label="Plan"
@@ -1997,44 +2023,61 @@ export function NuevaVentaView({
                     disabled={pending}
                   />
                 </Field>
+
+                {/* Resumen del plan: misma altura que los controles de al lado. */}
+                {planPreview.length > 0 && (
+                  <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+                    <span className="text-[13px] font-semibold text-text">Resumen</span>
+                    <div className="flex min-h-[38px] flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-petrol/10 px-3 py-2 text-sm text-ink">
+                      <span>
+                        {planPreview.length}{' '}
+                        {planPreview.length === 1 ? 'cuota' : 'cuotas'} de{' '}
+                        <span className="font-mono">{money(planPreview[0].monto)}</span>
+                        {planPreview.length > 1 &&
+                          planPreview[planPreview.length - 1].monto !== planPreview[0].monto && (
+                            <>
+                              {' '}(la última,{' '}
+                              <span className="font-mono">
+                                {money(planPreview[planPreview.length - 1].monto)}
+                              </span>
+                              )
+                            </>
+                          )}
+                      </span>
+                      <span className="font-mono text-xs text-muted">
+                        {fechaCorta(planPreview[0].vencimiento)} →{' '}
+                        {fechaCorta(planPreview[planPreview.length - 1].vencimiento)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {planPreview.length > 0 && (
-                <p className="text-xs text-muted">
-                  {planPreview.length}{' '}
-                  {planPreview.length === 1 ? 'cuota' : 'cuotas'} de{' '}
-                  <span className="font-mono">{money(planPreview[0].monto)}</span>
-                  {planPreview.length > 1 &&
-                    planPreview[planPreview.length - 1].monto !== planPreview[0].monto && (
-                      <>
-                        {' '}(la última,{' '}
-                        <span className="font-mono">
-                          {money(planPreview[planPreview.length - 1].monto)}
-                        </span>
-                        )
-                      </>
-                    )}{' '}
-                  · del {fechaCorta(planPreview[0].vencimiento)} al{' '}
-                  {fechaCorta(planPreview[planPreview.length - 1].vencimiento)}
-                </p>
-              )}
-
               {!idCliente && (
-                <p className="rounded-md border border-alerta-ink bg-alerta-bg px-3 py-2 text-xs text-alerta-ink">
-                  Falta el cliente: sin eso perdés el rastro de quién te debe.{' '}
-                  <Button
-                    variant="bare"
-                    type="button"
-                    onClick={() => {
-                      setFaltante('cliente')
-                      enfocarCampo('v-cli')
-                    }}
-                    className="font-medium underline underline-offset-2"
+                <div className="flex items-start gap-3 rounded-md border border-alerta-line bg-alerta-bg px-3 py-2.5 text-[13px] text-alerta-ink sm:items-center">
+                  <span
+                    aria-hidden
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-alerta text-[11px] font-bold text-alerta-on"
                   >
-                    Elegirlo arriba
-                  </Button>
-                </p>
+                    !
+                  </span>
+                  <p>
+                    Falta el cliente: sin eso perdés el rastro de quién te debe.{' '}
+                    <Button
+                      variant="bare"
+                      type="button"
+                      onClick={() => {
+                        setFaltante('cliente')
+                        enfocarCampo('v-cli')
+                      }}
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Elegirlo arriba
+                    </Button>
+                  </p>
+                </div>
               )}
+              </div>
             </div>
           )}
 
