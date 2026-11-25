@@ -40,7 +40,7 @@ export function useFiltrosUrl({ paramPagina = 'pagina', scroll = true }: Opcione
 
     const qs = params.toString()
     const destino = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-    startTransition(() => router.push(destino, { scroll }))
+    startTransition(() => (scroll ? router.push(destino) : router.push(destino, { scroll: false })))
   }
 
   return { aplicar, pendiente }
