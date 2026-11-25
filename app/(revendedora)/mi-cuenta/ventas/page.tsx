@@ -4,6 +4,7 @@ import { listarMisVentas } from '@/lib/dal/revendedoras'
 import type { EstadoFiltroVentas } from '@/lib/types/revendedoras'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { PageBand } from '@/components/shell/PageBand'
+import { VenderBandAction } from '../VenderBandAction'
 import {
   PORTAL_PAGE_SIZE,
   parsearBusquedaPortal,
@@ -61,7 +62,7 @@ export default async function MisVentasPage(props: {
           options: [
             { value: '', label: 'Todos' },
             { value: 'liquidada', label: 'Liquidada' },
-            { value: 'pendiente', label: 'Pendiente' },
+            { value: 'pendiente', label: 'No liquidada' },
           ],
         },
       ]}
@@ -97,6 +98,7 @@ export default async function MisVentasPage(props: {
         title="Artículos vendidos"
         subtitle={`Detalle por artículo de las ventas registradas y confirmadas a tu nombre · ${res.data.total} ${res.data.total === 1 ? 'artículo' : 'artículos'}`}
         filters={filtroPeriodo}
+        actions={<VenderBandAction />}
       />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <VentasRevendedoraView

@@ -18,6 +18,7 @@ import {
   type SelectorTalle,
   type TalleOpcion,
 } from '@/components/ventas/SelectorTalleMulti'
+import { agregarSinDuplicados, calcularTotalCarrito } from '@/components/ventas/carrito'
 import {
   buscarMatchNombre,
   indexarPorNombre,
@@ -285,7 +286,7 @@ export function NuevaVentaView({
   const [faltante, setFaltante] = useState<'cliente' | 'vencimiento' | null>(null)
 
   const total = useMemo(
-    () => lineas.reduce((a, l) => a + (l.precio_final ?? 0), 0),
+    () => calcularTotalCarrito(lineas, (l) => l.precio_final),
     [lineas],
   )
 
@@ -798,18 +799,11 @@ export function NuevaVentaView({
   // Agrega una línea al carrito evitando duplicados por QR. Devuelve la línea
   // Agrega evitando duplicados por QR. Devuelve las líneas efectivamente agregadas.
   function pushLineas(nuevas: LineaCarrito[]): LineaCarrito[] {
-    const agregadas: LineaCarrito[] = []
+    let agregadas: LineaCarrito[] = []
     setLineas((ls) => {
-      const qrs = new Set(ls.map((l) => l.qr_code))
-      const resultado = [...ls]
-      for (const n of nuevas) {
-        if (!qrs.has(n.qr_code)) {
-          qrs.add(n.qr_code)
-          resultado.push(n)
-          agregadas.push(n)
-        }
-      }
-      return resultado
+      const res = agregarSinDuplicados(ls, nuevas, (l) => l.qr_code)
+      agregadas = res.agregadas
+      return res.siguientes
     })
     return agregadas
   }

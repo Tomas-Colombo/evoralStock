@@ -99,7 +99,7 @@ export function VentasRevendedoraView({
                     </Badge>
                   ) : (
                     <Badge variant="warning">
-                      Pendiente de liquidar
+                      No liquidada
                     </Badge>
                   )}
                 </div>

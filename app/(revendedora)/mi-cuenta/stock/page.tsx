@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/dal/session'
 import { listarMiStock } from '@/lib/dal/revendedoras'
 import type { EstadoFiltroStock } from '@/lib/types/revendedoras'
 import { PageBand } from '@/components/shell/PageBand'
+import { VenderBandAction } from '../VenderBandAction'
 import {
   PORTAL_PAGE_SIZE,
   parsearBusquedaPortal,
@@ -62,6 +63,7 @@ export default async function MiStockPage(props: {
         breadcrumb={['Mi cuenta', 'Mi stock']}
         title="Mercadería en tu poder"
         subtitle={`Artículos consignados que tenés disponibles para vender · ${res.data.total} ${res.data.total === 1 ? 'artículo' : 'artículos'}`}
+        actions={<VenderBandAction />}
       />
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <StockRevendedoraView

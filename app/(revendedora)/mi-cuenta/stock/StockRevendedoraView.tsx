@@ -1,19 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import type { RvpMiStockRow } from '@/lib/types/revendedoras'
 import { formatearMoneda } from '@/lib/utils/moneda'
-import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { useToast } from '@/components/ui/Toast'
-import { mensajeDeError } from '@/lib/errores/mensajes'
-import { registrarVentaRevendedoraAction } from '../actions'
-import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { BusquedaUrl } from '@/components/filtros/BusquedaUrl'
 import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { VenderModal, type ItemCarritoPortal } from '../VenderModal'
 
 interface Props {
   items: RvpMiStockRow[]
@@ -25,40 +20,20 @@ interface Props {
 }
 
 export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q }: Props) {
-  const router = useRouter()
-  const toast = useToast()
-  const [selectedItem, setSelectedItem] = useState<RvpMiStockRow | null>(null)
-  const [nota, setNota] = useState('')
-  const [isPending, startTransition] = useTransition()
+  const [itemsModal, setItemsModal] = useState<ItemCarritoPortal[] | null>(null)
 
   const hayFiltros = Boolean(estado || q)
 
-  const handleOpenModal = (item: RvpMiStockRow) => {
-    setSelectedItem(item)
-    setNota('')
-  }
-
-  const handleCloseModal = () => {
-    if (isPending) return
-    setSelectedItem(null)
-    setNota('')
-  }
-
-  const handleConfirmarDeclaracion = () => {
-    if (!selectedItem) return
-    startTransition(async () => {
-      const res = await registrarVentaRevendedoraAction({
-        id_items: [selectedItem.id_item],
-      })
-
-      if (res.ok) {
-        toast.success('Declaración registrada', 'El local la confirmará a la brevedad.')
-        handleCloseModal()
-        router.refresh()
-      } else {
-        toast.error('Error al declarar venta', mensajeDeError(res.reason))
-      }
-    })
+  const handleOpenVender = (item: RvpMiStockRow) => {
+    setItemsModal([
+      {
+        id_item: item.id_item,
+        descripcion: item.nombre_producto,
+        sku: item.sku,
+        talle: item.talle,
+        precio_venta: item.precio_venta,
+      },
+    ])
   }
 
   return (
@@ -129,9 +104,9 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
                     variant="primary"
                     size="sm"
                     className="min-h-[44px] px-4 w-full sm:w-auto"
-                    onClick={() => handleOpenModal(item)}
+                    onClick={() => handleOpenVender(item)}
                   >
-                    Declarar venta
+                    Vender
                   </Button>
                 )}
               </div>
@@ -146,66 +121,11 @@ export function StockRevendedoraView({ items, total, pagina, pageSize, estado, q
         total={total}
       />
 
-      {/* Modal para declarar venta */}
-      {selectedItem && (
-        <Modal
-          open={true}
-          onClose={handleCloseModal}
-          title="Declarar venta de artículo"
-        >
-          <div className="space-y-4">
-            <div className="p-3 rounded-lg bg-panel-2 border border-border space-y-1">
-              <p className="text-sm font-semibold">{selectedItem.nombre_producto}</p>
-              {selectedItem.talle && (
-                <div className="text-xs text-muted">
-                  <span>Talle: {selectedItem.talle}</span>
-                </div>
-              )}
-              <p className="text-sm font-bold text-accent-fg pt-1">
-                Precio de venta: {formatearMoneda(selectedItem.precio_venta)}
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="nota-declaracion" className="block text-xs font-semibold text-muted uppercase tracking-wider">
-                Nota u observación (opcional)
-              </label>
-              <Input
-                id="nota-declaracion"
-                type="text"
-                maxLength={500}
-                placeholder="Ej: Vendido a clienta frecuente, pago acordado"
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-                className="min-h-[44px]"
-              />
-            </div>
-
-            <p className="text-xs text-muted">
-              Al declarar la venta, el artículo permanecerá marcado como pendiente hasta que el local confirme la operación. Podrás retirarla en cualquier momento antes de la confirmación.
-            </p>
-
-            <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-border">
-              <Button
-                variant="secondary"
-                className="min-h-[44px] px-4"
-                onClick={handleCloseModal}
-                disabled={isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                className="min-h-[44px] px-4"
-                onClick={handleConfirmarDeclaracion}
-                disabled={isPending}
-              >
-                {isPending ? 'Declarando...' : 'Confirmar declaración'}
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <VenderModal
+        open={itemsModal !== null}
+        onClose={() => setItemsModal(null)}
+        itemsIniciales={itemsModal ?? undefined}
+      />
     </>
   )
 }

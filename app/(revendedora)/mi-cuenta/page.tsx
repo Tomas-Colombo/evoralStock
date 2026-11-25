@@ -6,6 +6,7 @@ import { BandAction } from '@/components/shell/BandAction'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { PageBand } from '@/components/shell/PageBand'
 import { parsearPeriodoPortal } from './filtros'
+import { VenderBandAction } from './VenderBandAction'
 
 export const metadata = {
   title: 'Mi cuenta | Revendedor',
@@ -100,6 +101,7 @@ export default async function MiCuentaResumenPage(props: {
         ]}
         actions={
           <>
+            <VenderBandAction />
             <BandAction href="/mi-cuenta/stock" title="Ver mi stock" />
             <BandAction href="/mi-cuenta/ventas" title="Ver mis ventas" />
             <BandAction href="/mi-cuenta/liquidaciones" title="Ver liquidaciones" />
