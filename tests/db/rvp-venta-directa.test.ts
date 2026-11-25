@@ -631,7 +631,7 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     expect(errVta2).toBeNull()
 
     const hoy = new Date().toISOString().slice(0, 10)
-    const { error: errLiq } = await ctx.fA.authenticated.rpc('sp_liquidar_revendedora', {
+    const { error: errLiq } = await ctx.fA.authenticated.rpc('sp_generar_liquidacion', {
       p_id_revendedora: ctx.ana.idRev,
       p_desde: hoy,
       p_hasta: hoy,
