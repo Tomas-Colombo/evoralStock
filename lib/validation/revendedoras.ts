@@ -189,7 +189,7 @@ export const panelRevendedorasQuerySchema = z.object({
   desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha-invalida').optional(),
   hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha-invalida').optional(),
   estado: z.enum(['todos', 'activa', 'inactiva']).default('todos'),
-  cuenta: z.enum(['todos', 'con_saldo', 'atrasada', 'declaraciones_pendientes']).default('todos'),
+  cuenta: z.enum(['todos', 'con_saldo', 'atrasada']).default('todos'),
   q: z.string().max(100).optional(),
   orden: z
     .enum([
@@ -248,8 +248,34 @@ export const registrarVentaRevendedoraSchema = z.strictObject({
     .min(1, 'lineas-vacias')
     .max(50, 'payload-invalido')
     .transform((items) => Array.from(new Set(items))),
+  contacto_nombre: z
+    .string()
+    .trim()
+    .max(120, 'payload-invalido')
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val : null)),
+  contacto_telefono: z
+    .string()
+    .trim()
+    .max(30, 'payload-invalido')
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val : null)),
 })
 export type RegistrarVentaRevendedoraPayload = z.infer<typeof registrarVentaRevendedoraSchema>
+
+export const anularVentaRevendedoraSchema = z.strictObject({
+  id_venta: z.string().uuid('payload-invalido'),
+  motivo: z
+    .string()
+    .trim()
+    .max(500, 'motivo-largo')
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val : null)),
+})
+export type AnularVentaRevendedoraPayload = z.infer<typeof anularVentaRevendedoraSchema>
 
 export const resolverItemStockSchema = z.strictObject({
   codigo: z.string().trim().min(1, 'payload-invalido').max(100, 'payload-invalido'),
@@ -260,27 +286,8 @@ export const resolverItemStockSchema = z.strictObject({
 })
 export type ResolverItemStockPayload = z.infer<typeof resolverItemStockSchema>
 
-export const confirmarDeclaracionVentaSchema = z.strictObject({
-  id_declaracion: z.string().uuid('id-declaracion-invalido'),
-})
-export type ConfirmarDeclaracionVentaPayload = z.infer<typeof confirmarDeclaracionVentaSchema>
-
-export const rechazarDeclaracionVentaSchema = z.strictObject({
-  id_declaracion: z.string().uuid('id-declaracion-invalido'),
-  motivo: z.string().trim().min(1, 'motivo-requerido').max(500, 'motivo-largo'),
-})
-export type RechazarDeclaracionVentaPayload = z.infer<typeof rechazarDeclaracionVentaSchema>
-
 export const paginacionQuerySchema = z.strictObject({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 })
-
-export const declaracionesLocalQuerySchema = z.strictObject({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-  estado: z.enum(['todas', 'pendiente', 'confirmada', 'rechazada', 'retirada']).default('todas'),
-  id_revendedora: z.string().uuid().optional(),
-})
-export type DeclaracionesLocalQuery = z.infer<typeof declaracionesLocalQuerySchema>
 

@@ -4,13 +4,12 @@ import type { Session } from '@/lib/dal/session'
 import { requireModuleRole } from '@/lib/dal/guard'
 import { escaparPatronLike } from '@/lib/inventario/codigo'
 import type {
+  AnularVentaRevendedoraPayload,
   RegistrarVentaRevendedoraPayload,
   ResolverItemStockPayload,
 } from '@/lib/validation/revendedoras'
 import type {
-  EstadoFiltroDeclaraciones,
   EstadoFiltroLiquidaciones,
-  EstadoFiltroStock,
   EstadoFiltroVentas,
   RvpItemStockResuelto,
   RvpListaPaginada,
@@ -18,7 +17,6 @@ import type {
   RvpMiStockRow,
   RvpMisVentasRow,
   RvpMisLiquidacionesRow,
-  RvpMisDeclaracionesRow,
 } from '@/lib/types/revendedoras'
 import { extractErrorSlug, type ReglaSlug } from './slug-error'
 
@@ -32,9 +30,10 @@ const REGLAS_SLUG: readonly ReglaSlug[] = [
   { slug: 'lineas-vacias' },
   { slug: 'payload-invalido' },
   { slug: 'precio-no-resoluble', conDetalle: true },
-  { slug: 'declaracion-duplicada' },
-  { slug: 'declaracion-no-encontrada' },
-  { slug: 'declaracion-no-pendiente' },
+  { slug: 'venta-not-found' },
+  { slug: 'venta-ya-anulada' },
+  { slug: 'venta-no-anulable' },
+  { slug: 'venta-liquidada' },
   { slug: 'item-not-found' },
   { slug: 'item-invalido' },
   { slug: 'item-no-disponible' },
@@ -78,7 +77,6 @@ export async function obtenerMiCuenta(
         comision_estimada: 0,
         total_adeudado: 0,
         total_pagado: 0,
-        declaraciones_pendientes: 0,
         porcentaje_comision_actual: 0,
         tramo_comision_actual: 'Sin ventas',
       },
@@ -95,7 +93,6 @@ export async function obtenerMiCuenta(
       comision_estimada: Number(row.comision_estimada ?? 0),
       total_adeudado: Number(row.total_adeudado ?? 0),
       total_pagado: Number(row.total_pagado ?? 0),
-      declaraciones_pendientes: Number(row.declaraciones_pendientes ?? 0),
       porcentaje_comision_actual: Number(row.porcentaje_comision_actual ?? 0),
       tramo_comision_actual: '',
     },
@@ -107,7 +104,6 @@ export async function listarMiStock(
   params?: {
     limit?: number
     offset?: number
-    estado?: EstadoFiltroStock
     q?: string
   },
 ): Promise<{ ok: true; data: RvpListaPaginada<RvpMiStockRow> } | { ok: false; reason: string }> {
@@ -116,7 +112,7 @@ export async function listarMiStock(
   const { data, error } = await supabase.rpc('rvp_mi_stock', {
     p_limit: params?.limit ?? 50,
     p_offset: params?.offset ?? 0,
-    p_estado: params?.estado ?? null,
+    p_estado: null,
     p_busqueda: prepararBusqueda(params?.q),
   })
 
@@ -137,7 +133,6 @@ export async function listarMiStock(
         talle: r.talle ? String(r.talle) : null,
         precio_venta: Number(r.precio_venta ?? 0),
         fecha_entrega: String(r.fecha_consignacion),
-        declaracion_pendiente: Boolean(r.declarado_pendiente),
       })),
     },
   }
@@ -186,6 +181,9 @@ export async function listarMisVentas(
         comision_total: Number(r.comision_liquidada ?? 0) + Number(r.comision_estimada ?? 0),
         liquidada: r.estado_liquidacion === 'liquidada',
         fecha_liquidacion: r.fecha_liquidacion ? String(r.fecha_liquidacion) : null,
+        estado_venta: (r.estado_venta === 'anulada' ? 'anulada' : 'registrada') as 'registrada' | 'anulada',
+        contacto_nombre: r.contacto_nombre ? String(r.contacto_nombre) : null,
+        contacto_telefono: r.contacto_telefono ? String(r.contacto_telefono) : null,
       })),
     },
   }
@@ -235,53 +233,6 @@ export async function listarMisLiquidaciones(
   }
 }
 
-export async function listarMisDeclaraciones(
-  session: Session,
-  params?: {
-    limit?: number
-    offset?: number
-    desde?: string
-    hasta?: string
-    estado?: EstadoFiltroDeclaraciones
-    q?: string
-  },
-): Promise<{ ok: true; data: RvpListaPaginada<RvpMisDeclaracionesRow> } | { ok: false; reason: string }> {
-  await requireModuleRole(session, 'revendedoras', 'ver_propio')
-  const supabase = await createServerClient()
-  const { data, error } = await supabase.rpc('rvp_mis_declaraciones', {
-    p_limit: params?.limit ?? 50,
-    p_offset: params?.offset ?? 0,
-    p_desde: params?.desde ?? null,
-    p_hasta: params?.hasta ?? null,
-    p_estado: params?.estado ?? null,
-    p_busqueda: prepararBusqueda(params?.q),
-  })
-
-  if (error) {
-    return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
-  }
-
-  const filas = (data ?? []) as unknown as Record<string, unknown>[]
-  return {
-    ok: true,
-    data: {
-      total: extraerTotal(filas),
-      rows: filas.map((r) => ({
-        id_declaracion: String(r.id_declaracion),
-        id_item: String(r.id_item),
-        fecha: String(r.fecha),
-        nota: r.nota ? String(r.nota) : null,
-        estado: r.estado as 'pendiente' | 'confirmada' | 'rechazada' | 'retirada',
-        motivo_rechazo: r.motivo_rechazo ? String(r.motivo_rechazo) : null,
-        nombre_producto: String(r.descripcion ?? ''),
-        sku: String(r.sku ?? ''),
-        talle: r.talle ? String(r.talle) : null,
-        precio_venta: Number(r.precio_venta ?? 0),
-      })),
-    },
-  }
-}
-
 export async function registrarVentaRevendedora(
   session: Session,
   payload: RegistrarVentaRevendedoraPayload,
@@ -290,6 +241,8 @@ export async function registrarVentaRevendedora(
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('sp_registrar_venta_revendedora', {
     p_items: payload.id_items,
+    p_contacto_nombre: payload.contacto_nombre ?? null,
+    p_contacto_telefono: payload.contacto_telefono ?? null,
   })
 
   if (error) {
@@ -297,6 +250,24 @@ export async function registrarVentaRevendedora(
   }
 
   return { ok: true, data: { id_venta: String(data) } }
+}
+
+export async function anularVentaRevendedora(
+  session: Session,
+  payload: AnularVentaRevendedoraPayload,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  await requireModuleRole(session, 'revendedoras', 'vender')
+  const supabase = await createServerClient()
+  const { error } = await supabase.rpc('sp_anular_venta_revendedora', {
+    p_id_venta: payload.id_venta,
+    p_motivo: payload.motivo ?? null,
+  })
+
+  if (error) {
+    return { ok: false, reason: extractErrorSlug(error, REGLAS_SLUG) }
+  }
+
+  return { ok: true }
 }
 
 export async function resolverItemStockRevendedora(

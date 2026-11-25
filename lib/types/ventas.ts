@@ -124,6 +124,8 @@ export interface VentaRow {
   estado_venta: EstadoVenta
   fecha_anulacion: string | null
   motivo_anulacion: string | null
+  contacto_nombre?: string | null
+  contacto_telefono?: string | null
   created_at: string
   updated_at: string
 }

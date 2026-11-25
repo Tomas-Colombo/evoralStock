@@ -53,6 +53,9 @@ function VenderModalContenido({
   const [camaraOpen, setCamaraOpen] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [opciones, setOpciones] = useState<RvpItemStockResuelto[]>([])
+  const [contactoAbierto, setContactoAbierto] = useState(false)
+  const [contactoNombre, setContactoNombre] = useState('')
+  const [contactoTelefono, setContactoTelefono] = useState('')
 
   const total = useMemo(
     () => calcularTotalCarrito(carrito, (item) => item.precio_venta),
@@ -139,6 +142,8 @@ function VenderModalContenido({
     startTransition(async () => {
       const res = await registrarVentaRevendedoraAction({
         id_items: carrito.map((i) => i.id_item),
+        contacto_nombre: contactoNombre,
+        contacto_telefono: contactoTelefono,
       })
       if (res.ok) {
         toast.success(
@@ -148,6 +153,9 @@ function VenderModalContenido({
             : `Se registraron ${carrito.length} artículos en tus ventas.`,
         )
         setCarrito([])
+        setContactoNombre('')
+        setContactoTelefono('')
+        setContactoAbierto(false)
         setCamaraOpen(false)
         onClose()
         router.refresh()
@@ -314,6 +322,51 @@ function VenderModalContenido({
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-border bg-card">
+          <button
+            type="button"
+            onClick={() => setContactoAbierto((v) => !v)}
+            aria-expanded={contactoAbierto}
+            className="flex min-h-[44px] w-full items-center justify-between px-3 py-2 text-left text-xs font-medium text-muted hover:text-ink"
+          >
+            <span>Datos del cliente (opcional)</span>
+            <span>{contactoAbierto ? 'Ocultar' : 'Agregar'}</span>
+          </button>
+          {contactoAbierto && (
+            <div className="grid grid-cols-1 gap-3 border-t border-border p-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label htmlFor="vender-contacto-nombre" className="text-xs text-muted">
+                  Nombre
+                </label>
+                <Input
+                  id="vender-contacto-nombre"
+                  value={contactoNombre}
+                  onChange={(e) => setContactoNombre(e.target.value)}
+                  maxLength={120}
+                  placeholder="Nombre del cliente"
+                  disabled={isPending}
+                  className="min-h-[44px]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="vender-contacto-telefono" className="text-xs text-muted">
+                  Teléfono
+                </label>
+                <Input
+                  id="vender-contacto-telefono"
+                  value={contactoTelefono}
+                  onChange={(e) => setContactoTelefono(e.target.value)}
+                  inputMode="tel"
+                  maxLength={30}
+                  placeholder="Ej. 11 5555-5555"
+                  disabled={isPending}
+                  className="min-h-[44px]"
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>

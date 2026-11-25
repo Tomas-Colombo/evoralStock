@@ -235,10 +235,8 @@ export const ORDEN_PANEL_REVENDEDORAS_LABEL: Record<string, string> = {
 
 export type OrdenPanelRevendedoras = keyof typeof ORDEN_PANEL_REVENDEDORAS_LABEL
 
-export type EstadoFiltroStock = 'con_pendiente' | 'sin_declaracion'
-export type EstadoFiltroVentas = 'liquidada' | 'pendiente'
+export type EstadoFiltroVentas = 'liquidada' | 'pendiente' | 'anulada'
 export type EstadoFiltroLiquidaciones = 'pendiente' | 'pagada'
-export type EstadoFiltroDeclaraciones = 'pendiente' | 'confirmada' | 'rechazada' | 'retirada'
 
 export interface RvpListaPaginada<T> {
   rows: T[]
@@ -253,7 +251,6 @@ export interface RvpMiCuentaRow {
   comision_estimada: number
   total_adeudado: number
   total_pagado: number
-  declaraciones_pendientes: number
   porcentaje_comision_actual: number
   tramo_comision_actual: string
 }
@@ -266,7 +263,6 @@ export interface RvpMiStockRow {
   talle: string | null
   precio_venta: number
   fecha_entrega: string
-  declaracion_pendiente: boolean
 }
 
 export interface RvpMisVentasRow {
@@ -281,6 +277,9 @@ export interface RvpMisVentasRow {
   comision_total: number
   liquidada: boolean
   fecha_liquidacion: string | null
+  estado_venta: 'registrada' | 'anulada'
+  contacto_nombre: string | null
+  contacto_telefono: string | null
 }
 
 export interface RvpMisLiquidacionesRow {
@@ -293,38 +292,6 @@ export interface RvpMisLiquidacionesRow {
   monto_a_cobrar: number
   estado: 'pendiente' | 'pagada'
   total_pagado: number
-}
-
-export interface RvpMisDeclaracionesRow {
-  id_declaracion: string
-  id_item: string
-  fecha: string
-  nota: string | null
-  estado: 'pendiente' | 'confirmada' | 'rechazada' | 'retirada'
-  motivo_rechazo: string | null
-  nombre_producto: string
-  sku: string
-  talle: string | null
-  precio_venta: number
-}
-
-export interface DeclaracionVentaLocalRow {
-  id_declaracion: string
-  id_tenant: string
-  id_revendedora: string
-  revendedora_nombre: string
-  revendedora_apellido: string
-  id_item: string
-  nombre_producto: string
-  sku: string
-  talle: string | null
-  precio_venta: number
-  fecha: string
-  nota: string | null
-  estado: 'pendiente' | 'confirmada' | 'rechazada' | 'retirada'
-  id_venta: string | null
-  motivo_rechazo: string | null
-  created_at: string
 }
 
 export interface RvpItemStockResuelto {

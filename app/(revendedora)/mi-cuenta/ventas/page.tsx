@@ -19,7 +19,7 @@ export const metadata = {
   title: 'Mis ventas | Revendedor',
 }
 
-const ESTADOS_VENTAS: readonly EstadoFiltroVentas[] = ['liquidada', 'pendiente']
+const ESTADOS_VENTAS: readonly EstadoFiltroVentas[] = ['liquidada', 'pendiente', 'anulada']
 
 export default async function MisVentasPage(props: {
   searchParams: Promise<{
@@ -63,6 +63,7 @@ export default async function MisVentasPage(props: {
             { value: '', label: 'Todos' },
             { value: 'liquidada', label: 'Liquidada' },
             { value: 'pendiente', label: 'No liquidada' },
+            { value: 'anulada', label: 'Anulada' },
           ],
         },
       ]}
@@ -95,8 +96,8 @@ export default async function MisVentasPage(props: {
     <>
       <PageBand
         breadcrumb={['Mi cuenta', 'Mis ventas']}
-        title="Artículos vendidos"
-        subtitle={`Detalle por artículo de las ventas registradas y confirmadas a tu nombre · ${res.data.total} ${res.data.total === 1 ? 'artículo' : 'artículos'}`}
+        title="Mis ventas"
+        subtitle={`Ventas registradas a tu nombre · ${res.data.total} ${res.data.total === 1 ? 'venta' : 'ventas'}`}
         filters={filtroPeriodo}
         actions={<VenderBandAction />}
       />

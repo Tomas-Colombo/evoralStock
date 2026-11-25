@@ -296,9 +296,15 @@ export function VentaDetalleView({
       <Card className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
         <div>
           <div className="text-xs uppercase font-mono text-muted">Cliente</div>
-          <div className="mt-1">{nombreCliente(venta.cliente)}</div>
-          {venta.cliente?.telefono && (
-            <div className="text-xs text-muted">{venta.cliente.telefono}</div>
+          <div className="mt-1">
+            {venta.cliente
+              ? nombreCliente(venta.cliente)
+              : venta.contacto_nombre || 'Consumidor final'}
+          </div>
+          {(venta.cliente?.telefono || venta.contacto_telefono) && (
+            <div className="text-xs text-muted">
+              {venta.cliente?.telefono ?? venta.contacto_telefono}
+            </div>
           )}
         </div>
         <div>

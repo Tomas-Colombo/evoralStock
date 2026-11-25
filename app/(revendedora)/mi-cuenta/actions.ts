@@ -5,6 +5,7 @@ import { verifySession } from '@/lib/dal/session'
 import { classifyAuthError, requireModuleRole } from '@/lib/dal/guard'
 import { AuthorizationError } from '@/lib/dal/errors'
 import {
+  anularVentaRevendedoraSchema,
   registrarVentaRevendedoraSchema,
   resolverItemStockSchema,
 } from '@/lib/validation/revendedoras'
@@ -57,6 +58,35 @@ export async function buscarItemStockRevendedoraAction(input: unknown) {
     }
 
     return await dal.resolverItemStockRevendedora(session, parsed.data)
+  } catch (err) {
+    const auth = classifyAuthError(err)
+    if (auth.kind === 'auth') return { ok: false as const, reason: auth.reason }
+    throw err
+  }
+}
+
+export async function anularVentaRevendedoraAction(input: unknown) {
+  try {
+    const session = await verifySession()
+    if (!session.idRevendedora) {
+      throw new AuthorizationError('no-permission')
+    }
+    await requireModuleRole(session, 'revendedoras', 'vender')
+
+    const parsed = anularVentaRevendedoraSchema.safeParse(input)
+    if (!parsed.success) {
+      return { ok: false as const, reason: 'payload-invalido' }
+    }
+
+    const res = await dal.anularVentaRevendedora(session, parsed.data)
+    if (!res.ok) {
+      return res
+    }
+
+    revalidatePath('/mi-cuenta')
+    revalidatePath('/mi-cuenta/stock')
+    revalidatePath('/mi-cuenta/ventas')
+    return { ok: true as const }
   } catch (err) {
     const auth = classifyAuthError(err)
     if (auth.kind === 'auth') return { ok: false as const, reason: auth.reason }

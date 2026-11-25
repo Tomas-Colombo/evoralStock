@@ -63,7 +63,7 @@ const SLUGS_DE_LA_APP = [
   'reintegro-requiere-cuenta-y-medio', 'rendicion-not-found', 'reserva-no-activa', 'reserva-not-found', 'rol-en-uso',
   'rol-not-found', 'sin-cuenta-predeterminada', 'sin-lineas-pendientes',
   'talle-no-valido', 'usuario-not-found', 'vencimiento-invalido', 'venta-anulada',
-  'venta-con-incobrables', 'venta-not-found', 'venta-ya-rendida', 'venta-liquidada', 'venta-revendedora-sin-id', 'canal-no-disponible', 'devolucion-venta-revendedora', 'item-no-en-revendedora', 'medio-solo-revendedora', 'venta-revendedora-con-pagos', 'canal-invalido', 'revendedora-invalida',
+  'venta-con-incobrables', 'venta-not-found', 'venta-ya-rendida', 'venta-liquidada', 'venta-ya-anulada', 'venta-no-anulable', 'venta-revendedora-sin-id', 'canal-no-disponible', 'devolucion-venta-revendedora', 'item-no-en-revendedora', 'medio-solo-revendedora', 'venta-revendedora-con-pagos', 'canal-invalido', 'revendedora-invalida',
   'liquidacion-vacia', 'liquidacion-ya-pagada', 'cuenta-invalida-liquidacion', 'monto-pago-invalido', 'detalle-ya-liquidado', 'detalle-no-en-liquidacion', 'liquidacion-no-encontrada', 'revendedora-invalida-liquidacion', 'pago-revendedora-inmutable',
   'item-no-en-poder', 'declaracion-duplicada', 'declaracion-no-encontrada', 'declaracion-no-pendiente', 'no-revendedora', 'estado-filtro-invalido',
   'formato-ean12-invalido', 'etiqueta-config-invalida', 'plantilla-nombre-duplicado', 'plantilla-nombre-invalido', 'plantilla-medidas-invalidas',

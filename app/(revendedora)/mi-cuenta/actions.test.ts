@@ -5,6 +5,7 @@ import * as guard from '@/lib/dal/guard'
 import * as sessionModule from '@/lib/dal/session'
 import { AuthorizationError } from '@/lib/dal/errors'
 import {
+  anularVentaRevendedoraAction,
   registrarVentaRevendedoraAction,
   buscarItemStockRevendedoraAction,
 } from './actions'
@@ -26,6 +27,7 @@ vi.mock('@/lib/dal/guard', async (importOriginal) => {
 })
 
 vi.mock('@/lib/dal/revendedoras', () => ({
+  anularVentaRevendedora: vi.fn(),
   registrarVentaRevendedora: vi.fn(),
   resolverItemStockRevendedora: vi.fn(),
 }))
@@ -148,6 +150,8 @@ describe('mi-cuenta actions (portal revendedora)', () => {
       )
       expect(dal.registrarVentaRevendedora).toHaveBeenCalledWith(mockRevendedoraSession, {
         id_items: [UUID_1, UUID_2],
+        contacto_nombre: null,
+        contacto_telefono: null,
       })
       expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta')
       expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta/stock')
@@ -238,6 +242,47 @@ describe('mi-cuenta actions (portal revendedora)', () => {
         codigo: 'REM-0001',
         excluir: [],
       })
+    })
+  })
+
+  describe('anularVentaRevendedoraAction', () => {
+    it('falla con no-permission si la sesión es de un operador', async () => {
+      vi.mocked(sessionModule.verifySession).mockResolvedValue(mockOperadorSession)
+
+      const res = await anularVentaRevendedoraAction({ id_venta: UUID_1 })
+
+      expect(res).toEqual({ ok: false, reason: 'no-permission' })
+      expect(dal.anularVentaRevendedora).not.toHaveBeenCalled()
+    })
+
+    it('falla con payload-invalido si id_venta no es uuid', async () => {
+      const res = await anularVentaRevendedoraAction({ id_venta: 'invalido' })
+
+      expect(res).toEqual({ ok: false, reason: 'payload-invalido' })
+      expect(dal.anularVentaRevendedora).not.toHaveBeenCalled()
+    })
+
+    it('delega al DAL con parsed.data y revalida las tres rutas', async () => {
+      vi.mocked(dal.anularVentaRevendedora).mockResolvedValue({ ok: true })
+
+      const res = await anularVentaRevendedoraAction({
+        id_venta: UUID_1,
+        motivo: '  Error de carga  ',
+      })
+
+      expect(res).toEqual({ ok: true })
+      expect(guard.requireModuleRole).toHaveBeenCalledWith(
+        mockRevendedoraSession,
+        'revendedoras',
+        'vender',
+      )
+      expect(dal.anularVentaRevendedora).toHaveBeenCalledWith(mockRevendedoraSession, {
+        id_venta: UUID_1,
+        motivo: 'Error de carga',
+      })
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta')
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta/stock')
+      expect(revalidatePath).toHaveBeenCalledWith('/mi-cuenta/ventas')
     })
   })
 })
