@@ -1,14 +1,14 @@
 /**
  * Brand mark sitting above the auth forms.
  *
- * The asset is violet graphite; `--logo-auth` recolours it to the petrol
- * palette and lifts it so it does not sink into the dark auth surface.
+ * The asset is already in the petrol palette on a transparent background;
+ * `--logo-auth` only adds a faint halo to lift it off the dark auth surface.
  *
  * To swap in the full "Utopía" wordmark, drop the transparent PNG in /public
  * and change SRC below. The asset MUST have a real alpha channel; a mark on a
  * baked black background would show as a rectangle over the backdrop.
  */
-const SRC = '/logo-u.webp'
+const SRC = '/logo-evoral.webp'
 
 export function AuthLogo() {
   return (

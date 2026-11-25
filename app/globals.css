@@ -126,7 +126,7 @@
   /* Brand mark on the auth screens. The logo is a light PNG, which all but
      disappears on a light surface — light mode darkens it instead of fading
      it. Baked per theme because a filter cannot read a theme token. */
-  --logo-auth: hue-rotate(-80deg) saturate(1.3) brightness(0.8);
+  --logo-auth: none;
 
   /* Density / rhythm */
   --rowpad: 17px;
@@ -213,9 +213,8 @@
   --sidebar-ink-hi-2: #F2EEE6;
   --sidebar-line: #244550;
 
-  /* The PNG is violet graphite: rotated to petrol and lifted so it reads on
-     #0F2229, with a faint petrol halo to separate it from the backdrop. */
-  --logo-auth: hue-rotate(-80deg) saturate(1.35) brightness(1.75) drop-shadow(0 0 20px rgb(79 163 173 / 0.22));
+  /* The mark is already petrol: only a faint halo to lift it off #0F2229. */
+  --logo-auth: drop-shadow(0 0 20px rgb(79 163 173 / 0.22));
 
   --select-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5 6 6.5 11 1.5' stroke='%2386A1A7' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
