@@ -233,7 +233,7 @@ export function VentasRevendedoraView({
         open={ventaAnular !== null}
         onClose={cerrarModal}
         title="Anular venta"
-        size="sm"
+        size="md"
         footer={
           <>
             <Button

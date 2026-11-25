@@ -85,7 +85,7 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     }
 
     const { client: auth, accessToken } = await signInAsWithToken({ email, password: 'Password123!' })
-    return { idRev: idRev as string, auth, accessToken }
+    return { idRev: idRev as string, userId: user.user!.id, auth, accessToken }
   }
 
   async function setupContext() {
@@ -554,8 +554,8 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     })
     expect(errVta).toBeNull()
 
-    // 2. Beto (otra revendedora del mismo tenant) no puede anularla
-    const { error: errAjena } = await ctx.beto.auth.rpc('sp_anular_venta_revendedora', {
+    // 2. Berta (otra revendedora del mismo tenant) no puede anularla
+    const { error: errAjena } = await ctx.berta.auth.rpc('sp_anular_venta_revendedora', {
       p_id_venta: idVentaAna,
       p_motivo: 'Intento ajeno',
     })
@@ -632,7 +632,7 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
 
     const hoy = new Date().toISOString().slice(0, 10)
     const { error: errLiq } = await ctx.fA.authenticated.rpc('sp_liquidar_revendedora', {
-      p_id_revendedora: ctx.ana.idRevendedora,
+      p_id_revendedora: ctx.ana.idRev,
       p_desde: hoy,
       p_hasta: hoy,
     })
