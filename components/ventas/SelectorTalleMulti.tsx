@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/Button'
-import { NumberInput } from '@/components/ui/NumberInput'
 
 /** Un talle con su stock, tal como lo devuelve `elegir-talle`. */
 export interface TalleOpcion {
@@ -66,6 +65,7 @@ export function SelectorTalleMulti({
   const filas: Array<{
     key: string
     label: string
+    corto: string
     libres: number
     reservados: number
     max: number
@@ -74,6 +74,7 @@ export function SelectorTalleMulti({
     return {
       key: o.talle,
       label: `Talle ${o.talle}`,
+      corto: o.talle,
       libres: o.disponibles,
       reservados,
       max: o.disponibles + (adopta ? reservados : 0),
@@ -84,6 +85,7 @@ export function SelectorTalleMulti({
     filas.push({
       key: SIN_TALLE_KEY,
       label: 'Sin talle',
+      corto: 'Sin talle',
       libres: selector.sinTalle,
       reservados: sinTalleReservados,
       max: selector.sinTalle + (adopta ? sinTalleReservados : 0),
@@ -94,67 +96,86 @@ export function SelectorTalleMulti({
   const hayReservados = filas.some((f) => f.reservados > 0)
 
   return (
-    <div className="rounded-md border border-border bg-card-2 p-3 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm">
-          <span className="text-muted">
-            {esCambio ? 'Reestructurar' : 'Elegí talle y cantidad de'}{' '}
+    <div className="space-y-3 rounded-lg border border-line-2 bg-card p-4 shadow-[var(--band-lift)]">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+        <div className="flex min-w-0 shrink-0 flex-col gap-0.5 lg:max-w-[220px] lg:border-r lg:border-line lg:pr-4">
+          <span className="eyebrow text-dim">
+            {esCambio ? 'Reestructurar talles' : 'Elegí talle y cantidad'}
           </span>
-          <b>{selector.productoNombre}</b>
-        </span>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
+          <span className="truncate font-display text-base text-ink">{selector.productoNombre}</span>
+        </div>
+
+        <div className="flex flex-1 flex-wrap gap-2">
+          {filas.map((f) => {
+            const cant = selector.cantidades[f.key] ?? 0
+            const agotado = f.max === 0
+            return (
+              <ChipTalle
+                key={f.key}
+                label={f.label}
+                corto={f.corto}
+                libres={f.libres}
+                reservados={f.reservados}
+                max={f.max}
+                cant={cant}
+                disabled={disabled || agotado}
+                onChange={(n) => onChangeCantidad(f.key, n, f.max)}
+              />
+            )
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
+          <span className="text-xs text-muted">
+            {totalElegido === 0 ? (
+              'Tocá un talle para sumar unidades.'
+            ) : (
+              <>
+                <span className="font-semibold text-ink">{totalElegido}</span> unidad
+                {totalElegido === 1 ? '' : 'es'} a {esCambio ? 'dejar en el carrito' : 'agregar'}.
+              </>
+            )}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || totalElegido === 0}
+              onClick={onConfirm}
+            >
+              {esCambio ? 'Aplicar cambio' : `Agregar ${totalElegido || ''}`.trim()}
+            </Button>
+            <Button
+              type="button"
+              variant="bare"
+              onClick={onCancel}
+              className="px-2 py-1.5 text-[13px] text-alerta-ink hover:underline"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
       </div>
 
       {hayReservados && (
-        <p className="rounded border border-warn/40 bg-card px-2 py-1.5 text-xs text-warn-ink">
+        <p className="rounded-md border border-warn/40 bg-warn-bg px-3 py-2 text-xs text-warn-ink">
           {adopta
             ? `Hay unidades reservadas${selector.reservaLabel ? ` para ${selector.reservaLabel}` : ''}. Si las tomás, la venta queda ligada a esa reserva.`
             : 'Hay unidades reservadas por otra reserva activa: no se pueden tomar desde acá.'}
         </p>
       )}
-
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-2">
-        {filas.map((f) => {
-          const cant = selector.cantidades[f.key] ?? 0
-          const agotado = f.max === 0
-          return (
-            <FilaTalle
-              key={f.key}
-              label={f.label}
-              libres={f.libres}
-              reservados={f.reservados}
-              max={f.max}
-              cant={cant}
-              disabled={disabled || agotado}
-              onChange={(n) => onChangeCantidad(f.key, n, f.max)}
-            />
-          )
-        })}
-      </div>
-
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-        <span className="text-xs text-muted">
-          {totalElegido === 0
-            ? 'Poné al menos 1 unidad en algún talle.'
-            : `${totalElegido} unidad${totalElegido === 1 ? '' : 'es'} a ${esCambio ? 'dejar en el carrito' : 'agregar'}.`}
-        </span>
-        <Button
-          type="button"
-          size="sm"
-          disabled={disabled || totalElegido === 0}
-          onClick={onConfirm}
-        >
-          {esCambio ? 'Aplicar cambio' : `Agregar ${totalElegido || ''}`.trim()}
-        </Button>
-      </div>
     </div>
   )
 }
 
-function FilaTalle({
+/**
+ * Un talle como chip: tocarlo suma una unidad (hasta el tope) y el «−» resta.
+ * Con unidades elegidas el chip se invierte a oscuro y la cantidad va en cobre,
+ * así lo elegido se lee de un vistazo en una fila de talles.
+ */
+function ChipTalle({
   label,
+  corto,
   libres,
   reservados,
   max,
@@ -163,6 +184,7 @@ function FilaTalle({
   onChange,
 }: {
   label: string
+  corto: string
   libres: number
   reservados: number
   max: number
@@ -170,46 +192,48 @@ function FilaTalle({
   disabled: boolean
   onChange: (n: number) => void
 }) {
+  const activo = cant > 0
   return (
-    <>
-      <span className="text-sm">
-        <span className="font-medium">{label}</span>{' '}
-        <span className="text-xs text-muted">· {libres} disp.</span>
+    <div
+      className={`inline-flex items-center rounded-full border transition-colors ${
+        activo ? 'border-band bg-band text-band-ink' : 'border-line-2 bg-card text-ink'
+      } ${disabled && !activo ? 'opacity-50' : ''}`}
+    >
+      <button
+        type="button"
+        onClick={() => onChange(cant + 1)}
+        disabled={disabled || cant >= max}
+        aria-label={`Sumar ${label}`}
+        className="inline-flex items-center gap-2 rounded-full py-1.5 pl-3.5 pr-1.5 disabled:cursor-not-allowed"
+      >
+        <span className="text-sm font-bold">{corto}</span>
+        <span className={`font-mono text-[10.5px] ${activo ? 'text-band-muted' : 'text-dim'}`}>
+          {libres} disp.
+        </span>
         {reservados > 0 && (
-          <span className="ml-1 rounded-full border border-warn/50 bg-card px-1.5 py-0.5 text-[10px] font-medium text-warn-ink">
-            {reservados} reservada{reservados === 1 ? '' : 's'}
+          <span className="font-mono text-[10.5px] text-warn-ink">
+            · {reservados} res.
           </span>
         )}
-      </span>
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        disabled={disabled || cant <= 0}
-        onClick={() => onChange(cant - 1)}
-        aria-label={`Restar ${label}`}
-      >
-        −
-      </Button>
-      <NumberInput
-        min={0}
-        max={max}
-        value={cant}
-        disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value || 0))}
-        aria-label={`Cantidad ${label}`}
-        className="w-14 text-right"
-      />
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        disabled={disabled || cant >= max}
-        onClick={() => onChange(cant + 1)}
-        aria-label={`Sumar ${label}`}
-      >
-        +
-      </Button>
-    </>
+        <span
+          className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 font-mono text-xs ${
+            activo ? 'bg-copper text-band' : 'bg-panel-2 text-dim'
+          }`}
+        >
+          {cant}
+        </span>
+      </button>
+      {activo && (
+        <button
+          type="button"
+          onClick={() => onChange(cant - 1)}
+          disabled={disabled}
+          aria-label={`Restar ${label}`}
+          className="rounded-full py-1.5 pl-1 pr-3 text-sm leading-none text-band-ink hover:text-copper"
+        >
+          −
+        </button>
+      )}
+    </div>
   )
 }

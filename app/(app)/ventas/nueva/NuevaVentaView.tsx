@@ -1376,18 +1376,25 @@ export function NuevaVentaView({
           </Card>
         )}
 
-        <Card className="space-y-3">
-          <form onSubmit={agregarLinea}>
-            <Field
-              htmlFor="qr-input"
-              label="Escanear, tipear código o buscar por nombre"
-              error={errorBusqueda ?? undefined}
-              hint="QR, SKU (ej: REM-0007-M) o nombre del producto. Enter para agregar."
-            >
-              <div className="flex gap-2">
+        {/* Buscador sobre superficie oscura: es la entrada de la pantalla y el
+            foco vive acá mientras se escanea. `band-scope` re-tematiza los
+            controles compartidos para el fondo oscuro. */}
+        <div className="band-scope space-y-3 rounded-lg bg-band p-4 text-band-ink sm:p-5">
+          <form onSubmit={agregarLinea} className="flex flex-col gap-2">
+            <label htmlFor="qr-input" className="eyebrow text-band-label">
+              Escanear, tipear código o buscar por nombre
+            </label>
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <div className="relative flex-1">
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-band-muted"
+                  >
+                    ⌕
+                  </span>
                   <Input
                     id="qr-input"
+                    className="h-11 bg-band-deep! pl-9 text-[15px] focus-visible:border-band-muted"
                     autoFocus
                     value={qrInput}
                     onChange={(e) => {
@@ -1411,7 +1418,7 @@ export function NuevaVentaView({
                   {sugerenciasOpen && sugerencias.length > 0 && (
                     <ul
                       role="listbox"
-                      className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-card-2 shadow"
+                      className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-line-2 bg-accent text-accent-ink shadow-[0_12px_32px_-12px_rgb(0_0_0/0.5)]"
                     >
                       {sugerenciasVista.map(({ p, reservadas, libres, adoptable, bloqueo }, i) => {
                         const activo = i === resaltadoEfectivo
@@ -1435,19 +1442,19 @@ export function NuevaVentaView({
                             onMouseEnter={bloqueo ? undefined : () => setResaltado(i)}
                             className={`flex items-center justify-between gap-2 px-3 py-2 text-sm ${
                               bloqueo
-                                ? 'cursor-not-allowed text-muted'
-                                : `cursor-pointer ${activo ? 'bg-line text-text' : 'text-text'}`
+                                ? 'cursor-not-allowed text-accent-ink/45'
+                                : `cursor-pointer text-accent-ink ${activo ? 'bg-accent-ink/10' : 'hover:bg-accent-ink/5'}`
                             }`}
                           >
                             <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                               <span className="truncate">{p.nombre}</span>
                               {p.sku && (
-                                <span className="shrink-0 font-mono text-[11px] text-muted">
+                                <span className="shrink-0 font-mono text-[11px] text-accent-ink/60">
                                   {p.sku}
                                 </span>
                               )}
                               {reservadas > 0 && (
-                                <span className="shrink-0 rounded-full border border-warn/50 bg-card px-1.5 py-0.5 text-[10px] font-medium text-warn-ink">
+                                <span className="shrink-0 rounded-full border border-copper/50 bg-copper/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
                                   {reservadas} reservada{reservadas === 1 ? '' : 's'}
                                   {quien ? ` · ${quien}` : ''}
                                 </span>
@@ -1455,7 +1462,7 @@ export function NuevaVentaView({
                             </span>
                             {/* El motivo reemplaza al contador de libres: con el
                                 bloqueo puesto, "0 libres" no agrega nada. */}
-                            <span className="shrink-0 font-mono text-xs text-muted">
+                            <span className="shrink-0 font-mono text-xs text-accent-ink/60">
                               {bloqueo ?? `${libres} libre${libres === 1 ? '' : 's'}`}
                             </span>
                           </li>
@@ -1464,29 +1471,36 @@ export function NuevaVentaView({
                     </ul>
                   )}
                 </div>
-                <Button type="submit" disabled={buscando || !qrInput.trim()}>
-                  {buscando ? 'Buscando…' : 'Agregar'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setCamaraOpen((v) => !v)}
-                >
-                  {camaraOpen ? 'Cerrar' : <><CameraIcon /> Cámara</>}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    disabled={buscando || !qrInput.trim()}
+                    className="h-11 flex-1 sm:flex-none"
+                  >
+                    {buscando ? 'Buscando…' : 'Agregar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setCamaraOpen((v) => !v)}
+                    className="h-11 flex-1 font-semibold text-band-ink! sm:flex-none"
+                  >
+                    {camaraOpen ? 'Cerrar' : <><CameraIcon /> Cámara</>}
+                  </Button>
+                </div>
               </div>
-            </Field>
+            {errorBusqueda ? (
+              <p role="alert" className="text-xs font-medium text-alerta-ink">
+                {errorBusqueda}
+              </p>
+            ) : (
+              <p className="text-xs text-band-muted">
+                QR, SKU (ej:{' '}
+                <span className="font-mono font-semibold text-band-ink">REM-0007-M</span>) o
+                nombre del producto. Enter para agregar.
+              </p>
+            )}
           </form>
-
-          {selectorTalle && (
-            <SelectorTalleMulti
-              selector={selectorTalle}
-              disabled={buscando}
-              onChangeCantidad={setCantidadTalle}
-              onConfirm={() => void confirmarSelectorTalle()}
-              onCancel={() => setSelectorTalle(null)}
-            />
-          )}
 
           {camaraOpen && (
             <div className="mx-auto max-w-xs">
@@ -1496,7 +1510,17 @@ export function NuevaVentaView({
               />
             </div>
           )}
-        </Card>
+        </div>
+
+        {selectorTalle && (
+          <SelectorTalleMulti
+            selector={selectorTalle}
+            disabled={buscando}
+            onChangeCantidad={setCantidadTalle}
+            onConfirm={() => void confirmarSelectorTalle()}
+            onCancel={() => setSelectorTalle(null)}
+          />
+        )}
 
         <TableFrame>
           <DataTable>
@@ -1519,8 +1543,8 @@ export function NuevaVentaView({
                   <Tr key={g.key} data-testid="linea-carrito">
                     <Td>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{g.producto_nombre}</span>
-                        <span className="rounded-full border border-border bg-card-2 px-2 py-0.5 text-xs font-medium">
+                        <span className="font-semibold text-ink">{g.producto_nombre}</span>
+                        <span className="rounded-md bg-petrol/10 px-2 py-0.5 font-mono text-[11px] text-petrol">
                           {g.talle ? `Talle ${g.talle}` : 'Sin talle'}
                         </span>
                         <Button
@@ -1528,13 +1552,13 @@ export function NuevaVentaView({
                           type="button"
                           onClick={() => void abrirCambioTalle(g)}
                           disabled={buscando}
-                          className="text-xs text-ink underline decoration-line-2 underline-offset-2 hover:decoration-ink"
+                          className="text-xs font-medium text-petrol underline underline-offset-2"
                         >
                           Cambiar
                         </Button>
                       </div>
-                      <div className="text-xs text-muted">
-                        {g.sku ?? '—'} · {g.categoria_nombre ?? '—'}
+                      <div className="mt-0.5 text-xs text-muted">
+                        <span className="font-mono">{g.sku ?? '—'}</span> · {g.categoria_nombre ?? '—'}
                       </div>
                       {g.advertencia && (
                         <div className="mt-1 text-xs text-warn-ink">{g.advertencia}</div>
@@ -1550,7 +1574,7 @@ export function NuevaVentaView({
                         disabled={buscando}
                       />
                     </Td>
-                    <Td align="right" className="font-mono">
+                    <Td align="right" className="font-mono text-muted">
                       {g.precio_final != null ? (
                         <div className="flex flex-col items-end leading-tight">
                           {g.desglose.descuentos.length > 0 && g.precio_lista != null && (
@@ -1572,14 +1596,15 @@ export function NuevaVentaView({
                         disabled={buscando}
                       />
                     </Td>
-                    <Td align="right" className="font-mono font-semibold">
+                    <Td align="right" className="whitespace-nowrap font-mono font-semibold text-copper">
                       $ {g.subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                     </Td>
                     <Td align="right">
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        variant="bare"
+                        type="button"
                         onClick={() => quitarGrupo(g)}
+                        className="px-1 py-1 text-[13px] text-alerta-ink hover:underline"
                       >
                         Quitar
                       </Button>
@@ -1638,15 +1663,20 @@ export function NuevaVentaView({
                   )}
                 </>
               )}
-              <Tr className="border-t bg-card-2">
-                <Td colSpan={3} className="font-semibold">
-                  Total ({lineas.length} ítem{lineas.length === 1 ? '' : 's'})
+              {/* Total sobre la franja oscura: es la cifra que se lee de lejos. */}
+              <tr className="bg-band text-band-ink">
+                <Td colSpan={3} className="px-4 py-4 font-semibold">
+                  Total{' '}
+                  <span className="font-normal text-band-muted">
+                    ({lineas.length} ítem{lineas.length === 1 ? '' : 's'})
+                  </span>
                 </Td>
-                <Td align="right" className="font-mono font-semibold">
-                  {money(total)}
+                <Td colSpan={2} align="right" className="px-4 py-4">
+                  <span className="font-figure whitespace-nowrap text-2xl font-bold leading-none sm:text-[28px]">
+                    {money(total)}
+                  </span>
                 </Td>
-                <Td></Td>
-              </Tr>
+              </tr>
             </TFoot>
           </DataTable>
         </TableFrame>
@@ -2187,6 +2217,16 @@ function CantidadGrupo({
 
   return (
     <div className="flex flex-col items-end gap-0.5">
+      <div className="inline-flex items-stretch overflow-hidden rounded-md border border-control-line bg-control">
+      <button
+        type="button"
+        onClick={() => schedule(val - 1)}
+        disabled={disabled || val <= 0}
+        aria-label="Restar una unidad"
+        className="w-9 text-ink transition-colors hover:bg-hover disabled:opacity-40"
+      >
+        −
+      </button>
       <NumberInput
         min={0}
         max={max}
@@ -2202,8 +2242,18 @@ function CantidadGrupo({
           }
         }}
         aria-label="Cantidad"
-        className="w-16 text-right"
+        className="w-14 rounded-none! border-y-0! bg-transparent! text-center font-mono text-petrol sm:w-20"
       />
+      <button
+        type="button"
+        onClick={() => schedule(val + 1)}
+        disabled={disabled || (max != null && val >= max)}
+        aria-label="Sumar una unidad"
+        className="w-9 text-ink transition-colors hover:bg-hover disabled:opacity-40"
+      >
+        +
+      </button>
+      </div>
       {enTope && (
         <span className="text-[10px] text-muted">
           {max === 1 ? 'Única unidad' : `Máx. ${max}`}
