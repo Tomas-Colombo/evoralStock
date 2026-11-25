@@ -32,26 +32,27 @@ interface VenderModalProps {
 }
 
 export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps) {
+  if (!open) return null
+  return <VenderModalContenido onClose={onClose} itemsIniciales={itemsIniciales} />
+}
+
+function VenderModalContenido({
+  onClose,
+  itemsIniciales,
+}: {
+  onClose: () => void
+  itemsIniciales?: ItemCarritoPortal[]
+}) {
   const router = useRouter()
   const toast = useToast()
   const [isPending, startTransition] = useTransition()
   const [buscando, setBuscando] = useState(false)
 
-  const [carrito, setCarrito] = useState<ItemCarritoPortal[]>([])
+  const [carrito, setCarrito] = useState<ItemCarritoPortal[]>(() => itemsIniciales ?? [])
   const [codigo, setCodigo] = useState('')
   const [camaraOpen, setCamaraOpen] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [opciones, setOpciones] = useState<RvpItemStockResuelto[]>([])
-
-  useEffect(() => {
-    if (open) {
-      setCarrito(itemsIniciales ?? [])
-      setCodigo('')
-      setCamaraOpen(false)
-      setErrorMsg(null)
-      setOpciones([])
-    }
-  }, [open, itemsIniciales])
 
   const total = useMemo(
     () => calcularTotalCarrito(carrito, (item) => item.precio_venta),
@@ -158,7 +159,7 @@ export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps)
 
   return (
     <Modal
-      open={open}
+      open={true}
       onClose={handleCerrar}
       title="Registrar venta"
       size="md"
@@ -233,16 +234,16 @@ export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps)
         {errorMsg && (
           <p
             role="alert"
-            className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-ink"
+            className="rounded-md border border-alerta-line bg-alerta-bg px-3 py-2 text-sm text-alerta-ink"
           >
             {errorMsg}
           </p>
         )}
 
         {opciones.length > 1 && (
-          <div className="space-y-2 rounded-lg border border-border bg-muted/5 p-3">
+          <div className="space-y-2 rounded-lg border border-border bg-panel-2 p-3">
             <p className="text-xs font-medium text-muted">
-              Elegí el talle que querés agregar:
+              Elegí cuál querés agregar:
             </p>
             <div className="max-h-48 space-y-2 overflow-y-auto">
               {opciones.map((op) => {
@@ -252,7 +253,7 @@ export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps)
                     key={op.id_item}
                     type="button"
                     onClick={() => agregarItem(op)}
-                    className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-muted/10"
+                    className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-hover"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{op.descripcion}</p>
@@ -276,7 +277,7 @@ export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps)
               Carrito ({carrito.length}{' '}
               {carrito.length === 1 ? 'artículo' : 'artículos'})
             </span>
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-ink">
               Total: {formatearMoneda(total)}
             </span>
           </div>
@@ -306,7 +307,7 @@ export function VenderModal({ open, onClose, itemsIniciales }: VenderModalProps)
                     onClick={() => quitarItem(item.id_item)}
                     disabled={isPending}
                     aria-label={`Quitar ${item.descripcion}`}
-                    className="min-h-[44px] min-w-[44px] shrink-0 text-muted hover:text-danger-ink"
+                    className="min-h-[44px] min-w-[44px] shrink-0 text-muted hover:text-alerta-ink"
                   >
                     Quitar
                   </Button>

@@ -78,7 +78,7 @@ export function VentasRevendedoraView({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                  <span>Precio: <strong className="text-foreground">{formatearMoneda(v.precio_venta)}</strong></span>
+                  <span>Precio: <strong className="text-ink">{formatearMoneda(v.precio_venta)}</strong></span>
                   <span>·</span>
                   <span>Fecha: {new Date(v.fecha_venta).toLocaleDateString('es-AR')}</span>
                 </div>
