@@ -1,6 +1,6 @@
 # Spec — portal-venta-directa / Portal Revendedora (`/mi-cuenta`)
 
-**Change**: `portal-venta-directa` · **Requisitos**: `REQ-RVP-VTA-01…07` · **Decisiones**: `DR-13` (whitelist de columnas en `rvp_*`), nueva excepción `DEFINER` de escritura acotada, extracción de un núcleo de `sp_registrar_venta` (sp compartido: **aprobado por el dueño del producto el 2026-11-24**)
+**Change**: `portal-venta-directa` · **Requisitos**: `REQ-RVP-VTA-01…10` · **Decisiones**: `DR-13` (whitelist de columnas en `rvp_*`), excepciones `DEFINER` de escritura acotada (`sp_registrar_venta_revendedora`, `sp_anular_venta_revendedora`), extracción de núcleos en schema `interno` (sp compartido: **aprobado por el dueño del producto el 2026-11-24**)
 
 > **Alcance**: Este documento define el contrato funcional, de seguridad, base de datos, UI y pruebas para reemplazar el flujo de *declaración + confirmación del local* por **venta directa en lote** desde el portal de revendedora.
 
@@ -86,11 +86,13 @@ La resolución de códigos en el portal MUST realizarse mediante una nueva lectu
 
 ---
 
-### REQ-RVP-VTA-05 — Estado en `Mis ventas` y visibilidad inmediata de comisión estimada
+### REQ-RVP-VTA-05 — Estado en `Mis ventas`, agrupación por venta y visibilidad inmediata de comisión estimada
 
 - En `app/(revendedora)/mi-cuenta/ventas/VentasRevendedoraView.tsx`, la etiqueta del badge cuando `liquidada === false` MUST cambiar de `"Pendiente de liquidar"` a **`"No liquidada"`** (y en el `<Select>` de filtro de `app/(revendedora)/mi-cuenta/ventas/page.tsx`, la opción `'pendiente'` pasa a rotularse `"No liquidada"`).
+- **Agrupación y paginación por venta**: `rvp_mis_ventas` devuelve `id_venta` por línea; la vista `Mis ventas` MUST renderizar **una tarjeta por venta** (reutilizando componentes existentes de `components/`) con sus artículos, total de la venta, fecha, comisión estimada total, estado (`"No liquidada"` / `"Liquidada"` / `"Anulada"`), datos de contacto opcionales (`REQ-RVP-VTA-08`) y acción de anulación (`REQ-RVP-VTA-09`). La paginación MUST operar **por venta**, no por línea.
 - Como la venta queda `registrada` con `canal = 'revendedora'` e `id_liquidacion IS NULL` desde el instante en que la revendedora la confirma, tanto `rvp_mis_ventas` (fila nueva con `comision_estimada`) como `rvp_mi_cuenta` (KPI `comision_estimada` y `total_vendido`) MUST reflejarla inmediatamente sin esperar confirmación del local.
-- **Feliz**: Inmediatamente después de confirmar una venta en el portal, la revendedora navega a `Mis ventas`, ve el artículo con badge `"No liquidada"` y su `comision_estimada` calculada; en `Resumen`, `comision_estimada` y `total_vendido` ya incluyen la venta.
+- Cuando una venta está `'anulada'`, su tarjeta muestra la etiqueta **`"Anulada"`** y **sin comisión** (`$0` / omitida).
+- **Feliz**: Inmediatamente después de confirmar una venta en el portal, la revendedora navega a `Mis ventas`, ve una única tarjeta para esa venta con todos sus artículos, badge `"No liquidada"` y su `comision_estimada` calculada; en `Resumen`, `comision_estimada` y `total_vendido` ya incluyen la venta.
 
 ---
 
@@ -114,16 +116,18 @@ La resolución de códigos en el portal MUST realizarse mediante una nueva lectu
 | --- | --- |
 | Tabla `declaracion_venta_revendedora` | Se conserva solo como historial, sin nuevas escrituras. La migración **aborta** con un mensaje claro si existe alguna fila `'pendiente'`: el local las confirma o rechaza antes del deploy. No se convierten dentro de la migración (no hay sesión y las compuertas de auth fallan). |
 | SPs `sp_declarar_venta_revendedora`, `sp_confirmar_declaracion_venta`, `sp_rechazar_declaracion_venta`, `sp_retirar_declaracion` y `rvp_mis_declaraciones` | Se retiran en este cambio (`DROP FUNCTION IF EXISTS`), con su definición completa recreada en el `-- DOWN:`. Antes de borrar, verificar los nombres exactos con `pnpm sp:last`. |
+| `lib/dal/revendedoras/declaraciones.ts`, sus actions, tipos y tests | Se retiran en este cambio (verificando antes con `rg` que no queden importadores). |
 | Bandeja del local (`app/(app)/revendedoras/declaraciones/**`, `app/(app)/revendedoras/[id]/declaraciones/**`, tab `'declaraciones'` en `RevendedoraTabs.tsx`, `BandAction` en `app/(app)/revendedoras/page.tsx`, filtro `declaraciones_pendientes` en `RevendedorasPanelView.tsx` / `RevendedorasFiltrosBar.tsx`) | Se retira en este cambio (y se quita `declaraciones_pendientes` del panel y de su `rvp_*`/`rf_*` si lo proyecta). |
-| Sección Declaraciones del portal (`app/(revendedora)/mi-cuenta/declaraciones/**`, ítem en `app/(revendedora)/mi-cuenta/layout.tsx`, KPI `declaraciones_pendientes` y `BandAction` `"Ver declaraciones"` en `app/(revendedora)/mi-cuenta/page.tsx`, filtro `con_pendiente`/`sin_declaracion` en `Mi stock`) | Retirar de la navegación, del `PageBand` de Resumen y de los filtros de `Mi stock`. |
-| `e2e/tests/declaraciones-portal-revendedora.spec.ts` | Reemplazar por el nuevo E2E mobile del flujo de venta directa (conservando los casos de aislamiento entre revendedoras, redirección de URLs del local y módulo deshabilitado). |
-| `lib/ayuda/guia/revendedoras.ts` | Retirar las 3 entradas de declaraciones (`revendedoras-declaraciones-bandeja`, `revendedoras-declaraciones-confirmar`, `revendedoras-declaraciones-rechazar`) y actualizar la guía del panel de revendedoras para reflejar la consulta/anulación de ventas desde la pestaña Ventas. |
+| Sección Declaraciones del portal (`app/(revendedora)/mi-cuenta/declaraciones/**`, ítem en `app/(revendedora)/mi-cuenta/layout.tsx`, KPI `declaraciones_pendientes` y `BandAction` `"Ver declaraciones"` en `app/(revendedora)/mi-cuenta/page.tsx`, filtros `con_pendiente`/`sin_declaracion` y columna `declaracion_pendiente` en `Mi stock`) | Retirar de la navegación, del `PageBand` de Resumen, de los KPIs y de los filtros/columnas de `Mi stock`. |
+| `e2e/tests/declaraciones-portal-revendedora.spec.ts` | Reemplazar por `e2e/tests/portal-venta-directa.spec.ts` (viewport móvil `375x812`, conservando los casos de aislamiento entre revendedoras, redirección de URLs del local y módulo deshabilitado). |
+| `lib/ayuda/guia/revendedoras.ts`, `docs/modulos.md`, `supabase/README.md` | Retirar las 3 entradas de declaraciones (`revendedoras-declaraciones-bandeja`, `revendedoras-declaraciones-confirmar`, `revendedoras-declaraciones-rechazar`) y actualizar la guía/docs para reflejar la venta directa, anulación en portal y excepciones DEFINER / schema `interno`. |
 
 #### 7.2 UI Mobile-First y reutilización de componentes
 
 - **Botón `"Vender"` en `PageBand`**:
-  - Las pantallas **Resumen** (`/mi-cuenta`), **Mi stock** (`/mi-cuenta/stock`) y **Mis ventas** (`/mi-cuenta/ventas`) MUST incluir `<BandAction tone="primary" title="Vender" ... />` (mismo patrón visual que `"Nueva venta"` en `app/(app)/ventas/page.tsx`).
-  - El resto de los `BandAction` en esas tres pantallas quedan como secundarios (`tone="secondary"`).
+  - En **Resumen** (`/mi-cuenta`), el `PageBand` MUST incluir **únicamente** el `BandAction` primario `"Vender"` (se retiran `"Ver mi stock"`, `"Ver mis ventas"`, `"Ver liquidaciones"` y `"Ver declaraciones"`, ya que la navegación se realiza por la nav).
+  - **Mi stock** (`/mi-cuenta/stock`) y **Mis ventas** (`/mi-cuenta/ventas`) MUST incluir `<BandAction tone="primary" title="Vender" ... />` (mismo patrón visual que `"Nueva venta"` en `app/(app)/ventas/page.tsx`).
+  - El resto de los `BandAction` en esas pantallas (excepto Resumen, que solo lleva `"Vender"`) quedan como secundarios (`tone="secondary"`).
 - **Modal de venta compartido**:
   - Se comparte el mismo modal entre Resumen, Mi stock y Mis ventas.
   - Diseño mobile-first:
@@ -135,11 +139,43 @@ La resolución de códigos en el portal MUST realizarse mediante una nueva lectu
 
 ---
 
+### REQ-RVP-VTA-08 — Contacto opcional en la venta del portal
+
+- La tabla `venta` incorpora las columnas opcionales `contacto_nombre text null` (`CHECK (char_length(contacto_nombre) <= 120)`) y `contacto_telefono text null` (`CHECK (char_length(contacto_telefono) <= 30)`).
+- `sp_registrar_venta_revendedora` suma los parámetros opcionales `p_contacto_nombre text default null` y `p_contacto_telefono text default null`. Realiza `nullif(btrim(p_contacto), '')` sobre ambos y ejecuta el `UPDATE` sobre la venta recién creada dentro de la misma transacción, **sin modificar `interno.fn_registrar_venta_nucleo`**.
+- El schema Zod en `lib/validation/revendedoras.ts` (`strictObject`) acepta ambos campos opcionales, aplicando `trim` y normalizando `''` a `null`/`undefined`.
+- `VenderModal` incluye una sección colapsable `"Datos del cliente (opcional)"` con nombre y teléfono (`inputMode="tel"`).
+- El contacto (cuando existe) se muestra en la tarjeta de `Mis ventas` y en el detalle de venta del administrador (`/ventas/[id]`).
+
+---
+
+### REQ-RVP-VTA-09 — Anulación de venta desde el portal (`sp_anular_venta_revendedora`)
+
+En el portal no se editan ventas: si hubo un error, la revendedora la **anula** y vuelve a vender.
+
+- **Núcleo compartido**: se extrae `interno.fn_anular_venta_nucleo` (cuerpo de `sp_anular_venta` sin la compuerta de auth, `INVOKER` en schema `interno`). `sp_anular_venta` público conserva su compuerta (`ventas.editar`) y delega en el núcleo.
+- **RPC del portal**: `sp_anular_venta_revendedora(p_id_venta uuid, p_motivo text default null)` (`SECURITY DEFINER`, `set search_path = public, pg_temp`) sigue el mismo patrón que `sp_registrar_venta_revendedora`:
+  - Valida `auth_tenant_id()`, `auth_revendedora_id()`, módulo `revendedoras` habilitado y permiso `'vender'` leído directamente del rol (`usuario` + `rol`, ya que `auth_tiene_permiso` devuelve `false` a revendedoras).
+  - Bloquea la venta con `FOR UPDATE` verificando `id_tenant`, `canal = 'revendedora'`, `id_revendedora = v_revendedora_id`, `estado_venta = 'registrada'` y `id_liquidacion IS NULL` (si está liquidada → `venta-liquidada`; si no pertenece o no existe → rechazo; si ya está anulada → rechazo).
+  - Delega la anulación en `interno.fn_anular_venta_nucleo`, devolviendo los artículos a `en_revendedora` / `en_poder`.
+  - Se agrega a `SP_SIN_CHEQUEO` y a `PERMITTED_NON_RVP_DEFINER` en `tests/db/rvp-lecturas.test.ts` y se documenta en `AGENTS.md` (junto con `sp_registrar_venta_revendedora`, `tg_venta_cuadre_pagos` y el schema `interno`).
+- **Action y DAL**: Server Action `anularVentaRevendedoraAction` en `app/(revendedora)/mi-cuenta/actions.ts` con los 3 gates (mismo `requireModuleRole` que `registrarVentaRevendedoraAction`) y DAL en `lib/dal/revendedoras/portal.ts`.
+- **UI**: Botón `"Anular venta"` en la tarjeta de `Mis ventas` únicamente si la venta está `'registrada'` y no está liquidada, abriendo un `Modal` de confirmación con motivo opcional.
+- **Tests DB requeridos**:
+  - Anula venta propia no liquidada → OK, los artículos vuelven a su stock `'en_poder'`.
+  - Venta ajena (de otra revendedora, del local o de otro tenant) → rechazo.
+  - Venta liquidada → rechazo con `venta-liquidada`.
+  - Doble anulación → rechazo.
+  - Revendedora sin permiso `'vender'` → rechazo (`no-permission`).
+
+---
+
 ## 2. Matriz de permisos
 
 | Función | Operador con permiso | Operador sin permiso | Revendedora (con permiso) | Revendedora (sin permiso) | Módulo apagado | Otro tenant |
 | --- | --- | --- | --- | --- | --- | --- |
 | `sp_registrar_venta_revendedora` | `no-revendedora` | `no-revendedora` | ok (solo sus ítems `en_poder`) | `no-permission` | `modulo-revendedoras-deshabilitado` | `item-no-en-poder` |
+| `sp_anular_venta_revendedora` | `no-revendedora` | `no-revendedora` | ok (solo suya, `registrada`, no liquidada) | `no-permission` | `modulo-revendedoras-deshabilitado` | `venta-not-found` |
 | `rvp_resolver_item_stock` | `no-revendedora` | `no-revendedora` | solo lo suyo, whitelist de columnas | `no-permission` | `modulo-revendedoras-deshabilitado` | 0 filas |
 | `rvp_mis_ventas` | `no-revendedora` | `no-revendedora` | solo lo suyo, whitelist | — | `modulo-revendedoras-deshabilitado` | 0 filas |
 | `rvp_mi_cuenta` | `no-revendedora` | `no-revendedora` | solo lo suyo, whitelist | — | `modulo-revendedoras-deshabilitado` | 0 filas / `no-revendedora` |
@@ -252,4 +288,5 @@ No se alteran las fórmulas de `specs/golden.md` ni la imputación de cifras def
 5. **Resolución por código**: QR y Data Matrix = la unidad exacta. SKU con talle = la primera unidad en su poder que no esté en el carrito. SKU sin talle con varios talles = selector de talle.
 6. **Nota**: el modal no tiene campo de nota.
 7. **Comisión**: el núcleo usa `fn_resolver_comision(v_revendedora_id, fn_hoy_tenant(), 0, 'revendedora')`, igual que hoy; `specs/golden.md` sin cambios.
-8. **sp compartido**: se aprueba extraer el núcleo de `sp_registrar_venta` y de `fn_sellar_costo_venta` al schema `interno`, con comportamiento idéntico para el operador.
+8. **sp compartido**: se aprueba extraer el núcleo de `sp_registrar_venta`, de `sp_anular_venta` y de `fn_sellar_costo_venta` al schema `interno`, con comportamiento idéntico para el operador.
+9. **Contacto opcional y anulación en portal**: aprobados en Fase 4 (`REQ-RVP-VTA-08`, `REQ-RVP-VTA-09`). `AGENTS.md` (≤150 líneas) documenta `sp_registrar_venta_revendedora`, `sp_anular_venta_revendedora`, `tg_venta_cuadre_pagos` y el schema `interno`.
