@@ -107,9 +107,9 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
     await expect(page.getByText(nombreProd)).toBeVisible()
     await expect(page.getByText('1', { exact: true })).toBeVisible() // 1 pieza en su poder
 
-    // 5. Ir a la pestaña "Declaraciones"
-    await page.goto(`/revendedoras/${idRevendedora}/declaraciones`)
-    await expect(page.getByText(new RegExp(`Declaraciones de venta de ${nombreRev}`))).toBeVisible()
+    // 5. Ir a la pestaña "Ventas"
+    await page.goto(`/revendedoras/${idRevendedora}/ventas`)
+    await expect(page.getByText(new RegExp(`Ventas de ${nombreRev}`))).toBeVisible()
 
     // 6. Consultar la ficha del ítem en inventario: debe mostrar "En poder de revendedora"
     await page.goto(`/inventario/ficha/${encodeURIComponent(qrCode)}`)
