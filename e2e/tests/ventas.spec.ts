@@ -33,10 +33,11 @@ test.describe('Ventas · carrito', () => {
   }) => {
     const nombre = unique('Sin precio E2E')
 
+    // Sin costo no se sella el precio inicial (fn_sellar_precio_inicial); con
+    // costo, la regla global del seed haría que cualquier producto nazca con precio.
     await nuevoProducto.crear({
       nombre,
       categoria: seed.categoriaSimple.nombre,
-      costo: '8000',
       stock: 1,
     })
     await page.waitForURL(/\/inventario(\?|$)/)

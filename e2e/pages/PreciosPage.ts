@@ -87,17 +87,21 @@ export class ControlPreciosPage {
   }
 
   /**
-   * A brand-new product has `precio_venta = null` until someone recalculates
-   * it, which is the state the "sin precio" sale error depends on. The view
-   * defaults to the "desactualizados" filter, which excludes those rows.
+   * Ensures the product has a `precio_venta` set. Since `fn_sellar_precio_inicial`
+   * (00166), products created with cost and stock already get an initial price;
+   * those without cost/rule stay "Sin precio". Uses the "Todos" filter to inspect
+   * the row and only recalculates when it still shows "Sin precio".
    */
   async recalcular(nombreProducto: string): Promise<void> {
     await this.abrir()
-    await this.estado.selectOption({ label: 'Sin precio de venta' })
+    await this.estado.selectOption({ label: 'Todos' })
     await this.buscador.fill(nombreProducto)
     const fila = this.fila(nombreProducto)
     await expect(fila).toBeVisible()
-    await fila.getByRole('button', { name: 'Recalcular' }).click()
-    await this.shell.expectSuccessToast('Precio actualizado')
+    const texto = (await fila.textContent()) ?? ''
+    if (texto.includes('Sin precio')) {
+      await fila.getByRole('button', { name: 'Recalcular' }).click()
+      await this.shell.expectSuccessToast('Precio actualizado')
+    }
   }
 }
