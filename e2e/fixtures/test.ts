@@ -12,6 +12,7 @@ import {
 import { LoginPage } from '../pages/LoginPage'
 import { ControlPreciosPage, ReglasPage } from '../pages/PreciosPage'
 import { ProveedoresPage } from '../pages/ProveedoresPage'
+import { RevendedorasPage } from '../pages/RevendedorasPage'
 import { NuevaVentaPage, VentasPage } from '../pages/VentasPage'
 import { readSeed, type SeedData } from '../support/tenant'
 
@@ -28,6 +29,7 @@ interface Fixtures {
   cuotas: CuotasPage
   clienteDetalle: ClienteDetallePage
   proveedores: ProveedoresPage
+  revendedoras: RevendedorasPage
   inventario: InventarioPage
   nuevoProducto: NuevoProductoPage
   categorias: CategoriasPage
@@ -72,6 +74,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   },
   proveedores: async ({ page }, use) => {
     await use(new ProveedoresPage(page))
+  },
+  revendedoras: async ({ page }, use) => {
+    await use(new RevendedorasPage(page))
   },
   inventario: async ({ page }, use) => {
     await use(new InventarioPage(page))

@@ -9,6 +9,7 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
     shell,
     nuevoProducto,
     controlPrecios,
+    revendedoras,
     seed,
   }) => {
     // -------------------------------------------------------------
@@ -37,17 +38,14 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
     // -------------------------------------------------------------
     // ALTA: Revendedora 1 y Revendedora 2 con acceso al portal
     // -------------------------------------------------------------
-    await page.goto('/revendedoras/nuevo')
     const nombreRev1 = unique('Valeria')
     const emailRev1 = `${nombreRev1.toLowerCase().replace(/\s+/g, '')}@test.com`
-
-    await page.getByLabel(/^Nombre/).fill(nombreRev1)
-    await page.getByLabel(/^Apellido/).fill('Portal')
-    await page.getByLabel(/^Email/).fill(emailRev1)
-    await page.getByLabel(/Crear acceso al sistema para la revendedora/i).check()
-    await page.locator('#nr_password').fill('Password123!')
-    await page.getByRole('button', { name: 'Guardar' }).click()
-    await page.waitForURL(/\/revendedoras(\?|$)/)
+    await revendedoras.crearConAcceso({
+      nombre: nombreRev1,
+      apellido: 'Portal',
+      email: emailRev1,
+      password: 'Password123!',
+    })
 
     const filaRev1 = page.getByRole('row', { name: new RegExp(`${nombreRev1} Portal`) })
     await expect(filaRev1).toBeVisible()
@@ -84,17 +82,14 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
     const sku2 = prods?.find((p) => p.nombre === nombreProd2)?.sku ?? nombreProd2
 
     // Revendedora 2 (para aislamiento)
-    await page.goto('/revendedoras/nuevo')
     const nombreRev2 = unique('Sonia')
     const emailRev2 = `${nombreRev2.toLowerCase().replace(/\s+/g, '')}@test.com`
-
-    await page.getByLabel(/^Nombre/).fill(nombreRev2)
-    await page.getByLabel(/^Apellido/).fill('Segunda')
-    await page.getByLabel(/^Email/).fill(emailRev2)
-    await page.getByLabel(/Crear acceso al sistema para la revendedora/i).check()
-    await page.locator('#nr_password').fill('Password123!')
-    await page.getByRole('button', { name: 'Guardar' }).click()
-    await page.waitForURL(/\/revendedoras(\?|$)/)
+    await revendedoras.crearConAcceso({
+      nombre: nombreRev2,
+      apellido: 'Segunda',
+      email: emailRev2,
+      password: 'Password123!',
+    })
 
     // -------------------------------------------------------------
     // PORTAL MÓVIL (375x812)

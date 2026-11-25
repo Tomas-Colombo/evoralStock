@@ -7,6 +7,7 @@ test.describe('Liquidaciones de revendedora', () => {
     shell,
     nuevoProducto,
     controlPrecios,
+    revendedoras,
     browser,
     seed,
   }) => {
@@ -32,17 +33,15 @@ test.describe('Liquidaciones de revendedora', () => {
     await controlPrecios.recalcular(nombreProd2)
 
     // 2. Dar de alta revendedora con acceso al portal
-    await page.goto('/revendedoras/nuevo')
     const nombreRev = unique('Laura')
     const apellidoRev = 'Liquidada'
     const emailRev = `${nombreRev.toLowerCase().replace(/\s+/g, '')}@test.com`
-    await page.getByLabel(/^Nombre/).fill(nombreRev)
-    await page.getByLabel(/^Apellido/).fill(apellidoRev)
-    await page.getByLabel(/^Email/).fill(emailRev)
-    await page.getByLabel(/Crear acceso al sistema para la revendedora/i).check()
-    await page.locator('#nr_password').fill('Password123!')
-    await page.getByRole('button', { name: 'Guardar' }).click()
-    await page.waitForURL(/\/revendedoras(\?|$)/)
+    await revendedoras.crearConAcceso({
+      nombre: nombreRev,
+      apellido: apellidoRev,
+      email: emailRev,
+      password: 'Password123!',
+    })
 
     const filaRev = page.getByRole('row', { name: new RegExp(`${nombreRev} ${apellidoRev}`) })
     await expect(filaRev).toBeVisible()

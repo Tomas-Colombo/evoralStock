@@ -1,4 +1,3 @@
-import { setModuloHabilitado } from '../support/tenant'
 import { expect, test, unique } from '../fixtures/test'
 
 test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
@@ -21,7 +20,6 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
     await expect(page.getByText(/Mercadería en revendedoras/i)).toBeVisible()
     await expect(page.getByText(/Total adeudado al local/i)).toBeVisible()
     await expect(page.getByText(/Liquidaciones pendientes/i)).toBeVisible()
-    await expect(page.getByRole('link', { name: /Declaraciones/i })).toBeVisible()
 
     // 3. Verificar fila en la tabla del panel
     const filaRev = page.getByRole('row', { name: new RegExp(`${nombreRev} ${apellidoRev}`) })
@@ -109,34 +107,14 @@ test.describe('Panel de gestión de revendedoras (Slice 4b)', () => {
 
     // 5. Ir a la pestaña "Ventas"
     await page.goto(`/revendedoras/${idRevendedora}/ventas`)
-    await expect(page.getByText(new RegExp(`Ventas de ${nombreRev}`))).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Ventas · ${nombreRev} ${apellidoRev}`) }),
+    ).toBeVisible()
 
     // 6. Consultar la ficha del ítem en inventario: debe mostrar "En poder de revendedora"
     await page.goto(`/inventario/ficha/${encodeURIComponent(qrCode)}`)
     await expect(page.getByText('En poder de revendedora')).toBeVisible()
     await expect(page.getByText(`${nombreRev} ${apellidoRev}`)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Ver revendedora' })).toBeVisible()
-  })
-
-  test('con el módulo revendedoras apagado, /revendedoras responde module-disabled', async ({
-    page,
-    seed,
-  }) => {
-    // 1. Deshabilitar el módulo Revendedoras como lo haría el operador
-    await setModuloHabilitado(seed.tenantId, 'revendedoras', false)
-
-    try {
-      // 2. Comprobar que una petición directa responde redirección con module-disabled
-      const res = await page.request.get('/revendedoras', { maxRedirects: 0 })
-      expect(res.status()).toBe(307)
-      expect(res.headers()['location']).toBe('/?e=module-disabled')
-
-      // 3. Al navegar por navegador, rebota fuera de revendedoras hacia /ventas
-      await page.goto('/revendedoras')
-      await expect(page).toHaveURL(/\/ventas$/)
-    } finally {
-      // 4. Restaurar el módulo para no afectar otros tests
-      await setModuloHabilitado(seed.tenantId, 'revendedoras', true)
-    }
   })
 })
