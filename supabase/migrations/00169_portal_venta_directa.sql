@@ -964,20 +964,25 @@ $$;
 
 -- 5. sp_registrar_venta_revendedora
 create or replace function sp_registrar_venta_revendedora(
-  p_items uuid[]
+  p_items             uuid[],
+  p_contacto_nombre   text default null,
+  p_contacto_telefono text default null
 ) returns uuid
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_tenant         uuid := auth_tenant_id();
-  v_actor          uuid := auth.uid();
-  v_revendedora_id uuid := auth_revendedora_id();
-  v_items_dedup    uuid[];
-  v_id_item        uuid;
-  v_id_dcr         uuid;
-  v_lineas         jsonb := '[]'::jsonb;
+  v_tenant            uuid := auth_tenant_id();
+  v_actor             uuid := auth.uid();
+  v_revendedora_id    uuid := auth_revendedora_id();
+  v_items_dedup       uuid[];
+  v_id_item           uuid;
+  v_id_dcr            uuid;
+  v_lineas            jsonb := '[]'::jsonb;
+  v_contacto_nombre   text := nullif(btrim(p_contacto_nombre), '');
+  v_contacto_telefono text := nullif(btrim(p_contacto_telefono), '');
+  v_id_venta          uuid;
 begin
   if v_tenant is null then
     raise exception 'no-tenant' using errcode = '42501';
@@ -1030,6 +1035,11 @@ begin
     raise exception 'payload-invalido' using errcode = '22023';
   end if;
 
+  if (v_contacto_nombre is not null and char_length(v_contacto_nombre) > 120)
+     or (v_contacto_telefono is not null and char_length(v_contacto_telefono) > 30) then
+    raise exception 'payload-invalido' using errcode = '22023';
+  end if;
+
   for v_id_item in select unnest(v_items_dedup) order by 1 loop
     select crd.id_consignacion_revendedora_detalle into v_id_dcr
       from item_producto ip
@@ -1052,7 +1062,7 @@ begin
     v_lineas := v_lineas || jsonb_build_array(jsonb_build_object('id_item', v_id_item));
   end loop;
 
-  return interno.fn_registrar_venta_nucleo(
+  v_id_venta := interno.fn_registrar_venta_nucleo(
     p_tenant         := v_tenant,
     p_actor          := v_actor,
     p_lineas         := v_lineas,
@@ -1060,6 +1070,16 @@ begin
     p_canal          := 'revendedora',
     p_id_revendedora := v_revendedora_id
   );
+
+  if v_contacto_nombre is not null or v_contacto_telefono is not null then
+    update venta
+       set contacto_nombre = v_contacto_nombre,
+           contacto_telefono = v_contacto_telefono
+     where id_venta = v_id_venta
+       and id_tenant = v_tenant;
+  end if;
+
+  return v_id_venta;
 end;
 $$;
 
@@ -1107,8 +1127,8 @@ drop function if exists rvp_mis_declaraciones(integer, integer, date, date, text
 revoke all on function rvp_resolver_item_stock(text, uuid[]) from public, anon;
 grant execute on function rvp_resolver_item_stock(text, uuid[]) to authenticated;
 
-revoke all on function sp_registrar_venta_revendedora(uuid[]) from public, anon;
-grant execute on function sp_registrar_venta_revendedora(uuid[]) to authenticated;
+revoke all on function sp_registrar_venta_revendedora(uuid[], text, text) from public, anon;
+grant execute on function sp_registrar_venta_revendedora(uuid[], text, text) to authenticated;
 
 -- 9. Cuadre de pagos diferido: DEFINER
 -- tr_venta_cuadre_pagos es diferido: corre en el COMMIT, ya fuera de
@@ -1142,7 +1162,646 @@ end $$;
 
 revoke all on function tg_venta_cuadre_pagos() from public, anon, authenticated;
 
+-- 10. Contacto opcional en venta (solo informativo, sin impacto financiero)
+alter table venta
+  add column if not exists contacto_nombre text null,
+  add column if not exists contacto_telefono text null;
+
+alter table venta
+  drop constraint if exists chk_venta_contacto_nombre_len,
+  add constraint chk_venta_contacto_nombre_len
+    check (contacto_nombre is null or char_length(contacto_nombre) <= 120),
+  drop constraint if exists chk_venta_contacto_telefono_len,
+  add constraint chk_venta_contacto_telefono_len
+    check (contacto_telefono is null or char_length(contacto_telefono) <= 30);
+
+-- 11. Núcleo de anulación de venta y sp_anular_venta_revendedora
+create or replace function interno.fn_anular_venta_nucleo(
+  p_tenant   uuid,
+  p_actor    uuid,
+  p_id_venta uuid,
+  p_motivo   text default null,
+  p_ip       inet default null
+) returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_estado            estado_venta;
+  v_canal             canal_venta;
+  v_rendida           boolean;
+  v_liquidada         boolean;
+  v_anuladas          integer := 0;
+  r_det               record;
+  r_pago              record;
+  v_total_reintegrado numeric(14,2) := 0;
+  v_reintegro_pago    numeric(14,2);
+  v_restante          numeric(14,2);
+  v_tiene_incobrables boolean;
+begin
+  select estado_venta, canal into v_estado, v_canal from venta
+    where id_venta = p_id_venta and id_tenant = p_tenant for update;
+
+  if v_estado is null then
+    raise exception 'venta-not-found' using errcode = '42704';
+  end if;
+
+  if v_estado = 'anulada' then
+    return jsonb_build_object('total_reintegrado', 0); -- idempotente
+  end if;
+
+  select exists(
+    select 1 from cuota_financiada
+     where id_venta = p_id_venta and estado = 'incobrable'
+  ) into v_tiene_incobrables;
+
+  if v_tiene_incobrables then
+    raise exception 'venta-con-incobrables' using errcode = '22023';
+  end if;
+
+  select exists(
+    select 1 from detalle_venta
+     where id_venta = p_id_venta and id_rendicion is not null
+  ) into v_rendida;
+
+  if v_rendida then
+    raise exception 'venta-ya-rendida' using errcode = '22023';
+  end if;
+
+  select exists(
+    select 1 from detalle_venta
+     where id_venta = p_id_venta and id_liquidacion is not null
+  ) into v_liquidada;
+
+  if v_liquidada then
+    raise exception 'venta-liquidada' using errcode = '22023';
+  end if;
+
+  for r_det in
+    select dv.id_item, ip.estado_item
+      from detalle_venta dv
+      join item_producto ip on ip.id_item = dv.id_item
+     where dv.id_venta = p_id_venta
+     for update of ip
+  loop
+    if r_det.estado_item = 'vendido' then
+      if v_canal = 'revendedora' then
+        perform interno.fn_transicion_item_producto_nucleo(
+          p_tenant, p_actor, r_det.id_item, 'en_revendedora', 'ajuste', p_id_venta, 'anulacion_venta', p_ip
+        );
+        update consignacion_revendedora_detalle
+           set estado_detalle = 'en_poder'
+         where id_item = r_det.id_item
+           and estado_detalle = 'vendido'
+           and id_tenant = p_tenant;
+      else
+        perform interno.fn_transicion_item_producto_nucleo(
+          p_tenant, p_actor, r_det.id_item, 'disponible', 'ajuste', p_id_venta, 'anulacion_venta', p_ip
+        );
+      end if;
+    end if;
+  end loop;
+
+  with anuladas as (
+    update cuota_financiada
+       set estado = 'anulada'
+     where id_venta = p_id_venta
+       and estado in ('pendiente', 'parcial')
+    returning 1
+  )
+  select count(*) into v_anuladas from anuladas;
+
+  v_restante := greatest(0::numeric,
+    (select coalesce(sum(monto), 0) from pago_venta where id_venta = p_id_venta and medio <> 'cuenta_revendedora')
+    - (select coalesce(sum(monto), 0) from reintegro_cliente where id_venta = p_id_venta)
+  );
+
+  for r_pago in
+    select id_pago_venta, id_cuenta_destino, medio, monto
+      from pago_venta
+     where id_venta = p_id_venta
+       and medio <> 'cuenta_revendedora'
+     order by created_at, id_pago_venta
+  loop
+    v_reintegro_pago := least(v_restante, r_pago.monto - coalesce((
+      select sum(monto) from reintegro_cliente
+       where id_pago_venta = r_pago.id_pago_venta
+    ), 0));
+
+    if v_reintegro_pago > 0 then
+      insert into reintegro_cliente (
+        id_tenant, id_venta, id_pago_venta, id_cuenta_destino,
+        medio, monto, origen, motivo, id_usuario
+      ) values (
+        p_tenant, p_id_venta, r_pago.id_pago_venta, r_pago.id_cuenta_destino,
+        r_pago.medio, v_reintegro_pago, 'anulacion', p_motivo, p_actor
+      );
+      v_total_reintegrado := v_total_reintegrado + v_reintegro_pago;
+      v_restante := v_restante - v_reintegro_pago;
+    end if;
+  end loop;
+
+  update venta
+     set estado_venta     = 'anulada',
+         fecha_anulacion  = now(),
+         motivo_anulacion = p_motivo
+   where id_venta = p_id_venta;
+
+  insert into auditoria(id_tenant, id_usuario, entidad, entidad_id, accion, cambios, ip)
+  values (p_tenant, p_actor, 'venta', p_id_venta::text, 'anular',
+          jsonb_build_object('motivo', p_motivo, 'cuotas_anuladas', v_anuladas, 'total_reintegrado', v_total_reintegrado),
+          p_ip);
+
+  return jsonb_build_object('total_reintegrado', v_total_reintegrado);
+end;
+$$;
+
+revoke all on function interno.fn_anular_venta_nucleo(uuid, uuid, uuid, text, inet) from public, anon;
+grant execute on function interno.fn_anular_venta_nucleo(uuid, uuid, uuid, text, inet) to authenticated;
+
+create or replace function sp_anular_venta(
+  p_id_venta uuid,
+  p_motivo   text default null,
+  p_ip       inet default null
+) returns jsonb language plpgsql as $$
+begin
+  if not (select auth_tiene_permiso('ventas', 'editar')) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+
+  return interno.fn_anular_venta_nucleo(
+    p_tenant   := auth_tenant_id(),
+    p_actor    := auth.uid(),
+    p_id_venta := p_id_venta,
+    p_motivo   := p_motivo,
+    p_ip       := p_ip
+  );
+end;
+$$;
+
+create or replace function sp_anular_venta_revendedora(
+  p_id_venta uuid,
+  p_motivo   text default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_tenant            uuid := auth_tenant_id();
+  v_actor             uuid := auth.uid();
+  v_revendedora_id    uuid := auth_revendedora_id();
+  v_estado            estado_venta;
+  v_canal             canal_venta;
+  v_venta_revendedora uuid;
+  v_motivo            text := nullif(btrim(p_motivo), '');
+begin
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+
+  if not exists (
+    select 1 from tenant_modulo tm
+    join modulo m on m.id_modulo = tm.id_modulo
+    where tm.id_tenant = v_tenant and m.codigo = 'revendedoras' and tm.habilitado = true
+  ) then
+    raise exception 'modulo-revendedoras-deshabilitado' using errcode = '42501';
+  end if;
+
+  if v_revendedora_id is null then
+    raise exception 'no-revendedora' using errcode = '42501';
+  end if;
+
+  -- auth_tiene_permiso() exige auth_revendedora_id() is null; dentro del DEFINER leemos su rol directamente.
+  if not exists (
+    select 1
+      from usuario u
+      join rol r on r.id_rol = u.id_rol
+     where u.id_usuario = auth.uid()
+       and u.id_tenant = v_tenant
+       and r.id_tenant = v_tenant
+       and u.estado_usuario <> 'inactivo'
+       and r.permisos -> 'revendedoras' ? 'vender'
+  ) then
+    raise exception 'no-permission' using errcode = '42501';
+  end if;
+
+  select estado_venta, canal, id_revendedora
+    into v_estado, v_canal, v_venta_revendedora
+    from venta
+   where id_venta = p_id_venta
+     and id_tenant = v_tenant
+   for update;
+
+  if v_estado is null or v_canal <> 'revendedora' or v_venta_revendedora <> v_revendedora_id then
+    raise exception 'venta-not-found' using errcode = '42704';
+  end if;
+
+  if v_estado = 'anulada' then
+    raise exception 'venta-ya-anulada' using errcode = '22023';
+  end if;
+
+  if v_estado <> 'registrada' then
+    raise exception 'venta-no-anulable' using errcode = '22023';
+  end if;
+
+  return interno.fn_anular_venta_nucleo(
+    p_tenant   := v_tenant,
+    p_actor    := v_actor,
+    p_id_venta := p_id_venta,
+    p_motivo   := v_motivo,
+    p_ip       := null
+  );
+end;
+$$;
+
+revoke all on function sp_anular_venta_revendedora(uuid, text) from public, anon;
+grant execute on function sp_anular_venta_revendedora(uuid, text) to authenticated;
+
+-- 12. rvp_mis_ventas paginada por venta, con estado_venta y contacto opcional
+drop function if exists rvp_mis_ventas(integer, integer, date, date, text, text);
+create or replace function rvp_mis_ventas(
+  p_limit    integer default 50,
+  p_offset   integer default 0,
+  p_desde    date default null,
+  p_hasta    date default null,
+  p_estado   text default null,
+  p_busqueda text default null
+) returns table (
+  id_venta           uuid,
+  id_detalle_venta   uuid,
+  id_item            uuid,
+  descripcion        text,
+  talle              text,
+  color              text,
+  fecha_venta        date,
+  precio_venta       numeric,
+  comision_liquidada numeric,
+  comision_estimada  numeric,
+  estado_liquidacion text,
+  fecha_liquidacion  date,
+  estado_venta       text,
+  contacto_nombre    text,
+  contacto_telefono  text,
+  total_filas        bigint
+) language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_tenant         uuid := auth_tenant_id();
+  v_revendedora_id uuid := auth_revendedora_id();
+  v_zona           text;
+  v_limit          integer;
+  v_offset         integer;
+  v_busqueda       text;
+begin
+  if v_tenant is null then
+    raise exception 'no-tenant' using errcode = '42501';
+  end if;
+
+  if not exists (
+    select 1 from tenant_modulo tm
+    join modulo m on m.id_modulo = tm.id_modulo
+    where tm.id_tenant = v_tenant and m.codigo = 'revendedoras' and tm.habilitado = true
+  ) then
+    raise exception 'modulo-revendedoras-deshabilitado' using errcode = '42501';
+  end if;
+
+  if v_revendedora_id is null then
+    raise exception 'no-revendedora' using errcode = '42501';
+  end if;
+
+  if p_estado is not null and p_estado not in ('liquidada', 'pendiente', 'anulada') then
+    raise exception 'estado-filtro-invalido' using errcode = '22023';
+  end if;
+
+  select zona_horaria into v_zona from tenant where id_tenant = v_tenant;
+
+  v_limit := greatest(1, least(coalesce(p_limit, 50), 200));
+  v_offset := greatest(0, coalesce(p_offset, 0));
+  v_busqueda := nullif(trim(p_busqueda), '');
+
+  return query
+  with ventas_filtradas as (
+    select
+      v.id_venta,
+      v.fecha,
+      v.estado_venta,
+      v.contacto_nombre,
+      v.contacto_telefono,
+      count(*) over()::bigint as total_ventas
+    from venta v
+    where v.id_tenant = v_tenant
+      and v.canal = 'revendedora'
+      and v.id_revendedora = v_revendedora_id
+      and v.estado_venta in ('registrada', 'anulada')
+      and (p_desde is null or (v.fecha at time zone v_zona)::date >= p_desde)
+      and (p_hasta is null or (v.fecha at time zone v_zona)::date <= p_hasta)
+      and exists (
+        select 1
+        from detalle_venta dv
+        join producto p on p.id_producto = dv.id_producto
+        where dv.id_venta = v.id_venta
+          and not exists (
+            select 1 from cambio_venta cv
+            where cv.id_detalle_original = dv.id_detalle_venta
+              and cv.id_tenant = v.id_tenant
+          )
+          and (
+            p_estado is null
+            or (p_estado = 'liquidada' and v.estado_venta = 'registrada' and dv.id_liquidacion is not null)
+            or (p_estado = 'pendiente' and v.estado_venta = 'registrada' and dv.id_liquidacion is null)
+            or (p_estado = 'anulada' and v.estado_venta = 'anulada')
+          )
+          and (
+            v_busqueda is null
+            or p.nombre ilike ('%' || v_busqueda || '%') escape '\'
+          )
+      )
+    order by v.fecha desc, v.id_venta
+    limit v_limit offset v_offset
+  )
+  select
+    vf.id_venta,
+    dv.id_detalle_venta,
+    dv.id_item,
+    p.nombre as descripcion,
+    coalesce(ip.talle, '') as talle,
+    ''::text as color,
+    (vf.fecha at time zone v_zona)::date as fecha_venta,
+    dv.precio_venta,
+    case
+      when vf.estado_venta = 'registrada' and dv.id_liquidacion is not null then dv.monto_comision
+      else 0::numeric(14, 2)
+    end as comision_liquidada,
+    case
+      when vf.estado_venta = 'registrada' and dv.id_liquidacion is null then round((dv.porcentaje_comision_preview * dv.precio_venta / 100.0), 2)
+      else 0::numeric(14, 2)
+    end as comision_estimada,
+    case
+      when vf.estado_venta = 'anulada' then 'anulada'
+      when dv.id_liquidacion is not null then 'liquidada'
+      else 'pendiente'
+    end as estado_liquidacion,
+    lr.fecha_liquidacion,
+    vf.estado_venta::text,
+    vf.contacto_nombre,
+    vf.contacto_telefono,
+    vf.total_ventas as total_filas
+  from ventas_filtradas vf
+  join detalle_venta dv on dv.id_venta = vf.id_venta
+  join producto p on p.id_producto = dv.id_producto
+  left join item_producto ip on ip.id_item = dv.id_item and ip.id_tenant = v_tenant
+  left join liquidacion_revendedora lr on lr.id_liquidacion = dv.id_liquidacion and lr.id_tenant = v_tenant
+  where not exists (
+    select 1 from cambio_venta cv
+    where cv.id_detalle_original = dv.id_detalle_venta
+      and cv.id_tenant = v_tenant
+  )
+  order by vf.fecha desc, vf.id_venta, dv.id_detalle_venta;
+end;
+$$;
+
+revoke all on function rvp_mis_ventas(integer, integer, date, date, text, text) from public, anon;
+grant execute on function rvp_mis_ventas(integer, integer, date, date, text, text) to authenticated;
+
 -- DOWN:
+-- drop function if exists rvp_mis_ventas(integer, integer, date, date, text, text);
+-- create or replace function rvp_mis_ventas(
+--   p_limit    integer default 50,
+--   p_offset   integer default 0,
+--   p_desde    date default null,
+--   p_hasta    date default null,
+--   p_estado   text default null,
+--   p_busqueda text default null
+-- ) returns table (
+--   id_venta           uuid,
+--   id_detalle_venta   uuid,
+--   id_item            uuid,
+--   descripcion        text,
+--   talle              text,
+--   color              text,
+--   fecha_venta        date,
+--   precio_venta       numeric,
+--   comision_liquidada numeric,
+--   comision_estimada  numeric,
+--   estado_liquidacion text,
+--   fecha_liquidacion  date,
+--   total_filas        bigint
+-- ) language plpgsql security definer set search_path = public, pg_temp as $$
+-- declare
+--   v_tenant         uuid := auth_tenant_id();
+--   v_revendedora_id uuid := auth_revendedora_id();
+--   v_zona           text;
+--   v_limit          integer;
+--   v_offset         integer;
+--   v_busqueda       text;
+-- begin
+--   if v_tenant is null then
+--     raise exception 'no-tenant' using errcode = '42501';
+--   end if;
+--   if not exists (
+--     select 1 from tenant_modulo tm
+--     join modulo m on m.id_modulo = tm.id_modulo
+--     where tm.id_tenant = v_tenant and m.codigo = 'revendedoras' and tm.habilitado = true
+--   ) then
+--     raise exception 'modulo-revendedoras-deshabilitado' using errcode = '42501';
+--   end if;
+--   if v_revendedora_id is null then
+--     raise exception 'no-revendedora' using errcode = '42501';
+--   end if;
+--   if p_estado is not null and p_estado not in ('liquidada', 'pendiente') then
+--     raise exception 'estado-filtro-invalido' using errcode = '22023';
+--   end if;
+--   select zona_horaria into v_zona from tenant where id_tenant = v_tenant;
+--   v_limit := greatest(1, least(coalesce(p_limit, 50), 200));
+--   v_offset := greatest(0, coalesce(p_offset, 0));
+--   v_busqueda := nullif(trim(p_busqueda), '');
+--   return query
+--   select
+--     v.id_venta,
+--     dv.id_detalle_venta,
+--     dv.id_item,
+--     p.nombre as descripcion,
+--     coalesce(ip.talle, '') as talle,
+--     ''::text as color,
+--     (v.fecha at time zone v_zona)::date as fecha_venta,
+--     dv.precio_venta,
+--     case
+--       when dv.id_liquidacion is not null then dv.monto_comision
+--       else 0::numeric(14, 2)
+--     end as comision_liquidada,
+--     case
+--       when dv.id_liquidacion is null then round((dv.porcentaje_comision_preview * dv.precio_venta / 100.0), 2)
+--       else 0::numeric(14, 2)
+--     end as comision_estimada,
+--     case
+--       when dv.id_liquidacion is not null then 'liquidada'
+--       else 'pendiente'
+--     end as estado_liquidacion,
+--     lr.fecha_liquidacion,
+--     count(*) over()::bigint as total_filas
+--   from detalle_venta dv
+--   join venta v on v.id_venta = dv.id_venta
+--   join producto p on p.id_producto = dv.id_producto
+--   left join item_producto ip on ip.id_item = dv.id_item and ip.id_tenant = v.id_tenant
+--   left join liquidacion_revendedora lr on lr.id_liquidacion = dv.id_liquidacion and lr.id_tenant = v.id_tenant
+--   where v.id_tenant = v_tenant
+--     and v.canal = 'revendedora'
+--     and v.id_revendedora = v_revendedora_id
+--     and v.estado_venta = 'registrada'
+--     and not exists (
+--       select 1 from cambio_venta cv
+--       where cv.id_detalle_original = dv.id_detalle_venta
+--         and cv.id_tenant = v.id_tenant
+--     )
+--     and (p_desde is null or (v.fecha at time zone v_zona)::date >= p_desde)
+--     and (p_hasta is null or (v.fecha at time zone v_zona)::date <= p_hasta)
+--     and (
+--       p_estado is null
+--       or (p_estado = 'liquidada' and dv.id_liquidacion is not null)
+--       or (p_estado = 'pendiente' and dv.id_liquidacion is null)
+--     )
+--     and (
+--       v_busqueda is null
+--       or p.nombre ilike ('%' || v_busqueda || '%') escape '\'
+--     )
+--   order by v.fecha desc, dv.id_detalle_venta
+--   limit v_limit offset v_offset;
+-- end;
+-- $$;
+-- revoke all on function rvp_mis_ventas(integer, integer, date, date, text, text) from public, anon;
+-- grant execute on function rvp_mis_ventas(integer, integer, date, date, text, text) to authenticated;
+--
+-- drop function if exists sp_anular_venta_revendedora(uuid, text);
+-- create or replace function sp_anular_venta(
+--   p_id_venta uuid,
+--   p_motivo   text default null,
+--   p_ip       inet default null
+-- ) returns jsonb language plpgsql as $$
+-- declare
+--   v_tenant            uuid := auth_tenant_id();
+--   v_actor             uuid := auth.uid();
+--   v_estado            estado_venta;
+--   v_canal             canal_venta;
+--   v_rendida           boolean;
+--   v_liquidada         boolean;
+--   v_anuladas          integer := 0;
+--   r_det               record;
+--   r_pago              record;
+--   v_total_reintegrado numeric(14,2) := 0;
+--   v_reintegro_pago    numeric(14,2);
+--   v_restante          numeric(14,2);
+--   v_tiene_incobrables boolean;
+-- begin
+--   if not (select auth_tiene_permiso('ventas', 'editar')) then
+--     raise exception 'no-permission' using errcode = '42501';
+--   end if;
+--   select estado_venta, canal into v_estado, v_canal from venta
+--     where id_venta = p_id_venta and id_tenant = v_tenant for update;
+--   if v_estado is null then
+--     raise exception 'venta-not-found' using errcode = '42704';
+--   end if;
+--   if v_estado = 'anulada' then
+--     return jsonb_build_object('total_reintegrado', 0);
+--   end if;
+--   select exists(
+--     select 1 from cuota_financiada
+--      where id_venta = p_id_venta and estado = 'incobrable'
+--   ) into v_tiene_incobrables;
+--   if v_tiene_incobrables then
+--     raise exception 'venta-con-incobrables' using errcode = '22023';
+--   end if;
+--   select exists(
+--     select 1 from detalle_venta
+--      where id_venta = p_id_venta and id_rendicion is not null
+--   ) into v_rendida;
+--   if v_rendida then
+--     raise exception 'venta-ya-rendida' using errcode = '22023';
+--   end if;
+--   select exists(
+--     select 1 from detalle_venta
+--      where id_venta = p_id_venta and id_liquidacion is not null
+--   ) into v_liquidada;
+--   if v_liquidada then
+--     raise exception 'venta-liquidada' using errcode = '22023';
+--   end if;
+--   for r_det in
+--     select dv.id_item, ip.estado_item
+--       from detalle_venta dv
+--       join item_producto ip on ip.id_item = dv.id_item
+--      where dv.id_venta = p_id_venta
+--      for update of ip
+--   loop
+--     if r_det.estado_item = 'vendido' then
+--       if v_canal = 'revendedora' then
+--         perform sp_transicion_item_producto(
+--           r_det.id_item, 'en_revendedora', 'ajuste', p_id_venta, 'anulacion_venta', p_ip
+--         );
+--         update consignacion_revendedora_detalle
+--            set estado_detalle = 'en_poder'
+--          where id_item = r_det.id_item
+--            and estado_detalle = 'vendido'
+--            and id_tenant = v_tenant;
+--       else
+--         perform sp_transicion_item_producto(
+--           r_det.id_item, 'disponible', 'ajuste', p_id_venta, 'anulacion_venta', p_ip
+--         );
+--       end if;
+--     end if;
+--   end loop;
+--   with anuladas as (
+--     update cuota_financiada
+--        set estado = 'anulada'
+--      where id_venta = p_id_venta
+--        and estado in ('pendiente', 'parcial')
+--     returning 1
+--   )
+--   select count(*) into v_anuladas from anuladas;
+--   v_restante := greatest(0::numeric,
+--     (select coalesce(sum(monto), 0) from pago_venta where id_venta = p_id_venta and medio <> 'cuenta_revendedora')
+--     - (select coalesce(sum(monto), 0) from reintegro_cliente where id_venta = p_id_venta)
+--   );
+--   for r_pago in
+--     select id_pago_venta, id_cuenta_destino, medio, monto
+--       from pago_venta
+--      where id_venta = p_id_venta
+--        and medio <> 'cuenta_revendedora'
+--      order by created_at, id_pago_venta
+--   loop
+--     v_reintegro_pago := least(v_restante, r_pago.monto - coalesce((
+--       select sum(monto) from reintegro_cliente
+--        where id_pago_venta = r_pago.id_pago_venta
+--     ), 0));
+--     if v_reintegro_pago > 0 then
+--       insert into reintegro_cliente (
+--         id_tenant, id_venta, id_pago_venta, id_cuenta_destino,
+--         medio, monto, origen, motivo, id_usuario
+--       ) values (
+--         v_tenant, p_id_venta, r_pago.id_pago_venta, r_pago.id_cuenta_destino,
+--         r_pago.medio, v_reintegro_pago, 'anulacion', p_motivo, v_actor
+--       );
+--       v_total_reintegrado := v_total_reintegrado + v_reintegro_pago;
+--       v_restante := v_restante - v_reintegro_pago;
+--     end if;
+--   end loop;
+--   update venta
+--      set estado_venta     = 'anulada',
+--          fecha_anulacion  = now(),
+--          motivo_anulacion = p_motivo
+--    where id_venta = p_id_venta;
+--   insert into auditoria(id_tenant, id_usuario, entidad, entidad_id, accion, cambios, ip)
+--   values (v_tenant, v_actor, 'venta', p_id_venta::text, 'anular',
+--           jsonb_build_object('motivo', p_motivo, 'cuotas_anuladas', v_anuladas, 'total_reintegrado', v_total_reintegrado),
+--           p_ip);
+--   return jsonb_build_object('total_reintegrado', v_total_reintegrado);
+-- end $$;
+-- drop function if exists interno.fn_anular_venta_nucleo(uuid, uuid, uuid, text, inet);
+--
+-- alter table venta
+--   drop constraint if exists chk_venta_contacto_nombre_len,
+--   drop constraint if exists chk_venta_contacto_telefono_len,
+--   drop column if exists contacto_nombre,
+--   drop column if exists contacto_telefono;
 -- create or replace function tg_venta_cuadre_pagos()
 -- returns trigger language plpgsql as $$
 -- declare
@@ -1158,7 +1817,7 @@ revoke all on function tg_venta_cuadre_pagos() from public, anon, authenticated;
 -- end $$;
 -- grant execute on function tg_venta_cuadre_pagos() to public;
 --
--- drop function if exists sp_registrar_venta_revendedora(uuid[]);
+-- drop function if exists sp_registrar_venta_revendedora(uuid[], text, text);
 -- drop function if exists rvp_resolver_item_stock(text, uuid[]);
 --
 -- update rol

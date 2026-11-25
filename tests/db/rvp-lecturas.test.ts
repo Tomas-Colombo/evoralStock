@@ -186,8 +186,8 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       expect(ventasKeys).not.toContain(forbidden)
     }
     expect(ventasKeys).toEqual([
-      'color', 'comision_estimada', 'comision_liquidada', 'descripcion',
-      'estado_liquidacion', 'fecha_liquidacion', 'fecha_venta',
+      'color', 'comision_estimada', 'comision_liquidada', 'contacto_nombre', 'contacto_telefono',
+      'descripcion', 'estado_liquidacion', 'estado_venta', 'fecha_liquidacion', 'fecha_venta',
       'id_detalle_venta', 'id_item', 'id_venta', 'precio_venta', 'talle', 'total_filas'
     ].sort())
 
@@ -471,6 +471,7 @@ describe.skipIf(!hasTestDb)('Slice 9c — Funciones de lectura rvp_* (REQ-RV-ACC
       'fn_sellar_costo_ingreso', // sellador de costo en ingreso (00157, REQ-CPC §6.1)
       'fn_sellar_precio_inicial', // sellador de precio inicial al primer costo (00166)
       'sp_registrar_venta_revendedora', // venta directa del portal (00169, REQ-RVP-VTA-02)
+      'sp_anular_venta_revendedora', // anulación de venta desde el portal (00169, REQ-RVP-VTA-09)
       'tg_venta_cuadre_pagos', // trigger diferido: corre en el commit con el rol de la sesión y la RLS le escondía el pago de la revendedora (00169)
     ]
 

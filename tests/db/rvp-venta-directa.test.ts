@@ -494,6 +494,7 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
     const query = '{ __schema { types { name fields { name } } } }'
     const funcionesInternas = [
       'fn_registrar_venta_nucleo',
+      'fn_anular_venta_nucleo',
       'fn_sellar_costo_venta_nucleo',
       'fn_transicion_item_producto_nucleo',
     ]
@@ -516,5 +517,130 @@ describe.skipIf(!hasTestDb)('Portal venta directa — sp_registrar_venta_revende
         expect(jsonText).not.toContain(fn)
       }
     }
+  })
+
+  test('sp_registrar_venta_revendedora: guarda contacto_nombre y contacto_telefono normalizados', async () => {
+    const ctx = await setupContext()
+
+    const { data: idVenta, error } = await ctx.ana.auth.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.fA.items[0]],
+      p_contacto_nombre: '  Laura Gómez  ',
+      p_contacto_telefono: '   ',
+    })
+    expect(error).toBeNull()
+    expect(idVenta).toBeTruthy()
+
+    const { data: venta } = await serviceRole
+      .from('venta')
+      .select('contacto_nombre, contacto_telefono')
+      .eq('id_venta', idVenta)
+      .single()
+    expect(venta?.contacto_nombre).toBe('Laura Gómez')
+    expect(venta?.contacto_telefono).toBeNull()
+
+    const { data: misVentas } = await ctx.ana.auth.rpc('rvp_mis_ventas')
+    const fila = misVentas?.find((r: { id_venta: string }) => r.id_venta === idVenta)
+    expect(fila?.contacto_nombre).toBe('Laura Gómez')
+    expect(fila?.contacto_telefono).toBeNull()
+    expect(fila?.estado_venta).toBe('registrada')
+  })
+
+  test('sp_anular_venta_revendedora: anula venta propia, devuelve stock; rechaza ajena, liquidada, doble y sin permiso', async () => {
+    const ctx = await setupContext()
+
+    // 1. Registrar venta de Ana con 2 ítems
+    const { data: idVentaAna, error: errVta } = await ctx.ana.auth.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.fA.items[0], ctx.fA.items[1]],
+    })
+    expect(errVta).toBeNull()
+
+    // 2. Beto (otra revendedora del mismo tenant) no puede anularla
+    const { error: errAjena } = await ctx.beto.auth.rpc('sp_anular_venta_revendedora', {
+      p_id_venta: idVentaAna,
+      p_motivo: 'Intento ajeno',
+    })
+    expect(errAjena).not.toBeNull()
+
+    // 3. Sin permiso 'vender' -> no-permission
+    const { data: idRolSinVender } = await serviceRole
+      .from('rol')
+      .insert({
+        id_tenant: ctx.fA.tenantId,
+        nombre: `SoloVer-${Date.now()}`,
+        permisos: { revendedoras: ['ver_propio'] },
+      })
+      .select('id_rol')
+      .single()
+    await serviceRole
+      .from('usuario')
+      .update({ id_rol: idRolSinVender!.id_rol })
+      .eq('id_usuario', ctx.ana.userId)
+
+    const { error: errSinPerm } = await ctx.ana.auth.rpc('sp_anular_venta_revendedora', {
+      p_id_venta: idVentaAna,
+    })
+    expect(errSinPerm?.message).toMatch(/no-permission/)
+
+    // Restaurar rol con permiso 'vender'
+    const { data: rolRev } = await serviceRole
+      .from('rol')
+      .select('id_rol')
+      .eq('id_tenant', ctx.fA.tenantId)
+      .eq('nombre', 'Revendedora')
+      .single()
+    await serviceRole
+      .from('usuario')
+      .update({ id_rol: rolRev!.id_rol })
+      .eq('id_usuario', ctx.ana.userId)
+
+    // 4. Anulación propia -> OK y los artículos vuelven a en_revendedora / en_poder
+    const { error: errAnular } = await ctx.ana.auth.rpc('sp_anular_venta_revendedora', {
+      p_id_venta: idVentaAna,
+      p_motivo: 'Se equivocó de talle',
+    })
+    expect(errAnular).toBeNull()
+
+    const { data: itemsDevueltos } = await serviceRole
+      .from('item_producto')
+      .select('estado_item')
+      .in('id_item', [ctx.fA.items[0], ctx.fA.items[1]])
+    expect(itemsDevueltos!.every((i) => i.estado_item === 'en_revendedora')).toBe(true)
+
+    const { data: detsDevueltos } = await serviceRole
+      .from('consignacion_revendedora_detalle')
+      .select('estado_detalle')
+      .in('id_item', [ctx.fA.items[0], ctx.fA.items[1]])
+    expect(detsDevueltos!.every((d) => d.estado_detalle === 'en_poder')).toBe(true)
+
+    // Aparece en rvp_mis_ventas como anulada sin comisión
+    const { data: misVentas } = await ctx.ana.auth.rpc('rvp_mis_ventas')
+    const filaAnulada = misVentas?.find((r: { id_venta: string }) => r.id_venta === idVentaAna)
+    expect(filaAnulada?.estado_venta).toBe('anulada')
+    expect(Number(filaAnulada?.comision_estimada)).toBe(0)
+
+    // 5. Doble anulación -> rechazo
+    const { error: errDoble } = await ctx.ana.auth.rpc('sp_anular_venta_revendedora', {
+      p_id_venta: idVentaAna,
+    })
+    expect(errDoble?.message).toMatch(/venta-ya-anulada/)
+
+    // 6. Venta liquidada -> venta-liquidada
+    const { data: idVentaLiq, error: errVta2 } = await ctx.ana.auth.rpc('sp_registrar_venta_revendedora', {
+      p_items: [ctx.fA.items[2]],
+    })
+    expect(errVta2).toBeNull()
+
+    const hoy = new Date().toISOString().slice(0, 10)
+    const { error: errLiq } = await ctx.fA.authenticated.rpc('sp_liquidar_revendedora', {
+      p_id_revendedora: ctx.ana.idRevendedora,
+      p_desde: hoy,
+      p_hasta: hoy,
+    })
+    expect(errLiq).toBeNull()
+
+    const { error: errAnularLiq } = await ctx.ana.auth.rpc('sp_anular_venta_revendedora', {
+      p_id_venta: idVentaLiq,
+    })
+    expect(errAnularLiq?.message).toMatch(/venta-liquidada/)
   })
 })

@@ -124,6 +124,13 @@ Por lo tanto:
 
 - **Unchecked SPs**: every live `sp_*` without a check must be listed with an explicit reason in `SP_SIN_CHEQUEO` (`tests/arquitectura-sp-permisos.test.ts`).
 
+## Schema `interno` y excepciones DEFINER del portal de revendedoras (00169)
+
+- El schema `interno` aloja núcleos compartidos (`fn_registrar_venta_nucleo`, `fn_anular_venta_nucleo`, `fn_transicion_item_producto_nucleo`, `fn_sellar_costo_venta_nucleo`) sin compuertas propias; no figura en `[api] schemas` de `supabase/config.toml` y no es alcanzable vía PostgREST RPC.
+- `sp_registrar_venta_revendedora` y `sp_anular_venta_revendedora` (`SECURITY DEFINER`) validan tenant, `auth_revendedora_id()`, módulo habilitado y permiso `revendedoras.vender` leído directamente del rol (`usuario` + `rol`, porque `auth_tiene_permiso` excluye revendedoras), verifican pertenencia y delegan en `interno.*`.
+- `tg_venta_cuadre_pagos` (`SECURITY DEFINER`) valida el invariante de cuadre de pagos al `COMMIT` sin depender de la visibilidad RLS de `pago_venta` para revendedoras.
+- Los SPs de declaraciones (`sp_declarar_venta_revendedora`, `sp_confirmar_declaracion_venta`, `sp_rechazar_declaracion_venta`, `sp_retirar_declaracion`, `rvp_mis_declaraciones`) fueron retirados en `00169`.
+
 ## Código EAN interno y configuración de etiquetas (00162–00164)
 
 ### Formato e inmutabilidad de `item_producto.codigo_ean`

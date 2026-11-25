@@ -31,8 +31,10 @@ export const SP_SIN_CHEQUEO: Record<string, string> = {
   sp_enlazar_revendedora_usuario: 'Service-role en creación unificada de revendedora (SECURITY DEFINER)',
   sp_reactivar_acceso_revendedora: 'Service-role en reactivación de acceso revendedora',
 
-  // Portal de revendedora (1): lee permiso 'vender' del rol dentro del DEFINER
+  // Portal de revendedora (2): lee permiso 'vender' del rol dentro del DEFINER
   sp_registrar_venta_revendedora:
+    "Portal de revendedora: auth_tiene_permiso excluye la sesión de revendedora; el permiso 'vender' se lee del rol dentro del DEFINER",
+  sp_anular_venta_revendedora:
     "Portal de revendedora: auth_tiene_permiso excluye la sesión de revendedora; el permiso 'vender' se lee del rol dentro del DEFINER",
 
   // Execute revocado (2): revocado el execute a authenticated en migraciones posteriores
