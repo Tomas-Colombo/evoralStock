@@ -20,6 +20,7 @@ export interface SelectUrlProps {
   label?: string
   ariaLabel?: string
   paramPagina?: string
+  scroll?: boolean
   className?: string
 }
 
@@ -36,9 +37,10 @@ export function SelectUrl({
   label,
   ariaLabel,
   paramPagina,
+  scroll,
   className,
 }: SelectUrlProps) {
-  const { aplicar, pendiente } = useFiltrosUrl({ paramPagina })
+  const { aplicar, pendiente } = useFiltrosUrl({ paramPagina, scroll })
   const [seleccionado, setSeleccionado] = useValorSincronizado(valor)
 
   function manejarCambio(nuevo: string) {

@@ -65,6 +65,7 @@ describe('SelectorPlantilla', () => {
 
     expect(pushMock).toHaveBeenCalledWith(
       '/inventario/imprimir-etiquetas?qrs=QR1%2CQR2&plantilla=plan-2',
+      { scroll: true },
     )
   })
 })

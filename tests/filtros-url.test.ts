@@ -5,13 +5,16 @@
  * terminaron apareciendo copias locales con `router.push` / `router.replace` y
  * query strings armados a mano. Este test no admite excepciones:
  *
- * - En `app/**`, los filtros, la búsqueda y la paginación por URL pasan solo por
+ * - En `app/**` y `components/**` (fuera de `components/filtros/`), los
+ *   filtros, la búsqueda y la paginación por URL pasan solo por
  *   `components/filtros/` (`PaginacionUrl`, `SelectUrl`, `BusquedaUrl`,
  *   `useFiltrosUrl`) o `FiltroPeriodo`.
  * - Navegar a otra pantalla con query string se hace con `<Link href="...">`.
- * - Ningún archivo de `app/**` puede llamar `router.push(` o `router.replace(`
- *   con un destino que lleve query string (literal/template con `?` o variable
- *   armada con `URLSearchParams`).
+ * - Ningún archivo de `app/**` o `components/**` (excepto `components/filtros/`)
+ *   puede llamar `.push(` o `.replace(` sobre un receptor inicializado con
+ *   `useRouter()` (ni sobre `useRouter()` directo) con un destino que lleve
+ *   query string (literal/template con `?` o variable armada con
+ *   `URLSearchParams`).
  * - Usar `URLSearchParams` para un `fetch('/api/...')` o navegar sin query
  *   string sigue permitido.
  */
@@ -22,13 +25,49 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const RAIZ = process.cwd()
+const DIRECTORIOS = ['app', 'components']
 
 function archivos(dir: string): string[] {
   return readdirSync(path.join(RAIZ, dir), { withFileTypes: true }).flatMap((e) => {
     const ruta = `${dir}/${e.name}`.replace(/\\/g, '/')
-    if (e.isDirectory()) return e.name === 'node_modules' ? [] : archivos(ruta)
+    if (e.isDirectory()) {
+      if (e.name === 'node_modules' || ruta === 'components/filtros') return []
+      return archivos(ruta)
+    }
     return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [ruta] : []
   })
+}
+
+function esLlamadaUseRouter(expr: ts.Expression): boolean {
+  return (
+    ts.isCallExpression(expr) &&
+    ts.isIdentifier(expr.expression) &&
+    expr.expression.text === 'useRouter'
+  )
+}
+
+function recolectarReceptoresRouter(sf: ts.SourceFile): Set<string> {
+  const receptores = new Set<string>()
+  const visitar = (nodo: ts.Node) => {
+    if (
+      ts.isVariableDeclaration(nodo) &&
+      ts.isIdentifier(nodo.name) &&
+      nodo.initializer &&
+      esLlamadaUseRouter(nodo.initializer)
+    ) {
+      receptores.add(nodo.name.text)
+    } else if (
+      ts.isBinaryExpression(nodo) &&
+      nodo.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(nodo.left) &&
+      esLlamadaUseRouter(nodo.right)
+    ) {
+      receptores.add(nodo.left.text)
+    }
+    ts.forEachChild(nodo, visitar)
+  }
+  visitar(sf)
+  return receptores
 }
 
 function expresionLlevaQueryString(
@@ -109,35 +148,38 @@ function recolectarVariablesConQuery(sf: ts.SourceFile): Set<string> {
 
 function analizar(): string[] {
   const violaciones: string[] = []
-  for (const archivo of archivos('app')) {
-    const texto = readFileSync(path.join(RAIZ, archivo), 'utf8')
-    const sf = ts.createSourceFile(archivo, texto, ts.ScriptTarget.Latest, true)
-    const variablesConQuery = recolectarVariablesConQuery(sf)
+  for (const dir of DIRECTORIOS) {
+    for (const archivo of archivos(dir)) {
+      const texto = readFileSync(path.join(RAIZ, archivo), 'utf8')
+      const sf = ts.createSourceFile(archivo, texto, ts.ScriptTarget.Latest, true)
+      const receptores = recolectarReceptoresRouter(sf)
+      const variablesConQuery = recolectarVariablesConQuery(sf)
 
-    const visitar = (nodo: ts.Node) => {
-      if (
-        ts.isCallExpression(nodo) &&
-        ts.isPropertyAccessExpression(nodo.expression) &&
-        (nodo.expression.name.text === 'push' || nodo.expression.name.text === 'replace') &&
-        ts.isIdentifier(nodo.expression.expression) &&
-        nodo.expression.expression.text === 'router' &&
-        nodo.arguments.length > 0
-      ) {
-        const arg = nodo.arguments[0]
-        if (expresionLlevaQueryString(arg, variablesConQuery, sf)) {
-          const { line } = sf.getLineAndCharacterOfPosition(nodo.getStart(sf))
-          violaciones.push(`${archivo}:${line + 1} (${nodo.expression.name.text})`)
+      const visitar = (nodo: ts.Node) => {
+        if (
+          ts.isCallExpression(nodo) &&
+          ts.isPropertyAccessExpression(nodo.expression) &&
+          (nodo.expression.name.text === 'push' || nodo.expression.name.text === 'replace') &&
+          nodo.arguments.length > 0
+        ) {
+          const obj = nodo.expression.expression
+          const esRouter =
+            (ts.isIdentifier(obj) && receptores.has(obj.text)) || esLlamadaUseRouter(obj)
+          if (esRouter && expresionLlevaQueryString(nodo.arguments[0], variablesConQuery, sf)) {
+            const { line } = sf.getLineAndCharacterOfPosition(nodo.getStart(sf))
+            violaciones.push(`${archivo}:${line + 1} (${nodo.expression.name.text})`)
+          }
         }
+        ts.forEachChild(nodo, visitar)
       }
-      ts.forEachChild(nodo, visitar)
+      visitar(sf)
     }
-    visitar(sf)
   }
   return violaciones
 }
 
 describe('Navegación y filtros por URL', () => {
-  it('ningún archivo de app/ llama router.push o router.replace con query string', () => {
+  it('ningún archivo de app/ ni components/ (fuera de components/filtros/) navega con query string vía useRouter', () => {
     expect(analizar()).toEqual([])
   })
 })

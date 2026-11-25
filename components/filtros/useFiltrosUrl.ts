@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react'
 export interface OpcionesFiltrosUrl {
   /** Nombre del query param de paginación que se limpia al cambiar filtros. */
   paramPagina?: string
+  /** Si se preserva el scroll al navegar (default `true`). */
+  scroll?: boolean
 }
 
 /**
@@ -15,7 +17,7 @@ export interface OpcionesFiltrosUrl {
  * aplicar (no los `searchParams` del render) para que cada filtro modifique
  * solo sus params sin pisar lo que otro aplicó en paralelo.
  */
-export function useFiltrosUrl({ paramPagina = 'pagina' }: OpcionesFiltrosUrl = {}) {
+export function useFiltrosUrl({ paramPagina = 'pagina', scroll = true }: OpcionesFiltrosUrl = {}) {
   const router = useRouter()
   const [pendiente, startTransition] = useTransition()
 
@@ -38,7 +40,7 @@ export function useFiltrosUrl({ paramPagina = 'pagina' }: OpcionesFiltrosUrl = {
 
     const qs = params.toString()
     const destino = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-    startTransition(() => router.push(destino))
+    startTransition(() => router.push(destino, { scroll }))
   }
 
   return { aplicar, pendiente }

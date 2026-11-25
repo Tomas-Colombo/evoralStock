@@ -25,7 +25,6 @@ export function ProductosTableClient({
   page,
   pageSize,
   total,
-  basePath = '/inventario/productos',
   tenenciaStock,
   initialTenencia,
 }: {

@@ -1,9 +1,12 @@
 'use client'
 
 import React from 'react'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import type { FinanzasRankingRow } from '@/lib/types/reportes'
 import { Table, type Column } from '@/components/ui/Table'
+import { escapeCsvField, downloadCsv } from '@/lib/utils/csv'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 
 function formatMoney(value: number | null | undefined) {
   if (value == null) return 'Sin permiso'
@@ -15,22 +18,7 @@ interface BloqueRankingProps {
   ordenActual: string
 }
 
-import { escapeCsvField, downloadCsv } from '@/lib/utils/csv'
-import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
-import { Card } from '@/components/ui/Card'
-
 export function BloqueRanking({ ranking, ordenActual }: BloqueRankingProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const pathname = usePathname()
-
-  const handleOrdenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('orden', e.target.value)
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }
-
   const exportarCSV = () => {
     const header = ['Producto', 'Unidades vendidas', 'Monto vendido', 'Ganancia']
     const csvRows = [header.join(',')]
@@ -76,16 +64,19 @@ export function BloqueRanking({ ranking, ordenActual }: BloqueRankingProps) {
       <div className="p-4 border-b border-border bg-panel flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <h2 id="h2-ranking" className="font-display text-lg">Los que más rinden</h2>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Select
-            value={ordenActual}
-            onChange={handleOrdenChange}
+          <SelectUrl
+            id="ranking-orden"
+            param="orden"
+            valor={ordenActual}
+            scroll={false}
+            ariaLabel="Ordenar ranking por"
             className="h-9 sm:w-auto px-3 py-2 text-sm"
-            aria-label="Ordenar ranking por"
-          >
-            <option value="ganancia">Mayor ganancia</option>
-            <option value="unidades">Más unidades vendidas</option>
-            <option value="monto">Mayor monto facturado</option>
-          </Select>
+            opciones={[
+              { value: 'ganancia', label: 'Mayor ganancia' },
+              { value: 'unidades', label: 'Más unidades vendidas' },
+              { value: 'monto', label: 'Mayor monto facturado' },
+            ]}
+          />
           <Button
             variant="secondary"
             size="sm"
