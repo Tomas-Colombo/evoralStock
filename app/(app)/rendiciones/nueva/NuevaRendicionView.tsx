@@ -15,7 +15,7 @@ import {
 } from '../actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
 import { TableFrame, DataTable, THead, TBody, TFoot, Tr, Th, Td } from '@/components/ui/TableParts'
-import { Select } from '@/components/ui/Select'
+import { SelectUrl } from '@/components/filtros/SelectUrl'
 import { Card } from '@/components/ui/Card'
 
 interface Prov { id: string; nombre: string; tipo: string }
@@ -55,10 +55,6 @@ export function NuevaRendicionView({
     () => visibles.reduce((a, l) => a + Number(l.monto_proveedor), 0),
     [visibles],
   )
-
-  function elegirProveedor(id: string) {
-    router.push(id ? `/rendiciones/nueva?prov=${id}` : '/rendiciones/nueva')
-  }
 
   function excluir(idDetalle: string) {
     start(async () => {
@@ -101,20 +97,20 @@ export function NuevaRendicionView({
     <div className="space-y-6">
       {/* Paso 1: seleccionar proveedor */}
       <Card>
-        <Field htmlFor="r-prov" label="Proveedor" required>
-          <Select
-            id="r-prov"
-            value={idProvSeleccionado}
-            onChange={(e) => elegirProveedor(e.target.value)}
-          >
-            <option value="">— Elegí un proveedor —</option>
-            {proveedores.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} · {p.tipo}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <SelectUrl
+          id="r-prov"
+          param="prov"
+          valor={idProvSeleccionado}
+          valorPorDefecto=""
+          label="Proveedor"
+          opciones={[
+            { value: '', label: '— Elegí un proveedor —' },
+            ...proveedores.map((p) => ({
+              value: p.id,
+              label: `${p.nombre} · ${p.tipo}`,
+            })),
+          ]}
+        />
       </Card>
 
       {/* Paso 2: preview de líneas */}

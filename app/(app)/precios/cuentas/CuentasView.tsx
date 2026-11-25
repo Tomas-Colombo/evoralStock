@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { NumberInput } from '@/components/ui/NumberInput'
-import { Pagination } from '@/components/ui/Pagination'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { Select } from '@/components/ui/Select'
 import { Table, type Column } from '@/components/ui/Table'
 import { useToast } from '@/components/ui/Toast'
@@ -197,16 +197,6 @@ export function CuentasView({
       if (!res.ok) return toast.error('No se pudo actualizar', mensajeDeError(res.reason))
       router.refresh()
     })
-  }
-
-  function goToPage(nextPage: number) {
-    const params = new URLSearchParams()
-    if (nextPage > 1) params.set('page', String(nextPage))
-    const qs = params.toString()
-    // Cambiar de página deja el panel de detalle apuntando a una cuenta que
-    // ya no está en pantalla.
-    setDetalle(null)
-    start(() => router.push(qs ? `/precios/cuentas?${qs}` : '/precios/cuentas'))
   }
 
   const columns: Column<CuentaDestinoRow>[] = [
@@ -485,12 +475,11 @@ export function CuentasView({
         />
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
+        param="page"
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={goToPage}
-        disabled={pending}
       />
 
       <RecargosPanel

@@ -153,14 +153,17 @@ describe('ImpactoReglaDialog', () => {
     const btnAplicar = screen.getByRole('button', { name: 'Aplicar a 3 productos' })
     const btnDeshacer = screen.getByRole('button', { name: 'Deshacer regla' })
     const btnCerrar = screen.getByRole('button', { name: 'Cerrar' })
-    const btnDetalle = screen.getByRole('button', { name: 'Ver detalle' })
+    expect(screen.getByRole('link', { name: 'Ver detalle' })).toHaveAttribute(
+      'href',
+      `/precios/control?regla=${idRegla}`,
+    )
 
     await user.click(btnAplicar)
 
     expect(btnAplicar).toBeDisabled()
     expect(btnDeshacer).toBeDisabled()
     expect(btnCerrar).toBeDisabled()
-    expect(btnDetalle).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeDisabled()
     expect(actions.aplicarReglaAction).toHaveBeenCalledTimes(1)
 
     // Intento de segundo clic mientras corre
@@ -205,7 +208,10 @@ describe('ImpactoReglaDialog', () => {
 
     expect(screen.queryByRole('button', { name: /Aplicar a/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Deshacer regla' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver detalle' })).toHaveAttribute(
+      'href',
+      `/precios/control?regla=${idRegla}`,
+    )
     expect(screen.getByRole('button', { name: 'Cerrar' })).toBeInTheDocument()
     expect(
       screen.getByText('La regla queda guardada y los precios sin aplicar.'),

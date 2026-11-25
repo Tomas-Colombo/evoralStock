@@ -3,16 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { SelectorPlantilla } from './SelectorPlantilla'
 import type { EtiquetaPlantilla } from '@/lib/dal/etiquetas/etiquetas'
 
-const replaceMock = vi.fn()
-const pathnameMock = vi.fn().mockReturnValue('/inventario/imprimir-etiquetas')
-const searchParamsMock = vi.fn().mockReturnValue(new URLSearchParams('qrs=QR1,QR2'))
+const pushMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    replace: replaceMock,
+    push: pushMock,
   }),
-  usePathname: () => pathnameMock(),
-  useSearchParams: () => searchParamsMock(),
 }))
 
 const mockPlantillas: EtiquetaPlantilla[] = [
@@ -60,13 +56,14 @@ describe('SelectorPlantilla', () => {
     expect(screen.getByText('Bijou (25×15 mm)')).toBeInTheDocument()
   })
 
-  it('al cambiar de opción llama a router.replace con ?plantilla=<uuid> preservando otros params', () => {
+  it('al cambiar de opción llama a router.push con ?plantilla=<uuid> preservando otros params', () => {
+    window.history.replaceState({}, '', '/inventario/imprimir-etiquetas?qrs=QR1,QR2')
     render(<SelectorPlantilla plantillas={mockPlantillas} selectedId="plan-1" />)
 
     const select = screen.getByRole('combobox', { name: 'Seleccionar plantilla' })
     fireEvent.change(select, { target: { value: 'plan-2' } })
 
-    expect(replaceMock).toHaveBeenCalledWith(
+    expect(pushMock).toHaveBeenCalledWith(
       '/inventario/imprimir-etiquetas?qrs=QR1%2CQR2&plantilla=plan-2',
     )
   })

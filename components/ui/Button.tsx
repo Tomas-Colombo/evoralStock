@@ -46,6 +46,17 @@ const SIZE_CLASS: Record<ButtonSize, string> = {
   lg: 'text-base px-6 py-3',
 }
 
+const BASE_CLASS =
+  'inline-flex select-none items-center justify-center gap-2 rounded-md font-medium transition-[background-color,border-color,color,opacity,transform] duration-150 focus:outline-none focus-visible:ring-2 active:translate-y-px disabled:pointer-events-none disabled:opacity-50'
+
+export function buttonClassName(
+  variant: ButtonVariant = 'primary',
+  size: ButtonSize = 'md',
+  className = '',
+): string {
+  return `${BASE_CLASS} ${VARIANT_CLASS[variant]} ${variant === 'bare' ? '' : SIZE_CLASS[size]} ${className}`
+}
+
 /**
  * Base button primitive (REQ-DS-05 keyboard-first + focus ring).
  * `type="button"` by default — callers pass `type="submit"` explicitly
@@ -65,7 +76,7 @@ export function Button({
       type={type}
       data-variant={variant}
       data-size={size}
-      className={`inline-flex select-none items-center justify-center gap-2 rounded-md font-medium transition-[background-color,border-color,color,opacity,transform] duration-150 focus:outline-none focus-visible:ring-2 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 ${VARIANT_CLASS[variant]} ${variant === 'bare' ? '' : SIZE_CLASS[size]} ${className}`}
+      className={buttonClassName(variant, size, className)}
       {...rest}
     >
       {children}

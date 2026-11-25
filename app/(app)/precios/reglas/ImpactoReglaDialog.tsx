@@ -1,8 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/Button'
+import { Button, buttonClassName } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { aplicarReglaAction, bajaReglaAction } from '@/app/(app)/precios/actions'
 import { mensajeDeError } from '@/lib/errores/mensajes'
@@ -25,7 +25,6 @@ export function ImpactoReglaDialog({
   puedeVerCostos,
   onClose,
 }: ImpactoReglaDialogProps) {
-  const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(false)
   const [aplicada, setAplicada] = useState(false)
@@ -69,11 +68,6 @@ export function ImpactoReglaDialog({
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleVerDetalle() {
-    if (loading) return
-    router.push(`/precios/control?regla=${idRegla}`)
   }
 
   return (
@@ -139,15 +133,18 @@ export function ImpactoReglaDialog({
           </Button>
         )}
 
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={loading}
-          onClick={handleVerDetalle}
-        >
-          Ver detalle
-        </Button>
+        {loading ? (
+          <Button type="button" variant="secondary" size="sm" disabled>
+            Ver detalle
+          </Button>
+        ) : (
+          <Link
+            href={`/precios/control?regla=${idRegla}`}
+            className={buttonClassName('secondary', 'sm')}
+          >
+            Ver detalle
+          </Link>
+        )}
 
         <Button
           type="button"

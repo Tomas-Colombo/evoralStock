@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
+import { useFiltrosUrl } from '@/components/filtros/useFiltrosUrl'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { BuscadorProductos, type SugerenciaProducto } from '@/components/inventario/BuscadorProductos'
-import { Pagination } from '@/components/ui/Pagination'
 import { Table, type Column } from '@/components/ui/Table'
 import { normalizar } from '@/lib/inventario/producto-match'
 import type { ProductoBuscadorItem } from '@/lib/dal/inventario/producto'
@@ -45,11 +46,13 @@ export function ProductosTableClient({
   initialTenencia?: string
 }) {
   const router = useRouter()
+  const { aplicar: aplicarUrl, pendiente: pendienteUrl } = useFiltrosUrl({ paramPagina: 'page' })
   const [q, setQ] = useState(initialSearch)
   const [cat, setCat] = useState(initialCategoria)
   const [tenencia, setTenencia] = useState(initialTenencia ?? '')
   const [pending, startTransition] = useTransition()
   const [editing, setEditing] = useState<ProductoSinCosto | null>(null)
+  const cargando = pending || pendienteUrl
 
   // Sugerencias por nombre o SKU (mismo criterio normalizado que ventas).
   const sugerencias = useMemo<SugerenciaProducto[]>(() => {
@@ -76,30 +79,13 @@ export function ProductosTableClient({
     return rows
   }, [rows, tenenciaStock, tenencia])
 
-  function navigate(params: URLSearchParams) {
-    const qs = params.toString()
-    startTransition(() => {
-      router.push(qs ? `${basePath}?${qs}` : basePath)
-    })
-  }
-
-  // Cambiar filtros vuelve a la página 1: el `page` actual dejaría de tener
-  // sentido con un conjunto de resultados distinto.
+  // Cambiar filtros vuelve a la página 1 (useFiltrosUrl limpia `page`).
   function applyFilters(nextQ = q, nextCat = cat, nextTenencia = tenencia) {
-    const params = new URLSearchParams()
-    if (nextQ.trim()) params.set('q', nextQ.trim())
-    if (nextCat) params.set('cat', nextCat)
-    if (tenenciaStock && nextTenencia) params.set('tenencia', nextTenencia)
-    navigate(params)
-  }
-
-  function goToPage(nextPage: number) {
-    const params = new URLSearchParams()
-    if (q.trim()) params.set('q', q.trim())
-    if (cat) params.set('cat', cat)
-    if (tenenciaStock && tenencia) params.set('tenencia', tenencia)
-    if (nextPage > 1) params.set('page', String(nextPage))
-    navigate(params)
+    aplicarUrl({
+      q: nextQ.trim() || null,
+      cat: nextCat || null,
+      tenencia: tenenciaStock && nextTenencia ? nextTenencia : null,
+    })
   }
 
   const columns: Column<ProductoSinCosto>[] = [
@@ -258,7 +244,7 @@ export function ProductosTableClient({
         sugerencias={sugerencias}
         onElegir={elegirSugerencia}
         onSubmit={buscarLibre}
-        disabled={pending}
+        disabled={cargando}
         actions={
           <>
             <Select
@@ -307,7 +293,7 @@ export function ProductosTableClient({
             variant="bare"
             type="button"
             onClick={limpiarFiltros}
-            disabled={pending}
+            disabled={cargando}
             className="rounded-[4px] px-2 py-1 font-medium text-muted underline decoration-line-2 underline-offset-2 transition-colors hover:text-ink hover:decoration-ink"
           >
             Limpiar filtros
@@ -317,24 +303,23 @@ export function ProductosTableClient({
 
       <div
         className={`overflow-x-auto rounded-lg border border-line bg-panel shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-opacity ${
-          pending ? 'opacity-70' : ''
+          cargando ? 'opacity-70' : ''
         }`}
       >
         <Table
           columns={columns}
           data={displayedRows}
-          loading={pending}
+          loading={cargando}
           getRowId={(r) => r.id_producto}
           emptyState="Sin productos que coincidan con los filtros"
         />
       </div>
 
-      <Pagination
+      <PaginacionUrl
+        param="page"
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={goToPage}
-        disabled={pending}
       />
 
       <EditarProductoModal

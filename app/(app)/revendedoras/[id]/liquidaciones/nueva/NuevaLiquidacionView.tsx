@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
 import { Kpi } from '@/components/ui/Kpi'
 import { Table, type Column } from '@/components/ui/Table'
 import { Textarea } from '@/components/ui/Textarea'
@@ -41,8 +41,6 @@ export function NuevaLiquidacionView({
   const toast = useToast()
   const [pending, start] = useTransition()
 
-  const [fechaDesde, setFechaDesde] = useState(desde)
-  const [fechaHasta, setFechaHasta] = useState(hasta)
   const [observaciones, setObservaciones] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -54,12 +52,6 @@ export function NuevaLiquidacionView({
 
   const visibles = lineas.filter((l) => !l.excluida && !excluidosLocales.has(l.id_detalle_venta))
   const excluidas = lineas.filter((l) => l.excluida || excluidosLocales.has(l.id_detalle_venta))
-
-  function actualizarPeriodo() {
-    router.push(
-      `/revendedoras/${idRevendedora}/liquidaciones/nueva?desde=${fechaDesde}&hasta=${fechaHasta}`,
-    )
-  }
 
   function excluirLinea(idDetalle: string) {
     start(async () => {
@@ -209,27 +201,12 @@ export function NuevaLiquidacionView({
       {/* Selector de período */}
       <Card padding="none" className="p-6">
         <h2 className="font-display text-lg mb-4">Período de liquidación</h2>
-        <div className="flex flex-wrap items-end gap-4">
-          <Field htmlFor="liq-desde" label="Fecha desde">
-            <Input
-              id="liq-desde"
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
-          </Field>
-          <Field htmlFor="liq-hasta" label="Fecha hasta">
-            <Input
-              id="liq-hasta"
-              type="date"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
-          </Field>
-          <Button variant="secondary" onClick={actualizarPeriodo} disabled={pending}>
-            Consultar período
-          </Button>
-        </div>
+        <FiltroPeriodo
+          ariaLabel="Período de liquidación"
+          idPrefix="liq"
+          desde={desde}
+          hasta={hasta}
+        />
       </Card>
 
       {/* Tarjetas resumen devueltas por el SP preview_liquidacion */}

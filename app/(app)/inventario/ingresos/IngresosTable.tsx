@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Pagination } from '@/components/ui/Pagination'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { useToast } from '@/components/ui/Toast'
 import type { IngresoConResumen } from '@/lib/types/inventario'
 import { cancelarIngresoAction } from '../actions'
@@ -32,13 +32,6 @@ export function IngresosTable({
   const [rows, setRows] = useState(initial)
   const [pending, start] = useTransition()
   const [target, setTarget] = useState<IngresoConResumen | null>(null)
-
-  function goToPage(nextPage: number) {
-    const params = new URLSearchParams()
-    if (nextPage > 1) params.set('page', String(nextPage))
-    const qs = params.toString()
-    router.push(qs ? `/inventario/ingresos?${qs}` : '/inventario/ingresos')
-  }
 
   function cancelar() {
     const row = target
@@ -160,12 +153,11 @@ export function IngresosTable({
       </DataTable>
       </TableFrame>
 
-      <Pagination
+      <PaginacionUrl
+        param="page"
         page={page}
         pageSize={pageSize}
         total={total}
-        onPageChange={goToPage}
-        disabled={pending}
       />
 
       <ConfirmDialog

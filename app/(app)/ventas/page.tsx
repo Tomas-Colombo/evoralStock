@@ -17,8 +17,8 @@ import {
   inicioDelDiaSiguiente,
   mesActual,
 } from '@/lib/fechas'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
-import { VentasPaginacion } from './VentasPaginacion'
 import { hoyISO } from '@/lib/utils/hoy'
 import { DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
@@ -318,7 +318,7 @@ export default async function VentasHome(props: {
           )}
           {total > PAGE_SIZE && (
             <div className="border-t border-border px-3">
-              <VentasPaginacion page={pagina} pageSize={PAGE_SIZE} total={total} />
+              <PaginacionUrl page={pagina} pageSize={PAGE_SIZE} total={total} />
             </div>
           )}
         </Card>

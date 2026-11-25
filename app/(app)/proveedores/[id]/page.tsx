@@ -19,8 +19,8 @@ import { ESTADO_CONSIGNACION_LABEL } from '@/lib/types/consignaciones'
 import { ESTADO_RENDICION_LABEL } from '@/lib/types/rendiciones'
 import { BajaProveedorButton } from './BajaProveedorButton'
 import { EditarProveedorButton } from './EditarProveedorButton'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { FiltroPeriodo } from '@/components/shell/FiltroPeriodo'
-import { PerfilPaginacion } from './PerfilPaginacion'
 import { TableFrame, DataTable, THead, TBody, Tr, Th, Td } from '@/components/ui/TableParts'
 import { Card } from '@/components/ui/Card'
 
@@ -281,9 +281,8 @@ export default async function ProveedorPerfilPage(props: {
               </div>
             )}
           </TableFrame>
-          <PerfilPaginacion
-            id={id}
-            paramKey="ing_page"
+          <PaginacionUrl
+            param="ing_page"
             page={ingPage}
             pageSize={PAGE_SIZE}
             total={ingresosFiltrados.length}
@@ -344,9 +343,8 @@ export default async function ProveedorPerfilPage(props: {
               </div>
             )}
           </TableFrame>
-          <PerfilPaginacion
-            id={id}
-            paramKey="cons_page"
+          <PaginacionUrl
+            param="cons_page"
             page={consPage}
             pageSize={PAGE_SIZE}
             total={consignacionesFiltradas.length}
@@ -413,9 +411,8 @@ export default async function ProveedorPerfilPage(props: {
               </div>
             )}
           </TableFrame>
-          <PerfilPaginacion
-            id={id}
-            paramKey="rend_page"
+          <PaginacionUrl
+            param="rend_page"
             page={rendPage}
             pageSize={PAGE_SIZE}
             total={rendicionesFiltradas.length}

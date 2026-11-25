@@ -1,10 +1,8 @@
 'use client'
 
-import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { PaginacionUrl } from '@/components/filtros/PaginacionUrl'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Pagination } from '@/components/ui/Pagination'
 import { StatusDot } from '@/components/ui/StatusMark'
 import {
   DataTable,
@@ -55,8 +53,6 @@ export function HistorialTable({
   onAbrirNuevoCargo,
   onAbrirNuevoPago,
 }: HistorialTableProps) {
-  const router = useRouter()
-  const [isPendingPage, startTransition] = useTransition()
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -187,20 +183,11 @@ export function HistorialTable({
       </TableFrame>
 
       {totalHistorial !== undefined && hpage !== undefined && hpageSize !== undefined && idTenant ? (
-        <Pagination
+        <PaginacionUrl
+          param="hpage"
           page={hpage}
           pageSize={hpageSize}
           total={totalHistorial}
-          onPageChange={(nextPage) => {
-            startTransition(() => {
-              const url =
-                nextPage > 1
-                  ? `/plataforma/${idTenant}?hpage=${nextPage}`
-                  : `/plataforma/${idTenant}`
-              router.push(url)
-            })
-          }}
-          disabled={isPending || isPendingPage}
         />
       ) : null}
     </div>
