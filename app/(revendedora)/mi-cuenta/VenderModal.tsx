@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { QrScanner } from '@/components/inventario/QrScanner'
 import { Button } from '@/components/ui/Button'
 import { CameraIcon } from '@/components/ui/CameraIcon'
+import { BuscadorProductos, type SugerenciaProducto } from '@/components/inventario/BuscadorProductos'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
@@ -56,11 +57,54 @@ function VenderModalContenido({
   const [contactoAbierto, setContactoAbierto] = useState(false)
   const [contactoNombre, setContactoNombre] = useState('')
   const [contactoTelefono, setContactoTelefono] = useState('')
+  const [sugeridos, setSugeridos] = useState<RvpItemStockResuelto[]>([])
+  const timerSugerir = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Descarta respuestas viejas: si el usuario siguió tipeando, la búsqueda
+  // anterior puede volver después y pisar las sugerencias del texto actual.
+  const ultimaBusqueda = useRef(0)
 
   const total = useMemo(
     () => calcularTotalCarrito(carrito, (item) => item.precio_venta),
     [carrito],
   )
+
+  const sugerencias = useMemo<SugerenciaProducto[]>(() => {
+    const enCarrito = new Set(carrito.map((i) => i.id_item))
+    return sugeridos
+      .filter((s) => !enCarrito.has(s.id_item))
+      .map((s) => ({
+        id: s.id_item,
+        nombre: s.descripcion,
+        sku: s.sku,
+        detalle: `${s.talle ?? 'Único'} · ${
+          s.precio_venta === null ? 'Sin precio' : formatearMoneda(s.precio_venta)
+        }`,
+      }))
+  }, [sugeridos, carrito])
+
+  function cancelarSugerencias() {
+    if (timerSugerir.current) clearTimeout(timerSugerir.current)
+    ultimaBusqueda.current += 1
+    setSugeridos([])
+  }
+
+  function handleCambioCodigo(valor: string) {
+    setCodigo(valor)
+    if (timerSugerir.current) clearTimeout(timerSugerir.current)
+    const texto = valor.trim()
+    if (texto.length < 2) {
+      ultimaBusqueda.current += 1
+      setSugeridos([])
+      return
+    }
+    const excluir = carrito.map((i) => i.id_item)
+    timerSugerir.current = setTimeout(async () => {
+      const id = ++ultimaBusqueda.current
+      const res = await buscarItemStockRevendedoraAction({ codigo: texto, excluir })
+      if (id !== ultimaBusqueda.current) return
+      setSugeridos(res.ok ? res.data : [])
+    }, 250)
+  }
 
   function agregarItem(fila: RvpItemStockResuelto) {
     if (fila.precio_venta === null) {
@@ -77,6 +121,7 @@ function VenderModalContenido({
     setCarrito((prev) => agregarSinDuplicados(prev, [nuevo], (i) => i.id_item).siguientes)
     setCodigo('')
     setOpciones([])
+    cancelarSugerencias()
     setErrorMsg(null)
   }
 
@@ -84,6 +129,7 @@ function VenderModalContenido({
     const limpio = textoRaw.trim()
     if (!limpio || buscando || isPending) return
 
+    cancelarSugerencias()
     setBuscando(true)
     setErrorMsg(null)
     try {
@@ -121,11 +167,6 @@ function VenderModalContenido({
   useEffect(() => {
     buscarRef.current = buscarCodigo
   })
-
-  function handleSubmitBusqueda(e: React.FormEvent) {
-    e.preventDefault()
-    void buscarCodigo(codigo)
-  }
 
   function quitarItem(idItem: string) {
     setCarrito((prev) => prev.filter((i) => i.id_item !== idItem))
@@ -196,26 +237,30 @@ function VenderModalContenido({
       }
     >
       <div className="space-y-4">
-        <form onSubmit={handleSubmitBusqueda} className="flex gap-2">
-          <div className="flex-1">
-            <Input
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Escaneá o buscá por SKU o código..."
-              aria-label="Código o SKU del artículo"
-              disabled={isPending}
-              className="min-h-[44px]"
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            disabled={!codigo.trim() || buscando || isPending}
-            className="min-h-[44px] shrink-0"
-          >
-            {buscando ? 'Buscando...' : 'Buscar'}
-          </Button>
-        </form>
+        <BuscadorProductos
+          id="vender-buscar"
+          label="Artículo"
+          placeholder="Escribí el nombre, SKU o código..."
+          value={codigo}
+          onChange={handleCambioCodigo}
+          sugerencias={sugerencias}
+          onElegir={(s) => {
+            const fila = sugeridos.find((f) => f.id_item === s.id)
+            if (fila) agregarItem(fila)
+          }}
+          onSubmit={(texto) => void buscarCodigo(texto)}
+          disabled={isPending}
+          actions={
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={!codigo.trim() || buscando || isPending}
+              className="min-h-[44px] shrink-0"
+            >
+              {buscando ? 'Buscando...' : 'Buscar'}
+            </Button>
+          }
+        />
 
         {!camaraOpen ? (
           <Button
