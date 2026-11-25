@@ -1,5 +1,6 @@
 import { BASE_URL } from '../config/env'
 import { expect, test, unique } from '../fixtures/test'
+import { LoginPage } from '../pages/LoginPage'
 
 test.describe('Liquidaciones de revendedora', () => {
   test('flujo completo: preview -> excluir línea -> generar -> marcar pagada', async ({
@@ -69,13 +70,15 @@ test.describe('Liquidaciones de revendedora', () => {
     await page.waitForURL(/\/revendedoras\/[0-9a-f-]+\/consignaciones$/)
 
     // 4. Registrar ventas desde el portal de revendedora para ambos productos
-    const revContext = await browser.newContext({ baseURL: BASE_URL })
+    // Sin storageState explícito, browser.newContext hereda la sesión de admin
+    // del config y /login redirige a /ventas en vez de loguear a la revendedora.
+    const revContext = await browser.newContext({
+      baseURL: BASE_URL,
+      storageState: { cookies: [], origins: [] },
+    })
     const revPage = await revContext.newPage()
     try {
-      await revPage.goto('/login')
-      await revPage.getByLabel('Correo electrónico').fill(emailRev)
-      await revPage.getByLabel('Contraseña').fill('Password123!')
-      await revPage.getByRole('button', { name: 'Ingresar' }).click()
+      await new LoginPage(revPage).ingresarConClaveTemporal(emailRev, 'Password123!', 'Password456!')
       await revPage.waitForURL(/\/mi-cuenta(\?|$)/)
 
       await revPage.goto('/mi-cuenta/stock')

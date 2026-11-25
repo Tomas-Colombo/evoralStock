@@ -1,9 +1,10 @@
 import { expect, test, unique } from '../fixtures/test'
 import { BASE_URL } from '../config/env'
 import { serviceRoleClient } from '../support/supabase'
+import { LoginPage } from '../pages/LoginPage'
 
 test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => {
-  test('venta directa con contacto opcional, tarjeta agrupada, anulación en portal, control admin, aislamiento, redirección y módulo deshabilitado', async ({
+  test('venta directa con contacto opcional, tarjeta agrupada, anulación en portal, control admin, aislamiento y redirección', async ({
     page,
     browser,
     shell,
@@ -94,17 +95,17 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
     // -------------------------------------------------------------
     // PORTAL MÓVIL (375x812)
     // -------------------------------------------------------------
+    // Sin storageState explícito, browser.newContext hereda la sesión de admin
+    // del config y /login redirige a /ventas en vez de loguear a la revendedora.
     const rev1Context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
       baseURL: BASE_URL,
       viewport: { width: 375, height: 812 },
     })
     const rev1Page = await rev1Context.newPage()
 
     try {
-      await rev1Page.goto('/login')
-      await rev1Page.getByLabel('Correo electrónico').fill(emailRev1)
-      await rev1Page.getByLabel('Contraseña').fill('Password123!')
-      await rev1Page.getByRole('button', { name: 'Ingresar' }).click()
+      await new LoginPage(rev1Page).ingresarConClaveTemporal(emailRev1, 'Password123!', 'Password456!')
       await rev1Page.waitForURL(/\/mi-cuenta(\?|$)/)
 
       // Resumen: solo botón Vender en PageBand (sin Ver mi stock / Ver declaraciones)
@@ -117,11 +118,11 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       const modal = rev1Page.getByRole('dialog')
       await expect(modal).toBeVisible()
 
-      await modal.getByLabel('Código o SKU del artículo').fill(sku1)
+      await modal.getByLabel('Artículo', { exact: true }).fill(sku1)
       await modal.getByRole('button', { name: 'Buscar' }).click()
       await expect(modal.getByText(nombreProd1)).toBeVisible()
 
-      await modal.getByLabel('Código o SKU del artículo').fill(sku2)
+      await modal.getByLabel('Artículo', { exact: true }).fill(sku2)
       await modal.getByRole('button', { name: 'Buscar' }).click()
       await expect(modal.getByText(nombreProd2)).toBeVisible()
 
@@ -129,7 +130,7 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       await modal.getByRole('button', { name: `Quitar ${nombreProd2}` }).click()
       await expect(modal.getByText(nombreProd2)).not.toBeVisible()
 
-      await modal.getByLabel('Código o SKU del artículo').fill(sku2)
+      await modal.getByLabel('Artículo', { exact: true }).fill(sku2)
       await modal.getByRole('button', { name: 'Buscar' }).click()
       await expect(modal.getByText(nombreProd2)).toBeVisible()
 
@@ -146,11 +147,13 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       await expect(rev1Page.getByText('No tenés artículos en tu poder en este momento.')).toBeVisible()
 
       // Mis ventas: tarjeta agrupada con ambos artículos, contacto y estado "No liquidada"
+      // El Badge antepone un prefijo sr-only ("Warning:"); sin él, el texto exacto
+      // matchea la <option> oculta del filtro de estado.
       await rev1Page.goto('/mi-cuenta/ventas')
       await expect(rev1Page.getByText(nombreProd1)).toBeVisible()
       await expect(rev1Page.getByText(nombreProd2)).toBeVisible()
       await expect(rev1Page.getByText('Carla Cliente')).toBeVisible()
-      await expect(rev1Page.getByText('No liquidada', { exact: true })).toBeVisible()
+      await expect(rev1Page.getByText(/^Warning:\s*No liquidada$/)).toBeVisible()
 
       // Anular venta desde el portal
       await rev1Page.getByRole('button', { name: 'Anular venta' }).click()
@@ -161,7 +164,7 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       await expect(rev1Page.getByText('Venta anulada')).toBeVisible()
 
       // La tarjeta queda con etiqueta "Anulada" y sin botón "Anular venta"
-      await expect(rev1Page.getByText('Anulada', { exact: true })).toBeVisible()
+      await expect(rev1Page.getByText(/^Danger:\s*Anulada$/)).toBeVisible()
       await expect(rev1Page.getByRole('button', { name: 'Anular venta' })).not.toBeVisible()
 
       // Los artículos volvieron a Mi stock
@@ -178,22 +181,22 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       await expect(rev1Page.getByText('Venta registrada')).toBeVisible()
 
       await page.goto(`/revendedoras/${idRevendedora1}/ventas`)
-      const linkDetalle = page.getByRole('link', { name: /Ver/i }).first()
+      // El link al detalle es la fecha de la fila (orden: más reciente primero).
+      // Un /Ver/i suelto matcheaba "Volver" de la barra superior.
+      const linkDetalle = page.getByRole('table').locator('a[href^="/ventas/"]').first()
       await linkDetalle.click()
       await page.waitForURL(/\/ventas\/[0-9a-f-]+/)
       await expect(page.getByText('Marta AdminCheck')).toBeVisible()
 
       // Aislamiento: Revendedora 2 no ve nada de Revendedora 1
       const rev2Context = await browser.newContext({
+        storageState: { cookies: [], origins: [] },
         baseURL: BASE_URL,
         viewport: { width: 375, height: 812 },
       })
       const rev2Page = await rev2Context.newPage()
       try {
-        await rev2Page.goto('/login')
-        await rev2Page.getByLabel('Correo electrónico').fill(emailRev2)
-        await rev2Page.getByLabel('Contraseña').fill('Password123!')
-        await rev2Page.getByRole('button', { name: 'Ingresar' }).click()
+        await new LoginPage(rev2Page).ingresarConClaveTemporal(emailRev2, 'Password123!', 'Password456!')
         await rev2Page.waitForURL(/\/mi-cuenta(\?|$)/)
 
         await rev2Page.goto('/mi-cuenta/stock')
@@ -210,31 +213,9 @@ test.describe('Portal de revendedora — venta directa (mobile 375x812)', () => 
       await rev1Page.waitForURL(/\/mi-cuenta/)
       await rev1Page.goto('/revendedoras')
       await rev1Page.waitForURL(/\/mi-cuenta/)
-
-      // Módulo apagado
-      const { data: mod } = await sr
-        .from('modulo')
-        .select('id_modulo')
-        .eq('codigo', 'revendedoras')
-        .single()
-      expect(mod?.id_modulo).toBeDefined()
-
-      await sr
-        .from('tenant_modulo')
-        .update({ habilitado: false })
-        .eq('id_tenant', seed.tenantId)
-        .eq('id_modulo', mod!.id_modulo)
-
-      try {
-        await rev1Page.goto('/mi-cuenta')
-        await expect(rev1Page.getByRole('heading', { name: 'Módulo deshabilitado' })).toBeVisible()
-      } finally {
-        await sr
-          .from('tenant_modulo')
-          .update({ habilitado: true })
-          .eq('id_tenant', seed.tenantId)
-          .eq('id_modulo', mod!.id_modulo)
-      }
+      // El módulo apagado no se prueba acá: la guarda de 00118 no deja apagarlo en
+      // el tenant E2E compartido (tiene revendedoras con stock). La pantalla
+      // "Módulo deshabilitado" la cubre app/(revendedora)/mi-cuenta/layout.test.tsx.
     } finally {
       await rev1Context.close()
     }

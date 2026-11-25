@@ -32,4 +32,21 @@ export class LoginPage {
     await this.password.fill(password)
     await this.submit.click()
   }
+
+  /**
+   * First login of an account created with a temporary password (users and
+   * revendedoras): proxy.ts forces /cambiar-clave until a new one is set, and
+   * only then lets the person into the app.
+   */
+  async ingresarConClaveTemporal(email: string, temporal: string, nueva: string): Promise<void> {
+    await this.page.goto('/login')
+    await this.ingresar(email, temporal)
+    // The proxy redirect happens during the login action's soft navigation:
+    // the form renders while the URL still says /ventas, so wait for the form.
+    await expect(this.page.locator('#current_password')).toBeVisible()
+    await this.page.locator('#current_password').fill(temporal)
+    await this.page.locator('#new_password').fill(nueva)
+    await this.page.locator('#confirm_new_password').fill(nueva)
+    await this.page.getByRole('button', { name: /Update password|Updating/ }).click()
+  }
 }
